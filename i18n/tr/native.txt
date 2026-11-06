@@ -777,3 +777,25 @@ Enter 记下，日期默认今天	Enter to add; dated today
 叠加足迹	Overlay footprints
 第 %1 站	Stop %1
 %1 张	%1 photos
+＋ 新建想去	+ New wish
+%1合适	Good in %1
+其他月份更合适	Better in other months
+还没关联季节	No season linked yet
+改关联的季节	Change season
+关联季节	Link season
+%1 个地区	%1 regions
+全部 %1	All %1
+计划中 %1	Planning %1
+想去 %1	Wishlist %1
+已完成 %1	Done %1
+约 %1 天	About %1 d
+已选 %1 个	%1 selected
+在列表里隐藏（排到最后、变灰）	Hide in the list (moves to the end, greyed out)
+%1 个计划已改成“%2”	%1 plans changed to "%2"
+删除 %1 个计划	Delete %1 plans
+…… 共 %1 个计划	… %1 plans in total
+已删除 %1 个计划	Deleted %1 plans
+开始计划「%1」	Start planning "%1"
+「%1」对应季节表里的	"%1" matches this row in the season table
+「%1」已改成计划中	"%1" is now Planning
+选择	Select

@@ -241,9 +241,23 @@ void runPlanPhotos(Report &r, AppController *app, QQuickWindow *win, PlanPageCon
     if (strip) {
         pause(200);
         QMetaObject::invokeMethod(panel, "reveal", Q_ARG(QVariant, 0), Q_ARG(QVariant, true));
-        pause(500);
-        click(win, item(QStringLiteral("tripPhoto-0")));
-        r.check(waitFor([&] { return lb->property("open").toBool(); }, 1000), QStringLiteral("站点卡片的照片条点开看大图"));
+        // 等滚动停下（固定等 500 ms 时全量里偶尔点空）
+        QQuickItem *thumb = item(QStringLiteral("tripPhoto-0"));
+        if (thumb) waitStill(thumb);
+        pause(700);   // Windows差异清单 #26：和上一次点击隔开
+        QString where;
+        if (thumb) {
+            const QPointF p = thumb->mapToScene(QPointF(thumb->width() / 2, thumb->height() / 2));
+            QStringList path;
+            for (QQuickItem *c = win->contentItem(); c;) {
+                const QPointF q = c->mapFromScene(p);
+                c = c->childAt(q.x(), q.y());
+                if (c) path << (c->objectName().isEmpty() ? QString::fromLatin1(c->metaObject()->className()).left(18) : c->objectName());
+            }
+            where = QStringLiteral("点在 %1,%2 经过 %3；照片 %4 张").arg(p.x()).arg(p.y()).arg(path.join(QStringLiteral(" > "))).arg(page->property("info").toMap().value(QStringLiteral("photos")).toList().size());
+        }
+        click(win, thumb);
+        r.check(waitFor([&] { return lb->property("open").toBool(); }, 1000), QStringLiteral("站点卡片的照片条点开看大图"), lb->property("open").toBool() ? QString() : where);
         QMetaObject::invokeMethod(lb, "close");
         waitFor([&] { return !lb->isVisible(); }, 1000);
     } else r.info(QStringLiteral("第一屏没有照片条，没测"));

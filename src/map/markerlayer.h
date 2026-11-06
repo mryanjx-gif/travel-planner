@@ -144,6 +144,8 @@ public:
     bool forceDim() const { return m_forceDim; }
 
     // ---- QML ----
+    // 0.11.0 O1：计划库里鼠标放到哪个计划（空 = 离开），和碰到地图上的线一样
+    Q_INVOKABLE void hoverFromList(const QString &planId) { if (planId.isEmpty()) unhover(); else hoverLine(planId); }
     Q_INVOKABLE void hoverStop(int row);
     Q_INVOKABLE void unhoverStop(int row);
     Q_INVOKABLE void clickStop(int row);

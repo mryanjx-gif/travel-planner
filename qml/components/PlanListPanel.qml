@@ -8,6 +8,8 @@
 // 原生版（PO 0.8.8 选方案 B）：分界处加一行小标题和数量（置顶 / 计划中 / 想去 / 已完成；排序本来就是这个顺序），
 // 下次出发的那一趟名字后面带倒计时。
 // 0.8.10：标题跟着地图模式变（title 由 Main 给）；足迹模式按年份分组（group = y2025 / undated）。
+// 0.11.0：计划模式列表头"展开" = 计划库（LibraryView，面板宽度由 Main 给）；想去模式每行加季节条、开始计划、关联季节，
+// 分组 fit / other / noref（plans::wishInfo），列表头"新建想去"；足迹模式列表头下面一行统计；"在列表里隐藏"的排到最后、变灰。
 import QtQuick
 import TPApp
 
@@ -24,6 +26,14 @@ Item {
     signal filterClicked()
     signal planClicked(string id)
     signal eyeClicked(string id, bool hidden)
+    signal libraryOpenPlan(string id)
+    signal newWishClicked()
+    signal libraryDelete(var ids)
+    signal wishStart(string id)
+    signal wishSeason(string id)
+    readonly property bool expanded: plans.libraryOpen
+    readonly property bool wishMode: plans.mode === "wish"
+    readonly property bool footMode: plans.mode === "foot"
 
     visible: opacity > 0.01
     opacity: open ? 1 : 0
@@ -44,6 +54,10 @@ Item {
     function groupLabel(g) {
         if (g.length === 5 && g[0] === "y") return g.slice(1)
         if (g === "undated") return qsTr("没有日期")
+        if (g === "listHidden") return qsTr("已隐藏")
+        if (g === "fit") return qsTr("%1合适").arg(Fmt.en ? Fmt.monEn[plans.wishMonth - 1] : plans.wishMonth + " 月")
+        if (g === "other") return qsTr("其他月份更合适")
+        if (g === "noref") return qsTr("还没关联季节")
         return g === "pin" ? qsTr("已置顶") : g === "wish" ? qsTr("想去") : g === "completed" ? qsTr("已完成") : qsTr("计划中")
     }
     function dateRange(r) {
@@ -51,7 +65,11 @@ Item {
         if (r.startDate && r.endDate) return r.startDate + " → " + r.endDate + (r.days > 0 ? qsTr("（%1 天）").arg(r.days) : "")
         return r.startDate || r.endDate || qsTr("未定日期")
     }
-    function metaOf(r) { return (r.type === "route" ? qsTr("路线 · %1 站").arg(r.stops) : qsTr("单一目的地")) + " · " + dateRange(r) }
+    function metaOf(r) {
+        const kind = r.type === "route" ? qsTr("路线 · %1 站").arg(r.stops) : qsTr("单一目的地")
+        if (root.wishMode && r.regions && r.regions.length) return kind + " · " + r.regions.map(x => qsTr(x)).join(qsTr("、"))   // Electron 想去卡片：区域 + 路线 · N 站
+        return kind + " · " + dateRange(r)
+    }
     function containsGlobal(gx, gy) {
         if (!visible) return false
         const p = root.mapFromItem(null, gx, gy)
@@ -62,6 +80,19 @@ Item {
         return filterBtn.visible && p.x >= 0 && p.y >= 0 && p.x <= filterBtn.width && p.y <= filterBtn.height
     }
     readonly property alias filterButton: filterBtn
+    component HeadPill: Item {
+        id: pill
+        property string text: ""
+        signal clicked()
+        width: pillText.implicitWidth + Theme.px(20)
+        height: Theme.px(28)
+        anchors.verticalCenter: parent.verticalCenter
+        Accessible.role: Accessible.Button
+        Accessible.name: text
+        Rectangle { anchors.fill: parent; radius: height / 2; color: pillMa.containsMouse ? Qt.rgba(1, 1, 1, 0.7) : Qt.rgba(1, 1, 1, 0.45); border.color: Theme.line }
+        Text { id: pillText; anchors.centerIn: parent; text: pill.text; font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.text }
+        MouseArea { id: pillMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: pill.clicked() }
+    }
 
     GlassPanel {
         anchors.fill: parent
@@ -86,9 +117,22 @@ Item {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             spacing: Theme.px(6)
+            HeadPill {
+                objectName: "listExpandBtn"
+                visible: plans.mode === "plan"
+                text: root.expanded ? qsTr("收起") : qsTr("展开")
+                onClicked: plans.setLibraryOpen(!root.expanded)
+            }
+            HeadPill {
+                objectName: "wishNewBtn"
+                visible: root.wishMode
+                text: qsTr("＋ 新建想去")
+                onClicked: root.newWishClicked()
+            }
             Item {
                 id: filterBtn
                 objectName: "listFilterBtn"
+                visible: !root.expanded
                 width: fRow.implicitWidth + Theme.px(20)
                 height: Theme.px(28)
                 anchors.verticalCenter: parent.verticalCenter
@@ -128,12 +172,45 @@ Item {
         }
     }
 
+    // 足迹的统计（PO 第 3 题 A）：地区数和足迹框同一个数（手动标记的 + 已完成计划经过的，不去重到国家）；省界模型第一次要用时才建
+    Text {
+        id: footStat
+        objectName: "footStat"
+        visible: root.footMode && root.open
+        x: Theme.px(18)
+        y: head.y + head.height
+        width: root.width - Theme.px(36)
+        elide: Text.ElideRight
+        text: qsTr("%1 趟").arg(root.info.completed || 0) + (mapc.unlockReady ? " · " + qsTr("%1 个地区").arg(mapc.unlockProvinces) : "")
+        font.family: serifFamily; font.pixelSize: Theme.px(13); font.bold: true; color: Theme.accent
+        onVisibleChanged: if (visible) mapc.needUnlockCount()
+    }
+
+    // ---- 计划库 ----
+    Loader {
+        id: libraryLoader
+        active: root.expanded
+        x: 0
+        y: head.y + head.height + Theme.px(4)
+        width: parent.width
+        height: parent.height - y
+        sourceComponent: Component {
+            LibraryView {
+                objectName: "libraryView"
+                onOpenPlan: (id) => root.libraryOpenPlan(id)
+                onDeleteRequested: (ids) => root.libraryDelete(ids)
+            }
+        }
+    }
+    function leaveLibrarySelection() { if (libraryLoader.item) libraryLoader.item.leaveSel() }
+
     // ---- 列表 ----
     ListView {
         id: list
         objectName: "planListView"
+        visible: !root.expanded
         x: Theme.px(8)
-        y: head.y + head.height + Theme.px(4)
+        y: head.y + head.height + Theme.px(4) + (root.footMode ? footStat.implicitHeight + Theme.px(4) : 0)
         width: parent.width - Theme.px(16)
         height: parent.height - y - foot.height - Theme.px(24)
         clip: true
@@ -202,7 +279,7 @@ Item {
             readonly property bool header: modelData.header
             readonly property var r: header ? ({}) : modelData.row
             width: list.width
-            height: header ? Theme.px(index === 0 ? 24 : 32) : Theme.px(52)
+            height: header ? Theme.px(index === 0 ? 24 : 32) : root.wishMode ? Theme.px(52) + (r.kinds && r.kinds.length ? Theme.px(10) : 0) + Theme.px(24) : Theme.px(52)
             objectName: header ? "" : "planRow-" + r.id
 
             // 小标题（方案 B）
@@ -211,7 +288,7 @@ Item {
                 x: Theme.px(10)
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: Theme.px(3)
-                text: cell.header ? root.groupLabel(cell.modelData.group) + "  " + cell.modelData.count : ""
+                text: cell.header ? root.groupLabel(cell.modelData.group) + (root.wishMode ? " · " : "  ") + cell.modelData.count : ""
                 font.family: serifFamily; font.pixelSize: Theme.px(11); font.letterSpacing: 1.2; color: Theme.muted
             }
 
@@ -224,18 +301,18 @@ Item {
             Item {
                 visible: !cell.header
                 anchors.fill: parent
-                opacity: cell.r.hidden ? 0.45 : 1
+                opacity: cell.r.hidden || cell.r.listHidden ? 0.45 : 1
                 Rectangle {
                     id: dot
                     x: Theme.px(12)
-                    anchors.verticalCenter: parent.verticalCenter
+                    y: Theme.px(26) - height / 2
                     width: Theme.px(9); height: width; radius: width / 2
                     color: cell.r.color || Theme.accent
                 }
                 Column {
                     x: dot.x + dot.width + Theme.px(10)
                     width: parent.width - x - eye.width - Theme.px(10)
-                    anchors.verticalCenter: parent.verticalCenter
+                    y: Theme.px(8)
                     spacing: Theme.px(1)
                     Row {
                         width: parent.width
@@ -250,11 +327,12 @@ Item {
                         }
                         Rectangle {
                             id: badge
-                            visible: cell.r.isNext === true && root.nextBadge !== ""
+                            readonly property bool now: cell.r.nowFit === true   // 想去：今天这个月合适（H-02）
+                            visible: now || (cell.r.isNext === true && root.nextBadge !== "")
                             anchors.verticalCenter: parent.verticalCenter
                             width: bt.implicitWidth + Theme.px(12); height: Theme.px(17); radius: height / 2
-                            color: "#f3e3d9"
-                            Text { id: bt; anchors.centerIn: parent; text: root.nextBadge; font.family: serifFamily; font.pixelSize: Theme.px(11); font.bold: true; color: "#8a4210" }
+                            color: now ? "#e3f0e6" : "#f3e3d9"
+                            Text { id: bt; anchors.centerIn: parent; text: badge.now ? qsTr("现在去正好") : root.nextBadge; font.family: serifFamily; font.pixelSize: Theme.px(11); font.bold: true; color: badge.now ? "#2f6b45" : "#8a4210" }
                         }
                     }
                     Text {
@@ -262,6 +340,24 @@ Item {
                         text: cell.header ? "" : root.metaOf(cell.r)
                         elide: Text.ElideRight
                         font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
+                    }
+                    // 想去：季节条，选中的月份描一圈
+                    Row {
+                        objectName: cell.header ? "" : "wishStrip-" + cell.r.id
+                        visible: root.wishMode && !cell.header && (cell.r.kinds || []).length > 0
+                        topPadding: Theme.px(4)
+                        spacing: Theme.px(2)
+                        Repeater {
+                            model: parent.visible ? cell.r.kinds : []
+                            delegate: Rectangle {
+                                required property var modelData
+                                required property int index
+                                width: Theme.px(16); height: Theme.px(7); radius: Theme.px(2)
+                                color: Theme.seasonColor(modelData)
+                                border.width: index + 1 === plans.wishMonth ? 1.5 : 0
+                                border.color: Theme.text
+                            }
+                        }
                     }
                 }
             }
@@ -275,6 +371,21 @@ Item {
                 Accessible.name: cell.r.name || ""
                 onClicked: root.planClicked(cell.r.id)
             }
+            // 想去：开始计划、关联季节（放在行的 MouseArea 上面）
+            Row {
+                visible: root.wishMode && !cell.header
+                x: dot.x + dot.width + Theme.px(10)
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: Theme.px(6)
+                spacing: Theme.px(14)
+                LinkText { objectName: cell.header ? "" : "wishStartBtn-" + cell.r.id; small: true; text: qsTr("开始计划"); onClicked: root.wishStart(cell.r.id) }
+                LinkText {
+                    objectName: cell.header ? "" : "wishSeasonBtn-" + cell.r.id
+                    small: true; muted: true
+                    text: (cell.r.kinds || []).length ? qsTr("改关联的季节") : qsTr("关联季节")
+                    onClicked: root.wishSeason(cell.r.id)
+                }
+            }
             // 眼睛：在地图上隐藏 / 显示（不变淡，好找）
             Item {
                 id: eye
@@ -282,7 +393,7 @@ Item {
                 visible: !cell.header
                 anchors.right: parent.right
                 anchors.rightMargin: Theme.px(6)
-                anchors.verticalCenter: parent.verticalCenter
+                y: Theme.px(10)
                 width: Theme.px(32); height: Theme.px(32)
                 Accessible.role: Accessible.Button
                 Accessible.name: cell.r.hidden ? qsTr("在地图上显示") : qsTr("在地图上隐藏")
@@ -300,7 +411,7 @@ Item {
 
     // 没有计划 / 当前筛选下没有计划
     Text {
-        visible: root.rows.length === 0
+        visible: root.rows.length === 0 && !root.expanded
         x: Theme.px(20); y: list.y + Theme.px(16)
         width: root.width - Theme.px(40)
         wrapMode: Text.Wrap
@@ -310,9 +421,10 @@ Item {
     }
 
     // ---- 底部 ----
-    Rectangle { x: Theme.px(14); width: root.width - Theme.px(28); height: 1; color: Theme.line; y: foot.y - Theme.px(8) }
+    Rectangle { visible: !root.expanded; x: Theme.px(14); width: root.width - Theme.px(28); height: 1; color: Theme.line; y: foot.y - Theme.px(8) }
     Text {
         id: foot
+        visible: !root.expanded
         x: Theme.px(18)
         anchors.bottom: parent.bottom
         anchors.bottomMargin: Theme.px(12)

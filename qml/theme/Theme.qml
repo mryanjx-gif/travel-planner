@@ -13,6 +13,7 @@ QtObject {
     function px(n) { return Math.round(n * scale) }
 
     // 颜色
+    function seasonColor(k) { return k === "best" ? "#3f9a5a" : k === "nice" ? "#5b93c9" : k === "meh" ? "#e0b23f" : k === "bad" ? "#b9b2a7" : line }   // 季节条（计划页、想去）
     readonly property color bg: "#ebf0f4"
     readonly property color panel: "#f8fafc"
     readonly property color panel2: "#eef2f5"

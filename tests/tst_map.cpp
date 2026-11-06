@@ -65,6 +65,8 @@ class TestMap : public QObject
 {
     Q_OBJECT
 private slots:
+    void plansLibrary();
+    void tripTone();
     void altitudeRules();
     void weatherParsing();
     void elevEditing();
@@ -1380,6 +1382,116 @@ void TestMap::plansListInfo()
     QCOMPARE(grp, (QStringList{ "y2025", "y2024", "y2024", "undated", "undated" }));
     QCOMPARE(l.value("rows").toList().at(1).toMap().value("groupCount").toInt(), 2);
     QVERIFY(order.mid(3).contains("b") && order.mid(3).contains("e"));
+}
+
+// 0.11.0 计划库、想去的分组、批量
+void TestMap::plansLibrary()
+{
+    tp::json::Value root = parseJson(R"({"plans":[
+        {"id":"a","name":"乙路线","status":"planning","type":"route","startDate":"2026-01-01","endDate":"2026-01-03","stops":[{"name":"京都","lat":35,"lng":135},{"lat":34,"lng":135.5},{"name":"无坐标"}]},
+        {"id":"b","name":"甲目的地","status":"wish","type":"single","days":4.4,"seasonRef":"日本","cover":"ph2","stops":[{"lat":1,"lng":2}]},
+        {"id":"c","name":"丙","status":"wish","type":"route","pinnedAt":5,"seasonRef":"没有这行","stops":[]},
+        {"id":"d","name":"丁","status":"completed","stops":[{"lat":1,"lng":2},{"lat":3,"lng":4},{"lat":5,"lng":6}]},
+        {"id":"e","name":"戊","status":"wish","seasonRef":"日本"}
+    ],"photos":[{"id":"ph1","file":"photos/1.jpg","plan":"b"},{"id":"ph2","file":"photos/2.jpg","plan":"b"},{"id":"ph3","file":"photos/3.jpg","plan":"a"}],
+    "seasonGuide":{"rows":[{"country":"日本","countryEn":"Japan","group":"东亚","spans":[{"from":3,"to":4,"kind":"best"},{"from":10,"to":11,"kind":"nice"},{"from":7,"to":8,"kind":"bad"}]}]}})");
+    const auto ids = [](const QVariantMap &l) { QStringList o; for (const QVariant &v : l.value("rows").toList()) o << v.toMap().value("id").toString(); return o; };
+    plans::LibraryQuery q;
+    QVariantMap l = plans::libraryInfo(root, q);
+    QCOMPARE(l.value("total").toInt(), 5);
+    QCOMPARE(l.value("wish").toInt(), 3);
+    QCOMPARE(ids(l).first(), QStringLiteral("c"));   // 置顶的最前
+    const auto row = [&l](const QString &id) { for (const QVariant &v : l.value("rows").toList()) if (v.toMap().value("id").toString() == id) return v.toMap(); return QVariantMap(); };
+    QCOMPARE(row("b").value("coverFile").toString(), QStringLiteral("photos/2.jpg"));   // 设的封面
+    QCOMPARE(row("a").value("coverFile").toString(), QStringLiteral("photos/3.jpg"));   // 没设：第一张
+    QCOMPARE(row("b").value("photos").toInt(), 2);
+    QCOMPARE(row("b").value("estDays").toInt(), 4);
+    QCOMPARE(row("a").value("days").toInt(), 3);
+    QCOMPARE(row("a").value("stops").toInt(), 2);
+    QCOMPARE(row("a").value("sketch").toList().size(), 2);
+    // 搜索：计划名或站点名（包括没坐标的站点），不分大小写
+    q.q = QStringLiteral("京都");
+    QCOMPARE(ids(plans::libraryInfo(root, q)), QStringList{ "a" });
+    q.q = QStringLiteral("无坐标");
+    QCOMPARE(ids(plans::libraryInfo(root, q)), QStringList{ "a" });
+    q.q.clear();
+    q.status = QStringLiteral("completed");
+    QCOMPARE(ids(plans::libraryInfo(root, q)), QStringList{ "d" });
+    q.status = QStringLiteral("all");
+    q.type = QStringLiteral("single");
+    QVERIFY(!ids(plans::libraryInfo(root, q)).contains("a"));
+    q.type = QStringLiteral("all");
+    q.sort = QStringLiteral("stops");
+    q.hidden = { QStringLiteral("d") };
+    l = plans::libraryInfo(root, q);
+    QCOMPARE(ids(l).last(), QStringLiteral("d"));   // 站点最多，但隐藏的在最后
+    QCOMPARE(ids(l).at(1), QStringLiteral("a"));
+    QVERIFY(row("d").value("hidden").toBool());
+    q.sort = QStringLiteral("date");
+    q.hidden.clear();
+    QCOMPARE(ids(plans::libraryInfo(root, q)).at(1), QStringLiteral("a"));   // 有日期的在前（新的在前）
+
+    // 收起的列表：隐藏的排到最后一组
+    QVariantList rows = plans::listInfo(root, plans::Filter::all(), false, { QStringLiteral("a") }).value("rows").toList();
+    QCOMPARE(rows.last().toMap().value("id").toString(), QStringLiteral("a"));
+    QCOMPARE(rows.last().toMap().value("group").toString(), QStringLiteral("listHidden"));
+
+    // 想去：3 月 best 在前，没关联的（含 seasonRef 指向没有的行）一直在
+    plans::Filter f = plans::Filter::all();
+    f.status = { QStringLiteral("wish") };
+    QVariantMap w = plans::wishInfo(root, f, 3, 11, {});
+    QCOMPARE(ids(w).size(), 3);
+    const auto grp = [](const QVariantMap &m, const QString &id) { for (const QVariant &v : m.value("rows").toList()) if (v.toMap().value("id").toString() == id) return v.toMap(); return QVariantMap(); };
+    QCOMPARE(grp(w, "b").value("group").toString(), QStringLiteral("fit"));
+    QCOMPARE(grp(w, "c").value("group").toString(), QStringLiteral("noref"));
+    QCOMPARE(grp(w, "c").value("kinds").toStringList().size(), 0);
+    QCOMPARE(grp(w, "b").value("kinds").toStringList().size(), 12);
+    QCOMPARE(grp(w, "b").value("groupCount").toInt(), 2);
+    QVERIFY(grp(w, "b").value("nowFit").toBool());   // 11 月 nice
+    QCOMPARE(ids(w).last(), QStringLiteral("c"));
+    QCOMPARE(w.value("months").toList().at(2).toInt(), 2);
+    QCOMPARE(w.value("months").toList().at(6).toInt(), 0);
+    w = plans::wishInfo(root, f, 8, 8, {});
+    QCOMPARE(grp(w, "b").value("group").toString(), QStringLiteral("other"));
+    QVERIFY(!grp(w, "b").value("nowFit").toBool());
+    QCOMPARE(ids(w).size(), 3);
+    QCOMPARE(plans::wishFit(root, *plans::planById(root, "b"), 3), 1);
+    QCOMPARE(plans::wishFit(root, *plans::planById(root, "b"), 8), 0);
+    QCOMPARE(plans::wishFit(root, *plans::planById(root, "c"), 3), -1);
+    QCOMPARE(plans::seasonRows(root).at(0).toMap().value("group").toString(), QStringLiteral("东亚"));
+
+    // 批量、开始计划、关联季节
+    QVERIFY(plans::setPlansStatus(root, { "a", "b" }, "completed"));
+    QCOMPARE(plans::statusOf(*plans::planById(root, "b")), QStringLiteral("completed"));
+    QVERIFY(!plans::setPlansStatus(root, { "a", "b" }, "completed"));
+    QVERIFY(!plans::setPlansStatus(root, { "a" }, "坏状态"));
+    QVERIFY(plans::startPlan(root, "e", "2030-01-02", ""));
+    QCOMPARE(plans::statusOf(*plans::planById(root, "e")), QStringLiteral("planning"));
+    QCOMPARE((*plans::planById(root, "e"))[QStringLiteral("endDate")].toString(), QStringLiteral("2030-01-02"));
+    QVERIFY(plans::setSeasonRef(root, "e", ""));
+    QVERIFY(!plans::planById(root, "e")->asObject().find(QStringLiteral("seasonRef")));
+    QVERIFY(plans::setSeasonRef(root, "e", "日本"));
+    QVERIFY(!plans::setSeasonRef(root, "e", "日本"));
+    QVERIFY(plans::deletePlans(root, { "a", "没有", "d" }));
+    QCOMPARE(root[QStringLiteral("plans")].asArray().size(), size_t(3));
+    QCOMPARE(root[QStringLiteral("photos")].asArray().size(), size_t(3));   // 照片不删
+}
+
+// 0.11.0 想去的颜色只影响这一次要画的，不进缓存
+void TestMap::tripTone()
+{
+    tp::json::Value root = parseJson(R"({"plans":[{"id":"r","status":"wish","type":"route","color":"#204060","stops":[{"lat":1,"lng":2},{"lat":3,"lng":4}]}]})");
+    tp::map::TripData t;
+    t.build(root, {}, [](const tp::json::Value &) { return -1; });
+    QCOMPARE(t.plans().at(0).tone, -1);
+    QVERIFY(t.plans().at(0).color != QStringLiteral("#204060"));
+    const QString faded = t.routesJsonOnly("r");
+    QVERIFY(!faded.contains("#204060"));
+    QVERIFY(faded.contains("#8f9faf"));
+    t.build(root);
+    QCOMPARE(t.plans().at(0).tone, 0);
+    QCOMPARE(t.plans().at(0).color, QStringLiteral("#204060"));
+    QVERIFY(t.routesJsonOnly("r").contains("#204060"));
 }
 
 // 0.8.8 Ctrl K 的条目：按原顺序，每个计划后面跟着它有名字的有效站点；站点下标是有效站点里的下标（和地图选中用的一样）

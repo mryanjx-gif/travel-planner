@@ -374,12 +374,12 @@ void MapController::rebuildData()
     if (m_deferRebuild) { m_rebuildPending = true; m_rebuildTimer.stop(); return; }   // 0.9.2：启动时攒着，最后只重建一次
     // 0.9.1 计时；0.9.2：行程按计划缓存（只重算改了的），标记不再整份重建 QML 元素，"已解锁"的输入没变就不重新上色
     tp::app::perf::Scope timing("数据重建", 0);
-    if (m_draftId.isEmpty()) m_trips.build(m_store->data(), m_planFilter);
+    if (m_draftId.isEmpty()) m_trips.build(m_store->data(), m_planFilter, m_planTone);
     else
         // 编辑中的计划由草稿画（Electron renderMap：编辑中的由 renderDraft 画）
         m_trips.build(m_store->data(), [this](const json::Value &plan) {
             return plan[QStringLiteral("id")].toString() != m_draftId && (!m_planFilter || m_planFilter(plan));
-        });
+        }, m_planTone);
     timing.part(QStringLiteral("行程（重算 %1 个）").arg(m_trips.recomputed()).toUtf8().constData());
     // 0.9.7 叠上来的其他旅程（编辑中的那个不算）：只要线
     if (m_overlayFilter) {

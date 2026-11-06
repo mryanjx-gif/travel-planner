@@ -606,7 +606,7 @@ bool deletePlan(Value &root, const QString &planId)
 
 // ---------------- "我的旅程"列表（0.8.8，S-08） ----------------
 
-QVariantMap listInfo(const Value &root, const Filter &f, bool byYear)
+QVariantMap listInfo(const Value &root, const Filter &f, bool byYear, const QSet<QString> &listHidden)
 {
     // Electron renderList：filteredPlans()（只看筛选，不看眼睛隐藏；隐藏的那一行变淡）按 comparePlans 排序
     const json::Array &arr = root[QStringLiteral("plans")].asArray();
@@ -649,6 +649,7 @@ QVariantMap listInfo(const Value &root, const Filter &f, bool byYear)
         r.insert(QStringLiteral("pinned"), pinned);
         r.insert(QStringLiteral("hidden"), f.hidden.contains(id));
         r.insert(QStringLiteral("isNext"), !nextId.isEmpty() && id == nextId);
+        r.insert(QStringLiteral("listHidden"), listHidden.contains(id));
         // 分组（0.8.8 方案 B 的小标题）：置顶的单独一组，其余按状态；排序本来就是这个顺序，组是连续的。
         // 0.8.10 足迹：按年份
         if (byYear) {
@@ -657,8 +658,11 @@ QVariantMap listInfo(const Value &root, const Filter &f, bool byYear)
         } else {
             r.insert(QStringLiteral("group"), pinned ? QStringLiteral("pin") : statusOf(p));
         }
+        if (listHidden.contains(id)) r.insert(QStringLiteral("group"), QStringLiteral("listHidden"));
         rows << r;
     }
+    // 0.11.0 在列表里隐藏的排到最后
+    std::stable_partition(rows.begin(), rows.end(), [](const QVariant &v) { return !v.toMap().value(QStringLiteral("listHidden")).toBool(); });
     // 每组几个（小标题上的数字）
     QHash<QString, int> inGroup;
     for (const QVariant &v : rows) inGroup[v.toMap().value(QStringLiteral("group")).toString()]++;
@@ -677,6 +681,128 @@ QVariantMap listInfo(const Value &root, const Filter &f, bool byYear)
     }
     return { { QStringLiteral("rows"), rows }, { QStringLiteral("total"), int(arr.size()) },
              { QStringLiteral("planning"), planning }, { QStringLiteral("wish"), wish }, { QStringLiteral("completed"), completed } };
+}
+
+// ---------------- 计划库（0.11.0） ----------------
+
+bool libraryMatches(const Value &p, const LibraryQuery &q)
+{
+    if (q.status != QLatin1String("all") && statusOf(p) != q.status) return false;
+    if (q.type != QLatin1String("all") && typeOf(p) != q.type) return false;
+    const QString t = q.q.trimmed();
+    if (t.isEmpty() || str(p, "name").contains(t, Qt::CaseInsensitive)) return true;
+    for (const Value &s : p[QStringLiteral("stops")].asArray())
+        if (str(s, "name").contains(t, Qt::CaseInsensitive)) return true;
+    return false;
+}
+
+QVariantMap libraryInfo(const Value &root, const LibraryQuery &q)
+{
+    const json::Array &arr = root[QStringLiteral("plans")].asArray();
+    QHash<QString, int> photos;
+    QHash<QString, QString> firstPhoto, fileById;
+    for (const Value &ph : root[QStringLiteral("photos")].asArray()) {
+        const QString pl = str(ph, "plan"), file = str(ph, "file");
+        fileById.insert(str(ph, "id"), file);
+        if (pl.isEmpty()) continue;
+        photos[pl]++;
+        if (!firstPhoto.contains(pl)) firstPhoto.insert(pl, file);
+    }
+    QVector<int> order;
+    for (int i : sortedIndexes(root, false))
+        if (libraryMatches(arr[i], q)) order << i;
+    const auto byName = [&arr](int a, int b) { return compareNames(str(arr[a], "name"), str(arr[b], "name")); };
+    if (q.sort == QLatin1String("date")) {
+        std::stable_sort(order.begin(), order.end(), [&](int a, int b) {
+            const int c = str(arr[b], "startDate").compare(str(arr[a], "startDate"));
+            return c ? c < 0 : byName(a, b) < 0;
+        });
+    } else if (q.sort == QLatin1String("name")) {
+        std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return byName(a, b) < 0; });
+    } else if (q.sort == QLatin1String("stops")) {
+        std::stable_sort(order.begin(), order.end(), [&](int a, int b) {
+            const qsizetype x = validStopIndexes(arr[a]).size(), y = validStopIndexes(arr[b]).size();
+            return x != y ? x > y : byName(a, b) < 0;
+        });
+    }
+    // Electron view.order：置顶的最前、隐藏的最后
+    const auto rank = [&](int i) { return q.hidden.contains(arr[i][kId].toString()) ? 2 : pinOf(arr[i]) != 0 ? 0 : 1; };
+    std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return rank(a) < rank(b); });
+
+    QVariantList rows;
+    for (int i : order) {
+        const Value &p = arr[i];
+        const QString id = p[kId].toString(), start = str(p, "startDate"), end = str(p, "endDate");
+        const QDate a = QDate::fromString(start, QStringLiteral("yyyy-MM-dd")), b = QDate::fromString(end, QStringLiteral("yyyy-MM-dd"));
+        QVariantList sketch;
+        const QVector<int> st = validStopIndexes(p);
+        for (int k : st) {
+            const Value &s = p[QStringLiteral("stops")].asArray()[k];
+            sketch << QVariantMap{ { QStringLiteral("lat"), s[QStringLiteral("lat")].toNumber() }, { QStringLiteral("lng"), s[QStringLiteral("lng")].toNumber() } };
+        }
+        QString cover = fileById.value(str(p, "cover"));
+        if (cover.isEmpty()) cover = firstPhoto.value(id);   // Electron coverOf：没设封面时用第一张
+        rows << QVariantMap{
+            { QStringLiteral("id"), id }, { QStringLiteral("name"), str(p, "name") }, { QStringLiteral("color"), planColor(p) },
+            { QStringLiteral("status"), statusOf(p) }, { QStringLiteral("type"), typeOf(p) }, { QStringLiteral("stops"), int(st.size()) },
+            { QStringLiteral("startDate"), start }, { QStringLiteral("endDate"), end },
+            { QStringLiteral("days"), a.isValid() && b.isValid() ? int(a.daysTo(b)) + 1 : -1 },
+            { QStringLiteral("estDays"), std::isfinite(p[QStringLiteral("days")].jsToNumber()) ? int(std::lround(p[QStringLiteral("days")].jsToNumber())) : 0 },
+            { QStringLiteral("pinned"), pinOf(p) != 0 }, { QStringLiteral("hidden"), q.hidden.contains(id) },
+            { QStringLiteral("regions"), regionsOf(p) }, { QStringLiteral("photos"), photos.value(id) },
+            { QStringLiteral("coverFile"), cover }, { QStringLiteral("sketch"), sketch } };
+    }
+    int planning = 0, wish = 0, completed = 0;
+    for (const Value &p : arr) {
+        const QString st = statusOf(p);
+        if (st == QLatin1String("wish")) ++wish;
+        else if (st == QLatin1String("completed")) ++completed;
+        else ++planning;
+    }
+    return { { QStringLiteral("rows"), rows }, { QStringLiteral("total"), int(arr.size()) }, { QStringLiteral("planning"), planning },
+             { QStringLiteral("wish"), wish }, { QStringLiteral("completed"), completed } };
+}
+
+bool setPlansStatus(Value &root, const QStringList &ids, const QString &status)
+{
+    if (!allStatuses().contains(status)) return false;
+    bool changed = false;
+    for (const QString &id : ids) {
+        Value *p = mutPlan(root, id);
+        if (!p || statusOf(*p) == status) continue;
+        p->mutObject().set(QStringLiteral("status"), Value(status));
+        changed = true;
+    }
+    return changed;
+}
+
+bool deletePlans(Value &root, const QStringList &ids)
+{
+    bool changed = false;
+    for (const QString &id : ids) changed = deletePlan(root, id) || changed;
+    return changed;
+}
+
+bool startPlan(Value &root, const QString &planId, const QString &start, const QString &end)
+{
+    Value *p = mutPlan(root, planId);
+    if (!p) return false;
+    json::Object &o = p->mutObject();
+    o.set(QStringLiteral("status"), Value(QStringLiteral("planning")));
+    if (okDate(start)) {
+        o.set(QStringLiteral("startDate"), Value(start));
+        o.set(QStringLiteral("endDate"), Value(okDate(end) ? end : start));
+    }
+    return true;
+}
+
+bool setSeasonRef(Value &root, const QString &planId, const QString &ref)
+{
+    Value *p = mutPlan(root, planId);
+    if (!p || str(*p, "seasonRef") == ref) return false;
+    if (ref.isEmpty()) p->mutObject().remove(QStringLiteral("seasonRef"));
+    else p->mutObject().set(QStringLiteral("seasonRef"), Value(ref));
+    return true;
 }
 
 // ---------------- Ctrl K 的计划和站点（0.8.8，S-12） ----------------

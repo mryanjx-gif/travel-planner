@@ -50,6 +50,10 @@ class PlanController : public QObject
     Q_PROPERTY(bool overlay READ overlay NOTIFY overlayChanged)                    // 0.9.7：这个模式叠上了其他旅程（总开关）
     Q_PROPERTY(QVariantMap overlayParts READ overlayParts NOTIFY overlayChanged)   // 0.10.5：这个模式叠哪些：{ 另外两个模式: 开 / 关 }
     Q_PROPERTY(bool overlayLit READ overlayLit NOTIFY overlayChanged)              // 总开关开着，且至少叠一项（按钮上的小圆点）
+    // 0.11.0 计划库（"我的旅程"展开）：开着时地图画的就是列出来的（状态、类型、搜索），眼睛隐藏的仍不画，"叠上其他旅程"不起作用
+    Q_PROPERTY(bool libraryOpen READ libraryOpen NOTIFY libraryOpenChanged)
+    Q_PROPERTY(QVariantMap library READ library NOTIFY libraryChanged)   // plans::libraryInfo + view、status、type、sort、q、closed（收起的区域）
+    Q_PROPERTY(int wishMonth READ wishMonth NOTIFY listChanged)          // 0.11.0 想去的月份条选的月（1–12，默认这个月，不记住）
 
 public:
     PlanController(AppController *app, Settings *settings, data::DataStore *store, map::MapController *mapc, QObject *parent = nullptr);
@@ -71,7 +75,7 @@ public:
     static QStringList modes() { return { QStringLiteral("plan"), QStringLiteral("wish"), QStringLiteral("foot"), QStringLiteral("photo") }; }
     QString modePrimary() const;
     bool overlayAvailable() const { return m_mode != QLatin1String("photo"); }
-    bool overlay() const { return overlayAvailable() && m_overlay.value(m_mode) && !m_testAll; }
+    bool overlay() const { return overlayAvailable() && m_overlay.value(m_mode) && !m_testAll && !m_libOpen; }
     QVariantMap overlayParts() const;
     bool overlayLit() const { return overlay() && m_overlayOff.value(m_mode).size() < 2; }
     // 0.9.7：地图画淡灰细线的那些计划：叠上开着时，状态不是这个模式的、但类型 / 区域 / 隐藏都通过的；0.10.5 它的模式也要没被子选项关掉
@@ -116,6 +120,23 @@ public:
     Q_INVOKABLE bool markCompleted(const QString &planId);
     Q_INVOKABLE bool deletePlan(const QString &planId);
 
+    // ---- 0.11.0 计划库、想去 ----
+    bool libraryOpen() const { return m_libOpen; }
+    QVariantMap library() const { return m_library; }
+    int wishMonth() const { return m_wishMonth; }
+    Q_INVOKABLE void setLibraryOpen(bool on);
+    Q_INVOKABLE void setLibraryPref(const QString &key, const QString &value);   // key：view / status / type / sort / q（q 不记住）
+    Q_INVOKABLE void toggleLibraryRegion(const QString &key);
+    Q_INVOKABLE void setListHidden(const QStringList &ids, bool hidden);
+    Q_INVOKABLE bool setPlansStatus(const QStringList &ids, const QString &status);
+    Q_INVOKABLE bool deletePlans(const QStringList &ids);
+    Q_INVOKABLE void setWishMonth(int month);
+    Q_INVOKABLE bool startPlan(const QString &planId, const QString &start, const QString &end);
+    Q_INVOKABLE bool setSeasonRef(const QString &planId, const QString &ref);
+    Q_INVOKABLE QVariantList seasonRows() const;
+    Q_INVOKABLE QVariantMap planBasics(const QString &planId) const;   // 对话框打开时要的 { name, startDate, endDate, seasonRef }
+    void reopenLibraryForTest(const QString &settingsFile);            // 自检：现在的计划库设置写进这个文件，清空，再读回来
+
     // ---- 0.10.0 ----
     // 完整计划页开着时地图只画这一条（S-04，Electron setSolo）；空 = 恢复
     Q_INVOKABLE void setSolo(const QString &planId);
@@ -140,6 +161,8 @@ signals:
     void recentChanged();
     void modeChanged();
     void overlayChanged();   // 0.9.7（换模式时也发）
+    void libraryOpenChanged();
+    void libraryChanged();
 
 private:
     void loadFilter();
@@ -147,6 +170,9 @@ private:
     void refreshNow();
     void refreshSheet();
     void refreshList();
+    void refreshLibrary();
+    void saveLibrary();
+    void loadLibrary(const Settings &s);
     void loadRecent();
     void loadModes();
     void saveModes();
@@ -168,6 +194,13 @@ private:
     QTimer m_dayTimer;
     bool m_persist = true;
     QString m_solo;
+    bool m_libOpen = false;
+    QTimer m_libSearchTimer;   // 打字时列表马上变，地图停 200 ms 再跟（重建标记约 150 ms）
+    map::plans::LibraryQuery m_lib;
+    QString m_libView = QStringLiteral("gallery");   // PO 第 1 题 A
+    QStringList m_libClosed;
+    QVariantMap m_library;
+    int m_wishMonth = 0;
 };
 
 } // namespace tp::app

@@ -164,7 +164,7 @@ Item {
         return qsTr("%1 在 %2 到期，早于回程（%3）").arg(name).arg(w.expires).arg(w.end)
     }
     function seasonLabel(k) { return k === "best" ? qsTr("最适合") : k === "nice" ? qsTr("不错") : k === "meh" ? qsTr("有点热/人多") : k === "bad" ? qsTr("不推荐") : "" }
-    function seasonColor(k) { return k === "best" ? "#3f9a5a" : k === "nice" ? "#5b93c9" : k === "meh" ? "#e0b23f" : k === "bad" ? "#b9b2a7" : Theme.line }
+    function seasonColor(k) { return Theme.seasonColor(k) }
     function seasonNote(m) {
         const c = (info.season.cells || [])[m - 1] || {}
         const place = Fmt.en && info.season.nameEn ? info.season.nameEn : info.season.name

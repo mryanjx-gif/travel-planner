@@ -3,6 +3,7 @@
 #include "roads.h"
 
 #include <QJsonDocument>
+#include <QRegularExpression>
 #include <QSet>
 #include <QStringList>
 #include <algorithm>
@@ -186,7 +187,38 @@ TripData::Computed TripData::compute(const json::Value &pv)
     return c;
 }
 
-void TripData::build(const json::Value &root, const std::function<bool(const json::Value &plan)> &visible)
+// 0.11.0 没关联季节的想去：颜色往白色混一半
+static QString fadedColor(const QString &c)
+{
+    if (c.size() != 7 || c[0] != u'#') return c;   // 这个库不链接 QtGui；颜色都是 #rrggbb
+    QString out = QStringLiteral("#");
+    for (int i = 1; i < 7; i += 2) {
+        bool ok = false;
+        const int v = c.mid(i, 2).toInt(&ok, 16);
+        if (!ok) return c;
+        out += QStringLiteral("%1").arg((v + 255) / 2, 2, 16, QLatin1Char('0'));
+    }
+    return out;
+}
+
+static void fadePlan(TripPlan &p, QString &feats)
+{
+    for (TripStop &s : p.stops) s.color = fadedColor(TripData::stopColor(p, s));
+    p.color = fadedColor(TripData::planColor(p));
+    static const QRegularExpression re(QStringLiteral("\"color\":\"([^\"]+)\""));
+    QString out;
+    qsizetype at = 0;
+    for (auto it = re.globalMatch(feats); it.hasNext();) {
+        const auto m = it.next();
+        out += QStringView(feats).mid(at, m.capturedStart() - at);
+        out += QStringLiteral("\"color\":\"%1\"").arg(fadedColor(m.captured(1)));
+        at = m.capturedEnd();
+    }
+    feats = out + QStringView(feats).mid(at);
+}
+
+void TripData::build(const json::Value &root, const std::function<bool(const json::Value &plan)> &visible,
+                     const std::function<int(const json::Value &plan)> &tone)
 {
     const QVector<UnlockModel::Manual> oldManual = m_manual;
     m_plans.clear();
@@ -238,6 +270,10 @@ void TripData::build(const json::Value &root, const std::function<bool(const jso
             completedKey.push_back(cacheable ? id : QString());
         }
         if (visible && !visible(pv)) continue;
+        if (tone) {
+            c.plan.tone = tone(pv);
+            if (c.plan.tone < 0) fadePlan(c.plan, c.feats);
+        }
         if (c.route) ++m_routeCount;
         m_legs += c.legs;
         m_roadLegs += c.roadLegs;

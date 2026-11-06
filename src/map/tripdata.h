@@ -33,6 +33,7 @@ struct TripPlan {
     QVector<QVector<geo::LatLng>> segments;
     int dash = 0;
     double west = 0, east = 0, south = 0, north = 0;   // 所有段的范围（经度同样是展开后的）
+    int tone = 0;   // 0.11.0 想去模式：1 这个月合适（标记绿色）、-1 没关联季节（线和标记的颜色淡一点）
     bool isRoute() const { return type == QLatin1String("route") && stops.size() > 1; }
 };
 
@@ -42,7 +43,9 @@ public:
     // "已解锁"用的已完成计划的站点照样全算（Electron computeUnlocked 用的是全部计划）
     // 0.9.2：每个计划算好的东西（站点、路线几何、给地图的线）按计划 id 缓存；计划的数据没变（和上次是同一份，
     // 或深比较相等）就直接用，只重算改了的。换模式 / 筛选只是换一批"要画的"，全部命中缓存
-    void build(const json::Value &root, const std::function<bool(const json::Value &plan)> &visible = {});
+    // 0.11.0 tone：每个计划的 TripPlan::tone（只影响这一次要画的，不进缓存）
+    void build(const json::Value &root, const std::function<bool(const json::Value &plan)> &visible = {},
+               const std::function<int(const json::Value &plan)> &tone = {});
     // 上一次 build 里重算了几个计划（其余命中缓存；测试和计时用）
     int recomputed() const { return m_recomputed; }
     // 上一次 build 时"已解锁"要用的输入（全部已完成计划的站点、手动标记）和再上一次比有没有变

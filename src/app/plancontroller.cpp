@@ -4,6 +4,7 @@
 #include "datastore.h"
 #include "mapcontroller.h"
 #include "perf.h"
+#include "planpage.h"
 #include "settings.h"
 #include "thumbprovider.h"
 
@@ -23,6 +24,7 @@ constexpr int kRecentMax = 8;
 const QString kModeKey = QStringLiteral("mapMode");
 const QString kAlsoKey = QStringLiteral("modeAlso");
 const QString kPartsKey = QStringLiteral("modeAlsoParts");
+const QString kLibraryKey = QStringLiteral("libraryView");   // 0.11.0：{ view, status, type, sort, closed, hidden }（Electron 存在 localStorage）
 
 QVariant toVariant(const Value &v)
 {
@@ -55,7 +57,20 @@ QStringList ordered(const QSet<QString> &s, const QStringList &order)
 PlanController::PlanController(AppController *app, Settings *settings, data::DataStore *store, map::MapController *mapc, QObject *parent)
     : QObject(parent), m_app(app), m_settings(settings), m_store(store), m_mapc(mapc)
 {
-    m_mapc->setPlanFilter([this](const Value &p) { return m_solo.isEmpty() ? m_filter.onMap(p) : p[QStringLiteral("id")].toString() == m_solo; });
+    m_wishMonth = QDate::currentDate().month();
+    m_libSearchTimer.setSingleShot(true);
+    m_libSearchTimer.setInterval(200);
+    connect(&m_libSearchTimer, &QTimer::timeout, this, [this] { if (m_libOpen) m_mapc->refilter(); });
+    m_mapc->setPlanFilter([this](const Value &p) {
+        const QString id = p[QStringLiteral("id")].toString();
+        if (!m_solo.isEmpty()) return id == m_solo;
+        if (m_libOpen) return plans::libraryMatches(p, m_lib) && !m_filter.hidden.contains(id);
+        return m_filter.onMap(p);
+    });
+    m_mapc->setPlanTone([this](const Value &p) {
+        if (m_mode != QLatin1String("wish") || m_testAll || m_libOpen || !m_solo.isEmpty() || plans::statusOf(p) != QLatin1String("wish")) return 0;
+        return plans::wishFit(m_store->data(), p, m_wishMonth);
+    });
     m_mapc->setOverlayFilter([this](const Value &p) { return m_solo.isEmpty() && overlayPlan(p); });   // 0.9.7
     connect(m_store, &data::DataStore::contentChanged, this, [this] { refreshNow(); refreshSheet(); refreshList(); });
     // 换数据文件夹 / 重新读取：隐藏列表里已经没有的计划去掉（Electron 刷新页面时 hiddenIds 过滤掉已删除的 id）
@@ -74,6 +89,7 @@ PlanController::PlanController(AppController *app, Settings *settings, data::Dat
     });
     m_dayTimer.start();
     loadModes();
+    loadLibrary(*m_settings);
     loadFilter();
     loadRecent();
     refreshNow();
@@ -84,6 +100,7 @@ PlanController::~PlanController()
     // 地图比这里活得久（main.cpp 里先建地图）：退出时别让它再调用已经没了的筛选
     m_mapc->setPlanFilter({});
     m_mapc->setOverlayFilter({});
+    m_mapc->setPlanTone({});
 }
 
 QStringList PlanController::filterStatus() const { return ordered(m_filter.status, plans::allStatuses()); }
@@ -169,6 +186,14 @@ QVariantMap PlanController::reveal(const QString &planId)
     QVariantMap out{ { QStringLiteral("opened"), QStringList() }, { QStringLiteral("unhid"), false } };
     for (const Value &p : m_store->data()[QStringLiteral("plans")].asArray()) {
         if (p[QStringLiteral("id")].toString() != planId) continue;
+        // 0.11.0：计划库开着、这个计划列在里面：不换模式，只取消眼睛隐藏；没列在里面（Ctrl K 打开的）就先收起计划库
+        if (m_libOpen) {
+            if (plans::libraryMatches(p, m_lib)) {
+                if (m_filter.hidden.remove(planId)) { out.insert(QStringLiteral("unhid"), true); applyFilter(); }
+                return out;
+            }
+            setLibraryOpen(false);
+        }
         // 0.8.10：状态不在当前模式里时切到它的模式（0.9.7 起没有"也显示"，计划 / 想去模式也是切过去）
         const QString st = plans::statusOf(p);
         QString switched;
@@ -290,6 +315,7 @@ void PlanController::setMode(const QString &mode)
 {
     if (!modes().contains(mode) || mode == m_mode) return;
     qInfo("地图模式：%s → %s", qUtf8Printable(m_mode), qUtf8Printable(mode));
+    setLibraryOpen(false);   // 计划库只在"计划"模式
     perf::Scope timing("换模式（C++）", 0);   // 0.9.1
     m_mode = mode;
     m_filter.status = statusForMode();
@@ -308,6 +334,9 @@ void PlanController::setPersist(bool on)
     if (on) return;
     m_overlay.clear();
     m_overlayOff.clear();
+    m_lib = {};
+    m_libView = QStringLiteral("gallery");
+    m_libClosed.clear();
     if (m_mode != QLatin1String("plan")) { m_mode = QStringLiteral("plan"); emit modeChanged(); }
     emit overlayChanged();
     m_filter.status = statusForMode();
@@ -381,7 +410,9 @@ void PlanController::setTodayOverride(const QString &day)
 
 void PlanController::refreshNow()
 {
+    const QString oldToday = m_today;
     m_today = m_todayOverride.isEmpty() ? QDate::currentDate().toString(QStringLiteral("yyyy-MM-dd")) : m_todayOverride;
+    if (m_today != oldToday) refreshList();   // 0.11.0 "现在去正好"看今天
     const QVariantMap n = plans::nowInfo(m_store->data(), m_today);
     if (n == m_now) return;
     m_now = n;
@@ -431,10 +462,169 @@ void PlanController::setSolo(const QString &planId)
 
 void PlanController::refreshList()
 {
-    const QVariantMap l = plans::listInfo(m_store->data(), m_filter, m_mode == QLatin1String("foot"));
+    refreshLibrary();
+    const QVariantMap l = m_mode == QLatin1String("wish") && !m_testAll
+        ? plans::wishInfo(m_store->data(), m_filter, m_wishMonth, m_today.isEmpty() ? QDate::currentDate().month() : m_today.mid(5, 2).toInt(), m_lib.hidden)
+        : plans::listInfo(m_store->data(), m_filter, m_mode == QLatin1String("foot"), m_lib.hidden);
     if (l == m_list) return;
     m_list = l;
     emit listChanged();
+}
+
+// ---------------- 0.11.0 计划库、想去 ----------------
+
+void PlanController::refreshLibrary()
+{
+    if (!m_libOpen) return;
+    QVariantMap l = plans::libraryInfo(m_store->data(), m_lib);
+    QVariantList rows = l.value(QStringLiteral("rows")).toList();
+    for (QVariant &v : rows) {
+        QVariantMap r = v.toMap();
+        const QString f = r.value(QStringLiteral("coverFile")).toString();
+        r.insert(QStringLiteral("coverThumb"), f.startsWith(QLatin1String("photos/")) ? ThumbProvider::urlFor(f, 640, 0) : QString());
+        v = r;
+    }
+    l.insert(QStringLiteral("rows"), rows);
+    l.insert(QStringLiteral("view"), m_libView);
+    l.insert(QStringLiteral("status"), m_lib.status);
+    l.insert(QStringLiteral("type"), m_lib.type);
+    l.insert(QStringLiteral("sort"), m_lib.sort);
+    l.insert(QStringLiteral("q"), m_lib.q);
+    l.insert(QStringLiteral("closed"), m_libClosed);
+    if (l == m_library) return;
+    m_library = l;
+    emit libraryChanged();
+}
+
+void PlanController::loadLibrary(const Settings &s)
+{
+    const QVariantMap m = toVariant(s.value(kLibraryKey)).toMap();
+    const auto pick = [&m](const char *k, const QStringList &ok, const QString &def) {
+        const QString v = m.value(QString::fromLatin1(k)).toString();
+        return ok.contains(v) ? v : def;
+    };
+    m_libView = pick("view", { QStringLiteral("gallery"), QStringLiteral("table"), QStringLiteral("region") }, QStringLiteral("gallery"));
+    m_lib.status = pick("status", { QStringLiteral("all"), QStringLiteral("planning"), QStringLiteral("wish"), QStringLiteral("completed") }, QStringLiteral("all"));
+    m_lib.type = pick("type", { QStringLiteral("all"), QStringLiteral("route"), QStringLiteral("single") }, QStringLiteral("all"));
+    m_lib.sort = pick("sort", { QStringLiteral("default"), QStringLiteral("date"), QStringLiteral("name"), QStringLiteral("stops") }, QStringLiteral("default"));
+    m_libClosed = m.value(QStringLiteral("closed")).toStringList();
+    const QStringList hid = m.value(QStringLiteral("hidden")).toStringList();
+    m_lib.hidden = QSet<QString>(hid.begin(), hid.end());
+}
+
+void PlanController::saveLibrary()
+{
+    if (!m_persist) return;
+    QStringList hid(m_lib.hidden.begin(), m_lib.hidden.end());
+    hid.sort();
+    json::Object o;
+    o.set(QStringLiteral("view"), Value(m_libView));
+    o.set(QStringLiteral("status"), Value(m_lib.status));
+    o.set(QStringLiteral("type"), Value(m_lib.type));
+    o.set(QStringLiteral("sort"), Value(m_lib.sort));
+    o.set(QStringLiteral("closed"), stringArray(m_libClosed));
+    o.set(QStringLiteral("hidden"), stringArray(hid));
+    m_settings->setValue(kLibraryKey, Value(std::move(o)));
+    m_settings->save();
+}
+
+void PlanController::reopenLibraryForTest(const QString &settingsFile)
+{
+    const bool persist = m_persist;
+    Settings *const real = m_settings;
+    Settings s;
+    s.load(settingsFile);
+    m_persist = true;
+    m_settings = &s;
+    saveLibrary();
+    m_settings = real;
+    m_persist = persist;
+    m_lib = {};
+    m_libView.clear();
+    m_libClosed.clear();
+    Settings t;
+    t.load(settingsFile);
+    loadLibrary(t);
+    refreshList();
+}
+
+void PlanController::setLibraryOpen(bool on)
+{
+    if (on == m_libOpen || (on && m_mode != QLatin1String("plan"))) return;
+    m_libOpen = on;
+    qInfo("计划库：%s", on ? "展开" : "收起");
+    emit libraryOpenChanged();
+    emit overlayChanged();
+    applyFilter(false);
+}
+
+void PlanController::setLibraryPref(const QString &key, const QString &value)
+{
+    if (key == QLatin1String("view")) m_libView = value;
+    else if (key == QLatin1String("status")) m_lib.status = value;
+    else if (key == QLatin1String("type")) m_lib.type = value;
+    else if (key == QLatin1String("sort")) m_lib.sort = value;
+    else if (key == QLatin1String("q")) m_lib.q = value;
+    else return;
+    if (key == QLatin1String("q")) { refreshLibrary(); m_libSearchTimer.start(); return; }
+    saveLibrary();
+    if (key == QLatin1String("view") || key == QLatin1String("sort")) refreshLibrary();
+    else applyFilter(false);   // 地图跟着列表
+}
+
+void PlanController::toggleLibraryRegion(const QString &key)
+{
+    if (!m_libClosed.removeOne(key)) m_libClosed << key;
+    saveLibrary();
+    refreshLibrary();
+}
+
+void PlanController::setListHidden(const QStringList &ids, bool hidden)
+{
+    for (const QString &id : ids) {
+        if (hidden) m_lib.hidden.insert(id);
+        else m_lib.hidden.remove(id);
+    }
+    saveLibrary();
+    refreshList();
+}
+
+bool PlanController::setPlansStatus(const QStringList &ids, const QString &status)
+{
+    return edit([&](Value &d) { return plans::setPlansStatus(d, ids, status); }, "批量改状态");
+}
+
+bool PlanController::deletePlans(const QStringList &ids)
+{
+    return edit([&](Value &d) { return plans::deletePlans(d, ids); }, "批量删除");
+}
+
+void PlanController::setWishMonth(int month)
+{
+    if (month < 1 || month > 12 || month == m_wishMonth) return;
+    m_wishMonth = month;
+    refreshList();
+    if (m_mode == QLatin1String("wish")) m_mapc->refilter();
+}
+
+bool PlanController::startPlan(const QString &planId, const QString &start, const QString &end)
+{
+    return edit([&](Value &d) { return plans::startPlan(d, planId, start, end); }, "开始计划");
+}
+
+bool PlanController::setSeasonRef(const QString &planId, const QString &ref)
+{
+    return edit([&](Value &d) { return plans::setSeasonRef(d, planId, ref); }, "关联季节表");
+}
+
+QVariantList PlanController::seasonRows() const { return plans::seasonRows(m_store->data()); }
+
+QVariantMap PlanController::planBasics(const QString &planId) const
+{
+    const Value *p = plans::planById(m_store->data(), planId);
+    if (!p) return {};
+    return { { QStringLiteral("name"), (*p)[QStringLiteral("name")].toString() }, { QStringLiteral("startDate"), (*p)[QStringLiteral("startDate")].toString() },
+             { QStringLiteral("endDate"), (*p)[QStringLiteral("endDate")].toString() }, { QStringLiteral("seasonRef"), (*p)[QStringLiteral("seasonRef")].toString() } };
 }
 
 QVariantList PlanController::commandItems() const { return plans::commandItems(m_store->data()); }

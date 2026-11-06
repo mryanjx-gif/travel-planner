@@ -85,7 +85,19 @@ QVariantMap sheetInfo(const json::Value &root, const QString &planId);
 //      total, planning, wish, completed }。rows 只看筛选（眼睛隐藏的照样列出、hidden 为真），顺序 = comparePlans ----
 // 0.8.10 byYear（足迹模式）：按年份分组（group = "y2025"…，没有日期的 group = "undated" 放最后），年份新的在前、同一年里日期新的在前；
 // 不单列置顶
-QVariantMap listInfo(const json::Value &root, const Filter &f, bool byYear = false);
+// 0.11.0 listHidden（"在列表里隐藏"的计划 id，存在 settings.json）：这些计划排到最后、group = "listHidden"、listHidden 为真
+QVariantMap listInfo(const json::Value &root, const Filter &f, bool byYear = false, const QSet<QString> &listHidden = {});
+
+// ---- 计划库（0.11.0，L-01–L-08；Electron pages-library.js filtered、rowHtml、cardHtml） ----
+struct LibraryQuery
+{
+    QString q, status = QStringLiteral("all"), type = QStringLiteral("all"), sort = QStringLiteral("default");   // sort：default / date / name / stops
+    QSet<QString> hidden;   // 在列表里隐藏（只影响列表的排序和颜色）
+};
+bool libraryMatches(const json::Value &plan, const LibraryQuery &q);   // 搜索（计划名或站点名）、状态、类型
+// { rows: [{ id, name, color, status, type, stops, startDate, endDate, days（含首尾，算不出 -1）, estDays（没定日期时"约 N 天"）, pinned, hidden,
+//   regions, photos, coverFile, sketch: [{ lat, lng }] }], total, planning, wish, completed }。rows：置顶的最前、隐藏的最后，其余按 sort
+QVariantMap libraryInfo(const json::Value &root, const LibraryQuery &q);
 
 // ---- Ctrl K 的计划和站点（0.8.8）：按 DATA.plans 的原顺序，[{ kind: plan, id, label, status, startDate, endDate, color }
 //      或 { kind: stop, id, stop（有效站点里的下标）, label, planName, color }]；没名字的站点不列（palette.js source） ----
@@ -97,5 +109,10 @@ bool setTodoDone(json::Value &root, const QString &planId, const QString &todoId
 bool togglePin(json::Value &root, const QString &planId, double nowMs);
 bool markCompleted(json::Value &root, const QString &planId);
 bool deletePlan(json::Value &root, const QString &planId);
+// 0.11.0：批量改状态、批量删除（有一个变了就返回 true）；开始计划（想去 → 计划中，start 有值才写日期，end 空时等于 start）；关联季节表（空 = 去掉）
+bool setPlansStatus(json::Value &root, const QStringList &ids, const QString &status);
+bool deletePlans(json::Value &root, const QStringList &ids);
+bool startPlan(json::Value &root, const QString &planId, const QString &start, const QString &end);
+bool setSeasonRef(json::Value &root, const QString &planId, const QString &ref);
 
 } // namespace tp::map::plans

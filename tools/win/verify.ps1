@@ -40,6 +40,8 @@ $AllPages = @(
     'trip-journal|zh', 'trip-journal|en', 'trip-guide|zh', 'trip-guide|en', 'trip-guide-narrow|zh', 'trip-guide-edit|zh', 'trip-guide-edit|en', 'trip-guide-edit-narrow|zh', 'trip-guide-new|zh',
     'trip-photos|zh', 'trip-photos|en', 'trip-photos-narrow|zh', 'trip-lightbox|zh', 'trip-lightbox|en', 'trip-lightbox-zoom|zh',
     'sheet|zh', 'now|zh', 'now|en', 'editor|zh', 'editor-photos|zh', 'editor-photos|en', 'editor-cover|zh', 'filter-overlay|zh', 'filter-overlay|en',
+    'library|zh', 'library|en', 'library-table|zh', 'library-table|en', 'library-region|zh', 'library-select|zh', 'library-select|en', 'library-narrow|zh', 'library-hover|zh',
+    'mode-wish|zh', 'mode-wish|en', 'wish-start|zh', 'wish-season|zh', 'mode-foot|zh', 'mode-foot|en',
     'street|zh|hide'
 )
 # 按需跑：逗号分开或多个参数都行

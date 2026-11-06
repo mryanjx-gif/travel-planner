@@ -153,6 +153,7 @@ public:
     QString routesOverlayJson() const { return m_routesOverlayJson; }
     const TripData &overlayTrips() const { return m_overlayTrips; }
     std::shared_ptr<const globe::Routes> globeOverlayRoutes() const;
+    void setPlanTone(std::function<int(const json::Value &plan)> f) { m_planTone = std::move(f); }   // 0.11.0 TripPlan::tone
     void refilter() { rebuildData(); }
     // 0.9.2：启动时先攒着（建控制器、读数据、读筛选和模式各要一次重建，PO 电脑上 5 次共 0.7 秒），
     // setDeferRebuild(false) 时只重建一次
@@ -193,6 +194,7 @@ public:
     int unlockCountries() const { return m_unlock.countries; }
     int unlockProvinces() const { return m_unlock.provinces; }
     bool unlockReady() const { return m_unlockModel.isLoaded(); }
+    Q_INVOKABLE void needUnlockCount() { ensureUnlock(); }   // 0.11.0 足迹的统计要用省界模型（和足迹框同一个数）
     bool unlockEdit() const { return m_unlockEdit; }
     void setUnlockEdit(bool on);
     QString unlockHoverJson() const { return m_unlockHoverJson; }
@@ -395,6 +397,7 @@ private:
     bool editable();
     // 叫 trd：缺英文检查（tst_app allStringsTranslated）认 qsTr / tp::tr / trd 三种写法
     std::function<bool(const json::Value &plan)> m_planFilter;
+    std::function<int(const json::Value &plan)> m_planTone;
     std::function<bool(const json::Value &plan)> m_overlayFilter;   // 0.9.7
     TripData m_overlayTrips;
     QString m_routesOverlayJson;

@@ -131,6 +131,7 @@ void runAll(Report &r, AppController *app, PhotoController *photos, map::MapCont
     if (want("weather")) runWeather(r, app, win, planPageCtl(), navCtl(), weatherCtl());
     if (want("kit")) runKit(r, app, win, planPageCtl(), navCtl());
     if (want("planphotos")) runPlanPhotos(r, app, win, planPageCtl(), navCtl(), photos);
+    if (want("library")) runLibrary(r, app, mapc, win);
     mapc->fitAll(false);
     if (!want("photos")) return;
 

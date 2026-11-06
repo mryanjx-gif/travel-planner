@@ -857,9 +857,15 @@ Window {
     property bool nowOpen: false
     onNowKindChanged: if (nowKind === "none") nowOpen = false
     // "此刻"卡片和"我的旅程"列表都在左边：一个打开时另一个收起（Electron syncList / setNowOpen）
+    // 0.11.0 去计划库 = 计划模式 + 列表展开
+    function openLibrary() {
+        win.goPage("plan")
+        win.listOpen = true
+        Qt.callLater(() => plans.setLibraryOpen(true))
+    }
     function setNowOpen(v) { win.nowOpen = v; if (v) win.listOpen = false }
     property bool listOpen: false
-    onListOpenChanged: if (listOpen) win.nowOpen = false
+    onListOpenChanged: { if (listOpen) win.nowOpen = false; else plans.setLibraryOpen(false) }
     // Ctrl B / 顶栏列表按钮：不在地图页时先回地图（Electron mfList.onclick）
     function toggleList() {
         if (!win.onMapPage) { win.goPage("map"); win.listOpen = true; return }
@@ -924,6 +930,7 @@ Window {
         onQuickExpense: (id) => { win.tripTab = "quick"; win.openTrip(id, -1) }
         onOpenPacking: (id) => { win.tripTab = "packing"; win.openTrip(id, -1) }
         onUnsetNext: { win.nowOpen = false; plans.setNextTrip(plans.now.planId, false) }
+        onOpenLibrary: win.openLibrary()
         onMarkDone: (id, name) => { planConfirm.ask("done", id, name) }
     }
 
@@ -935,14 +942,16 @@ Window {
         x: win.gap
         y: win.topH - 6
         z: 14
-        width: Math.min(Theme.px(320), win.width - 28)
+        // 0.11.0 展开 = 计划库：占窗口约 60%，右边留地图（PO 第 1 题）；窄窗口只给右边的图层和缩放按钮留一条
+        width: expanded ? (win.width < Theme.px(900) ? win.width - 28 - Theme.px(56) : Math.round(win.width * 0.6)) : Math.min(Theme.px(320), win.width - 28)
+        Behavior on width { enabled: Theme.motion; NumberAnimation { duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
         height: win.height - y - 20
         open: win.listOpen && win.mapShown
         backdrop: scene
         info: plans.list
         // 0.8.10：标题跟着模式（PO 选 ② B）
-        title: plans.mode === "foot" ? qsTr("去过的 · %1 趟").arg((plans.list.rows || []).length)
-             : plans.mode === "wish" ? qsTr("想去") : plans.mode === "photo" ? qsTr("照片") : qsTr("计划")
+        title: plans.mode === "foot" ? qsTr("去过的") : plans.mode === "wish" ? qsTr("想去") : plans.mode === "photo" ? qsTr("照片")
+             : plans.libraryOpen ? qsTr("计划库") : qsTr("计划")
         selectedId: mapc.markers.selectedPlan
         nextBadge: win.nowBadge
         filterOpen: filterMenu.open && win.filterFrom === "list"
@@ -950,12 +959,70 @@ Window {
         onFilterClicked: { const again = win.filterFrom === "list"; win.filterFrom = "list"; filterMenu.open = again ? !filterMenu.open : true }
         onPlanClicked: (id) => { if (editor.open) { toast.show(qsTr("请先完成或放弃当前编辑"), false); return } win.revealToast(plans.openPlan(id, true)) }
         onEyeClicked: (id, hidden) => plans.setHidden(id, hidden)
+        onLibraryOpenPlan: (id) => win.openTrip(id, -1)
+        onNewWishClicked: win.newWish()
+        onLibraryDelete: (ids) => {
+            if (editor.open) { toast.show(qsTr("请先完成或放弃当前编辑"), false); return }
+            bulkConfirm.ask(ids)
+        }
+        onWishStart: (id) => wishDialog.showStart(id)
+        onWishSeason: (id) => wishDialog.showSeason(id)
+        onExpandedChanged: { mapc.markers.hoverFromList(""); if (expanded) mapc.markers.clearSelection() }
+    }
+    // 0.11.0 想去：底部月份条（H-03），在左下胶囊右边、放不下时在它上面；开始计划、关联季节
+    WishMonthBar {
+        id: monthBar
+        objectName: "wishMonthBar"
+        visible: win.mapShown && plans.mode === "wish" && !win.sheetOpen && !win.editorShown
+        backdrop: scene
+        z: 12
+        readonly property real leftEdge: statusPill.x + statusPill.width + win.gap
+        readonly property bool below: win.width - leftEdge - win.gap >= 12 * Theme.px(30)
+        x: below ? leftEdge : win.leftX
+        width: Math.min(implicitWidth, win.width - x - win.gap - (locBtn.visible && below ? locBtn.width + 10 : 0))
+        height: implicitHeight
+        y: below ? win.height - height - 20 : statusPill.y - height - 10
+    }
+    WishDialog {
+        id: wishDialog
+        objectName: "wishDialog"
+        backdrop: scene
+        onStarted: (name) => toast.show(qsTr("「%1」已改成计划中").arg(name), false, qsTr("撤销"), () => app.undo())
+    }
+    // 0.11.0 批量删除（L-08：列前 8 个名字，照片不删）
+    MessageDialog {
+        id: bulkConfirm
+        objectName: "bulkConfirm"
+        backdrop: scene
+        property var ids: []
+        function ask(list) {
+            ids = list
+            const names = []
+            for (const id of list) {
+                const b = plans.planBasics(id)
+                names.push("· " + (b.name || qsTr("未命名计划")).replace(/&/g, "&amp;").replace(/</g, "&lt;"))
+            }
+            title = qsTr("删除 %1 个计划").arg(list.length)
+            paragraphs = [names.slice(0, 8).join("<br>") + (names.length > 8 ? "<br>" + qsTr("…… 共 %1 个计划").arg(names.length) : ""),
+                          qsTr("删除后可以按 Ctrl+Z 撤销。计划里的照片文件不会删除，还在照片库里。")]
+            open = true
+        }
+        buttons: [{ key: "cancel", text: qsTr("取消") }, { key: "ok", text: qsTr("删除"), kind: "danger" }]
+        onChosen: (key) => {
+            open = false
+            if (key !== "ok") return
+            const n = ids.length
+            if (plans.deletePlans(ids)) {
+                planList.leaveLibrarySelection()
+                toast.show(qsTr("已删除 %1 个计划").arg(n), false, qsTr("撤销"), () => app.undo())
+            }
+        }
     }
 
     StatusFilterPill {
         id: statusPill
         objectName: "statusPill"
-        visible: win.mapShown && !win.sheetOpen && !win.editorShown
+        visible: win.mapShown && !win.sheetOpen && !win.editorShown && !plans.libraryOpen   // 0.11.0 计划库有自己的筛选
         backdrop: scene
         x: win.leftX
         Behavior on x { enabled: Theme.motion; NumberAnimation { duration: 250; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
@@ -1080,6 +1147,12 @@ Window {
         const r = editor.openNew()
         if (r !== "") { toast.show(r, true); return }
         win.leaveGlobeForEditor(null)
+    }
+    // 0.11.0 H-04 新建想去（编辑器开着时 newPlan 只提示，不能改开着的那个）
+    function newWish() {
+        const was = editor.open
+        win.newPlan()
+        if (!was && editor.open) editor.setField("status", "wish")
     }
     // 0.9.7（B4）：从地球打开编辑器：记下地球的镜头，原地摊平（编辑在平面上做），关掉后卷回地球
     function leaveGlobeForEditor(then) {
@@ -1361,6 +1434,7 @@ Window {
         anchors.right: parent.right   // 0.8.7：左下角给状态胶囊，测试信息挪到右下角（简易面板开着时让到它左边）
         anchors.bottom: parent.bottom
         anchors.margins: 14
+        anchors.bottomMargin: monthBar.visible && monthBar.below ? 28 + monthBar.height : 14   // 0.11.0 让开想去的月份条
         anchors.rightMargin: 14 + (win.drawerMode ? 0 : win.editorShown ? planEditor.width + 14 : win.sheetOpen ? planSheet.targetW + 14 : 0) + (locBtn.visible ? locBtn.width + 10 : 0)
         // 0.8.9：左边有图例 / 比例尺，宽度不能盖过去；放不下就截断（只有开发版有这个框）
         readonly property real leftLimit: Math.max(14, statusPill.visible ? statusPill.x + statusPill.width + 14 : 14)
@@ -1467,7 +1541,8 @@ Window {
         focusIndex: mapc.markers.focusStop
         onCloseRequested: { if (nav.canBack) nav.back(); else win.goPage("map") }
         onSimpleRequested: win.goPage("map")
-        onListRequested: { win.goPage("map"); win.listOpen = true }
+        // 0.11.0：想去的计划（"愿望清单"按钮）去想去模式；其余打开计划库
+        onListRequested: { if (planPage.info.status === "wish") { win.goPage("wish"); win.listOpen = true } else win.openLibrary() }
         onEditRequested: (id) => win.editPlan(id)
         onDaysRequested: (cur) => { daysDialog.text = cur; daysDialog.open = true }
         onStartRequested: { startDialog.start = planPage.info.startDate || ""; startDialog.end = planPage.info.endDate || ""; startDialog.open = true }
@@ -2203,6 +2278,7 @@ Window {
         { name: "search", on: () => editor.open && editor.searchState !== "idle", close: () => editor.clearSearch() },
         { name: "editor", on: () => editor.open, close: () => win.finishEditor() },
         { name: "sheet", on: () => win.mapShown && mapc.markers.selectedPlan !== "", close: () => mapc.markers.clearSelection() },
+        { name: "library", on: () => planList.open && plans.libraryOpen, close: () => plans.setLibraryOpen(false) },
         { name: "list", on: () => planList.open, close: () => { win.listOpen = false } },
         // 0.8.10：整页 / 设置 → 回到进来之前的模式；想去 / 足迹 / 照片 → 回"计划"
         { name: "page", on: () => nav.page !== "plan", close: () => win.goPage(win.onMapPage ? "plan" : "map") }
@@ -2277,7 +2353,7 @@ Window {
     readonly property bool modalOpen: dataChoice.open || noDataDialog.open || conflictDialog.open || closeFailDialog.open
                                       || restoreDialog.open || titleDialog.open || crashDialog.open || electronFolderDialog.open
                                       || importDialog.open || importProgressDialog.open || importReportDialog.open || takeOverDialog.open
-                                      || photoReview.open || cleanupDialog.open || planConfirm.open || editorDialog.open
+                                      || photoReview.open || cleanupDialog.open || planConfirm.open || bulkConfirm.open || wishDialog.open || editorDialog.open
                                       || daysDialog.open || startDialog.open
                                       || bookingDialog.open || expenseDialog.open || budgetDialog.open || moneyDialog.open || personDialog.open
                                       || emergencyDialog.open || guideLinkDialog.open || photoPickDialog.open || tplDialog.open
@@ -2470,13 +2546,13 @@ Window {
         else if (shotPage === "bubbles" || shotPage === "list" || shotPage === "palette" || shotPage === "menu") shellShot.start()
         else if (shotPage.startsWith("trip")) tripShot.start()
         else if (shotPage.startsWith("editor") || shotPage.startsWith("narrow") || shotPage === "locate" || shotPage === "controls") editShot.start()
-        else if (shotPage.startsWith("mode-") || shotPage === "modes" || shotPage === "modes-narrow" || shotPage.startsWith("ledger")) modeShot.start()
+        else if (shotPage.startsWith("mode-") || shotPage === "modes" || shotPage === "modes-narrow" || shotPage.startsWith("ledger") || shotPage.startsWith("library") || shotPage.startsWith("wish-")) modeShot.start()
         else if (shotPage !== "" && !shotPage.startsWith("ui-") && shotPage !== "selftest") mapc.base = shotPage
     }
 
     // 截图的步骤走完没有（0.10.5，main.cpp 的就绪判断调用）：步骤定时器、相机飞行、地图样式
     function shotBusy() {
-        for (const t of [frameNextTimer, planShot, tripShot, tripShot2, shellShot, editShot, modeShot, searchShot, styleShot, markerShot, markerTip, lineShot, lineTip, layersShot, unlockShot, unlockTip])
+        for (const t of [frameNextTimer, planShot, tripShot, tripShot2, shellShot, editShot, modeShot, libShot, searchShot, styleShot, markerShot, markerTip, lineShot, lineTip, layersShot, unlockShot, unlockTip])
             if (t.running) return true
         return mapc.moving || win.mapLive && mapLoader.status !== Loader.Error && !(win.map && win.map.styleLoaded)
     }
@@ -2703,15 +2779,48 @@ Window {
             const d = plans.demo()
             // ledger-now（0.10.5）= 真实的今天：看"已花"几乎是 0 时的样子
             if (d.planId !== undefined && shotPage !== "ledger-now") { plans.setNextTrip(d.planId, true); plans.setTodayOverride(d.today) }
-            if (shotPage === "modes" || shotPage === "modes-narrow") {
+            if (shotPage.startsWith("library")) {
+                // 0.11.0：library（画廊）/ library-table / library-region / library-select / library-narrow / library-hover（鼠标在第一张卡片上）；
+                // wish-start = 开始计划的对话框；mode-wish / mode-foot 走下面的 else
+                plans.setTestAllStatuses(false)
+                if (shotPage === "library-narrow") win.width = 640
+                win.listOpen = true
+                plans.setLibraryOpen(true)
+                if (shotPage === "library-table") plans.setLibraryPref("view", "table")
+                if (shotPage === "library-region") plans.setLibraryPref("view", "region")
+                if (shotPage === "library-select") { plans.setLibraryPref("view", "table"); libShot.start() }
+                if (shotPage === "library-hover") libShot.start()
+            } else if (shotPage === "wish-start" || shotPage === "wish-season") {
+                plans.setTestAllStatuses(false)
+                win.goPage("wish")
+                win.listOpen = true
+                const w = (plans.list.rows || [])[0]
+                if (w) { if (shotPage === "wish-start") wishDialog.showStart(w.id); else wishDialog.showSeason(w.id) }
+            } else if (shotPage === "modes" || shotPage === "modes-narrow") {
                 if (shotPage === "modes-narrow") win.width = 640
                 Qt.callLater(() => topBar.setBubbles(true))
             } else if (shotPage.startsWith("ledger")) {
                 if (shotPage === "ledger-narrow") win.width = 500
                 win.goPage("ledger")
             } else {
+                plans.setTestAllStatuses(false)
                 win.goPage(shotPage.slice(5))
                 win.listOpen = true
+            }
+        }
+    }
+    Timer {
+        id: libShot
+        interval: 700
+        onTriggered: {
+            const v = win.findByName(planList, "libraryView")
+            if (!v) return
+            const rows = plans.library.rows || []
+            if (shotPage === "library-select") { v.selMode = true; v.selIds = rows.slice(1, 4).map(x => x.id) }
+            else {
+                // 飞到站点最多的路线，让它高亮
+                const d = mapc.markers.demo("line")
+                if (d.planId !== undefined) { mapc.flyToPlan(d.planId); mapc.markers.hoverFromList(d.planId) }
             }
         }
     }

@@ -4,7 +4,7 @@
 //   → 按钮："在地图上看"（主按钮）+ ⋯（取消指定）→ 这趟的待办（最多 3 条，可以勾）→ 提醒（日期已过的计划、60 天内到期的证件）。
 // 0.10.0 起主按钮是"今天的行程"（在路上）/"打开计划"，"在地图上看"退到第二个。
 // 0.10.1：在路上时加"记一笔"，跳到消费标签的一行快记（J3）。
-// 指向还没做的页面的按钮（行李与待办、整理照片、写游记、去计划库、看证件）先不显示，
+// 指向还没做的页面的按钮（行李与待办、整理照片、写游记、看证件）先不显示，
 // 页面做好时补上（PO 2026-11-05，记在待办需求记录.md）。
 // info = plans.now（plans.cpp nowInfo）。勾待办后先显示勾上，0.45 秒后才真的改数据（Electron setTimeout(renderNow, 450)）。
 import QtQuick
@@ -21,6 +21,7 @@ Item {
     signal quickExpense(string planId)          // 0.10.1 记一笔（J3）
     signal openPacking(string planId)           // 0.10.4 行李与待办（和 Electron 一样只在"下一次出发"时有）
     signal unsetNext()
+    signal openLibrary()                        // 0.11.0 提醒里的"去计划库"
     readonly property string kind: info.kind || "none"
     readonly property bool live: kind === "live"
     readonly property real labelW: Theme.px(Fmt.en ? 74 : 44)   // 时间 / "明天"那一列（英文 Tomorrow 更宽）
@@ -353,13 +354,13 @@ Item {
                         }
                         LinkText {
                             id: link
-                            visible: modelData.kind === "done"
+                            visible: modelData.kind === "done" || modelData.kind === "more"
                             anchors.right: parent.right
                             anchors.rightMargin: Theme.px(10)
                             anchors.verticalCenter: parent.verticalCenter
                             small: true
-                            text: qsTr("标为已完成")
-                            onClicked: root.markDone(modelData.planId, modelData.name || "")
+                            text: modelData.kind === "more" ? qsTr("去计划库") : qsTr("标为已完成")
+                            onClicked: { if (modelData.kind === "more") root.openLibrary(); else root.markDone(modelData.planId, modelData.name || "") }
                         }
                     }
                 }

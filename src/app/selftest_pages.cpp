@@ -209,8 +209,9 @@ void runPages(Report &r, AppController *app, map::MapController *mapc, QQuickWin
             if (!g.startsWith(u'y') || prevYear.isNull() || g.mid(1) > prevYear) years = false;
             prevYear = g.mid(1);
         }
-        r.check(shown(title) && title->property("text").toString().contains(QString::number(rows.size())) && years && allDone,
-                QStringLiteral("足迹的列表：\"去过的 · N 趟\"，按年份从新到旧分组，没有日期的放最后"),
+        QQuickItem *footStat = item(win, "footStat");
+        r.check(shown(title) && shown(footStat) && footStat->property("text").toString().contains(QString::number(rows.size())) && years && allDone,
+                QStringLiteral("足迹的列表：\"去过的\" + 下面一行 N 趟，按年份从新到旧分组，没有日期的放最后"),
                 QStringLiteral("%1；%2 行").arg(title ? title->property("text").toString() : QString()).arg(rows.size()));
         win->setProperty("listOpen", false);
     }

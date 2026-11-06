@@ -103,6 +103,8 @@ void runWeather(Report &r, AppController *app, QQuickWindow *win, PlanPageContro
 void runKit(Report &r, AppController *app, QQuickWindow *win, PlanPageController *page, NavHistory *nav);
 // 0.10.5：照片标签、看大图、编辑器的照片和封面（selftest_photos_tab.cpp）
 void runPlanPhotos(Report &r, AppController *app, QQuickWindow *win, PlanPageController *page, NavHistory *nav, PhotoController *photos);
+// 0.11.0：计划库、想去、足迹（selftest_library.cpp）
+void runLibrary(Report &r, AppController *app, map::MapController *mapc, QQuickWindow *win);
 // 0.9.1：性能——启动各步、拖地图每帧、换模式、数据重建、写设置、玻璃和标记各占多少（selftest_perf.cpp）
 FrameStats *frameStats();
 Settings *settingsObj();
