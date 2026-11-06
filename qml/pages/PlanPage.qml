@@ -41,6 +41,11 @@ Item {
     signal editEmergency()
     signal guideLinkRequested(string selected)
     signal guidePhotoRequested()
+    // 0.10.5 照片标签、看大图（对话框和 Lightbox 在 Main.qml）
+    signal photoAddRequested(string stopId)
+    signal photoCaptionRequested(var photo)
+    signal photoRemoveRequested(var photo)
+    signal photoViewRequested(var list, int index)
 
     readonly property bool missing: shown && !(source && source.id)
     readonly property var stops: info.stops || []
@@ -55,7 +60,7 @@ Item {
     readonly property real navNatural: hdr ? list.y + hdr.y + hdr.navY - list.contentY : 0
     readonly property bool collapsed: hdr ? hdr.y + hdr.titleBottom - list.contentY < 0 : false
     readonly property bool scheduleEditing: edit.j !== -2 || elevEdit >= 0
-    property string tab: "itinerary"        // itinerary / bookings / packing / budget / journal / guide
+    property string tab: "itinerary"        // itinerary / bookings / packing / budget / photos / journal / guide
     property bool menuOpen: false
     property real menuY: 0
     property var openNotes: ({})
@@ -275,6 +280,16 @@ Item {
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
                         sourceSize.width: 320
+                        MouseArea {   // 0.10.5 看大图：封面在照片列表里就从它开始翻（没设封面时显示的是第一张）
+                            anchors.fill: parent
+                            enabled: cover.status === Image.Ready
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                const l = root.info.photos || [], i = l.findIndex(p => p.id === root.info.cover)
+                                if (i >= 0 || !root.info.coverFile) root.photoViewRequested(l, Math.max(i, 0))
+                                else root.photoViewRequested([{ file: root.info.coverFile, thumb: root.info.coverThumb }], 0)
+                            }
+                        }
                     }
                 }
                 Column {
@@ -447,7 +462,7 @@ Item {
                         height: parent.height
                         spacing: Theme.px(20)
                         Repeater {
-                            model: ["itinerary", "bookings", "packing", "budget", "journal", "guide"]
+                            model: ["itinerary", "bookings", "packing", "budget", "photos", "journal", "guide"]
                             delegate: Item {
                                 required property string modelData
                                 readonly property bool on: root.tab === modelData
@@ -458,6 +473,7 @@ Item {
                                     case "bookings": return root.info.bookCount > 0 ? String(root.info.bookCount) : ""
                                     case "budget": { const c = ((root.info.money || {}).rows || []).length; return c > 0 ? String(c) : "" }
                                     case "packing": return kit.totalAll > 0 ? kit.doneAll + "/" + kit.totalAll : ""
+                                    case "photos": return (root.info.photos || []).length > 0 ? String(root.info.photos.length) : ""
                                     case "journal": return (root.info.journal || []).length > 0 ? String(root.info.journal.length) : ""
                                     case "guide": return (root.info.guide || "") !== "" ? "✓" : ""
                                     }
@@ -473,7 +489,7 @@ Item {
                                 Text {
                                     id: tabLabel
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: (parent.modelData === "bookings" ? qsTr("交通住宿") : parent.modelData === "packing" ? qsTr("行李与待办") : parent.modelData === "budget" ? qsTr("消费")
+                                    text: (parent.modelData === "bookings" ? qsTr("交通住宿") : parent.modelData === "packing" ? qsTr("行李与待办") : parent.modelData === "budget" ? qsTr("消费") : parent.modelData === "photos" ? qsTr("照片")
                                            : parent.modelData === "journal" ? qsTr("游记") : parent.modelData === "guide" ? qsTr("攻略") : qsTr("行程")) + (parent.n !== "" ? " " + parent.n : "")
                                     font.family: serifFamily; font.pixelSize: Theme.px(14); font.bold: parent.on; color: parent.on ? Theme.text : Theme.muted
                                 }
@@ -531,6 +547,20 @@ Item {
                 onEditLocal: root.editLocalEmergency()
                 onEditEmergency: root.editEmergency()
             }
+            PhotosTab {
+                objectName: "tripPhotosTab"
+                visible: root.tab === "photos"
+                width: parent.width
+                rows: root.info.photos || []
+                coverId: root.info.cover || ""
+                coverThumb: root.info.cover ? root.info.coverThumb || "" : ""
+                readOnly: root.readOnly
+                onNotice: (t) => root.notice(t)
+                onAddRequested: root.photoAddRequested(root.focusIndex >= 0 && root.stops[root.focusIndex] ? root.stops[root.focusIndex].id || "" : "")
+                onCaptionRequested: (ph) => root.photoCaptionRequested(ph)
+                onRemoveRequested: (ph) => root.photoRemoveRequested(ph)
+                onViewRequested: (l, i) => root.photoViewRequested(l, i)
+            }
             JournalTab {
                 objectName: "tripJournal"
                 visible: root.tab === "journal"
@@ -551,6 +581,19 @@ Item {
                 onScrollRequested: (yy, animate) => root.scrollInGuide(yy, animate)
                 onLinkRequested: (s) => root.guideLinkRequested(s)
                 onPhotoRequested: root.guidePhotoRequested()
+                // 正文里的照片一组看大图；在这个计划里的带上站点和拍摄时间，说明以正文写的为准
+                onPhotoViewRequested: (blocks, k) => {
+                    const known = root.info.photos || [], list = []
+                    let at = 0
+                    for (let i = 0; i < blocks.length; ++i) {
+                        const b = blocks[i]
+                        if (b.type !== "img" || !b.file) continue
+                        if (i === k) at = list.length
+                        const hit = known.find(p => p.id === b.id) || {}
+                        list.push(Object.assign({}, hit, { file: b.file, thumb: b.thumb, caption: b.caption || hit.caption || "" }))
+                    }
+                    root.photoViewRequested(list, at)
+                }
             }
             // ---- 备注 ----
             Column {
@@ -832,7 +875,7 @@ Item {
                             font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft
                         }
                     }
-                    // 照片条（最多 12 张；滚轮上下滚改成左右翻，到头了才还给页面。点开看大图在 0.10.4）
+                    // 照片条（最多 12 张；滚轮上下滚改成左右翻，到头了才还给页面。点开看大图 0.10.5）
                     ListView {
                         id: strip
                         objectName: "tripPhotos"
@@ -847,11 +890,18 @@ Item {
                         model: all.slice(0, 12)
                         delegate: Rectangle {
                             required property string modelData
+                            required property int index
+                            objectName: "tripPhoto-" + index
                             width: Theme.px(112); height: strip.height
                             radius: Theme.px(10)
                             color: Theme.panel2
                             clip: true
                             Image { anchors.fill: parent; source: modelData; fillMode: Image.PreserveAspectCrop; asynchronous: true; sourceSize.width: 320 }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.photoViewRequested((root.info.photos || []).filter(p => p.stopId === wrap.s.id && p.thumb), parent.index)
+                            }
                         }
                         footer: Item {
                             width: strip.all.length > 12 ? Theme.px(52) : 0

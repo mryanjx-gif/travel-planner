@@ -68,6 +68,7 @@ public:
     Q_INVOKABLE QVariantMap guideBlocks(const QString &text) const;    // plans::guideBlocks + 缩略图地址（预览用）
     Q_INVOKABLE QVariantList planPhotos() const;                       // 这个计划的照片（插入照片）
     Q_INVOKABLE void seedKitForShot();                                 // 截图用：在数据副本上加示例游记、紧急信息
+    Q_INVOKABLE void seedPhotosForShot(const QString &planId = {});    // 截图和自检用：借库里的照片放到前三站（副本），一张精选、一张有说明。planId 空 = 当前计划
     Q_INVOKABLE void dismissNights();                    // J1"这几晚不用"：记进 settings.json 的 noStayNights，不改数据
 
     // 测试用：替换 Open-Meteo 请求（和 PlanEditor::Fetch 一样的签名）

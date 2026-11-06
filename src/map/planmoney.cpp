@@ -387,18 +387,23 @@ QVariantMap settleInfo(const Value &plan, const QString &main, const Rates &rate
 
 // ---------------- 账本 ----------------
 
-QVariantMap ledgerInfo(const Value &root, const QString &main, const Rates &rates)
+QVariantMap ledgerInfo(const Value &root, const QString &main, const Rates &rates, const QString &today)
 {
     QVector<QVariantMap> trips;
     QHash<QString, double> byCat, byYear;
     QStringList missing;
-    double total = 0, datedSpent = 0;
-    int emptyCount = 0, datedDays = 0;
+    double total = 0, future = 0, datedSpent = 0;
+    int emptyCount = 0, datedDays = 0, spentCount = 0, futureCount = 0;
     for (const Value &plan : root[QStringLiteral("plans")].asArray()) {
         if (!plan.isObject()) continue;
         const QString start = str(plan, "startDate"), end = str(plan, "endDate");
+        // 0.10.5（方案页第 5 题 A）：已完成或已开始（到了开始日期的计划中）的算"已花"，其余是"还没去的预计"：只有一个合计
+        const QString status = statusOf(plan);
+        const bool started = status == QLatin1String("planning") && okDate(start) && start <= today;
+        const bool done = status == QLatin1String("completed") || started;
         double spent = 0;
         bool any = false;
+        QHash<QString, double> planCat, planYear;
         for (const SpendRow &r : spendRows(plan)) {
             if (r.amount == 0) continue;
             any = true;
@@ -406,17 +411,26 @@ QVariantMap ledgerInfo(const Value &root, const QString &main, const Rates &rate
             if (k < 0) { if (!missing.contains(r.cur)) missing << r.cur; continue; }
             const double v = r.amount * k;
             spent += v;
-            byCat[r.cat] += v;
+            planCat[r.cat] += v;
             const QString day = okDate(r.date) ? r.date : okDate(start) ? start : end;
-            byYear[okDate(day) ? day.left(4) : QString()] += v;
+            planYear[okDate(day) ? day.left(4) : QString()] += v;
         }
         if (!any) { ++emptyCount; continue; }
-        total += spent;
         const int days = tripDays(plan);
-        if (days > 0) { datedSpent += spent; datedDays += days; }
+        if (done) {
+            total += spent;
+            ++spentCount;
+            if (days > 0) { datedSpent += spent; datedDays += days; }
+            for (auto it = planCat.cbegin(); it != planCat.cend(); ++it) byCat[it.key()] += it.value();
+            for (auto it = planYear.cbegin(); it != planYear.cend(); ++it) byYear[it.key()] += it.value();
+        } else {
+            future += spent;
+            ++futureCount;
+        }
         const QString cur = planCurrency(plan);
         const double budget = std::max(0.0, num(plan, "budget")), kb = perMain(rates, main, cur);
-        trips.push_back({ { QStringLiteral("id"), str(plan, "id") }, { QStringLiteral("name"), str(plan, "name") }, { QStringLiteral("status"), statusOf(plan) },
+        trips.push_back({ { QStringLiteral("id"), str(plan, "id") }, { QStringLiteral("name"), str(plan, "name") }, { QStringLiteral("status"), status },
+                          { QStringLiteral("state"), started ? QStringLiteral("live") : status }, { QStringLiteral("done"), done },
                           { QStringLiteral("start"), start }, { QStringLiteral("end"), end }, { QStringLiteral("days"), days }, { QStringLiteral("spent"), spent },
                           { QStringLiteral("budget"), budget }, { QStringLiteral("budgetCur"), cur }, { QStringLiteral("budgetMain"), kb > 0 ? budget * kb : -1.0 } });
     }
@@ -432,8 +446,9 @@ QVariantMap ledgerInfo(const Value &root, const QString &main, const Rates &rate
         const double v = byYear.value(y);
         years << QVariantMap{ { QStringLiteral("y"), y }, { QStringLiteral("v"), v }, { QStringLiteral("share"), top > 0 ? std::max(0.0, v / top) : 0.0 } };
     }
-    return { { QStringLiteral("total"), total }, { QStringLiteral("trips"), tripsOut }, { QStringLiteral("emptyCount"), emptyCount },
-             { QStringLiteral("perTrip"), trips.isEmpty() ? 0.0 : total / trips.size() }, { QStringLiteral("perDay"), datedDays > 0 ? datedSpent / datedDays : 0.0 },
+    return { { QStringLiteral("total"), total }, { QStringLiteral("future"), future }, { QStringLiteral("spentCount"), spentCount }, { QStringLiteral("futureCount"), futureCount },
+             { QStringLiteral("trips"), tripsOut }, { QStringLiteral("emptyCount"), emptyCount },
+             { QStringLiteral("perTrip"), spentCount == 0 ? 0.0 : total / spentCount }, { QStringLiteral("perDay"), datedDays > 0 ? datedSpent / datedDays : 0.0 },
              { QStringLiteral("cats"), catsOut(byCat) }, { QStringLiteral("years"), years }, { QStringLiteral("missing"), missing } };
 }
 

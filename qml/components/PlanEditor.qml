@@ -3,7 +3,7 @@
 //   计划：名称、类型、状态、区域（自动建议）、开始 / 结束日期、地图标记样式（+ 路线标记：数字 / 图标 / 圆点）、备注；
 //   站点：名称、到达 / 离开、备注、坐标、样式（路线）、去下一站的交通方式（自驾 / 徒步自动按道路算）；
 //   加站点：搜地名（结果同时标在地图上，方案 B）、在地图上点选（改进 a 的预览在 FlatMap）、手动输入坐标。
-// PO 0.8.9 选的范围 B：照片、封面这一版不在这里改（只显示条数），数据原样保留。0.10.0 起可以改行程安排（SchedList，和计划页同一个组件）。
+// PO 0.8.9 选的范围 B：照片、封面当时不在这里改。0.10.0 起可以改行程安排（SchedList，和计划页同一个组件）；0.10.5 起能改站点的照片和封面（对话框、导入、看大图在 Main.qml）。
 // 改进 e：顶上一行总里程；改进 d：站点可以拖住把手排序（保留 ↑ ↓）；改进 g：新建时加到第二站自动改成路线（提示一句）。
 // drawer = 窄窗口（≤ 768）时变成底部抽屉（PO 选方案 B）：顶上多一个把手，Main.qml 管高度。
 import QtQuick
@@ -26,6 +26,14 @@ Item {
     signal styleRequested(Item anchor, var opts)
     signal drawerDrag(real dy, bool done)
     signal drawerToggle()
+    signal coverPickRequested(var rows)
+    signal photoAddRequested(string stopId)
+    signal photoCaptionRequested(var photo)
+    signal photoRemoveRequested(var photo)
+    signal photoViewRequested(var list, int index)
+    // 计划存进数据以后才能加照片（新计划第一次保存之前，导入时找不到它）
+    readonly property bool canPhoto: !editor.isNew || editor.saveState === "saved" || editor.saveState === "pending"
+    readonly property var photoRows: { photos.revision; return editor.open ? photos.planPhotos(editor.planId) : [] }
 
     readonly property var plan: editor.plan
     readonly property var stops: plan.stops || []
@@ -305,11 +313,36 @@ Item {
                         }
                         Label { text: qsTr("备注") }
                         TpField { width: parent.width; multiline: true; value: root.plan.notes || ""; placeholder: qsTr("任何要记的事"); onEdited: (t) => editor.setField("notes", t) }
-                        Text {
-                            visible: !!root.plan.cover
-                            width: parent.width; wrapMode: Text.Wrap
-                            text: qsTr("这个计划有封面照片（这一版在这里还不能改）。")
-                            font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
+                        // 封面（0.10.5）：从这个计划的照片里挑，或从电脑选一张（导入进这个计划）
+                        Label { text: qsTr("封面照片") }
+                        Row {
+                            spacing: Theme.px(8)
+                            Rectangle {
+                                objectName: "edCover"
+                                visible: !!root.plan.cover
+                                width: visible ? Theme.px(96) : 0; height: Theme.px(64)
+                                radius: Theme.px(8)
+                                color: Theme.panel2
+                                clip: true
+                                Image {
+                                    anchors.fill: parent
+                                    source: root.plan.cover && photos.fileOf(root.plan.cover) ? photos.thumbUrl(photos.fileOf(root.plan.cover), 320) : ""
+                                    fillMode: Image.PreserveAspectCrop
+                                    asynchronous: true
+                                }
+                            }
+                            Column {
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: Theme.px(4)
+                                TpButton { objectName: "edCoverPick"; visible: root.canPhoto; compact: true; text: root.plan.cover ? qsTr("换一张") : qsTr("选择封面照片"); onClicked: root.coverPickRequested(root.photoRows) }
+                                TpButton { objectName: "edCoverClear"; visible: !!root.plan.cover; compact: true; kind: "ghost"; text: qsTr("去掉封面"); onClicked: editor.setField("cover", "") }
+                            }
+                            Text {
+                                visible: !root.canPhoto
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: qsTr("先填好名称和第一站，才能加照片")
+                                font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
+                            }
                         }
                         TpButton {
                             visible: !editor.isNew || editor.saveState === "saved" || editor.saveState === "pending"
@@ -570,12 +603,63 @@ Item {
                                             saver: (j, d) => editor.saveSched(stopItem.index, j, d.date, d.time, d.end, d.text)
                                             deleter: (j) => editor.deleteSched(stopItem.index, j)
                                         }
-                                        Text {
-                                            readonly property var c: stopItem.modelData.counts || {}
-                                            visible: c.photos > 0
-                                            width: parent.width; wrapMode: Text.Wrap
-                                            text: qsTr("照片 %1 张（这一版在这里还不能改）").arg(c.photos || 0)
-                                            font.family: serifFamily; font.pixelSize: Theme.px(11.5); color: Theme.muted
+                                        // 照片（0.10.5）：缩略图、写说明、移除、添加。站点有效（已保存）才能加
+                                        Column {
+                                            id: stopPhotos
+                                            objectName: "edStopPhotos-" + stopItem.index
+                                            readonly property var rows: root.photoRows.filter(p => p.stopId === stopItem.modelData.id)
+                                            width: parent.width
+                                            spacing: Theme.px(4)
+                                            Item {
+                                                width: parent.width; height: Theme.px(26)
+                                                Text {
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    text: stopPhotos.rows.length > 0 ? qsTr("照片 %1 张").arg(stopPhotos.rows.length) : qsTr("照片")
+                                                    font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.textSoft
+                                                }
+                                                TpButton {
+                                                    objectName: "edPhotoAdd"
+                                                    visible: root.canPhoto && !stopItem.modelData.bad
+                                                    anchors.right: parent.right
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    compact: true; kind: "ghost"; text: qsTr("添加照片")
+                                                    onClicked: root.photoAddRequested(stopItem.modelData.id)
+                                                }
+                                            }
+                                            Grid {
+                                                visible: stopPhotos.rows.length > 0
+                                                width: parent.width
+                                                columns: 3
+                                                spacing: Theme.px(6)
+                                                Repeater {
+                                                    model: stopPhotos.rows
+                                                    delegate: Rectangle {
+                                                        id: edThumb
+                                                        required property var modelData
+                                                        required property int index
+                                                        objectName: "edPhoto-" + index
+                                                        width: (parent.width - 2 * Theme.px(6)) / 3
+                                                        height: width * 0.72
+                                                        radius: Theme.px(8)
+                                                        color: Theme.panel2
+                                                        clip: true
+                                                        Image { anchors.fill: parent; source: edThumb.modelData.thumb || ""; fillMode: Image.PreserveAspectCrop; asynchronous: true; sourceSize.width: 320 }
+                                                        MouseArea {
+                                                            anchors.fill: parent
+                                                            cursorShape: Qt.PointingHandCursor
+                                                            onClicked: root.photoViewRequested(stopPhotos.rows, edThumb.index)
+                                                        }
+                                                        Row {
+                                                            anchors.right: parent.right
+                                                            anchors.bottom: parent.bottom
+                                                            anchors.margins: Theme.px(3)
+                                                            spacing: Theme.px(3)
+                                                            EdPhotoAct { objectName: "edPhotoCaption"; icon: "edit"; label: qsTr("写说明"); onClicked: root.photoCaptionRequested(edThumb.modelData) }
+                                                            EdPhotoAct { objectName: "edPhotoRemove"; icon: "trash"; label: qsTr("从计划里移除"); onClicked: root.photoRemoveRequested(edThumb.modelData) }
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
                                         // 坐标和样式（Electron details.ed-more）
                                         Item {
@@ -686,6 +770,19 @@ Item {
     }
 
     // ---- 小部件 ----
+    component EdPhotoAct: Rectangle {
+        id: pa
+        property string icon: ""
+        property string label: ""
+        signal clicked()
+        width: Theme.px(22); height: width
+        radius: width / 2
+        color: paMa.containsMouse ? Qt.rgba(0, 0, 0, 0.72) : Qt.rgba(0, 0, 0, 0.5)
+        Accessible.role: Accessible.Button
+        Accessible.name: label
+        TpIcon { anchors.centerIn: parent; width: Theme.px(13); height: width; name: pa.icon; color: "#ffffff" }
+        MouseArea { id: paMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: pa.clicked() }
+    }
     component Label: Text {
         font.family: serifFamily; font.pixelSize: Theme.px(11.5); color: Theme.muted
         width: parent ? parent.width : implicitWidth; wrapMode: Text.Wrap

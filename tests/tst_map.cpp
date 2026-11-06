@@ -2324,6 +2324,18 @@ void TestMap::moneySplit()
 
 void TestMap::moneyLedger()
 {
+    // 0.10.5 modeAlsoParts：旧设置没有这个键 = 都开；未知内容保留；只写 false 的算关
+    QVERIFY(plans::overlayPartsOff(parseJson("{}")).isEmpty());
+    QVERIFY(plans::overlayPartsOff(tp::json::Value()).isEmpty());
+    const tp::json::Value partsOld = parseJson(R"({"wish":{"foot":false,"plan":"乱写","新键":1},"未来":{"x":1}})");
+    const QHash<QString, QSet<QString>> partsOff = plans::overlayPartsOff(partsOld);
+    QCOMPARE(partsOff.value("wish"), QSet<QString>{ "foot" });
+    QVERIFY(partsOff.value("plan").isEmpty());
+    const tp::json::Value partsNew = plans::overlayPartsJson(partsOld, partsOff);
+    QCOMPARE(partsNew["未来"]["x"].toNumber(), 1.0);
+    QCOMPARE(partsNew["wish"]["新键"].toNumber(), 1.0);
+    QCOMPARE(partsNew["plan"]["foot"].toBool(), true);
+    QCOMPARE(plans::overlayPartsOff(partsNew), partsOff);
     using namespace tp::map::plans;
     Rates t = parseRates(R"({"date":"d","rates":{"AUD":0.2,"USD":0.14}})", "frankfurter", "CNY");
     const tp::json::Value root = parseJson(R"({"plans":[
@@ -2334,7 +2346,7 @@ void TestMap::moneyLedger()
       {"id":"p3","name":"空","status":"wish","currency":"CNY"},
       {"id":"p4","name":"零","currency":"CNY","expenses":[{"id":"z","amount":0}]},
       "不是计划"]})");
-    const QVariantMap m = ledgerInfo(root, "CNY", t);
+    const QVariantMap m = ledgerInfo(root, "CNY", t, "2026-06-01");
     const QVariantList trips = m.value("trips").toList();
     QCOMPARE(trips.size(), 2);
     QCOMPARE(m.value("emptyCount").toInt(), 2);
@@ -2344,18 +2356,39 @@ void TestMap::moneyLedger()
     QCOMPARE(a.value("days").toInt(), 2);
     QVERIFY(qAbs(a.value("budgetMain").toDouble() - 500) < 1e-6);
     QCOMPARE(m.value("missing").toStringList(), QStringList{ "ISK" });
-    QVERIFY(qAbs(m.value("total").toDouble() - 1050) < 1e-6);
-    QVERIFY(qAbs(m.value("perTrip").toDouble() - 525) < 1e-6);
+    // 0.10.5 第 5 题 A：p1 已完成算已花；p2 计划中没有开始日期算还没去。平均、年份、类别只算已花
+    QVERIFY(qAbs(m.value("total").toDouble() - 150) < 1e-6);
+    QVERIFY(qAbs(m.value("future").toDouble() - 900) < 1e-6);
+    QCOMPARE(m.value("spentCount").toInt(), 1);
+    QCOMPARE(m.value("futureCount").toInt(), 1);
+    QCOMPARE(trips[0].toMap().value("done").toBool(), false);
+    QCOMPARE(trips[1].toMap().value("state").toString(), QStringLiteral("completed"));
+    QVERIFY(qAbs(m.value("perTrip").toDouble() - 150) < 1e-6);
     QVERIFY(qAbs(m.value("perDay").toDouble() - 75) < 1e-6);                  // 只算有日期的那一趟
     QStringList ys;
     for (const QVariant &v : m.value("years").toList()) ys << v.toMap().value("y").toString();
-    QCOMPARE(ys, QStringList({ "2026", "2025", "2024", "" }));
-    QCOMPARE(m.value("cats").toList().size(), 3);                             // 餐饮、住宿、交通
-    QCOMPARE(ledgerInfo(parseJson(R"({})"), "CNY", t).value("trips").toList().size(), 0);
+    QCOMPARE(ys, QStringList({ "2025", "2024" }));
+    QCOMPARE(m.value("cats").toList().size(), 2);                             // 住宿、交通（p2 的餐饮还没算）
+    QCOMPARE(ledgerInfo(parseJson(R"({})"), "CNY", t, "2026-06-01").value("trips").toList().size(), 0);
+    // 到了开始日期的计划中算已开始；开始日期还没到、想去的都算还没去
+    const tp::json::Value r3 = parseJson(R"({"plans":[
+      {"id":"s","status":"planning","startDate":"2026-06-01","currency":"CNY","expenses":[{"id":"a","amount":10}]},
+      {"id":"f","status":"planning","startDate":"2026-06-02","currency":"CNY","expenses":[{"id":"b","amount":20}]},
+      {"id":"w","status":"wish","startDate":"2020-01-01","currency":"CNY","expenses":[{"id":"c","amount":40}]}]})");
+    const QVariantMap m3 = ledgerInfo(r3, "CNY", t, "2026-06-01");
+    QVERIFY(qAbs(m3.value("total").toDouble() - 10) < 1e-6);
+    QVERIFY(qAbs(m3.value("future").toDouble() - 60) < 1e-6);
+    for (const QVariant &v : m3.value("trips").toList())
+        if (v.toMap().value("id") == "s") QCOMPARE(v.toMap().value("state").toString(), QStringLiteral("live"));
+    // 没有已花：平均是 0，不除以零
+    const QVariantMap m0 = ledgerInfo(r3, "CNY", t, "2026-05-01");
+    QCOMPARE(m0.value("total").toDouble(), 0.0);
+    QCOMPARE(m0.value("perTrip").toDouble(), 0.0);
+    QCOMPARE(m0.value("years").toList().size(), 0);
     // 没有汇率表：外币都算缺，和主货币一样的照算
-    const QVariantMap none = ledgerInfo(root, "CNY", Rates());
+    const QVariantMap none = ledgerInfo(root, "CNY", Rates(), "2026-06-01");
     QVERIFY(none.value("missing").toStringList().contains("AUD"));
-    QVERIFY(qAbs(none.value("total").toDouble() - 900) < 1e-6);
+    QVERIFY(qAbs(none.value("future").toDouble() - 900) < 1e-6);
     QVERIFY(none.value("trips").toList()[1].toMap().value("budgetMain").toDouble() < 0);
 }
 
@@ -2768,6 +2801,24 @@ void TestMap::kitGuide()
     QCOMPARE(ph.size(), 2);
     QCOMPARE(ph[0].toMap()["id"].toString(), QStringLiteral("a"));
     QCOMPARE(ph[1].toMap()["stop"].toString(), QStringLiteral("二"));
+    QCOMPARE(ph[1].toMap()["stopNo"].toInt(), 2);
+    // 0.10.5 精选、说明、封面、移除（不动文件路径，变成未归类；是封面就去掉封面）
+    tp::json::Value r4 = r2;
+    QVERIFY(setPhotoFav(r4, "a", true));
+    QCOMPARE(planPhotos(r4, "p")[0].toMap()["fav"].toBool(), true);
+    QVERIFY(setPhotoFav(r4, "a", false));
+    QVERIFY(!r4["photos"].asArray()[1].asObject().contains("fav"));
+    QVERIFY(setPhotoCaption(r4, "a", " 海边 "));
+    QCOMPARE(planPhotos(r4, "p")[0].toMap()["caption"].toString(), QStringLiteral("海边"));
+    QVERIFY(setPlanCover(r4, "p", "a"));
+    QCOMPARE((*planById(r4, "p"))["cover"].toString(), QStringLiteral("a"));
+    QVERIFY(!setPlanCover(r4, "p", "没有这张"));
+    QVERIFY(!removePhotoFromPlan(r4, "q", "a"));                               // 不是这个计划的不动
+    QVERIFY(removePhotoFromPlan(r4, "p", "a"));
+    QCOMPARE(planPhotos(r4, "p").size(), 1);
+    QVERIFY(!(*planById(r4, "p")).asObject().contains("cover"));
+    QCOMPARE(r4["photos"].asArray()[1]["file"].toString(), QStringLiteral("f/a"));
+    QVERIFY(!r4["photos"].asArray()[1].asObject().contains("plan"));
 }
 
 void TestMap::elevEditing()

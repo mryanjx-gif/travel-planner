@@ -89,6 +89,7 @@ QString PlanEditor::openWith(const Value &plan, bool isNew)
     m_app->beginEditGroup();
     m_plan = plan;
     m_original = isNew ? Value() : plan;
+    m_originalPhotos = m_store->data()[QStringLiteral("photos")];
     m_isNew = isNew;
     m_inStore = !isNew;
     m_open = true;
@@ -181,6 +182,16 @@ void PlanEditor::discard()
         m_store->modify([&](Value &d) {
             if (orig.isObject()) pe::putPlan(d, orig);
             else pe::removePlan(d, id);
+            // 0.10.5 这次编辑里改过的照片（说明、归属）也退回；这次新导入的留在库里，变成未归类
+            Value *list = d.mutObject().find(QStringLiteral("photos"));
+            if (!list || !list->isArray()) return;
+            QHash<QString, const Value *> old;
+            for (const Value &ph : m_originalPhotos.asArray()) old.insert(str(ph, "id"), &ph);
+            for (Value &ph : list->mutArray()) {
+                const auto it = old.constFind(str(ph, "id"));
+                if (it != old.constEnd()) ph = **it;
+                else if (ph.isObject() && str(ph, "plan") == id) { ph.mutObject().remove(QStringLiteral("plan")); ph.mutObject().remove(QStringLiteral("stop")); }
+            }
         });
         m_app->saveFor(true);
     }
@@ -543,7 +554,7 @@ void PlanEditor::refreshView()
     v.insert(QStringLiteral("autoRegion"), m_autoRegion);
     v.insert(QStringLiteral("regionSame"), QSet<QString>(sug.begin(), sug.end()) == QSet<QString>(cur.begin(), cur.end()));
     v.insert(QStringLiteral("stops"), stops);
-    v.insert(QStringLiteral("cover"), !str(p, "cover").isEmpty());
+    v.insert(QStringLiteral("cover"), str(p, "cover"));   // 照片 id（0.10.5 编辑器里能改）
     m_view = v;
 
     // 问题（Electron validateEditor 的句子）。新计划名称没碰过时不标红

@@ -47,7 +47,9 @@ class PlanController : public QObject
     Q_PROPERTY(QStringList modes READ modes CONSTANT)
     Q_PROPERTY(QString modePrimary READ modePrimary NOTIFY modeChanged)  // 这个模式固定显示的状态（照片模式为空 = 全部）
     Q_PROPERTY(bool overlayAvailable READ overlayAvailable NOTIFY overlayChanged)  // 0.9.7：这个模式有"叠上其他旅程"（照片没有）
-    Q_PROPERTY(bool overlay READ overlay NOTIFY overlayChanged)                    // 0.9.7：这个模式叠上了其他旅程
+    Q_PROPERTY(bool overlay READ overlay NOTIFY overlayChanged)                    // 0.9.7：这个模式叠上了其他旅程（总开关）
+    Q_PROPERTY(QVariantMap overlayParts READ overlayParts NOTIFY overlayChanged)   // 0.10.5：这个模式叠哪些：{ 另外两个模式: 开 / 关 }
+    Q_PROPERTY(bool overlayLit READ overlayLit NOTIFY overlayChanged)              // 总开关开着，且至少叠一项（按钮上的小圆点）
 
 public:
     PlanController(AppController *app, Settings *settings, data::DataStore *store, map::MapController *mapc, QObject *parent = nullptr);
@@ -70,7 +72,9 @@ public:
     QString modePrimary() const;
     bool overlayAvailable() const { return m_mode != QLatin1String("photo"); }
     bool overlay() const { return overlayAvailable() && m_overlay.value(m_mode) && !m_testAll; }
-    // 0.9.7：地图画淡灰细线的那些计划：叠上开着时，状态不是这个模式的、但类型 / 区域 / 隐藏都通过的
+    QVariantMap overlayParts() const;
+    bool overlayLit() const { return overlay() && m_overlayOff.value(m_mode).size() < 2; }
+    // 0.9.7：地图画淡灰细线的那些计划：叠上开着时，状态不是这个模式的、但类型 / 区域 / 隐藏都通过的；0.10.5 它的模式也要没被子选项关掉
     bool overlayPlan(const json::Value &plan) const;
     const map::plans::Filter &filter() const { return m_filter; }
 
@@ -99,7 +103,9 @@ public:
     // 0.9.7：叠上其他旅程（当前模式）开 / 关
     Q_INVOKABLE void setOverlay(bool on);
     Q_INVOKABLE void toggleOverlay() { setOverlay(!overlay()); }
+    Q_INVOKABLE void setOverlayPart(const QString &part, bool on);   // part = plan / wish / foot（另外两个模式之一）
     void setOverlayForTest(const QString &mode, bool on);
+    void reopenPartsForTest(const QString &settingsFile);            // 自检：现在的子选项写进这个设置文件，清空，再从文件读回来
     // 截图 / 自检 / 内存测试：四种状态都按正常样子画（和 0.8.9 一样画全部计划，0.8.10 起靠"也显示"叠上，0.9.7 起靠这个）
     Q_INVOKABLE void setTestAllStatuses(bool on);
 
@@ -156,6 +162,7 @@ private:
     QStringList m_recent;
     QString m_mode = QStringLiteral("plan");
     QHash<QString, bool> m_overlay;          // 0.9.7：plan / wish / foot 各自"叠上其他旅程"
+    QHash<QString, QSet<QString>> m_overlayOff;   // 0.10.5：各模式关掉的子选项（默认都开）
     bool m_testAll = false;
     QString m_today, m_todayOverride;
     QTimer m_dayTimer;

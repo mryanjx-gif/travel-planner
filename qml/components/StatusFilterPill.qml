@@ -72,7 +72,7 @@ Item {
                 }
                 Rectangle {   // 0.9.7：叠上了其他旅程
                     objectName: "overlayDot"
-                    visible: plans.overlay
+                    visible: plans.overlayLit
                     width: Theme.px(7)
                     height: width
                     radius: width / 2

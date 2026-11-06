@@ -8,6 +8,7 @@ Column {
     property var blocks: []
     property bool tasks: false
     signal taskToggled(int line, bool on)
+    signal photoClicked(int block)          // 0.10.5 点正文里的照片看大图
     function blockY(i) { const it = rep.itemAt(i); return it ? it.y + it.gap : 0 }
 
     Text {
@@ -90,6 +91,13 @@ Column {
                     source: blk.b.thumb || ""
                     fillMode: Image.PreserveAspectFit
                     asynchronous: true
+                    MouseArea {
+                        objectName: "guidePhoto-" + blk.index
+                        anchors.fill: parent
+                        enabled: parent.visible
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.photoClicked(blk.index)
+                    }
                 }
                 Rectangle {
                     visible: blk.type === "img" && !blk.b.thumb

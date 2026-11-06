@@ -1,5 +1,6 @@
 #include "photocontroller.h"
 
+#include "plankit.h"
 #include "plans.h"
 
 #include "appcontroller.h"
@@ -14,6 +15,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QImageReader>
 #include <QUrl>
 
 #include <algorithm>
@@ -68,6 +70,59 @@ void PhotoController::shutdown()
     for (QThread *t : { m_thread, m_trashThread, m_cacheThread })
         if (t) t->wait();
 }
+
+QVariantList PhotoController::planPhotos(const QString &planId) const
+{
+    QVariantList rows = tp::map::plans::planPhotos(m_app->store()->data(), planId);
+    for (QVariant &v : rows) {
+        QVariantMap m = v.toMap();
+        const QString f = m.value(QStringLiteral("file")).toString();
+        if (f.startsWith(QLatin1String("photos/"))) m.insert(QStringLiteral("thumb"), ThumbProvider::urlFor(f, 320, 0));
+        v = m;
+    }
+    return rows;
+}
+
+QString PhotoController::fileOf(const QString &photoId) const
+{
+    for (const Value &ph : m_app->store()->data()[QStringLiteral("photos")].asArray())
+        if (ph[QStringLiteral("id")].toString() == photoId) return ph[QStringLiteral("file")].toString();
+    return {};
+}
+
+QString PhotoController::fileUrl(const QString &file) const
+{
+    return file.startsWith(QLatin1String("photos/")) ? QUrl::fromLocalFile(dataDir() + u'/' + file).toString() : QString();
+}
+
+QSize PhotoController::imageSize(const QString &file) const
+{
+    if (!file.startsWith(QLatin1String("photos/"))) return {};
+    QImageReader r(dataDir() + u'/' + file);
+    r.setAutoTransform(true);
+    QSize s = r.size();
+    if (r.transformation() & QImageIOHandler::TransformationRotate90) s.transpose();
+    return s;
+}
+
+bool PhotoController::applyEdit(const std::function<bool(json::Value &)> &fn)
+{
+    data::DataStore *store = m_app->store();
+    if (store->isReadOnly()) return false;
+    json::Value copy = store->data();
+    if (!fn(copy)) return false;
+    if (copy == store->data()) return true;
+    store->modify([&copy](json::Value &d) { d = copy; });
+    m_app->noteChanged(false);
+    ++m_revision;
+    emit libraryChanged();
+    return true;
+}
+
+bool PhotoController::setFav(const QString &photoId, bool on) { return applyEdit([&](json::Value &d) { return tp::map::plans::setPhotoFav(d, photoId, on); }); }
+bool PhotoController::setCaption(const QString &photoId, const QString &caption) { return applyEdit([&](json::Value &d) { return tp::map::plans::setPhotoCaption(d, photoId, caption); }); }
+bool PhotoController::removeFromPlan(const QString &planId, const QString &photoId) { return applyEdit([&](json::Value &d) { return tp::map::plans::removePhotoFromPlan(d, planId, photoId); }); }
+bool PhotoController::setCover(const QString &planId, const QString &photoId) { return applyEdit([&](json::Value &d) { return tp::map::plans::setPlanCover(d, planId, photoId); }); }
 
 QString PhotoController::dataDir() const { return m_app->store()->dataDir(); }
 QString PhotoController::cacheDir() const { return QDir::toNativeSeparators(m_cache->root()); }
@@ -379,6 +434,9 @@ void PhotoController::copyDone(const pl::ImportResult &rIn)
         qInfo("导入照片：%d 张（归到计划 %d 张，未归类 %d 张），跳过 %d 张", int(r.records.size()), toPlan, inbox, r.skipped);
         out = { { QStringLiteral("ok"), true }, { QStringLiteral("count"), int(r.records.size()) }, { QStringLiteral("toPlan"), toPlan },
                 { QStringLiteral("inbox"), inbox }, { QStringLiteral("skipped"), r.skipped } };
+        QStringList ids;   // 0.10.5 编辑器"从电脑选封面"：导入完把第一张设成封面
+        for (const Value &rec : r.records) ids << rec[QStringLiteral("id")].toString();
+        out.insert(QStringLiteral("ids"), ids);
         ++m_revision;
         emit libraryChanged();
     } else {

@@ -34,11 +34,12 @@ $AllPages = @(
     'street|zh',
     'trip|zh', 'trip|en', 'trip-today|zh', 'trip-scroll|zh', 'trip-edit|zh', 'trip-edit|en', 'trip-single|zh', 'trip-sketch|zh', 'trip-narrow|zh',
     'trip-bookings|zh', 'trip-bookings|en', 'trip-budget|zh', 'trip-budget|en', 'trip-booking-form|zh', 'trip-booking-form|en', 'trip-expense-form|zh', 'trip-stopbooks|zh',
-    'trip-settle|zh', 'trip-settle|en', 'trip-split-form|zh', 'trip-split-form|en', 'trip-split-narrow|zh', 'ledger|zh', 'ledger|en', 'ledger-narrow|zh',
+    'trip-settle|zh', 'trip-settle|en', 'trip-split-form|zh', 'trip-split-form|en', 'trip-split-narrow|zh', 'ledger|zh', 'ledger|en', 'ledger-narrow|zh', 'ledger-now|zh',
     'trip-weather|zh', 'trip-weather|en', 'trip-elev|zh', 'trip-elev|en', 'trip-alt-narrow|zh',
     'trip-packing|zh', 'trip-packing|en', 'trip-packing-narrow|zh', 'trip-packing-paste|zh', 'trip-emergency-form|zh', 'trip-emergency-form|en',
     'trip-journal|zh', 'trip-journal|en', 'trip-guide|zh', 'trip-guide|en', 'trip-guide-narrow|zh', 'trip-guide-edit|zh', 'trip-guide-edit|en', 'trip-guide-edit-narrow|zh', 'trip-guide-new|zh',
-    'sheet|zh', 'now|zh', 'now|en', 'editor|zh',
+    'trip-photos|zh', 'trip-photos|en', 'trip-photos-narrow|zh', 'trip-lightbox|zh', 'trip-lightbox|en', 'trip-lightbox-zoom|zh',
+    'sheet|zh', 'now|zh', 'now|en', 'editor|zh', 'editor-photos|zh', 'editor-photos|en', 'editor-cover|zh', 'filter-overlay|zh', 'filter-overlay|en',
     'street|zh|hide'
 )
 # 按需跑：逗号分开或多个参数都行

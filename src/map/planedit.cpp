@@ -189,7 +189,7 @@ QStringList suggestPlanRegions(const Value &plan)
 bool setField(Value &plan, const QString &key, const QString &value)
 {
     static const QStringList kKeys{ QStringLiteral("name"), QStringLiteral("type"), QStringLiteral("status"), QStringLiteral("startDate"),
-                                    QStringLiteral("endDate"), QStringLiteral("notes"), QStringLiteral("color"), QStringLiteral("markerMode") };
+                                    QStringLiteral("endDate"), QStringLiteral("notes"), QStringLiteral("color"), QStringLiteral("markerMode"), QStringLiteral("cover") };
     if (!kKeys.contains(key)) return false;
     json::Object &o = plan.mutObject();
     if (key == QLatin1String("markerMode")) return setStr(o, key, value == QLatin1String("number") ? QString() : value, true);

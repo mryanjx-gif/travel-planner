@@ -16,6 +16,7 @@ Column {
     signal scrollRequested(real y, bool animate)   // 滚到这个标签里的 y
     signal linkRequested(string selected)
     signal photoRequested()
+    signal photoViewRequested(var blocks, int block)
     spacing: Theme.px(10)
 
     property bool wantEdit: false
@@ -212,7 +213,7 @@ Column {
                 contentHeight: prevBlocks.height
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
-                GuideBlocks { id: prevBlocks; width: prevFlick.width; blocks: root.previewBlocks }
+                GuideBlocks { id: prevBlocks; width: prevFlick.width; blocks: root.previewBlocks; onPhotoClicked: (k) => root.photoViewRequested(root.previewBlocks, k) }
             }
         }
     }
@@ -277,6 +278,7 @@ Column {
                 blocks: root.view.blocks || []
                 tasks: !root.readOnly
                 onTaskToggled: (line, on) => planPage.toggleGuideTask(line, on)
+                onPhotoClicked: (k) => root.photoViewRequested(root.view.blocks || [], k)
             }
         }
         Column {

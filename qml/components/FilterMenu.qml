@@ -125,6 +125,20 @@ Item {
             checked: plans.overlay
             onToggled: plans.toggleOverlay()
         }
+        // 0.10.5 叠哪些：另外两种模式，总开关开着才显示
+        Repeater {
+            model: ["plan", "wish", "foot"]
+            delegate: TpCheck {
+                required property string modelData
+                objectName: "overlayPart-" + modelData
+                visible: plans.overlay && modelData !== plans.mode
+                x: Theme.px(24)
+                width: col.width - x
+                text: modelData === "plan" ? qsTr("叠加计划") : modelData === "wish" ? qsTr("叠加想去") : qsTr("叠加足迹")
+                checked: plans.overlayParts[modelData] === true
+                onToggled: (on) => plans.setOverlayPart(modelData, on)
+            }
+        }
         Text {
             visible: plans.overlayAvailable
             width: col.width

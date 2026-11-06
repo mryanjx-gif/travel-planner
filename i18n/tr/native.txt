@@ -761,3 +761,19 @@ Enter 记下，日期默认今天	Enter to add; dated today
 还没填。出发前查一下当地的报警、急救电话和中国使领馆电话（外交部“中国领事”、当地政府网站）。	Not filled in yet. Before you leave, look up the local police and ambulance numbers and your embassy or consulate.
 填一次，所有计划共用。	Fill this in once; all plans share it.
 这些只存在你自己的电脑上。	This is stored only on your own computer.
+还没有开始的旅程花钱。计划到了开始日期或标记为已完成后，它的花费才算进这里。	No trip has started yet. A plan's costs count here once its start date arrives or it is marked as done.
+还没去的预计 %1 %2（%3 趟）	Still to come, estimated: %1 %2 (%3 trips)
+%1 张精选	Favorites: %1
+去掉封面	Remove cover
+这个计划还没有照片。点“添加照片”：会读照片的拍摄时间和位置，自动放进对应的站点，导入前可以逐张改。	This plan has no photos yet. Click "Add photos": their time and location are read and each goes to the matching stop. You can change any of them before importing.
+看大图	Photo viewer
+这张照片显示不了	This photo can't be shown
+从电脑选一张	Choose from computer
+换一张	Change
+选择封面照片	Choose a cover photo
+先填好名称和第一站，才能加照片	Fill in the name and first stop before adding photos
+叠加计划	Overlay plans
+叠加想去	Overlay wishlist
+叠加足迹	Overlay footprints
+第 %1 站	Stop %1
+%1 张	%1 photos

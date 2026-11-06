@@ -145,6 +145,29 @@ QVariantList scheduleOf(const Value &stop)
 
 // ---------------- 基本属性 ----------------
 
+QHash<QString, QSet<QString>> overlayPartsOff(const Value &saved)
+{
+    QHash<QString, QSet<QString>> off;
+    const QStringList modes{ QStringLiteral("plan"), QStringLiteral("wish"), QStringLiteral("foot") };
+    for (const QString &m : modes)
+        for (const QString &o : modes)
+            if (m != o && saved[m][o].isBool() && !saved[m][o].toBool()) off[m].insert(o);
+    return off;
+}
+
+Value overlayPartsJson(const Value &saved, const QHash<QString, QSet<QString>> &off)
+{
+    Value out = saved.isObject() ? saved : Value::object();
+    const QStringList modes{ QStringLiteral("plan"), QStringLiteral("wish"), QStringLiteral("foot") };
+    for (const QString &m : modes) {
+        Value one = saved[m].isObject() ? saved[m] : Value::object();
+        for (const QString &o : modes)
+            if (m != o) one.mutObject().set(o, Value(!off.value(m).contains(o)));
+        out.mutObject().set(m, std::move(one));
+    }
+    return out;
+}
+
 const QStringList &allStatuses()
 {
     static const QStringList l = { QStringLiteral("planning"), QStringLiteral("wish"), QStringLiteral("completed") };

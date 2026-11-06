@@ -180,6 +180,7 @@ private:
     bool m_open = false, m_isNew = false, m_inStore = false;
     json::Value m_plan;                    // 工作副本
     json::Value m_original;                // 打开时的样子（新建 = null）
+    json::Value m_originalPhotos;          // 打开时的照片库（放弃修改时退回说明和归属）
     bool m_autoRegion = false;             // Electron editor.autoRegion：没有区域时跟着站点自动建议，手动点过就不再自动
     bool m_typeAuto = false;               // 改进 g 已经自动改过一次（之后用户改回单一目的地就不再改）
     bool m_singleAsked = false;            // 完成时已经问过"要改成路线吗"

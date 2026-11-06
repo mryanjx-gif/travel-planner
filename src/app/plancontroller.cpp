@@ -22,6 +22,7 @@ constexpr int kRecentMax = 8;
 // 0.8.10 模式
 const QString kModeKey = QStringLiteral("mapMode");
 const QString kAlsoKey = QStringLiteral("modeAlso");
+const QString kPartsKey = QStringLiteral("modeAlsoParts");
 
 QVariant toVariant(const Value &v)
 {
@@ -205,6 +206,7 @@ bool PlanController::overlayPlan(const Value &plan) const
     if (!overlay()) return false;
     const QString st = plans::statusOf(plan);
     if (m_filter.status.contains(st)) return false;   // 这个模式自己的，正常画
+    if (m_overlayOff.value(m_mode).contains(modeForStatus(st))) return false;   // 0.10.5 子选项关了
     plans::Filter f = m_filter;
     f.status = QSet<QString>(plans::allStatuses().begin(), plans::allStatuses().end());
     return f.onMap(plan);   // 类型、区域、眼睛隐藏照样管
@@ -216,6 +218,42 @@ void PlanController::setOverlay(bool on)
     m_overlay[m_mode] = on;
     qInfo("叠上其他旅程（%s）：%s", qUtf8Printable(m_mode), on ? "开" : "关");
     saveModes();
+    emit overlayChanged();
+    applyFilter(false);
+}
+
+QVariantMap PlanController::overlayParts() const
+{
+    QVariantMap m;
+    if (!overlayAvailable()) return m;
+    for (const QString &k : { QStringLiteral("plan"), QStringLiteral("wish"), QStringLiteral("foot") })
+        if (k != m_mode) m.insert(k, !m_overlayOff.value(m_mode).contains(k));
+    return m;
+}
+
+void PlanController::setOverlayPart(const QString &part, bool on)
+{
+    if (!overlayParts().contains(part) || on != m_overlayOff.value(m_mode).contains(part)) return;
+    if (on) m_overlayOff[m_mode].remove(part);
+    else m_overlayOff[m_mode].insert(part);
+    qInfo("叠上其他旅程（%s）：%s %s", qUtf8Printable(m_mode), qUtf8Printable(part), on ? "开" : "关");
+    saveModes();
+    emit overlayChanged();
+    applyFilter(false);
+}
+
+void PlanController::reopenPartsForTest(const QString &settingsFile)
+{
+    {
+        Settings s;
+        s.load(settingsFile);
+        s.setValue(kPartsKey, plans::overlayPartsJson(s.value(kPartsKey), m_overlayOff));
+        s.save();
+    }
+    m_overlayOff.clear();
+    Settings t;
+    t.load(settingsFile);
+    m_overlayOff = plans::overlayPartsOff(t.value(kPartsKey));
     emit overlayChanged();
     applyFilter(false);
 }
@@ -269,6 +307,7 @@ void PlanController::setPersist(bool on)
     m_persist = on;
     if (on) return;
     m_overlay.clear();
+    m_overlayOff.clear();
     if (m_mode != QLatin1String("plan")) { m_mode = QStringLiteral("plan"); emit modeChanged(); }
     emit overlayChanged();
     m_filter.status = statusForMode();
@@ -287,6 +326,7 @@ void PlanController::loadModes()
         const QVariant &v = it.value();
         m_overlay[it.key()] = v.typeId() == QMetaType::Bool ? v.toBool() : !v.toList().isEmpty();
     }
+    m_overlayOff = plans::overlayPartsOff(m_settings->value(kPartsKey));
     // 0.9.5：settings.json 里旧的 modeBase（每种模式记住的底图）不再读也不再写（0.9.2 起四种模式共用一个底图），原样留着
 }
 
@@ -298,6 +338,7 @@ void PlanController::saveModes()
         also.set(m, Value(m_overlay.value(m)));
     m_settings->setValue(kModeKey, Value(m_mode));
     m_settings->setValue(kAlsoKey, Value(std::move(also)));
+    m_settings->setValue(kPartsKey, plans::overlayPartsJson(m_settings->value(kPartsKey), m_overlayOff));
     m_settings->save();
 }
 

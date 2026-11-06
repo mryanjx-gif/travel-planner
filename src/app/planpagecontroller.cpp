@@ -71,7 +71,7 @@ void PlanPageController::showLedger(bool on)
 void PlanPageController::refresh()
 {
     if (m_ledgerOn) {
-        const QVariantMap l = plans::ledgerInfo(m_store->data(), m_rates->main(), m_rates->table());
+        const QVariantMap l = plans::ledgerInfo(m_store->data(), m_rates->main(), m_rates->table(), m_plans->today());
         if (l != m_ledger) { m_ledger = l; emit ledgerChanged(); }
     }
     QVariantMap m;
@@ -84,6 +84,7 @@ void PlanPageController::refresh()
             }
         if (!m.isEmpty()) {
             m.insert(QStringLiteral("readOnly"), m_store->isReadOnly());
+            m.insert(QStringLiteral("photos"), withThumb(plans::planPhotos(m_store->data(), m_id), 320));   // 0.10.5 照片标签、照片条点开看大图
             const Value &p = *plans::planById(m_store->data(), m_id);
             m.insert(QStringLiteral("money"), plans::spendInfo(p, m_rates->main(), m_rates->table()));
             // J1：去掉点过"这几晚不用"的
@@ -253,6 +254,32 @@ bool PlanPageController::toggleGuideTask(int line, bool on)
 QVariantMap PlanPageController::guideBlocks(const QString &text) const { return guideWithThumbs(m_store->data(), text); }
 
 QVariantList PlanPageController::planPhotos() const { return withThumb(plans::planPhotos(m_store->data(), m_id), 320); }
+
+void PlanPageController::seedPhotosForShot(const QString &id)
+{
+    const QString planId = id.isEmpty() ? m_id : id;
+    const Value *p = plans::planById(m_store->data(), planId);
+    if (!p || plans::planPhotos(m_store->data(), planId).size() >= 3) return;
+    const QVector<int> st = plans::validStops(*p);
+    if (st.isEmpty()) return;
+    QStringList stops;
+    for (int i : st) if (stops.size() < 3) stops << (*p)[QStringLiteral("stops")].asArray()[size_t(i)][QStringLiteral("id")].toString();
+    applyRoot([&](Value &d) {
+        Value *list = d.mutObject().find(QStringLiteral("photos"));
+        if (!list) return QString();
+        int n = 0;
+        for (Value &ph : list->mutArray()) {
+            if (n >= 9 || !ph[QStringLiteral("file")].toString().startsWith(QLatin1String("photos/"))) continue;
+            json::Object &o = ph.mutObject();
+            o.set(QStringLiteral("plan"), Value(planId));
+            o.set(QStringLiteral("stop"), Value(stops[n % stops.size()]));
+            if (n == 1) o.set(QStringLiteral("fav"), Value(true));
+            if (n == 2) o.set(QStringLiteral("caption"), Value(QStringLiteral("傍晚的海边，风很大")));
+            ++n;
+        }
+        return QString();
+    });
+}
 
 void PlanPageController::seedKitForShot()
 {

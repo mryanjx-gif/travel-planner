@@ -5,13 +5,16 @@ import TPApp
 ModalLayer {
     id: root
     property var rows: []
+    property string title: qsTr("插入照片")
+    property bool fromFile: false           // 0.10.5 选封面时多一个"从电脑选一张"
     signal picked(var photo)
+    signal fileRequested()
     cardWidth: 580
     onDismissed: open = false
 
     function show(list) { rows = list; open = true }
 
-    Text { text: qsTr("插入照片"); font.family: serifFamily; font.pixelSize: Theme.px(19); font.bold: true; color: Theme.text }
+    Text { text: root.title; font.family: serifFamily; font.pixelSize: Theme.px(19); font.bold: true; color: Theme.text }
     Flickable {
         width: parent.width
         height: Math.min(grid.implicitHeight, root.height - Theme.px(190))
@@ -54,6 +57,8 @@ ModalLayer {
     }
     Row {
         anchors.right: parent.right
+        spacing: Theme.px(10)
+        TpButton { visible: root.fromFile; text: qsTr("从电脑选一张"); onClicked: { root.open = false; root.fileRequested() } }
         TpButton { text: qsTr("取消"); onClicked: root.open = false }
     }
 }

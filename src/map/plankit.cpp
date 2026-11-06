@@ -315,7 +315,7 @@ QVariantMap guideBlocks(const Value &root, const QString &text)
             flush();
             const Value *rec = nullptr;
             const QString file = photoFileOf(root, m.captured(2), &rec);
-            blocks << QVariantMap{ { QStringLiteral("type"), QStringLiteral("img") }, { QStringLiteral("file"), file }, { QStringLiteral("caption"), m.captured(1) },
+            blocks << QVariantMap{ { QStringLiteral("type"), QStringLiteral("img") }, { QStringLiteral("id"), rec ? str(*rec, "id") : QString() }, { QStringLiteral("file"), file }, { QStringLiteral("caption"), m.captured(1) },
                                    { QStringLiteral("width"), rec ? (*rec)[QStringLiteral("width")].toNumber() : 0.0 }, { QStringLiteral("height"), rec ? (*rec)[QStringLiteral("height")].toNumber() : 0.0 } };
             continue;
         }
@@ -367,14 +367,67 @@ QVariantList planPhotos(const Value &root, const QString &planId)
     QVariantList out;
     if (!p) return out;
     const json::Array &stops = (*p)[QStringLiteral("stops")].asArray();
+    const bool route = typeOf(*p) == QLatin1String("route");
+    int stopNo = 0;
     for (int i : validStops(*p)) {
         const QString sid = str(stops[size_t(i)], "id");
+        ++stopNo;
         for (const Value &ph : root[QStringLiteral("photos")].asArray())
             if (str(ph, "plan") == planId && str(ph, "stop") == sid)
                 out << QVariantMap{ { QStringLiteral("id"), str(ph, "id") }, { QStringLiteral("file"), str(ph, "file") },
-                                    { QStringLiteral("caption"), str(ph, "caption") }, { QStringLiteral("stop"), str(stops[size_t(i)], "name") } };
+                                    { QStringLiteral("caption"), str(ph, "caption") }, { QStringLiteral("stop"), str(stops[size_t(i)], "name") },
+                                    { QStringLiteral("stopId"), sid }, { QStringLiteral("stopNo"), stopNo }, { QStringLiteral("route"), route },
+                                    { QStringLiteral("fav"), ph[QStringLiteral("fav")].toBool() }, { QStringLiteral("takenAt"), str(ph, "takenAt") } };
     }
     return out;
+}
+
+namespace {
+Value *mutPhoto(Value &root, const QString &id)
+{
+    Value *list = root.isObject() ? root.mutObject().find(QStringLiteral("photos")) : nullptr;
+    if (!list || !list->isArray() || id.isEmpty()) return nullptr;
+    for (Value &ph : list->mutArray())
+        if (ph.isObject() && str(ph, "id") == id) return &ph;
+    return nullptr;
+}
+}
+
+bool setPhotoFav(Value &root, const QString &id, bool on)
+{
+    Value *ph = mutPhoto(root, id);
+    if (!ph) return false;
+    if (on) ph->mutObject().set(QStringLiteral("fav"), Value(true));
+    else ph->mutObject().remove(QStringLiteral("fav"));   // Electron 取消精选时 delete
+    return true;
+}
+
+bool setPhotoCaption(Value &root, const QString &id, const QString &caption)
+{
+    Value *ph = mutPhoto(root, id);
+    if (!ph) return false;
+    ph->mutObject().set(QStringLiteral("caption"), Value(caption.trimmed()));
+    return true;
+}
+
+bool removePhotoFromPlan(Value &root, const QString &planId, const QString &id)
+{
+    Value *ph = mutPhoto(root, id);
+    if (!ph || str(*ph, "plan") != planId) return false;
+    ph->mutObject().remove(QStringLiteral("plan"));
+    ph->mutObject().remove(QStringLiteral("stop"));
+    Value *p = mutPlan(root, planId);
+    if (p && str(*p, "cover") == id) p->mutObject().remove(QStringLiteral("cover"));
+    return true;
+}
+
+bool setPlanCover(Value &root, const QString &planId, const QString &id)
+{
+    Value *p = mutPlan(root, planId);
+    if (!p || (!id.isEmpty() && !mutPhoto(root, id))) return false;
+    if (id.isEmpty()) p->mutObject().remove(QStringLiteral("cover"));
+    else p->mutObject().set(QStringLiteral("cover"), Value(id));
+    return true;
 }
 
 } // namespace tp::map::plans

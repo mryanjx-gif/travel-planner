@@ -26,14 +26,14 @@ Item {
     onShownChanged: planPage.showLedger(shown)
 
     function whole(v) { return Fmt.money(Math.round(v || 0)) }   // 都是换算出来的钱，小数没有意义
-    function statusText(s) { return s === "wish" ? qsTr("想去") : s === "completed" ? qsTr("已完成") : qsTr("计划中") }
+    function statusText(s) { return s === "wish" ? qsTr("想去") : s === "completed" ? qsTr("已完成") : s === "live" ? qsTr("进行中") : qsTr("计划中") }
     function budgetText(t) { return t.budget > 0 ? (t.budgetMain >= 0 ? whole(t.budgetMain) : Fmt.money(t.budget, t.budgetCur)) : "—" }
     function subText(t) {
         const a = []
         if (t.start || t.end) a.push((t.start || t.end).slice(0, 4) + " · " + Fmt.range(t.start, t.end))
         if (root.narrow && t.days > 0) a.push(qsTr("%1 天").arg(t.days))
         if (root.narrow && t.budget > 0) a.push(qsTr("预算 %1").arg(budgetText(t)))
-        if (t.status !== "completed") a.push(statusText(t.status))
+        a.push(statusText(t.state))   // 0.10.5：每行都写状态
         return a.join(" · ")
     }
 
@@ -67,13 +67,30 @@ Item {
                     id: bigCol
                     width: parent.width - mainSel.width - Theme.px(10)
                     spacing: Theme.px(1)
-                    Text { text: qsTr("一共花了"); font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted }
+                    Text { text: qsTr("已花"); font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted }
                     Text {
                         objectName: "ledgerTotal"
                         width: parent.width
                         wrapMode: Text.Wrap
                         text: rates.main + " " + root.whole(root.info.total)
-                        font.family: serifFamily; font.pixelSize: Theme.px(30); font.bold: true; color: Theme.text
+                        font.family: serifFamily; font.pixelSize: Theme.px(30); font.bold: true; color: (root.info.spentCount || 0) > 0 ? Theme.text : Theme.muted
+                    }
+                    Text {
+                        objectName: "ledgerNoSpent"
+                        visible: (root.info.spentCount || 0) === 0 && root.trips.length > 0
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        text: qsTr("还没有开始的旅程花钱。计划到了开始日期或标记为已完成后，它的花费才算进这里。")
+                        font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.muted
+                    }
+                    Text {
+                        objectName: "ledgerFuture"
+                        visible: (root.info.futureCount || 0) > 0
+                        topPadding: Theme.px(4)
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        text: qsTr("还没去的预计 %1 %2（%3 趟）").arg(rates.main).arg(root.whole(root.info.future)).arg(root.info.futureCount || 0)
+                        font.family: serifFamily; font.pixelSize: Theme.px(15); color: Theme.textSoft
                     }
                 }
                 Row {
@@ -92,10 +109,10 @@ Item {
             }
             Text {
                 objectName: "ledgerStats"
-                visible: root.trips.length > 0
+                visible: (root.info.spentCount || 0) > 0
                 width: parent.width
                 wrapMode: Text.Wrap
-                text: [qsTr("%1 趟").arg(root.trips.length), qsTr("平均每趟 %1").arg(root.whole(root.info.perTrip))]
+                text: [qsTr("%1 趟").arg(root.info.spentCount || 0), qsTr("平均每趟 %1").arg(root.whole(root.info.perTrip))]
                       .concat((root.info.perDay || 0) !== 0 ? [qsTr("平均每天 %1").arg(root.whole(root.info.perDay))] : []).join(" · ")
                 font.family: serifFamily; font.pixelSize: Theme.px(14); color: Theme.textSoft
             }
@@ -187,7 +204,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         Text { visible: !root.narrow; width: root.colDays; horizontalAlignment: Text.AlignRight; text: qsTr("天数"); font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted }
                         Text { visible: !root.narrow; width: root.colBudget; horizontalAlignment: Text.AlignRight; text: qsTr("预算"); font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted }
-                        Text { width: root.colSpent; horizontalAlignment: Text.AlignRight; text: qsTr("花了"); font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted }
+                        Text { width: root.colSpent; horizontalAlignment: Text.AlignRight; text: qsTr("花费"); font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted }
                     }
                 }
                 Repeater {
@@ -234,8 +251,8 @@ Item {
                                 width: root.colSpent
                                 horizontalAlignment: Text.AlignRight
                                 text: root.whole(tripRow.modelData.spent)
-                                font.family: serifFamily; font.pixelSize: Theme.px(14); font.bold: true
-                                color: tripRow.modelData.budget > 0 && tripRow.modelData.budgetMain >= 0 && tripRow.modelData.spent > tripRow.modelData.budgetMain ? Theme.danger : Theme.text
+                                font.family: serifFamily; font.pixelSize: Theme.px(14); font.bold: tripRow.modelData.done
+                                color: !tripRow.modelData.done ? Theme.textSoft : tripRow.modelData.budget > 0 && tripRow.modelData.budgetMain >= 0 && tripRow.modelData.spent > tripRow.modelData.budgetMain ? Theme.danger : Theme.text
                             }
                         }
                     }

@@ -18,6 +18,7 @@ namespace tp::services { class NetClient; class RoadRouter; class TileServer; cl
 
 namespace tp::app {
 class AppController;
+class PhotoController;
 class PlanController;
 class PlanEditor;
 class PlanPageController;
@@ -100,6 +101,8 @@ WeatherController *weatherCtl();
 void runWeather(Report &r, AppController *app, QQuickWindow *win, PlanPageController *page, NavHistory *nav, WeatherController *weather);
 // 0.10.4：行李与待办、紧急信息、游记、攻略（selftest_kit.cpp）
 void runKit(Report &r, AppController *app, QQuickWindow *win, PlanPageController *page, NavHistory *nav);
+// 0.10.5：照片标签、看大图、编辑器的照片和封面（selftest_photos_tab.cpp）
+void runPlanPhotos(Report &r, AppController *app, QQuickWindow *win, PlanPageController *page, NavHistory *nav, PhotoController *photos);
 // 0.9.1：性能——启动各步、拖地图每帧、换模式、数据重建、写设置、玻璃和标记各占多少（selftest_perf.cpp）
 FrameStats *frameStats();
 Settings *settingsObj();

@@ -141,6 +141,18 @@ Canvas {
             circle(c, 12, 12, 6); poly(c, [12, 2, 12, 7]); poly(c, [12, 17, 12, 22]); poly(c, [2, 12, 7, 12]); poly(c, [17, 12, 22, 12]); break
         case "coord":   // 手动输入坐标：#
             poly(c, [9, 4, 7, 20]); poly(c, [17, 4, 15, 20]); poly(c, [4, 9, 20, 9]); poly(c, [4, 15, 20, 15]); break
+        case "star":
+        case "starOn":
+            c.beginPath()
+            for (let i = 0; i < 10; ++i) {
+                const r = i % 2 ? 4 : 9.5, a = -Math.PI / 2 + i * Math.PI / 5
+                c.lineTo(12 + r * Math.cos(a), 12.5 + r * Math.sin(a))
+            }
+            c.closePath()
+            if (name === "starOn") c.fill(); else c.stroke()
+            break
+        case "image":   // 设为封面
+            rrect(c, 3, 5, 18, 14, 2); circle(c, 8.5, 10, 1.4, true); poly(c, [4, 17, 10, 12, 14, 15.5, 17, 13, 20, 16]); break
         case "check":
             poly(c, [5, 12, 10, 17, 19, 7]); break
         }

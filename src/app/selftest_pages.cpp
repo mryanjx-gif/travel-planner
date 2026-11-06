@@ -11,9 +11,11 @@
 #include "navhistory.h"
 #include "plancontroller.h"
 #include "plans.h"
+#include "settings.h"
 #include "translator.h"
 
 #include <QGuiApplication>
+#include <QTemporaryDir>
 
 #include <algorithm>
 #include <QQmlContext>
@@ -264,6 +266,83 @@ void runPages(Report &r, AppController *app, map::MapController *mapc, QQuickWin
         const bool ow = pc->overlay();
         const int nw = int(mapc->overlayTrips().plans().size());
         pc->setOverlay(false);
+        // 0.10.5 子选项：叠哪些。overlayStatuses = 淡灰细线实际画了哪些状态
+        const auto overlayStatuses = [mapc] {
+            QSet<QString> st;
+            for (const map::TripPlan &p : mapc->overlayTrips().plans()) st.insert(p.status.isEmpty() ? QStringLiteral("planning") : p.status);
+            return st;
+        };
+        const auto n = [mapc] { return int(mapc->overlayTrips().plans().size()); };
+        const int nPlan = byStatus.value(QStringLiteral("planning")), nWish = byStatus.value(QStringLiteral("wish")), nDone = byStatus.value(QStringLiteral("completed"));
+        goPage(win, QStringLiteral("wish"));
+        waitMode(pc, win, QStringLiteral("wish"));
+        pc->setOverlay(true);
+        waitFor([&] { return n() == nPlan + nDone; }, 1500);
+        r.check(n() == nPlan + nDone && pc->overlayParts().size() == 2 && pc->overlayParts().contains(QStringLiteral("plan")) && pc->overlayParts().contains(QStringLiteral("foot")),
+                QStringLiteral("子选项：想去模式列出计划、足迹，默认都开，和以前一样"), QStringLiteral("%1 个").arg(n()));
+        pc->setOverlayPart(QStringLiteral("foot"), false);
+        waitFor([&] { return n() == nPlan; }, 1500);
+        r.check(n() == nPlan && (nPlan == 0 || overlayStatuses() == QSet<QString>{ QStringLiteral("planning") }), QStringLiteral("子选项：只开\"叠加计划\"只画计划中的"), join(overlayStatuses()));
+        pc->setOverlayPart(QStringLiteral("plan"), false);
+        waitFor([&] { return n() == 0; }, 1500);
+        const bool dotAllOff = waitFor([win] { return !shown(item(win, "overlayDot")); }, 1000);
+        r.check(n() == 0 && pc->overlay() && !pc->overlayLit() && dotAllOff, QStringLiteral("子选项：两项都关不画线、小圆点不亮，总开关还开着"));
+        pc->setOverlayPart(QStringLiteral("foot"), true);
+        waitFor([&] { return n() == nDone; }, 1500);
+        r.check(n() == nDone && (nDone == 0 || overlayStatuses() == QSet<QString>{ QStringLiteral("completed") }) && pc->overlayLit(), QStringLiteral("子选项：只开\"叠加足迹\"只画已完成的"), join(overlayStatuses()));
+        goPage(win, QStringLiteral("plan"));
+        waitMode(pc, win, QStringLiteral("plan"));
+        pc->setOverlay(true);
+        waitFor([&] { return n() == nWish + nDone; }, 1500);
+        const int planAll = n();
+        pc->setOverlay(false);
+        goPage(win, QStringLiteral("wish"));
+        waitMode(pc, win, QStringLiteral("wish"));
+        waitFor([&] { return n() == nDone; }, 1500);
+        r.check(planAll == nWish + nDone && n() == nDone && pc->overlayParts().value(QStringLiteral("plan")).toBool() == false, QStringLiteral("子选项：换模式各记各的"), QStringLiteral("计划模式 %1 个；回想去 %2 个").arg(planAll).arg(n()));
+        // 重开：写进真的设置文件（副本）再读回来；文件里别的内容不丢
+        {
+            QTemporaryDir dir;
+            const QString f = dir.path() + QStringLiteral("/settings.json");
+            Settings seed;
+            seed.load(f);
+            seed.setValue(QStringLiteral("selftestUnknown"), Value(QStringLiteral("留着")));
+            seed.save();
+            pc->reopenPartsForTest(f);
+            waitFor([&] { return n() == nDone; }, 1500);
+            Settings back;
+            back.load(f);
+            r.check(n() == nDone && pc->overlayParts().value(QStringLiteral("plan")).toBool() == false && pc->overlayParts().value(QStringLiteral("foot")).toBool() == true
+                        && back.value(QStringLiteral("selftestUnknown")).toString() == QStringLiteral("留着"),
+                    QStringLiteral("子选项：重开后还在，设置文件里别的内容保留"), QStringLiteral("%1 个").arg(n()));
+        }
+        // 真点一下：弹窗里只列另外两种，点了能关能开；总开关关了就藏起来
+        pc->setOverlayPart(QStringLiteral("plan"), true);
+        pc->setOverlayPart(QStringLiteral("foot"), true);
+        QQuickItem *fm = item(win, "filterMenu");
+        if (fm) fm->setProperty("open", true);
+        waitFor([fm] { return fm && fm->opacity() > 0.95; }, 1500);
+        waitStill(fm, 1500);   // 胶囊和弹窗滑到位再点，不然点空
+        QQuickItem *partFoot = item(win, "overlayPart-foot");
+        const bool partsShown = shown(item(win, "overlayPart-plan")) && shown(partFoot) && !shown(item(win, "overlayPart-wish"));
+        click(win, partFoot);
+        const bool clickedOff = waitFor([pc] { return !pc->overlayParts().value(QStringLiteral("foot")).toBool(); }, 1000);
+        pause(700);
+        click(win, partFoot);
+        const bool clickedOn = waitFor([pc] { return pc->overlayParts().value(QStringLiteral("foot")).toBool(); }, 1000);
+        r.check(partsShown && clickedOff && clickedOn, QStringLiteral("子选项：弹窗里只列另外两种，真点能关能开"),
+                QStringLiteral("显示 %1，关 %2，开 %3；弹窗 open %4、y %5").arg(partsShown).arg(clickedOff).arg(clickedOn).arg(fm && fm->property("open").toBool()).arg(fm ? fm->y() : -1));
+        pc->setOverlay(false);
+        r.check(waitFor([win] { return !shown(item(win, "overlayPart-plan")); }, 1000) && waitFor([&] { return n() == 0; }, 1500), QStringLiteral("子选项：总开关关着时不显示"));
+        if (fm) fm->setProperty("open", false);
+        goPage(win, QStringLiteral("foot"));
+        waitMode(pc, win, QStringLiteral("foot"));
+        const QVariantMap footParts = pc->overlayParts();
+        goPage(win, QStringLiteral("photo"));
+        waitMode(pc, win, QStringLiteral("photo"));
+        r.check(footParts.contains(QStringLiteral("plan")) && footParts.contains(QStringLiteral("wish")) && footParts.size() == 2 && pc->overlayParts().isEmpty(), QStringLiteral("子选项：足迹列计划、想去；照片没有"));
+        goPage(win, QStringLiteral("plan"));
+        waitMode(pc, win, QStringLiteral("plan"));
         r.check(!op && np == 0 && ow && (nw > 0 || total == byStatus.value(QStringLiteral("wish"))),
                 QStringLiteral("\"叠上其他旅程\"每种模式各记各的（想去里打开的不影响计划）"), QStringLiteral("计划 %1（%2 个）；想去 %3（%4 个）").arg(op).arg(np).arg(ow).arg(nw));
     }

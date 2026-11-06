@@ -8,6 +8,7 @@
 
 #include "jsonvalue.h"
 
+#include <QHash>
 #include <QSet>
 #include <QString>
 #include <QStringList>
@@ -23,6 +24,10 @@ QStringList regionsOf(const json::Value &plan);     // 按 REGIONS 的顺序；�
 const QStringList &allRegions();                    // 9 个区域 + "未分类"
 QString regionNone();                               // "未分类"
 const QStringList &allStatuses();                   // planning, wish, completed
+// 0.10.5 "叠上其他旅程"的子选项，settings.json 的 modeAlsoParts：{ plan: { wish: false, foot: true }, … }（模式 → 叠哪个模式）。
+// 没有这个键、没有某项都算开；写回时只改这几项，里面别的内容保留
+QHash<QString, QSet<QString>> overlayPartsOff(const json::Value &saved);
+json::Value overlayPartsJson(const json::Value &saved, const QHash<QString, QSet<QString>> &off);
 const QStringList &allTypes();                      // single, route
 
 // ---- 排序 ----

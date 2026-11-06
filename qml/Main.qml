@@ -1011,6 +1011,7 @@ Window {
         onDeleteRequested: (id, name) => planConfirm.ask("delete", id, name)
         onEditRequested: (id) => win.editPlan(id)
         onFullRequested: (id) => win.openTrip(id, mapc.markers.focusStop)
+        onPhotoViewRequested: (l, i) => lightbox.show(l, i)
     }
     // 抽屉的把手（简易面板；编辑器自己带）：拖动改高矮，双击在一半 / 大半之间切换
     DrawerGrip {
@@ -1043,6 +1044,11 @@ Window {
         onStyleRequested: (anchor, opts) => stylePop.openAt(anchor, opts)
         onDrawerDrag: (dy, done) => win.drawerDrag(dy, done)
         onDrawerToggle: win.drawerToggle()
+        onCoverPickRequested: (rows) => { if (rows.length > 0) coverPickDialog.show(rows); else win.addPhotos(editor.planId, "", true) }
+        onPhotoAddRequested: (stopId) => win.addPhotos(editor.planId, stopId, false)
+        onPhotoCaptionRequested: (ph) => photoCaptionDialog.show(ph)
+        onPhotoRemoveRequested: (ph) => photoRemoveDialog.ask(editor.planId, ph)
+        onPhotoViewRequested: (l, i) => lightbox.show(l, i)
     }
     StylePopover { id: stylePop; objectName: "stylePop" }
 
@@ -1488,6 +1494,10 @@ Window {
             if (list.length === 0) toast.show(qsTr("这个计划还没有照片"), false)
             else photoPickDialog.show(list)
         }
+        onPhotoAddRequested: (stopId) => win.addPhotos(planPage.planId, stopId, false)
+        onPhotoCaptionRequested: (ph) => photoCaptionDialog.show(ph)
+        onPhotoRemoveRequested: (ph) => photoRemoveDialog.ask(planPage.planId, ph)
+        onPhotoViewRequested: (l, i) => lightbox.show(l, i)
         onBudgetRequested: {
             budgetDialog.budget = planPage.info.money.budget > 0 ? String(planPage.info.money.budget) : ""
             budgetDialog.cur = planPage.info.money.currency
@@ -1498,6 +1508,66 @@ Window {
     EmergencyDialog { id: emergencyDialog; objectName: "emergencyDialog"; backdrop: scene }
     GuideLinkDialog { id: guideLinkDialog; objectName: "guideLinkDialog"; backdrop: scene; onAccepted: (md) => planPanel.guideInsertLink(md) }
     PhotoPickDialog { id: photoPickDialog; objectName: "photoPickDialog"; backdrop: scene; onPicked: (ph) => planPanel.guideInsertPhoto(ph) }
+    // ---- 0.10.5 照片标签和编辑器共用：写说明、移除、加照片、选封面 ----
+    TextInputDialog {
+        id: photoCaptionDialog
+        objectName: "photoCaptionDialog"
+        backdrop: scene
+        maxLength: 200
+        title: qsTr("照片说明")
+        property string photoId: ""
+        function show(ph) { photoId = ph.id; text = ph.caption || ""; open = true }
+        onAccepted: (t) => { open = false; photos.setCaption(photoId, t) }
+        onCanceled: open = false
+    }
+    MessageDialog {
+        id: photoRemoveDialog
+        objectName: "photoRemoveDialog"
+        backdrop: scene
+        title: qsTr("从计划里移除这张照片？")
+        paragraphs: [qsTr("只是从计划里去掉，照片文件还留在数据文件夹的 photos 里（不会删文件）。")]
+        buttons: [{ key: "cancel", text: qsTr("取消") }, { key: "ok", text: qsTr("移除"), kind: "danger" }]
+        property string planId: ""
+        property string photoId: ""
+        function ask(plan, ph) { planId = plan; photoId = ph.id; open = true }
+        onChosen: (key) => {
+            open = false
+            if (key !== "ok") return
+            // 编辑器开着时计划在它手里：移除的是封面就让它也去掉，否则下次保存又写回去
+            if (editor.open && editor.plan.cover === photoId) editor.setField("cover", "")
+            photos.removeFromPlan(planId, photoId)
+        }
+    }
+    PhotoPickDialog {
+        id: coverPickDialog
+        objectName: "coverPickDialog"
+        backdrop: scene
+        title: qsTr("选择封面照片")
+        fromFile: true
+        onPicked: (ph) => editor.setField("cover", ph.id)
+        onFileRequested: win.addPhotos(editor.planId, "", true)
+    }
+    FileDialog {
+        id: addPhotosDialog
+        title: qsTr("选择要导入的照片")
+        fileMode: asCover ? FileDialog.OpenFile : FileDialog.OpenFiles
+        nameFilters: photoFileDialog.nameFilters
+        property string planId: ""
+        property string stopId: ""
+        property bool asCover: false
+        onAccepted: {
+            win.coverImport = asCover
+            const r = photos.startImport(selectedFiles, planId, stopId)
+            if (!r.ok) { win.coverImport = false; toast.show(r.error, true) }
+        }
+    }
+    property bool coverImport: false        // 编辑器"从电脑选一张"：导入完把它设成封面
+    function addPhotos(planId, stopId, asCover) {
+        addPhotosDialog.planId = planId
+        addPhotosDialog.stopId = stopId
+        addPhotosDialog.asCover = asCover
+        addPhotosDialog.open()
+    }
     MessageDialog {
         id: tplDialog
         objectName: "tplDialog"
@@ -1767,6 +1837,8 @@ Window {
     Connections {
         target: photos
         function onImportFinished(r) {
+            if (win.coverImport && r.ok && editor.open && (r.ids || []).length > 0) editor.setField("cover", r.ids[0])
+            win.coverImport = false
             if (r.ok) toast.show(qsTr("已导入 %1 张：%2 张归到计划").arg(r.count).arg(r.toPlan)
                                  + (r.inbox > 0 ? qsTr("，%1 张在“未归类”").arg(r.inbox) : "")
                                  + (r.skipped > 0 ? qsTr("，跳过 %1 张").arg(r.skipped) : ""), false)
@@ -2100,6 +2172,9 @@ Window {
         }
     }
 
+    // 0.10.5 看大图：盖住整个窗口（在 modalOpen 里，所以 Esc、← → 都归它）
+    Lightbox { id: lightbox; z: 1000 }
+
     // ---- 快捷键（和 Electron 一样；F12 改成打开日志文件夹，F5 / Ctrl+R 不做任何事） ----
     Shortcut { sequence: "F11"; onActivated: win.toggleFullscreen() }
     Shortcut { sequence: "Ctrl+Q"; context: Qt.ApplicationShortcut; onActivated: app.requestQuit() }
@@ -2110,7 +2185,7 @@ Window {
     Shortcut { sequences: ["F5", "Ctrl+R"]; onActivated: {} }
     // ---- Esc 一层一层关（0.8.8，S-14；PO 选了改进 a：只用一个处理器，按顺序问每一层开着没有） ----
     // 顺序照 Electron：命令面板 →（引导）→ ⋯ 泡泡 → 图层泡泡 → 筛选下拉 →（大图、更新日志、编辑器）→ 简易面板 → 回地图；
-    // 括号里的还没做，做好时插进这里。原生版加了：头像菜单（⋯ 之后）、"此刻"卡片（简易面板之前）、我的旅程列表（简易面板之后）。
+    // 括号里的还没做，做好时插进这里（大图 0.10.5 算弹框，自己处理 Esc）。原生版加了：头像菜单（⋯ 之后）、"此刻"卡片（简易面板之前）、我的旅程列表（简易面板之后）。
     // 弹框开着时 Esc 交给弹框自己。
     readonly property var escChain: [
         { name: "palette", on: () => palette.open, close: () => palette.hide() },
@@ -2206,6 +2281,7 @@ Window {
                                       || daysDialog.open || startDialog.open
                                       || bookingDialog.open || expenseDialog.open || budgetDialog.open || moneyDialog.open || personDialog.open
                                       || emergencyDialog.open || guideLinkDialog.open || photoPickDialog.open || tplDialog.open
+                                      || lightbox.open || photoCaptionDialog.open || photoRemoveDialog.open || coverPickDialog.open
     readonly property bool textFocused: activeFocusItem !== null && activeFocusItem.cursorPosition !== undefined
     Shortcut {
         sequence: "Ctrl+Z"
@@ -2437,6 +2513,18 @@ Window {
     // trip-stopbooks = 站点卡片上当天的交通住宿。在数据副本上加几条示例
     // 0.10.2：trip-settle = 有同行人的消费页和结算；trip-split-form = 分账表单（按金额分）；trip-split-narrow = 500 宽的分账表单
     readonly property bool moneyShot: ["trip-bookings", "trip-budget", "trip-booking-form", "trip-expense-form", "trip-stopbooks", "trip-settle", "trip-split-form", "trip-split-narrow"].indexOf(shotPage) >= 0
+    // 0.10.5：trip-photos = 照片标签（有封面）；trip-lightbox = 看大图；trip-lightbox-zoom = 放大（原图）；*-narrow = 500 宽；editor-photos、editor-cover = 编辑器的照片、封面
+    readonly property bool photosShot: ["trip-photos", "trip-photos-narrow", "trip-lightbox", "trip-lightbox-zoom"].indexOf(shotPage) >= 0
+    function runPhotosShot() {
+        planPage.seedPhotosForShot("")
+        const l = planPage.info.photos || []
+        if (l.length === 0) { console.warn("截图 " + shotPage + "：数据里没有照片"); return }
+        photos.setCover(planPage.planId, l[1 % l.length].id)
+        planPanel.openTab("photos")
+        if (!shotPage.includes("lightbox")) return
+        lightbox.show(planPage.info.photos, 2 % l.length)
+        if (shotPage === "trip-lightbox-zoom") lightbox.zoomAt(2.5, 0, 0)
+    }
     readonly property bool kitShot: ["trip-packing", "trip-packing-narrow", "trip-packing-paste", "trip-emergency-form", "trip-journal", "trip-guide", "trip-guide-narrow", "trip-guide-edit", "trip-guide-edit-narrow", "trip-guide-new"].indexOf(shotPage) >= 0
     function runKitShot() {
         planPage.seedKitForShot()
@@ -2500,7 +2588,7 @@ Window {
             if (d.planId === undefined) { console.warn("截图 trip：数据里没有带日期的路线"); return }
             plans.setTodayOverride(d.today)
             if (shotPage === "trip-today") plans.setNextTrip(d.planId, true)
-            if (shotPage === "trip-narrow" || shotPage === "trip-split-narrow" || shotPage === "trip-alt-narrow" || shotPage.endsWith("-narrow") && win.kitShot) win.width = 500
+            if (shotPage === "trip-narrow" || shotPage === "trip-split-narrow" || shotPage === "trip-alt-narrow" || shotPage.endsWith("-narrow") && (win.kitShot || win.photosShot)) win.width = 500
             let id = d.planId
             if (shotPage === "trip-sketch") id = mapc.markers.demo("route").planId || id   // 没有照片、没有日期：路线简图、预计天数
             if (shotPage === "trip-single") {
@@ -2522,7 +2610,7 @@ Window {
             }
             // 0.10.4：trip-packing = 行李与待办（M1、M2、紧急信息）；trip-packing-paste = M4；trip-emergency-form；trip-journal；trip-guide = 读；trip-guide-edit = 写和预览；
             // trip-guide-new = 空攻略；*-narrow = 500 宽。数据是副本，改了不要紧
-            if (win.kitShot) tripShot2.start()
+            if (win.kitShot || win.photosShot) tripShot2.start()
             if (win.moneyShot) {
                 win.seedMoney()
                 if (shotPage === "trip-settle" || shotPage.startsWith("trip-split")) win.seedSplit()
@@ -2537,6 +2625,7 @@ Window {
             if (shotPage === "trip-scroll") { planPanel.pickStop(2); planPanel.reveal(2, true); return }
             if (shotPage === "trip-elev") { planPanel.reveal(1, true); planPanel.beginElev(1); return }
             if (win.kitShot) { win.runKitShot(); return }
+            if (win.photosShot) { win.runPhotosShot(); return }
             if (win.moneyShot) {
                 planPanel.openTab(shotPage === "trip-bookings" || shotPage === "trip-booking-form" ? "bookings" : shotPage === "trip-stopbooks" ? "itinerary" : "budget")
                 if (shotPage === "trip-booking-form") bookingDialog.show(null, "hotel")
@@ -2595,8 +2684,11 @@ Window {
             if (shotPage === "narrow-menu") { avatarMenu.open = true; return }
             if (r.planId === undefined) { console.warn("截图 " + shotPage + "：数据里找不到 ≥ 4 站的路线"); return }
             if (shotPage === "narrow") { plans.openPlan(r.planId, true, 1); return }
+            const edPhotos = shotPage === "editor-photos" || shotPage === "editor-cover"   // 0.10.5 编辑器的照片；封面在计划信息卡片上
+            if (edPhotos) planPage.seedPhotosForShot(r.planId)
             win.editPlan(r.planId)
-            editor.activeStop = 1
+            editor.activeStop = shotPage === "editor-photos" ? 0 : shotPage === "editor-cover" ? -1 : 1
+            if (edPhotos) { editor.setField("cover", photos.planPhotos(r.planId)[0].id); planEditor.infoOpen = true }
             if (shotPage === "editor-search") searchShot.start()   // 等 editPlan 的 fitPlan 先走完
             if (shotPage === "editor-style") styleShot.start()
         }
@@ -2609,7 +2701,8 @@ Window {
         onTriggered: {
             mapc.base = "street"
             const d = plans.demo()
-            if (d.planId !== undefined) { plans.setNextTrip(d.planId, true); plans.setTodayOverride(d.today) }
+            // ledger-now（0.10.5）= 真实的今天：看"已花"几乎是 0 时的样子
+            if (d.planId !== undefined && shotPage !== "ledger-now") { plans.setNextTrip(d.planId, true); plans.setTodayOverride(d.today) }
             if (shotPage === "modes" || shotPage === "modes-narrow") {
                 if (shotPage === "modes-narrow") win.width = 640
                 Qt.callLater(() => topBar.setBubbles(true))

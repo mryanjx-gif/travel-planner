@@ -37,12 +37,17 @@ void setEmergency(json::Value &root, const QVariantMap &fields);
 QVariantList journalList(const json::Value &root, const QString &planId);
 
 // ---- 攻略 ----
-// { blocks: [{ type: h1 / h2 / p / li / task / quote / img, html, line（task：原文第几行）, done, file, caption, width, height }],
+// { blocks: [{ type: h1 / h2 / p / li / task / quote / img, html, line（task：原文第几行）, done, id, file, caption, width, height }],
 //   heads: [{ block, level, text }] }。html 已转义，可以直接给 Text.StyledText。photo:<id> 找不到时 img 的 file 是空的
 QVariantMap guideBlocks(const json::Value &root, const QString &text);
 QString toggleTaskLine(const QString &text, int line, bool on);               // Electron mdToggleTask
 void setGuide(json::Value &plan, const QString &text);                        // 全是空白时去掉 guide
-// 这个计划的照片（站点顺序，同一站按库里的先后）：[{ id, file, caption, stop }]（插入照片用）
+// 这个计划的照片（站点顺序，同一站按库里的先后）：[{ id, file, caption, stop（站名）, stopId, stopNo（第几站，从 1 起）, route, fav, takenAt }]
 QVariantList planPhotos(const json::Value &root, const QString &planId);
+// 照片标签（0.10.5，P-14）。找不到照片 / 计划时返回 false。移除只去掉归属（变成未归类，是封面就连封面去掉），不删文件、不删记录
+bool setPhotoFav(json::Value &root, const QString &id, bool on);
+bool setPhotoCaption(json::Value &root, const QString &id, const QString &caption);
+bool removePhotoFromPlan(json::Value &root, const QString &planId, const QString &id);
+bool setPlanCover(json::Value &root, const QString &planId, const QString &id);   // id 空 = 去掉封面
 
 } // namespace tp::map::plans

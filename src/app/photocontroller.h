@@ -11,9 +11,11 @@
 #include <QHash>
 #include <QObject>
 #include <QPointer>
+#include <QSize>
 #include <QThread>
 #include <QVariantList>
 #include <QVariantMap>
+#include <functional>
 #include <atomic>
 #include <memory>
 
@@ -63,6 +65,15 @@ public:
     //   camera, lens, exposure, missing, heic, canRotate, thumb(320 的地址) }]
     Q_INVOKABLE QVariantList library() const;
     Q_INVOKABLE QString thumbUrl(const QString &file, int width) const;
+    Q_INVOKABLE QVariantList planPhotos(const QString &planId) const;    // plans::planPhotos + thumb（320）
+    Q_INVOKABLE QString fileOf(const QString &photoId) const;            // 封面（照片 id）→ 文件；找不到给空
+    Q_INVOKABLE QString fileUrl(const QString &file) const;              // 原图的 file:/// 地址（看大图）；不在 photos/ 下的给空
+    Q_INVOKABLE QSize imageSize(const QString &file) const;              // 原图的长宽，按 EXIF 方向摆正（只读文件头）；读不出来给空
+    // 计划里的照片（0.10.5，P-14；plans::setPhotoFav 等）。都走撤销和自动保存；只读时返回 false
+    Q_INVOKABLE bool setFav(const QString &photoId, bool on);
+    Q_INVOKABLE bool setCaption(const QString &photoId, const QString &caption);
+    Q_INVOKABLE bool removeFromPlan(const QString &planId, const QString &photoId);
+    Q_INVOKABLE bool setCover(const QString &planId, const QString &photoId);
     // 照片说明文字："2024-10-03 14:25 (UTC+09:00) · Apple iPhone 15 Pro · f/1.8 1/250s ISO 80 24mm"
     Q_INVOKABLE QString exposureText(const QVariantMap &photo) const;
 
@@ -110,6 +121,7 @@ signals:
     void cacheChanged();
 
 private:
+    bool applyEdit(const std::function<bool(json::Value &)> &fn);
     struct Item
     {
         data::photolib::ImportItem in;

@@ -54,9 +54,9 @@ QVariantMap spendInfo(const json::Value &plan, const QString &main, const Rates 
 QVariantMap settleInfo(const json::Value &plan, const QString &main, const Rates &rates);
 
 // ---- 账本：所有计划花的钱，都换成主货币 ----
-// { total, trips: [{ id, name, status, start, end, days, spent, budget, budgetCur, budgetMain（< 0 = 换不了）}]（花得多的在前）, emptyCount, perTrip, perDay,
-//   cats: [{ k, v, pct, share }], years: [{ y（"" = 没写日期）, v, share }]（新的在前）, missing }
-QVariantMap ledgerInfo(const json::Value &root, const QString &main, const Rates &rates);
+// { total（已花）, future（还没去的预计合计）, spentCount, futureCount, trips: [{ id, name, status, state（completed / live / planning / wish）, done（算不算已花）, start, end, days, spent, budget, budgetCur, budgetMain（< 0 = 换不了）}]（花得多的在前）, emptyCount, perTrip, perDay,
+//   cats: [{ k, v, pct, share }], years: [{ y（"" = 没写日期）, v, share }]（新的在前）, missing }。平均、按类别、按年份只算已花（0.10.5）。today = YYYY-MM-DD
+QVariantMap ledgerInfo(const json::Value &root, const QString &main, const Rates &rates, const QString &today);
 
 // ---- 交通住宿 ----
 // [{ day, rows: [{ id, kind, title, from, to, start, end, ref, cost, notes, linked }] }]，从早到晚，没填时间的放最后

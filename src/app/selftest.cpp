@@ -130,6 +130,7 @@ void runAll(Report &r, AppController *app, PhotoController *photos, map::MapCont
     if (want("split")) runSplit(r, app, win, planPageCtl(), navCtl(), ratesCtl());
     if (want("weather")) runWeather(r, app, win, planPageCtl(), navCtl(), weatherCtl());
     if (want("kit")) runKit(r, app, win, planPageCtl(), navCtl());
+    if (want("planphotos")) runPlanPhotos(r, app, win, planPageCtl(), navCtl(), photos);
     mapc->fitAll(false);
     if (!want("photos")) return;
 

@@ -25,6 +25,7 @@ Item {
     signal deleteRequested(string planId, string name)
     signal editRequested(string planId)         // 0.8.9：打开站点编辑器（Electron dtEdit）
     signal fullRequested(string planId)         // 0.10.0：打开完整计划
+    signal photoViewRequested(var list, int index)   // 0.10.5：看大图
     readonly property var stops: sheet.stops || []
     readonly property bool route: sheet.type === "route" && stops.length > 1
     readonly property int shown: route ? focusIndex : (stops.length ? 0 : -1)   // 现在显示哪一站（-1 = 概览）
@@ -211,6 +212,12 @@ Item {
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 sourceSize.width: 640
+                MouseArea {   // 0.10.5 看大图
+                    anchors.fill: parent
+                    enabled: !!root.sheet.coverFile
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.photoViewRequested([{ file: root.sheet.coverFile, thumb: root.sheet.coverThumb }], 0)
+                }
             }
             NotesBlock { visible: root.shown < 0 && (root.sheet.notes || "") !== ""; text: root.sheet.notes || ""; open: root.notesOpen; onToggled: root.notesOpen = !root.notesOpen }
             Text {
@@ -333,6 +340,7 @@ Item {
                     model: root.stop ? (root.stop.thumbs || []).slice(0, 6) : []
                     delegate: Rectangle {
                         required property string modelData
+                        required property int index
                         width: (content.width - 2 * Theme.px(6)) / 3
                         height: Math.round(width * 0.72)
                         radius: Theme.px(10)
@@ -344,6 +352,11 @@ Item {
                             fillMode: Image.PreserveAspectCrop
                             asynchronous: true
                             sourceSize.width: 320
+                        }
+                        MouseArea {   // 0.10.5 看大图
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.photoViewRequested(photos.planPhotos(root.sheet.id).filter(p => p.stopId === root.stop.id && p.thumb), parent.index)
                         }
                     }
                 }

@@ -491,6 +491,33 @@ void runSplit(Report &r, AppController *app, QQuickWindow *win, PlanPageControll
     r.check(!mine.isEmpty() && qAbs(mine.value(QStringLiteral("spent")).toDouble() - budgetMain) < 0.01, QStringLiteral("账本这一趟的数字和消费页一样"),
             QStringLiteral("%1 / %2").arg(mine.value(QStringLiteral("spent")).toDouble()).arg(budgetMain));
     r.check(led.value(QStringLiteral("missing")).toStringList().contains(QStringLiteral("ISK")) && isShown(item(win, QStringLiteral("ledgerMissing"))), QStringLiteral("写明缺哪种汇率"));
+    // 0.10.5 第 5 题 A：已花 / 还没去的预计各算各的，今天到了开始日期才算已花
+    {
+        double sumDone = 0, sumFuture = 0;
+        int nDone = 0, nFuture = 0;
+        for (const QVariant &v : led.value(QStringLiteral("trips")).toList()) {
+            const QVariantMap t = v.toMap();
+            if (t.value(QStringLiteral("done")).toBool()) { sumDone += t.value(QStringLiteral("spent")).toDouble(); ++nDone; }
+            else { sumFuture += t.value(QStringLiteral("spent")).toDouble(); ++nFuture; }
+        }
+        r.check(qAbs(led.value(QStringLiteral("total")).toDouble() - sumDone) < 0.01 && qAbs(led.value(QStringLiteral("future")).toDouble() - sumFuture) < 0.01
+                    && led.value(QStringLiteral("spentCount")).toInt() == nDone && led.value(QStringLiteral("futureCount")).toInt() == nFuture,
+                QStringLiteral("账本：已花和还没去的预计分开算"), QStringLiteral("已花 %1 趟 %2；还没去 %3 趟 %4").arg(nDone).arg(sumDone).arg(nFuture).arg(sumFuture));
+        r.check(isShown(item(win, QStringLiteral("ledgerFuture"))) == (nFuture > 0) && isShown(item(win, QStringLiteral("ledgerStats"))) == (nDone > 0)
+                    && isShown(item(win, QStringLiteral("ledgerNoSpent"))) == (nDone == 0), QStringLiteral("账本：页头跟着显示"));
+        const QString todayWas = pc->today();
+        const auto mineDone = [&] {
+            for (const QVariant &v : page->ledger().value(QStringLiteral("trips")).toList())
+                if (v.toMap().value(QStringLiteral("id")).toString() == id) return v.toMap().value(QStringLiteral("done")).toBool();
+            return false;
+        };
+        const bool doneNow = mine.value(QStringLiteral("done")).toBool();
+        pc->setTodayOverride(QStringLiteral("2000-01-01"));
+        const bool flipped = waitFor([&] { return !mineDone(); }, 1000);
+        pc->setTodayOverride(todayWas);
+        waitFor([&] { return mineDone() == doneNow; }, 1000);
+        r.check(doneNow && flipped, QStringLiteral("账本：开始日期前算还没去，到了才算已花"));
+    }
     r.check(text(item(win, QStringLiteral("ledgerTotal"))).startsWith(QStringLiteral("AUD ")), QStringLiteral("总额按主货币"), text(item(win, QStringLiteral("ledgerTotal"))));
     rates->setMain(QStringLiteral("CNY"));
     pause(60);
