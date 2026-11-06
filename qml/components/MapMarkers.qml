@@ -56,7 +56,7 @@ Item {
                 property real pulse: 1
                 opacity: mk.op * pulse
                 SequentialAnimation on pulse {
-                    running: mk.focused && Theme.motion
+                    running: mk.focused && Theme.motion && shotPage === ""   // 截图时不呼吸：就绪判断靠"不再有新帧"（main.cpp）
                     loops: Animation.Infinite
                     NumberAnimation { from: 0.35; to: 1; duration: 900; easing.type: Easing.InOutSine }
                     NumberAnimation { from: 1; to: 0.35; duration: 900; easing.type: Easing.InOutSine }

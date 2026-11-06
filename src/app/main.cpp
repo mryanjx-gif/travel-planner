@@ -15,6 +15,7 @@
 //   --hide-before-exit                测试用（配合 --screenshot）：退出前先把窗口藏起来（等于从托盘退出，0.8.0）
 #include <QCommandLineParser>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFileInfo>
 #include <QFontDatabase>
 #include <QGuiApplication>
@@ -27,6 +28,7 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQmlError>
+#include <QQuickItem>
 #include <QQuickWindow>
 #include <QSysInfo>
 #include <QTimer>
@@ -147,6 +149,15 @@ private:
     std::thread m_thread;
 };
 } // namespace
+
+// 截图就绪判断用：还有看得见的图片在加载（Image.Loading = 2）
+static bool imagesLoading(const QQuickItem *it)
+{
+    if (!it->isVisible()) return false;
+    if (it->inherits("QQuickImageBase") && it->property("status").toInt() == 2) return true;
+    const auto kids = it->childItems();
+    return std::any_of(kids.begin(), kids.end(), [](const QQuickItem *c) { return imagesLoading(c); });
+}
 
 int main(int argc, char *argv[])
 {
@@ -533,18 +544,52 @@ int main(int argc, char *argv[])
     // 稳定画出 5 秒后，清掉"Vulkan 启动中"记号；缩略图缓存超过上限就删旧的（后台）
     QTimer::singleShot(5000, win, [&photos] { GraphicsBackend::clearVulkanStarting(); photos.pruneCacheLater(); });
     // 0.9.2：窗口显示 3 秒后在后台建省界模型（第一次进"已解锁"不用等）
-    QTimer::singleShot(3000, &mapc, [&mapc] { mapc.preloadUnlock(); });
+    // （截图不做：页面就绪可能正好在这之后，退出时要等它读完）
+    if (shotPage.isEmpty()) QTimer::singleShot(3000, &mapc, [&mapc] { mapc.preloadUnlock(); });
 
     // 8. 截图模式
     if (!shotPage.isEmpty()) {
         const QString out = cli.positionalArguments().value(0, QStringLiteral("screenshot.png"));
-        const int wait = shotPage == QLatin1String("ui-devtest") || shotPage == QLatin1String("ui-photo-e2e") ? 8000 : shotPage.startsWith(QLatin1String("ui-")) ? 5000 : shotPage.startsWith(QLatin1String("globe")) ? 9000 : 12000;
-        QTimer::singleShot(wait, &app, [win, out] {
+        const auto shoot = [win, out] {
             const QImage img = win->grabWindow();
             const bool ok = img.save(out);
             qInfo("screenshot %dx%d -> %s %s", img.width(), img.height(), qUtf8Printable(out), ok ? "ok" : "FAILED");
             QCoreApplication::exit(ok ? 0 : 3);
-        });
+        };
+        // TP_SHOT_FIXED_WAIT=毫秒：固定等这么久再截（0.10.4 以前的做法，比对就绪判断有没有截早时用）
+        const int fixedWait = qEnvironmentVariableIntValue("TP_SHOT_FIXED_WAIT");
+        if (fixedWait > 0 || shotPage.startsWith(QLatin1String("ui-")) || shotPage.startsWith(QLatin1String("globe"))) {
+            QTimer::singleShot(fixedWait > 0 ? fixedWait : shotPage == QLatin1String("ui-devtest") || shotPage == QLatin1String("ui-photo-e2e") ? 8000 : shotPage.startsWith(QLatin1String("ui-")) ? 5000 : 9000, &app, shoot);
+        } else {
+            // 0.10.5 页面就绪就截（原来固定等 12 秒）：步骤走完、地图样式和瓦片都到了、图片都加载完，再加连续 400 ms 没有新帧。
+            // 循环动画（聚焦站点的呼吸光晕、交通小图标）在截图时关掉（MapMarkers.qml、Main.qml），否则帧永远不停，这个信号就没用了。
+            // 上限 12 秒：超时照常截，写一行日志说卡在哪（verify.ps1 会列出来）
+            auto *clock = new QElapsedTimer;
+            clock->start();
+            auto lastFrame = std::make_shared<std::atomic<qint64>>(-1);
+            QObject::connect(win, &QQuickWindow::frameSwapped, win, [clock, lastFrame] { lastFrame->store(clock->elapsed()); }, Qt::DirectConnection);
+            auto *poll = new QTimer(&app);
+            poll->setInterval(50);
+            QObject::connect(poll, &QTimer::timeout, &app, [=, &tileServer, &mapc, readyAt = qint64(-1)]() mutable {
+                const qint64 t = clock->elapsed();
+                QVariant stepsBusy;
+                QMetaObject::invokeMethod(win, "shotBusy", Q_RETURN_ARG(QVariant, stepsBusy));
+                const bool tilesExpected = win->property("mapLive").toBool() && (mapc.base() == QLatin1String("street") || mapc.base() == QLatin1String("sat")) && tileServer.online();
+                const char *waiting = stepsBusy.toBool() ? "步骤或地图"
+                                    : (tilesExpected && tileServer.stats().requests == 0) || tileServer.busyForMap() > 0 || tileServer.msSinceLastResponse() < 300 ? "瓦片"
+                                    : imagesLoading(win->contentItem()) ? "图片" : nullptr;
+                if (waiting) readyAt = -1;
+                else if (readyAt < 0) readyAt = t;
+                const qint64 frame = lastFrame->load();
+                const bool still = !waiting && t - readyAt >= 400 && frame >= 0 && t - frame >= 400;
+                if (!still && t < 12000) return;
+                poll->stop();
+                if (still) qInfo("截图就绪：%s，%lld ms", qUtf8Printable(shotPage), static_cast<long long>(t));
+                else qWarning("截图等到上限：%s，12 秒还在等%s，照常截", qUtf8Printable(shotPage), waiting ? waiting : "画面停下来（一直有新帧）");
+                shoot();
+            });
+            poll->start();
+        }
     }
     // 8b. 开发版自检（0.7.2，验证.bat 调用）：会改数据，只许用 --data 给的副本
     if (!selftestReport.isEmpty()) {

@@ -468,7 +468,7 @@ Window {
             objectName: "flatVehicle"
             mapController: mapc
             dpr: win.screen ? win.screen.devicePixelRatio : 1
-            allowed: Theme.motion && !win.globeMode && win.mapLive && win.map !== null && !win.map.unlock && win.visibility !== Window.Minimized
+            allowed: Theme.motion && shotPage === "" && !win.globeMode && win.mapLive && win.map !== null && !win.map.unlock && win.visibility !== Window.Minimized   // 截图时不走：就绪判断靠"不再有新帧"
         }
         Image {
             id: flatVehicleImg
@@ -2396,6 +2396,13 @@ Window {
         else if (shotPage.startsWith("editor") || shotPage.startsWith("narrow") || shotPage === "locate" || shotPage === "controls") editShot.start()
         else if (shotPage.startsWith("mode-") || shotPage === "modes" || shotPage === "modes-narrow" || shotPage.startsWith("ledger")) modeShot.start()
         else if (shotPage !== "" && !shotPage.startsWith("ui-") && shotPage !== "selftest") mapc.base = shotPage
+    }
+
+    // 截图的步骤走完没有（0.10.5，main.cpp 的就绪判断调用）：步骤定时器、相机飞行、地图样式
+    function shotBusy() {
+        for (const t of [frameNextTimer, planShot, tripShot, tripShot2, shellShot, editShot, modeShot, searchShot, styleShot, markerShot, markerTip, lineShot, lineTip, layersShot, unlockShot, unlockTip])
+            if (t.running) return true
+        return mapc.moving || win.mapLive && mapLoader.status !== Loader.Error && !(win.map && win.map.styleLoaded)
     }
 
     // 截图（0.8.7）：now = 一条带日期的路线设为下次出发、假装今天是第 3 天、打开"此刻"卡片；
