@@ -4,8 +4,11 @@
 #include "datastore.h"
 #include "netclient.h"
 #include "plancontroller.h"
+#include "planmoney.h"
 #include "planpage.h"
 #include "plans.h"
+#include "ratescontroller.h"
+#include "settings.h"
 
 namespace tp::app {
 
@@ -17,9 +20,11 @@ constexpr int kTzBatch = 50;         // Electron fillGeo 每批 50 个
 constexpr int kTzTimeoutMs = 25000;
 }
 
-PlanPageController::PlanPageController(AppController *app, PlanController *pc, data::DataStore *store, services::NetClient *net, QObject *parent)
-    : QObject(parent), m_app(app), m_plans(pc), m_store(store), m_net(net)
+PlanPageController::PlanPageController(AppController *app, PlanController *pc, data::DataStore *store, services::NetClient *net,
+                                       RatesController *rates, Settings *settings, QObject *parent)
+    : QObject(parent), m_app(app), m_plans(pc), m_store(store), m_net(net), m_rates(rates), m_settings(settings)
 {
+    connect(m_rates, &RatesController::changed, this, &PlanPageController::refresh);
     connect(m_store, &data::DataStore::contentChanged, this, &PlanPageController::refresh);
     connect(m_app, &AppController::dataChanged, this, &PlanPageController::refresh);
     connect(m_plans, &PlanController::nowChanged, this, &PlanPageController::refresh);   // 过了零点、测试改"今天"
@@ -30,7 +35,7 @@ void PlanPageController::show(const QString &planId)
     if (planId == m_id) return;
     m_id = planId;
     refresh();
-    if (!planId.isEmpty()) fillTz(planId);
+    if (!planId.isEmpty()) { fillTz(planId); m_rates->ensure(); }
 }
 
 void PlanPageController::refresh()
@@ -43,7 +48,15 @@ void PlanPageController::refresh()
                 const QStringList t = s.toMap().value(QStringLiteral("thumbs")).toStringList();
                 if (!t.isEmpty()) { m.insert(QStringLiteral("coverThumb"), t.first()); break; }
             }
-        if (!m.isEmpty()) m.insert(QStringLiteral("readOnly"), m_store->isReadOnly());
+        if (!m.isEmpty()) {
+            m.insert(QStringLiteral("readOnly"), m_store->isReadOnly());
+            const Value &p = *plans::planById(m_store->data(), m_id);
+            m.insert(QStringLiteral("money"), plans::spendInfo(p, m_rates->main(), m_rates->table()));
+            // J1：去掉点过"这几晚不用"的
+            QStringList nights = m.value(QStringLiteral("nights")).toStringList();
+            for (const Value &d : m_settings->value(QStringLiteral("noStayNights"))[m_id].asArray()) nights.removeAll(d.toString());
+            m.insert(QStringLiteral("nights"), nights);
+        }
     }
     if (m == m_info) return;
     m_info = m;
@@ -98,6 +111,62 @@ bool PlanPageController::startPlanning(const QString &start, const QString &end)
     m_store->modify([&](Value &d) { plans::startPlanning(d, m_id, start, end); });
     m_app->noteChanged(true);
     return true;
+}
+
+QString PlanPageController::applyPlan(const std::function<QString(Value &)> &fn)
+{
+    if (m_store->isReadOnly()) return QStringLiteral("readOnly");
+    // 先在副本上试：有问题或没有变化时不碰数据（不标记未保存、不记撤销）
+    Value copy = m_store->data();
+    Value *p = plans::mutPlan(copy, m_id);
+    if (!p) return QStringLiteral("gone");
+    const QString err = fn(*p);
+    if (!err.isEmpty() || copy == m_store->data()) return err;
+    m_store->modify([&](Value &d) { d = copy; });
+    edited();
+    return {};
+}
+
+QString PlanPageController::saveBooking(const QString &id, const QVariantMap &f)
+{
+    return applyPlan([&](Value &p) { return plans::putBooking(p, id, f); });
+}
+
+int PlanPageController::deleteBooking(const QString &id)
+{
+    int n = -1;
+    applyPlan([&](Value &p) { n = plans::removeBooking(p, id); return QString(); });
+    return n;
+}
+
+QString PlanPageController::saveExpense(const QString &id, const QVariantMap &f)
+{
+    return applyPlan([&](Value &p) { return plans::putExpense(p, id, f); });
+}
+
+bool PlanPageController::deleteExpense(const QString &id)
+{
+    bool ok = false;
+    applyPlan([&](Value &p) { ok = plans::removeExpense(p, id); return QString(); });
+    return ok;
+}
+
+QString PlanPageController::setBudget(const QString &text, const QString &currency)
+{
+    return applyPlan([&](Value &p) { return plans::setBudget(p, text, currency); });
+}
+
+void PlanPageController::dismissNights()
+{
+    if (m_id.isEmpty()) return;
+    Value all = m_settings->value(QStringLiteral("noStayNights"));
+    if (!all.isObject()) all = Value::object();
+    Value list = all[m_id].isArray() ? all[m_id] : Value::array();
+    for (const QVariant &d : m_info.value(QStringLiteral("nights")).toList()) list.mutArray().push_back(Value(d.toString()));
+    all.mutObject().set(m_id, std::move(list));
+    m_settings->setValue(QStringLiteral("noStayNights"), std::move(all));
+    m_settings->save();
+    refresh();
 }
 
 // ---------------- 补时区（Electron weather.js fillGeo）：只补空的；失败只记日志，下次打开再试 ----------------

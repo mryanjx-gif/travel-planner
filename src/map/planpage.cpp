@@ -1,5 +1,6 @@
 #include "planpage.h"
 
+#include "planmoney.h"
 #include "plans.h"
 #include "suncalc.h"
 
@@ -20,18 +21,6 @@ using json::Value;
 namespace {
 
 QString str(const Value &o, const char *key) { return o[QString::fromLatin1(key)].toString(); }
-
-// 9:30、09:30、0930 → 09:30；空 → 空；其余 → 空且 *ok = false
-QString normTime(const QString &t0, bool *ok)
-{
-    const QString t = t0.trimmed();
-    if (t.isEmpty()) return {};
-    static const QRegularExpression re(QStringLiteral("^(\\d{1,2})[:：]?(\\d{2})$"));
-    const QRegularExpressionMatch m = re.match(t);
-    const int h = m.captured(1).toInt(), mi = m.captured(2).toInt();
-    if (!m.hasMatch() || h > 23 || mi > 59) { *ok = false; return {}; }
-    return QStringLiteral("%1:%2").arg(h, 2, 10, QLatin1Char('0')).arg(mi, 2, 10, QLatin1Char('0'));
-}
 
 // JS 的 setUTCMonth：超出当月的日子顺延到下个月（8 月 31 日 + 6 个月 = 3 月 3 日）
 QString addMonths(const QString &s, int k)
@@ -79,6 +68,17 @@ Value *mutSchedule(Value &stop)
 }
 
 } // namespace
+
+QString normTime(const QString &t0, bool *ok)
+{
+    const QString t = t0.trimmed();
+    if (t.isEmpty()) return {};
+    static const QRegularExpression re(QStringLiteral("^(\\d{1,2})[:：]?(\\d{2})$"));
+    const QRegularExpressionMatch m = re.match(t);
+    const int h = m.captured(1).toInt(), mi = m.captured(2).toInt();
+    if (!m.hasMatch() || h > 23 || mi > 59) { *ok = false; return {}; }
+    return QStringLiteral("%1:%2").arg(h, 2, 10, QLatin1Char('0')).arg(mi, 2, 10, QLatin1Char('0'));
+}
 
 QVariantList schedDays(const Value &stop, const QString &today)
 {
@@ -225,6 +225,15 @@ QVariantMap pageInfo(const Value &root, const QString &planId, const QString &to
     m.insert(QStringLiteral("live"), live);
     m.insert(QStringLiteral("todayStop"), todayStop);
 
+    // 0.10.1 交通住宿（消费要汇率，由 PlanPageController 加）
+    m.insert(QStringLiteral("bookings"), bookingDays(p));
+    m.insert(QStringLiteral("bookCount"), int(p[QStringLiteral("bookings")].asArray().size()));
+    m.insert(QStringLiteral("bookCost"), bookingsCost(p));
+    int undated = 0;
+    m.insert(QStringLiteral("nights"), missingNights(p, today, &undated));
+    m.insert(QStringLiteral("nightsUndated"), undated);
+    const QVector<QVariantList> books = stopBookings(p);
+
     QVariantList out = m.value(QStringLiteral("stops")).toList();
     for (int k = 0; k < out.size() && k < st.size(); ++k) {
         const Value &s = stops[st[k]];
@@ -236,6 +245,7 @@ QVariantMap pageInfo(const Value &root, const QString &planId, const QString &to
         sm.insert(QStringLiteral("lat"), lat);
         sm.insert(QStringLiteral("lng"), lng);
         sm.insert(QStringLiteral("days"), schedDays(s, live ? today : QString()));
+        sm.insert(QStringLiteral("books"), books[k]);
         const QString d = stopDate(s);
         const sun::Times t = sun::info(lat, lng, d, str(s, "tz"));
         if (t.ok)

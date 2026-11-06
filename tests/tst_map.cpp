@@ -19,6 +19,7 @@
 #include "night.h"
 #include "plans.h"
 #include "planedit.h"
+#include "planmoney.h"
 #include "planpage.h"
 #include "suncalc.h"
 #include "roads.h"
@@ -61,6 +62,10 @@ class TestMap : public QObject
 {
     Q_OBJECT
 private slots:
+    void moneyRates();
+    void moneySpend();
+    void moneyEdit();
+    void moneyBookingsView();
     // 0.9.0 地球
     void globeProjectPick();
     void globeZoomMapping();
@@ -2112,6 +2117,207 @@ void TestMap::tzFill()
     QCOMPARE(st[0][QStringLiteral("tz")].toString(), QStringLiteral("Asia/Shanghai"));
     QCOMPARE(st[1][QStringLiteral("tz")].toString(), QStringLiteral("Asia/Urumqi"));
     QCOMPARE(plans::applyTz(root, "没有", { "a" }, { "X/Y" }), 0);
+}
+
+// ---------------- 0.10.1 交通住宿、消费、汇率 ----------------
+namespace {
+QVariantMap vm(std::initializer_list<std::pair<QString, QVariant>> l) { QVariantMap m; for (const auto &kv : l) m.insert(kv.first, kv.second); return m; }
+}
+
+void TestMap::moneyRates()
+{
+    using namespace tp::map::plans;
+    const Rates f = parseRates(R"({"base":"CNY","date":"2026-11-05","rates":{"AUD":0.2,"USD":0.14}})", "frankfurter", "CNY");
+    QCOMPARE(f.date, QStringLiteral("2026-11-05"));
+    QCOMPARE(f.table.size(), 2);
+    const Rates e = parseRates(R"({"result":"success","time_last_update_unix":1793923351,"rates":{"AUD":0.25}})", "er-api", "CNY");
+    QCOMPARE(e.date, QStringLiteral("2026-11-06"));
+    QVERIFY(parseRates(R"({"result":"error","rates":{"AUD":0.25}})", "er-api", "CNY").table.isEmpty());
+    QVERIFY(parseRates("不是 JSON", "frankfurter", "CNY").table.isEmpty());
+    // 1 AUD = 5 CNY；表的基准不是主货币时交叉换算；不知道时 < 0
+    QVERIFY(qFuzzyCompare(perMain(f, "CNY", "AUD"), 5.0));
+    QVERIFY(qFuzzyCompare(perMain(f, "CNY", "CNY"), 1.0));
+    QVERIFY(qFuzzyCompare(perMain(f, "USD", "AUD"), 0.7));
+    QVERIFY(perMain(f, "CNY", "ISK") < 0);
+    QVERIFY(perMain(Rates(), "CNY", "AUD") < 0);
+    QCOMPARE(currencyCodes().size(), 24);
+}
+
+void TestMap::moneySpend()
+{
+    using namespace tp::map::plans;
+    const tp::json::Value plan = parseJson(R"({"currency":"AUD","budget":1000,"startDate":"2026-12-01","endDate":"2026-12-04",
+      "bookings":[{"id":"b1","kind":"hotel","title":"H","start":"2026-12-01T15:00","cost":600},
+                  {"id":"b2","kind":"flight","cost":300,"start":"2026-12-02"},
+                  {"id":"b3","kind":"ticket","title":"没填费用"},
+                  {"id":"b4","kind":"train","cost":"50"}],
+      "expenses":[{"id":"e1","title":"机票","amount":300,"cat":"transport","date":"2026-12-02","bookingId":"b2"},
+                  {"id":"e2","title":"退款","amount":-40,"cat":"food","date":"2026-12-03"},
+                  {"id":"e3","title":"美元","amount":14,"currency":"USD","cat":"shop","date":"2026-12-03"},
+                  {"id":"e4","title":"缺","amount":5,"currency":"ISK","date":""},
+                  {"id":"e5","title":"孤儿","amount":7,"bookingId":"早没了","cat":"怪分类","date":"2026-12-04"}]})");
+    const QVector<SpendRow> rows = spendRows(plan);
+    QCOMPARE(rows.size(), 7);   // 5 笔消费 + b1、b4（b2 已经记到消费，b3 没费用）
+    QCOMPARE(rows.first().date, QStringLiteral("2026-12-04"));   // 从新到旧
+    QCOMPARE(rows.first().cat, QStringLiteral("other"));         // 认不出的分类
+    QVERIFY(!rows.first().linked);
+    int fromBooking = 0;
+    for (const SpendRow &r : rows) {
+        if (r.fromBooking) ++fromBooking;
+        if (r.id == "e1") QVERIFY(r.linked);
+        if (r.bookingId == "b1") { QCOMPARE(r.cat, QStringLiteral("stay")); QCOMPARE(r.date, QStringLiteral("2026-12-01")); QCOMPARE(r.id, QString()); }
+    }
+    QCOMPARE(fromBooking, 2);
+
+    Rates t = parseRates(R"({"date":"d","rates":{"AUD":0.2,"USD":0.14}})", "frankfurter", "CNY");
+    const QVariantMap m = spendInfo(plan, "CNY", t);
+    // 预订 600 + 300 + 50 = 950；另外记账 -40 + 20（14 USD）+ 7 = -13；ISK 没汇率
+    QVERIFY(qAbs(m.value("bookTotal").toDouble() - 950) < 1e-9);
+    QVERIFY(qAbs(m.value("expTotal").toDouble() + 13) < 1e-9);
+    QVERIFY(qAbs(m.value("total").toDouble() - 937) < 1e-9);
+    QCOMPARE(m.value("missing").toStringList(), QStringList{ "ISK" });
+    QCOMPARE(m.value("mainMissing").toStringList(), QStringList{ "ISK" });
+    QVERIFY(qAbs(m.value("mainTotal").toDouble() - 937 * 5) < 1e-6);
+    QVERIFY(!m.value("over").toBool());
+    QVERIFY(qAbs(m.value("remain").toDouble() - 63) < 1e-9);
+    QCOMPARE(m.value("days").toInt(), 4);
+    // 退款让餐饮变负数：不进色条
+    QStringList cats;
+    for (const QVariant &c : m.value("cats").toList()) cats << c.toMap().value("k").toString();
+    QCOMPARE(cats, QStringList({ "transport", "stay", "shop", "other" }));
+    // 没有汇率表：外币都算缺，计划币种的照算
+    const QVariantMap none = spendInfo(plan, "CNY", Rates());
+    QVERIFY(none.value("missing").toStringList().contains("USD"));
+    QVERIFY(qAbs(none.value("total").toDouble() - (950 - 40 + 7)) < 1e-9);
+    // 主货币就是计划币种：不用汇率
+    QVERIFY(spendInfo(parseJson(R"({"currency":"CNY","expenses":[{"amount":10}]})"), "CNY", Rates()).value("missing").toStringList().isEmpty());
+    // 没写币种按 AUD，超预算
+    const QVariantMap over = spendInfo(parseJson(R"({"budget":10,"bookings":[{"id":"x","cost":30}]})"), "CNY", Rates());
+    QCOMPARE(over.value("currency").toString(), QStringLiteral("AUD"));
+    QVERIFY(over.value("over").toBool());
+    QVERIFY(qFuzzyCompare(over.value("pct").toDouble(), 1.0));
+}
+
+void TestMap::moneyEdit()
+{
+    using namespace tp::map::plans;
+    tp::json::Value plan = parseJson(R"({"currency":"AUD","bookings":[{"id":"b1","kind":"flight","title":"旧","seat":"12A","from":"A","to":"B","cost":100}],
+      "expenses":[{"id":"e1","title":"旧","amount":100,"bookingId":"b1","cat":"transport"},{"id":"e2","title":"分","amount":9,"paidBy":"p1","split":[{"who":"p1"}]}]})");
+    const tp::json::Value orig = plan;
+    // 错误：什么原因
+    QCOMPARE(putBooking(plan, "b1", vm({ { "cost", "abc" } })), QStringLiteral("badCost"));
+    QCOMPARE(putBooking(plan, "", vm({ { "startTime", "09:00" } })), QStringLiteral("badStart"));
+    QCOMPARE(putBooking(plan, "", vm({ { "startDate", "2026-12-02" }, { "startTime", "25:00" } })), QStringLiteral("badStart"));
+    QCOMPARE(putBooking(plan, "", vm({ { "endDate", "2026-13-02" } })), QStringLiteral("badEnd"));
+    QCOMPARE(putBooking(plan, "", vm({ { "startDate", "2026-12-02" }, { "endDate", "2026-12-01" } })), QStringLiteral("endBeforeStart"));
+    QCOMPARE(putBooking(plan, "", vm({ { "startDate", "2026-12-02" }, { "startTime", "15:00" }, { "endDate", "2026-12-02" }, { "endTime", "10:00" } })), QStringLiteral("endBeforeStart"));
+    QCOMPARE(putBooking(plan, "没有", vm({ { "title", "x" } })), QStringLiteral("gone"));
+    QVERIFY(plan == orig);
+    { tp::json::Value c = plan;   // 当天退房没写时间：只比日期，不算早于入住
+      QCOMPARE(putBooking(c, "", vm({ { "startDate", "2026-12-02" }, { "startTime", "15:00" }, { "endDate", "2026-12-02" } })), QString()); }
+    // 改：费用同步消费，别的键保留，变成住宿时去掉出发地
+    QCOMPARE(putBooking(plan, "b1", vm({ { "kind", "hotel" }, { "title", "新" }, { "startDate", "2026-12-02" }, { "startTime", "930" }, { "cost", "1,250.5" } })), QString());
+    const tp::json::Value &b = plan[QStringLiteral("bookings")].asArray()[0];
+    QCOMPARE(b[QStringLiteral("seat")].toString(), QStringLiteral("12A"));
+    QCOMPARE(b[QStringLiteral("start")].toString(), QStringLiteral("2026-12-02T09:30"));
+    QVERIFY(!b.asObject().contains(QStringLiteral("from")));
+    QCOMPARE(b[QStringLiteral("cost")].toNumber(), 1250.5);
+    const tp::json::Value &x = plan[QStringLiteral("expenses")].asArray()[0];
+    QCOMPARE(x[QStringLiteral("amount")].toNumber(), 1250.5);
+    QCOMPARE(x[QStringLiteral("title")].toString(), QStringLiteral("新"));
+    // 清空费用：消费变 0（Electron 一样）
+    QCOMPARE(putBooking(plan, "b1", vm({ { "kind", "hotel" }, { "title", "新" } })), QString());
+    QVERIFY(!plan[QStringLiteral("bookings")].asArray()[0].asObject().contains(QStringLiteral("cost")));
+    QCOMPARE(plan[QStringLiteral("expenses")].asArray()[0][QStringLiteral("amount")].toNumber(), 0.0);
+    // 新加 + 同时记到消费；没有费用时不记
+    QCOMPARE(putBooking(plan, "", vm({ { "kind", "train" }, { "cost", "20" }, { "startDate", "2026-12-03" }, { "toExp", true } })), QString());
+    QCOMPARE(plan[QStringLiteral("expenses")].asArray().size(), size_t(3));
+    const tp::json::Value &n = plan[QStringLiteral("expenses")].asArray()[2];
+    QCOMPARE(n[QStringLiteral("date")].toString(), QStringLiteral("2026-12-03"));
+    QCOMPARE(n[QStringLiteral("cat")].toString(), QStringLiteral("transport"));
+    QCOMPARE(n[QStringLiteral("bookingId")].toString(), plan[QStringLiteral("bookings")].asArray()[1][QStringLiteral("id")].toString());
+    QVERIFY(n[QStringLiteral("id")].toString().startsWith(QStringLiteral("ex_")));
+    QCOMPARE(putBooking(plan, "", vm({ { "kind", "train" }, { "toExp", true } })), QString());
+    QCOMPARE(plan[QStringLiteral("expenses")].asArray().size(), size_t(3));
+    // 删除连带
+    QCOMPARE(removeBooking(plan, "没有"), -1);
+    QCOMPARE(removeBooking(plan, "b1"), 1);
+    QCOMPARE(plan[QStringLiteral("bookings")].asArray().size(), size_t(2));
+    // 消费：错误、保留分账的键、和计划币种一样不写币种
+    QCOMPARE(putExpense(plan, "e2", vm({ { "amount", "" } })), QStringLiteral("badAmount"));
+    QCOMPARE(putExpense(plan, "e2", vm({ { "amount", "1" }, { "date", "昨天" } })), QStringLiteral("badDate"));
+    QCOMPARE(putExpense(plan, "没有", vm({ { "amount", "1" } })), QStringLiteral("gone"));
+    QCOMPARE(putExpense(plan, "e2", vm({ { "amount", "-3" }, { "currency", "AUD" }, { "cat", "food" }, { "date", "2026-12-03" } })), QString());
+    const tp::json::Value *e2 = nullptr;
+    for (const tp::json::Value &e : plan[QStringLiteral("expenses")].asArray()) if (e[QStringLiteral("id")].toString() == "e2") e2 = &e;
+    QVERIFY(e2);
+    QCOMPARE((*e2)[QStringLiteral("paidBy")].toString(), QStringLiteral("p1"));
+    QVERIFY((*e2)[QStringLiteral("split")].isArray());
+    QCOMPARE((*e2)[QStringLiteral("amount")].toNumber(), -3.0);
+    QVERIFY(!e2->asObject().contains(QStringLiteral("currency")));
+    QVERIFY(removeExpense(plan, "e2"));
+    QVERIFY(!removeExpense(plan, "e2"));
+    // 没写币种的计划：记账时写上（Electron editExpense）
+    tp::json::Value p2 = parseJson("{}");
+    QCOMPARE(putExpense(p2, "", vm({ { "amount", "5" }, { "currency", "USD" } })), QString());
+    QCOMPARE(p2[QStringLiteral("currency")].toString(), QStringLiteral("AUD"));
+    QCOMPARE(p2[QStringLiteral("expenses")].asArray()[0][QStringLiteral("currency")].toString(), QStringLiteral("USD"));
+    // 预算
+    QCOMPARE(setBudget(p2, "-1", "AUD"), QStringLiteral("badBudget"));
+    QCOMPARE(setBudget(p2, "abc", "AUD"), QStringLiteral("badBudget"));
+    QCOMPARE(setBudget(p2, "2,000", "nzd"), QString());
+    QCOMPARE(p2[QStringLiteral("budget")].toNumber(), 2000.0);
+    QCOMPARE(p2[QStringLiteral("currency")].toString(), QStringLiteral("NZD"));
+    QCOMPARE(setBudget(p2, "", "NZD"), QString());
+    QVERIFY(!p2.asObject().contains(QStringLiteral("budget")));
+}
+
+void TestMap::moneyBookingsView()
+{
+    using namespace tp::map::plans;
+    // 按天分组：从早到晚，没填时间的放最后；linked 标记
+    const tp::json::Value plan = parseJson(R"({"status":"planning","startDate":"2026-12-01","endDate":"2026-12-08",
+      "stops":[{"name":"A","lat":1,"lng":1,"arriveDate":"2026-12-01","departDate":"2026-12-04"},
+               {"name":"B","lat":2,"lng":2,"arriveDate":"2026-12-04","departDate":"2026-12-06"},
+               {"name":"C","lat":3,"lng":3,"arriveDate":"2026-12-07","departDate":"2026-12-08"}],
+      "bookings":[{"id":"u","kind":"other"},
+                  {"id":"f","kind":"flight","start":"2026-12-04T08:00","end":"2026-12-04T10:00"},
+                  {"id":"h2","kind":"hotel","start":"2026-12-04T15:00","end":"2026-12-05T10:00"},
+                  {"id":"h1","kind":"hotel","start":"2026-12-01T15:00","end":"2026-12-03T10:00"},
+                  {"id":"n","kind":"train","start":"2026-12-05T21:00","end":"2026-12-06T07:00"},
+                  {"id":"x","kind":"hotel","start":"2026-11-01"}],
+      "expenses":[{"amount":1,"bookingId":"f"}]})");
+    const QVariantList d = bookingDays(plan);
+    QCOMPARE(d.size(), 5);
+    QCOMPARE(d[0].toMap().value("day").toString(), QStringLiteral("2026-11-01"));
+    QCOMPARE(d[1].toMap().value("day").toString(), QStringLiteral("2026-12-01"));
+    QCOMPARE(d[2].toMap().value("rows").toList().size(), 2);
+    QVERIFY(d[2].toMap().value("rows").toList()[0].toMap().value("linked").toBool());
+    QCOMPARE(d[4].toMap().value("day").toString(), QString());
+
+    // J2：换站那天，住宿算下一站、交通算这一站；不在任何一站的不挂
+    const QVector<QVariantList> s = stopBookings(plan);
+    QCOMPARE(s.size(), 3);
+    const auto ids = [](const QVariantList &l) { QStringList o; for (const QVariant &v : l) o << v.toMap().value("id").toString(); return o; };
+    QCOMPARE(ids(s[0]), QStringList({ "f", "h1" }));
+    QCOMPARE(ids(s[1]), QStringList({ "h2", "n" }));
+    QVERIFY(s[2].isEmpty());
+    // 单一目的地只写了计划的日期
+    const tp::json::Value one = parseJson(R"({"startDate":"2026-12-01","endDate":"2026-12-03","stops":[{"name":"A","lat":1,"lng":1}],"bookings":[{"id":"h","kind":"hotel","start":"2026-12-02"}]})");
+    QCOMPARE(ids(stopBookings(one)[0]), QStringList{ "h" });
+
+    // J1：要住 12-01…03、04、05、07；住了 01、02、04；12-05 坐夜车；缺 03、07。B→C 之间的 12-06 不在任何站里
+    int undated = -1;
+    QCOMPARE(missingNights(plan, "2026-11-01", &undated), QStringList({ "2026-12-03", "2026-12-07" }));
+    QCOMPARE(undated, 0);
+    QCOMPARE(missingNights(plan, "2026-12-04"), QStringList{ "2026-12-07" });   // 过去的晚上不提
+    const tp::json::Value done = parseJson(R"({"status":"completed","startDate":"2026-12-01","endDate":"2026-12-03","stops":[]})");
+    QVERIFY(missingNights(done, "2026-11-01").isEmpty());
+    // 站点没写日期：按计划的日期；没填日期的住宿单独数
+    const tp::json::Value noStops = parseJson(R"({"status":"planning","startDate":"2026-12-01","endDate":"2026-12-03","stops":[],"bookings":[{"id":"h","kind":"hotel"},{"id":"h9","kind":"hotel","start":"2026-12-01"}]})");
+    QCOMPARE(missingNights(noStops, "2026-11-01", &undated), QStringList{ "2026-12-02" });   // 只写入住：住一晚
+    QCOMPARE(undated, 1);
+    QVERIFY(missingNights(parseJson(R"({"status":"planning"})"), "2026-11-01").isEmpty());
 }
 
 #include "tst_map.moc"

@@ -25,6 +25,29 @@ QtObject {
         if (ok(a) && ok(b)) return a === b ? md(a) : md(a) + " — " + md(b)
         return ok(a) ? md(a) : ok(b) ? md(b) : ""
     }
+    // 0.10.1 金额：AUD 8,420（Electron store.js money）；最多两位小数。负数用 − 号
+    function money(n, cur) {
+        const v = Math.round((+n || 0) * 100) / 100
+        const s = Math.abs(v).toFixed(2).replace(/\.?0+$/, "").replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+        return (cur ? cur + " " : "") + (v < 0 ? "−" : "") + s
+    }
+    // 2026 年 12 月 5 日 · 周六 / Sat, Dec 5, 2026（Electron pages-plan.js dayLabel）
+    function dayLabel(s) {
+        if (!ok(s)) return s
+        const d = dt(s)
+        return en ? wdEn[d.getDay()] + ", " + monEn[d.getMonth()] + " " + d.getDate() + ", " + d.getFullYear()
+                  : d.getFullYear() + " 年 " + (d.getMonth() + 1) + " 月 " + d.getDate() + " 日 · " + wd(s)
+    }
+    // 交通住宿的类型、消费的分类（Electron BOOK_KINDS、EXP_CATS、EXP_COLORS）
+    function kindLabel(k) {
+        return k === "flight" ? qsTr("机票") : k === "train" ? qsTr("火车") : k === "bus" ? qsTr("大巴") : k === "ferry" ? qsTr("船票")
+             : k === "car" ? qsTr("租车") : k === "hotel" ? qsTr("住宿") : k === "ticket" ? qsTr("门票") : qsTr("其他")
+    }
+    function catLabel(k) {
+        return k === "transport" ? qsTr("交通") : k === "stay" ? qsTr("住宿") : k === "food" ? qsTr("餐饮")
+             : k === "ticket" ? qsTr("娱乐/门票") : k === "shop" ? qsTr("购物") : qsTr("其他")
+    }
+    readonly property var catColors: ({ transport: "#2d6f9e", stay: "#8a5a9e", food: "#d0742b", ticket: "#3d8a5a", shop: "#c24d6b", other: "#8a8378" })
     function nights(a, b) {
         if (!ok(a) || !ok(b)) return 0
         return Math.round((dt(b) - dt(a)) / 86400000)

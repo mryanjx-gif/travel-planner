@@ -21,6 +21,7 @@ $Log = Join-Path $Root '验证-结果.txt'
 $Pages = @(
     'street|zh',
     'trip|zh', 'trip|en', 'trip-today|zh', 'trip-scroll|zh', 'trip-edit|zh', 'trip-edit|en', 'trip-single|zh', 'trip-sketch|zh', 'trip-narrow|zh',
+    'trip-bookings|zh', 'trip-bookings|en', 'trip-budget|zh', 'trip-budget|en', 'trip-booking-form|zh', 'trip-booking-form|en', 'trip-expense-form|zh', 'trip-stopbooks|zh',
     'sheet|zh', 'now|zh', 'now|en', 'editor|zh',
     'street|zh|hide'
 )

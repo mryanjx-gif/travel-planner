@@ -596,3 +596,90 @@ WiFi	Wi-Fi
 内容	Content
 好	OK
 照片 %1 张（这一版在这里还不能改）	%1 photos (can't be edited here in this version)
+
+# 0.10.1 交通住宿、消费、汇率
+交通住宿	Bookings
+消费	Expenses
+机票	Flight
+大巴	Bus
+船票	Ferry
+租车	Car rental
+住宿	Stay
+门票	Ticket
+交通	Transport
+餐饮	Food
+娱乐/门票	Entertainment/tickets
+购物	Shopping
+入住 %1	Check-in %1
+退房 %1	Check-out %1
+%1 等 %2 晚还没有住宿记录	No stay booked for %1 and others (%2 nights)
+%1 这 %2 晚还没有住宿记录	No stay booked for %1 (%2 nights)
+另有 %1 条住宿没填日期，没算进去。	%1 stays have no dates and were not counted.
+这几晚不用	Not needed
+%1 项	%1 items
+合计 %1	Total %1
+还没有记录。订好机票、酒店后点上面的按钮记一下：时间、订单号、费用都放在这里，出发前一页看全。	Nothing yet. After booking flights or hotels, add them with the buttons above: times, booking numbers and costs all in one place.
+没填时间	No date
+订单号 %1	Ref %1
+修改	Edit
+删除	Delete
+已花	Spent
+换算成	Convert to
+预订 %1 · 另外记账 %2	Bookings %1 · Other spending %2
+预算 %1	Budget %1
+超出 %1	Over by %1
+还剩 %1	%1 left
+还没设预算	No budget set
+%1 天，平均每天 %2	%1 days, %2 per day
+缺少 %1 的汇率，这些消费没算进合计。	No exchange rate for %1; those expenses are not in the total.
+汇率日期 %1	Rates from %1
+更新失败，用的是上次的	update failed, using the last ones
+还没拿到汇率，联网后重新打开计划试试	No exchange rates yet. Go online and reopen the plan.
+正在取汇率…	Getting exchange rates…
+修改预算 / 币种	Edit budget / currency
+设预算 / 币种	Set budget / currency
+内容	Description
+金额	Amount
+记	Add
+Enter 记下，日期默认今天	Enter to add; dated today
+展开更多	More
+还没有记账。旅途中随手记，回来就知道钱花在哪了。	No expenses yet. Jot them down on the go to see where the money went.
+来自交通住宿，在那边改	From Bookings; edit it there
+来自交通住宿	From Bookings
+退款	Refund
+添加%1	Add %1
+费用要填数字	Cost must be a number
+入住时间不对	Check-in time is not valid
+出发时间不对	Departure time is not valid
+退房时间不对	Check-out time is not valid
+到达时间不对	Arrival time is not valid
+退房不能早于入住	Check-out can't be before check-in
+到达不能早于出发	Arrival can't be before departure
+没有保存：这条记录可能已经被删了	Not saved: this record may have been deleted
+酒店名称，如 Hilton Darwin	Hotel name, e.g. Hilton Darwin
+名称，如 QF 840 / 动车 D2655	Name, e.g. QF 840
+出发地	From
+目的地	To
+入住	Check-in
+出发时间	Departure
+退房	Check-out
+到达时间	Arrival
+时:分	HH:MM
+订单号 / 确认码	Booking number
+费用（%1）	Cost (%1)
+备注：座位、行李额、地址、取票方式……	Notes: seat, baggage, address, pick-up…
+同时单独记一笔到“消费”（可以单独改）	Also add a separate entry to Expenses (can be edited on its own)
+记一笔	Add expense
+内容，如 晚饭、出租车	Description, e.g. dinner, taxi
+金额（退款填负数）	Amount (negative for a refund)
+备注	Notes
+金额要填数字	Amount must be a number
+日期不对	Date is not valid
+没有保存：这一笔可能已经被删了	Not saved: this expense may have been deleted
+预算	Budget
+总预算	Total budget
+预算不能是负数	Budget can't be negative
+删除这条记录？	Delete this record?
+“消费”里对应的那一笔也会一起删掉。	The matching entry in Expenses will be deleted too.
+删除这一笔？	Delete this expense?
+已删除，“消费”里对应的那一笔也删了（可以撤销）	Deleted, along with the matching entry in Expenses (can be undone)

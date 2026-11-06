@@ -54,6 +54,7 @@ Window {
     readonly property bool mapLive: win.onMapPage || win.tripOpen
     property string tripId: ""
     property int tripStop: -1
+    property string tripTab: ""            // 打开时直接到哪个标签（quick = 消费标签的一行快记）
     // 窗口太窄、计划页盖满时地图不让位，± 和图层也藏起来
     readonly property bool tripRoom: win.width - planPanel.width - 2 * win.gap >= Theme.px(260)
     function openTrip(id, stop) {
@@ -80,6 +81,8 @@ Window {
             mapc.markers.selectPlan(id, stop, false)
             mapc.flyToPlan(id)
             if (stop >= 0) planPanel.jumpTo(stop)
+            if (win.tripTab !== "") planPanel.openTab(win.tripTab)
+            win.tripTab = ""
         } else if (old !== "") {
             if (win.onMapPage && !editor.open) win.revealToast(plans.openPlan(old, false))
             else mapc.markers.clearSelection()
@@ -914,6 +917,7 @@ Window {
         onCloseRequested: win.nowOpen = false
         onShowOnMap: (id) => win.showPlanOnMap(id)
         onOpenTrip: (id, stop) => win.openTrip(id, stop)
+        onQuickExpense: (id) => { win.tripTab = "quick"; win.openTrip(id, -1) }
         onUnsetNext: { win.nowOpen = false; plans.setNextTrip(plans.now.planId, false) }
         onMarkDone: (id, name) => { planConfirm.ask("done", id, name) }
     }
@@ -1459,6 +1463,90 @@ Window {
         onTogglePin: (id) => { if (plans.togglePin(id)) toast.show(planPage.info.pinned ? qsTr("已置顶") : qsTr("已取消置顶"), false) }
         onToggleNext: (id, on) => { if (plans.setNextTrip(id, on)) toast.show(on ? qsTr("已设为下次出发") : qsTr("已取消下次出发"), false) }
         onPickStop: (i) => mapc.markers.selectPlan(win.tripId, i, true)
+        onAddBooking: (kind) => bookingDialog.show(null, kind)
+        onEditBooking: (row) => bookingDialog.show(row, "")
+        onDeleteBooking: (row) => moneyDialog.ask("booking", row)
+        onAddExpense: (draft) => expenseDialog.show(null, draft)
+        onEditExpense: (row) => expenseDialog.show(row, null)
+        onDeleteExpense: (row) => moneyDialog.ask("expense", row)
+        onBudgetRequested: {
+            budgetDialog.budget = planPage.info.money.budget > 0 ? String(planPage.info.money.budget) : ""
+            budgetDialog.cur = planPage.info.money.currency
+            budgetDialog.bad = false
+            budgetDialog.open = true
+        }
+    }
+    BookingDialog { id: bookingDialog; objectName: "bookingDialog"; backdrop: scene; currency: (planPage.info.money || {}).currency || "" }
+    ExpenseDialog { id: expenseDialog; objectName: "expenseDialog"; backdrop: scene; planCurrency: (planPage.info.money || {}).currency || ""; today: plans.today }
+    ModalLayer {
+        id: budgetDialog
+        objectName: "budgetDialog"
+        backdrop: scene
+        cardWidth: 400
+        property string budget: ""
+        property string cur: ""
+        property bool bad: false
+        function save() {
+            const err = planPage.setBudget(budget, cur)
+            bad = err === "badBudget"
+            if (!err) open = false
+        }
+        onDismissed: open = false
+        Text { width: parent.width; text: qsTr("预算"); font.family: serifFamily; font.pixelSize: Theme.px(19); font.bold: true; color: Theme.text }
+        Row {
+            width: parent.width
+            spacing: Theme.px(10)
+            TpField {
+                width: parent.width - parent.spacing - Theme.px(110)
+                placeholder: qsTr("总预算")
+                value: budgetDialog.budget
+                bad: budgetDialog.bad
+                onEdited: (t) => { budgetDialog.budget = t }
+                onAccepted: budgetDialog.save()
+                onEscaped: budgetDialog.open = false
+            }
+            TpSelect {
+                width: Theme.px(110)
+                options: (rates.currencies.indexOf(budgetDialog.cur) < 0 && budgetDialog.cur !== "" ? [budgetDialog.cur] : []).concat(rates.currencies).map(c => ({ key: c, text: c }))
+                current: budgetDialog.cur
+                onPicked: (k) => { budgetDialog.cur = k }
+            }
+        }
+        Text { visible: budgetDialog.bad; width: parent.width; text: qsTr("预算不能是负数"); font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.danger }
+        Row {
+            anchors.right: parent.right
+            spacing: Theme.px(8)
+            TpButton { text: qsTr("取消"); onClicked: budgetDialog.open = false }
+            TpButton { objectName: "budgetOk"; kind: "primary"; text: qsTr("保存"); onClicked: budgetDialog.save() }
+        }
+    }
+    MessageDialog {
+        id: moneyDialog
+        objectName: "moneyDialog"
+        backdrop: scene
+        property string what: ""
+        property var row: null
+        function ask(kind, r) {
+            what = kind
+            row = r
+            if (kind === "booking") {
+                title = qsTr("删除这条记录？")
+                const name = r.title || Fmt.kindLabel(r.kind)
+                paragraphs = r.linked ? [name, qsTr("“消费”里对应的那一笔也会一起删掉。")] : [name]
+            } else {
+                title = qsTr("删除这一笔？")
+                paragraphs = [(r.title || Fmt.catLabel(r.cat)) + "  " + Fmt.money(r.amount, r.cur)]
+            }
+            buttons = [{ key: "cancel", text: qsTr("取消") }, { key: "del", text: qsTr("删除"), kind: "danger" }]
+            open = true
+        }
+        onChosen: (key) => {
+            open = false
+            if (key !== "del") return
+            if (what === "expense") { planPage.deleteExpense(row.id); return }
+            const n = planPage.deleteBooking(row.id)
+            if (n > 0) toast.show(qsTr("已删除，“消费”里对应的那一笔也删了（可以撤销）"), false)
+        }
     }
     TextInputDialog {
         id: daysDialog
@@ -2001,7 +2089,7 @@ Window {
         onActivated: mapc.markers.stepStop(1)
     }
     // 0.10.0：计划页里 ← → 切站（Electron：输入框里打字、弹框开着时不触发）
-    readonly property bool tripKeys: win.tripOpen && planPanel.stepping && !win.modalOpen && !win.textFocused && !palette.open
+    readonly property bool tripKeys: win.tripOpen && planPanel.stepping && planPanel.tab === "itinerary" && !win.modalOpen && !win.textFocused && !palette.open
     Shortcut { sequence: "Left"; enabled: win.tripKeys; onActivated: planPanel.step(-1) }
     Shortcut { sequence: "Right"; enabled: win.tripKeys; onActivated: planPanel.step(1) }
     Connections {
@@ -2018,6 +2106,7 @@ Window {
                                       || importDialog.open || importProgressDialog.open || importReportDialog.open || takeOverDialog.open
                                       || photoReview.open || cleanupDialog.open || planConfirm.open || editorDialog.open
                                       || daysDialog.open || startDialog.open
+                                      || bookingDialog.open || expenseDialog.open || budgetDialog.open || moneyDialog.open
     readonly property bool textFocused: activeFocusItem !== null && activeFocusItem.cursorPosition !== undefined
     Shortcut {
         sequence: "Ctrl+Z"
@@ -2237,6 +2326,21 @@ Window {
         }
     }
 
+    // 截图（0.10.1）：trip-bookings = 交通住宿（含没订住宿的提醒）；trip-budget = 消费；trip-booking-form / trip-expense-form = 弹出表单；
+    // trip-stopbooks = 站点卡片上当天的交通住宿。在数据副本上加几条示例
+    readonly property bool moneyShot: ["trip-bookings", "trip-budget", "trip-booking-form", "trip-expense-form", "trip-stopbooks"].indexOf(shotPage) >= 0
+    function seedMoney() {
+        if ((planPage.info.money || {}).budget === 3000) return   // 前一张截图已经加过（几张截图用同一份副本）
+        const stops = planPage.info.stops || []
+        const a = (stops[0] || {}).arriveDate || plans.today
+        const b = (stops[0] || {}).departDate || a
+        planPage.setBudget("3000", "")
+        planPage.saveBooking("", { kind: "hotel", title: "Hilton Darwin", startDate: a, startTime: "15:00", endDate: b > a ? b : "", ref: "HX-2041", cost: "620", notes: "含早餐" })
+        planPage.saveBooking("", { kind: "flight", title: "QF 840", from: "Melbourne", to: "Darwin", startDate: a, startTime: "07:30", endDate: a, endTime: "11:05", cost: "410", toExp: true })
+        planPage.saveExpense("", { title: "Lunch", amount: "28", cat: "food", date: a })
+        planPage.saveExpense("", { title: "Museum", amount: "35", currency: "USD", cat: "ticket", date: a })
+        planPage.saveExpense("", { title: "Tour refund", amount: "-40", cat: "ticket", date: b })
+    }
     // 截图（0.10.0）：trip = 计划页（今天在这趟里、有季节条的话用有季节条的）；trip-today = 此刻卡进来（滚到今天）；trip-scroll = 往下滚（页头收起）；
     // trip-edit = 就地改一条日程；trip-narrow = 500 宽；trip-single = 单一目的地；trip-sketch = 没有封面
     Timer {
@@ -2259,6 +2363,7 @@ Window {
             win.openTrip(id, shotPage === "trip-today" ? plans.now.hereIndex || 0 : -1)
             if (shotPage === "trip-scroll") tripShot2.start()
             if (shotPage === "trip-edit") tripShot2.start()
+            if (win.moneyShot) { win.seedMoney(); tripShot2.start() }
         }
     }
     Timer {
@@ -2266,6 +2371,12 @@ Window {
         interval: 600
         onTriggered: {
             if (shotPage === "trip-scroll") { planPanel.pickStop(2); planPanel.reveal(2, true); return }
+            if (win.moneyShot) {
+                planPanel.openTab(shotPage === "trip-bookings" || shotPage === "trip-booking-form" ? "bookings" : shotPage === "trip-stopbooks" ? "itinerary" : "budget")
+                if (shotPage === "trip-booking-form") bookingDialog.show(null, "hotel")
+                if (shotPage === "trip-expense-form") expenseDialog.show(null, { title: "", cat: "food" })
+                return
+            }
             planPanel.beginFirstEdit()
         }
     }

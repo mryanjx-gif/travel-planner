@@ -3,7 +3,8 @@
 //   → 在路上时：天数进度条、今天的安排（带时间，最多 3 条）、下一站（交通方式 + 站名）
 //   → 按钮："在地图上看"（主按钮）+ ⋯（取消指定）→ 这趟的待办（最多 3 条，可以勾）→ 提醒（日期已过的计划、60 天内到期的证件）。
 // 0.10.0 起主按钮是"今天的行程"（在路上）/"打开计划"，"在地图上看"退到第二个。
-// 指向还没做的页面的按钮（记一笔、行李与待办、整理照片、写游记、去计划库、看证件）先不显示，
+// 0.10.1：在路上时加"记一笔"，跳到消费标签的一行快记（J3）。
+// 指向还没做的页面的按钮（行李与待办、整理照片、写游记、去计划库、看证件）先不显示，
 // 页面做好时补上（PO 2026-11-05，记在待办需求记录.md）。
 // info = plans.now（plans.cpp nowInfo）。勾待办后先显示勾上，0.45 秒后才真的改数据（Electron setTimeout(renderNow, 450)）。
 import QtQuick
@@ -17,6 +18,7 @@ Item {
     signal showOnMap(string planId)
     signal openTrip(string planId, int stop)    // 0.10.0：今天的行程（stop = 今天所在的站）/ 打开计划（-1）
     signal markDone(string planId, string name)
+    signal quickExpense(string planId)          // 0.10.1 记一笔（J3）
     signal unsetNext()
     readonly property string kind: info.kind || "none"
     readonly property bool live: kind === "live"
@@ -236,6 +238,13 @@ Item {
                     }
                     MouseArea { id: moreMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: moreMenu.open = !moreMenu.open }
                 }
+            }
+            LinkText {
+                objectName: "nowExpense"
+                visible: root.live
+                topPadding: Theme.px(10)
+                text: qsTr("记一笔")
+                onClicked: root.quickExpense(root.info.planId)
             }
             Item {   // ⋯ 菜单：取消指定
                 id: moreMenu

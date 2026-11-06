@@ -2,7 +2,7 @@
 // 照 Electron pages-plan.js render / itineraryHtml / bindItinerary / setFocus，PO 选的改进：
 //   I1 交通画成站点之间的连接线、I2 日程按天分组（SchedList）、I3 在路上时高亮今天、I4 往下滚时页头收成一行。
 // 站点列表按需加载（最长的路线 48 站）：ListView，模型只是站点个数，数据变了不重建卡片、滚动位置不动（P-04）。
-// 标签现在只有"行程"（PO：没做的不显示），后面每批加上去。
+// 标签（PO：没做的不显示，后面每批加上去）：行程、交通住宿、消费（0.10.1）。别的标签的内容放在列表的页头里，模型变成 0，页头收起和滚动都一样。
 // source = planPage.info（plans::pageInfo）。
 import QtQuick
 import TPApp
@@ -24,6 +24,13 @@ Item {
     signal togglePin(string planId)
     signal toggleNext(string planId, bool on)
     signal pickStop(int index)
+    signal addBooking(string kind)
+    signal editBooking(var row)
+    signal deleteBooking(var row)
+    signal addExpense(var draft)
+    signal editExpense(var row)
+    signal deleteExpense(var row)
+    signal budgetRequested()
 
     readonly property bool missing: shown && !(source && source.id)
     readonly property var stops: info.stops || []
@@ -38,12 +45,26 @@ Item {
     readonly property real navNatural: hdr ? list.y + hdr.y + hdr.navY - list.contentY : 0
     readonly property bool collapsed: hdr ? hdr.y + hdr.titleBottom - list.contentY < 0 : false
     readonly property bool scheduleEditing: edit.j !== -2
+    property string tab: "itinerary"        // itinerary / bookings / budget
     property bool menuOpen: false
     property real menuY: 0
     property var openNotes: ({})
     property bool cardClick: false
     QtObject { id: edit; property int stop: -1; property int j: -2; property var draft: ({}); property string err: "" }
     function cancelSchedule() { edit.j = -2 }
+    // 换标签。quick = 消费标签，光标放到一行快记（J3）
+    function openTab(t) {
+        edit.j = -2
+        scrollAnim.stop()
+        tab = t === "quick" ? "budget" : t
+        list.contentY = list.originY
+        Qt.callLater(() => { list.contentY = list.originY; if (t === "quick" && list.headerItem) list.headerItem.focusQuick() })
+    }
+    // 消费标签里点"来自交通住宿"的一行：回到交通住宿，打开它的表单
+    function editBookingById(id) {
+        openTab("bookings")
+        for (const d of info.bookings || []) for (const b of d.rows) if (b.id === id) { root.editBooking(b); return }
+    }
     // 截图 trip-edit：改第一条日程
     function beginFirstEdit() {
         for (let k = 0; k < stops.length; ++k) {
@@ -101,6 +122,7 @@ Item {
     }
     // 把这一站滚进可见区域（force = 一定滚到顶上，看今天的行程用）。上面让开收起的页头和切换条
     function reveal(i, force) {
+        if (tab !== "itinerary") return
         const top = compactH + (stepping ? navH : 0) + Theme.px(6)
         const it = list.itemAtIndex(i)
         if (it && !force) {
@@ -121,6 +143,7 @@ Item {
     function clickCard(i) { cardClick = true; root.pickStop(i); cardClick = false }
     function resetView() {
         edit.j = -2
+        tab = "itinerary"
         menuOpen = false
         openNotes = ({})
         scrollAnim.stop()
@@ -152,13 +175,14 @@ Item {
         visible: !root.missing
         boundsBehavior: Flickable.StopAtBounds
         cacheBuffer: 1200
-        model: root.stops.length
+        model: root.tab === "itinerary" ? root.stops.length : 0
         onMovementStarted: { scrollAnim.stop(); root.menuOpen = false }
 
         header: Column {
             id: head
             readonly property real titleBottom: titleRow.y + titleRow.height
             readonly property real navY: navSpace.y
+            function focusQuick() { budgetTab.focusQuick() }
             x: root.margin
             width: list.width - 2 * root.margin
             topPadding: Theme.px(14)
@@ -300,19 +324,58 @@ Item {
                 width: parent.width
                 height: Theme.px(34)
                 Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.line }
-                Text {
-                    id: tabText
-                    objectName: "tripTab"
+                Row {
                     x: Theme.px(2)
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: qsTr("行程")
-                    font.family: serifFamily; font.pixelSize: Theme.px(14); font.bold: true; color: Theme.text
+                    height: parent.height
+                    spacing: Theme.px(20)
+                    Repeater {
+                        model: ["itinerary", "bookings", "budget"]
+                        delegate: Item {
+                            required property string modelData
+                            readonly property bool on: root.tab === modelData
+                            readonly property int n: modelData === "bookings" ? root.info.bookCount || 0 : modelData === "budget" ? ((root.info.money || {}).rows || []).length : 0
+                            objectName: "tripTab-" + modelData
+                            width: tabLabel.implicitWidth
+                            height: parent.height
+                            Accessible.role: Accessible.PageTab
+                            Accessible.name: tabLabel.text
+                            Text {
+                                id: tabLabel
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: (parent.modelData === "bookings" ? qsTr("交通住宿") : parent.modelData === "budget" ? qsTr("消费") : qsTr("行程")) + (parent.n > 0 ? " " + parent.n : "")
+                                font.family: serifFamily; font.pixelSize: Theme.px(14); font.bold: parent.on; color: parent.on ? Theme.text : Theme.muted
+                            }
+                            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 2; color: Theme.accent; visible: parent.on }
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.openTab(parent.modelData) }
+                        }
+                    }
                 }
-                Rectangle { anchors.bottom: parent.bottom; x: tabText.x; width: tabText.implicitWidth; height: 2; color: Theme.accent }
+            }
+            BookingsTab {
+                objectName: "tripBookings"
+                visible: root.tab === "bookings"
+                width: parent.width
+                info: root.info
+                readOnly: root.readOnly
+                onAdd: (kind) => root.addBooking(kind)
+                onEdit: (row) => root.editBooking(row)
+                onRemove: (row) => root.deleteBooking(row)
+            }
+            BudgetTab {
+                id: budgetTab
+                objectName: "tripBudget"
+                visible: root.tab === "budget"
+                width: parent.width
+                money: root.info.money || ({})
+                readOnly: root.readOnly
+                onEdit: (row) => row.fromBooking ? root.editBookingById(row.bookingId) : root.editExpense(row)
+                onRemove: (row) => root.deleteExpense(row)
+                onMore: (draft) => root.addExpense(draft)
+                onBudgetRequested: root.budgetRequested()
             }
             // ---- 备注 ----
             Column {
-                visible: (root.info.notes || "") !== ""
+                visible: root.tab === "itinerary" && (root.info.notes || "") !== ""
                 width: parent.width
                 spacing: Theme.px(4)
                 Text { text: qsTr("备注"); font.family: serifFamily; font.pixelSize: Theme.px(14); font.bold: true; color: Theme.text }
@@ -325,8 +388,9 @@ Item {
                 }
             }
             // 切换条停在这里，往下滚时贴在页头下面（画在列表外面）
-            Item { id: navSpace; width: parent.width; height: root.stepping ? root.navH : 0 }
+            Item { id: navSpace; width: parent.width; height: root.stepping && root.tab === "itinerary" ? root.navH : 0 }
             Text {
+                visible: root.tab === "itinerary"
                 bottomPadding: Theme.px(2)
                 text: root.stops.length === 0 ? qsTr("没有有效的站点坐标。") : root.route ? qsTr("站点安排") : qsTr("行程安排")
                 font.family: serifFamily; font.pixelSize: Theme.px(14); font.bold: true; color: root.stops.length === 0 ? Theme.muted : Theme.text
@@ -401,6 +465,22 @@ Item {
                             return d + (n > 0 ? " · " + (n === 1 && Fmt.en ? "1 night" : qsTr("住 %1 晚").arg(n)) : "")
                         }
                         font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.muted
+                    }
+                    // 当天的交通住宿（J2），点了到交通住宿标签
+                    Flow {
+                        objectName: "tripStopBooks"
+                        visible: (wrap.s.books || []).length > 0
+                        width: parent.width
+                        spacing: Theme.px(5)
+                        Repeater {
+                            model: wrap.s.books || []
+                            delegate: Chip {
+                                required property var modelData
+                                clickable: true
+                                text: Fmt.kindLabel(modelData.kind) + (modelData.title ? " " + modelData.title : "")
+                                onClicked: root.openTab("bookings")
+                            }
+                        }
                     }
                     Row {
                         visible: !!wrap.s.sun
@@ -523,7 +603,7 @@ Item {
     Rectangle {
         id: navBar
         objectName: "tripNav"
-        visible: root.stepping && !root.missing
+        visible: root.stepping && !root.missing && root.tab === "itinerary"
         x: root.margin - Theme.px(6)
         width: parent.width - 2 * x
         y: Math.max(root.collapsed ? root.compactH : Theme.px(6), root.navNatural)

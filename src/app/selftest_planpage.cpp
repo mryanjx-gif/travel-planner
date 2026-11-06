@@ -113,7 +113,7 @@ void runPlanPage(Report &r, AppController *app, map::MapController *mapc, QQuick
     // ---- 页头 ----
     r.check(isShown(item(win, QStringLiteral("tripEdit"))) && isShown(item(win, QStringLiteral("tripSimple"))) && isShown(item(win, QStringLiteral("tripPlans"))) && isShown(item(win, QStringLiteral("tripMore"))),
             QStringLiteral("编辑、简易版、计划库、⋯ 都在"));
-    r.check(isShown(item(win, QStringLiteral("tripTab"))), QStringLiteral("标签只有\"行程\""));
+    r.check(isShown(item(win, QStringLiteral("tripTab-itinerary"))) && panel->property("tab").toString() == QLatin1String("itinerary"), QStringLiteral("标签默认在\"行程\""));
     click(win, item(win, QStringLiteral("tripMore")));
     r.check(isShown(item(win, QStringLiteral("tripMenu"))) && isShown(item(win, QStringLiteral("tripPin"))), QStringLiteral("⋯ 菜单打开了"));
     r.check(call(win, "escOnce").toString() == QLatin1String("tripMenu"), QStringLiteral("Esc 先关 ⋯ 菜单"));

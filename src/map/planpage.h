@@ -16,6 +16,9 @@
 
 namespace tp::map::plans {
 
+// 9:30、09:30、0930 → 09:30；空 → 空；其余 → 空且 *ok = false
+QString normTime(const QString &t, bool *ok);
+
 // 按天分组（PO 选 I2，只改显示）：[{ date, items: [{ j（数组里的下标）, date, time, end, text, today }] }]。
 // 日期从早到晚，没写日期的放最后；同一天里没写时间的在前，其余按时间排
 QVariantList schedDays(const json::Value &stop, const QString &today);

@@ -10,11 +10,14 @@
 
 namespace tp::data { class DataStore; }
 namespace tp::services { class NetClient; }
+namespace tp::json { class Value; }
 
 namespace tp::app {
 
 class AppController;
 class PlanController;
+class RatesController;
+class Settings;
 
 class PlanPageController : public QObject
 {
@@ -23,7 +26,8 @@ class PlanPageController : public QObject
     Q_PROPERTY(QVariantMap info READ info NOTIFY changed)      // plans::pageInfo + 缩略图地址 + readOnly（打开的计划被删掉时为空）
 
 public:
-    PlanPageController(AppController *app, PlanController *plans, data::DataStore *store, services::NetClient *net, QObject *parent = nullptr);
+    PlanPageController(AppController *app, PlanController *plans, data::DataStore *store, services::NetClient *net,
+                       RatesController *rates, Settings *settings, QObject *parent = nullptr);
 
     QString planId() const { return m_id; }
     QVariantMap info() const { return m_info; }
@@ -35,6 +39,14 @@ public:
     Q_INVOKABLE bool deleteSched(int k, int j);
     Q_INVOKABLE QString setDays(const QString &text);
     Q_INVOKABLE bool startPlanning(const QString &start, const QString &end);
+
+    // 交通住宿和消费（0.10.1）。id 空 = 新加。返回空 = 改好了；否则是原因的键（plans::putBooking 等）
+    Q_INVOKABLE QString saveBooking(const QString &id, const QVariantMap &fields);
+    Q_INVOKABLE int deleteBooking(const QString &id);    // 连带删了几笔消费；没删成 -1
+    Q_INVOKABLE QString saveExpense(const QString &id, const QVariantMap &fields);
+    Q_INVOKABLE bool deleteExpense(const QString &id);
+    Q_INVOKABLE QString setBudget(const QString &text, const QString &currency);
+    Q_INVOKABLE void dismissNights();                    // J1"这几晚不用"：记进 settings.json 的 noStayNights，不改数据
 
     // 测试用：替换 Open-Meteo 请求（和 PlanEditor::Fetch 一样的签名）
     using Fetch = std::function<void(const QUrl &, std::function<void(int httpStatus, const QByteArray &body, int netError)>)>;
@@ -49,11 +61,14 @@ private:
     void fillTz(const QString &planId);
     void fillBatch(const QString &planId);
     void edited();
+    QString applyPlan(const std::function<QString(json::Value &plan)> &fn);
 
     AppController *m_app;
     PlanController *m_plans;
     data::DataStore *m_store;
     services::NetClient *m_net;
+    RatesController *m_rates;
+    Settings *m_settings;
     Fetch m_fetch;
     QString m_id;
     QVariantMap m_info;
