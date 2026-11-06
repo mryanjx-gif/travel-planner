@@ -36,16 +36,16 @@ void AlbumModel::setPlan(const QString &p)
 {
     if (p == m_plan) return;
     m_plan = p;
-    emit stateChanged();
     rebuildRows(false);
+    emit stateChanged();   // 重建之后再发：列表定位要用新的行
 }
 
 void AlbumModel::setCompact(bool c)
 {
     if (c == m_compact) return;
     m_compact = c;
-    emit stateChanged();
     rebuildRows(false);
+    emit stateChanged();
 }
 
 void AlbumModel::setColumns(int n)

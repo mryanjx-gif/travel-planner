@@ -544,7 +544,7 @@ void AppController::undoRedo(int dir)
         emit toast(dir < 0 ? tp::tr("没有可以撤销的了") : tp::tr("没有可以重做的了"), false);
         return;
     }
-    m_store->replaceData(*snap);
+    m_store->restoreData(*snap);
     emit docReplaced();
     bool ok;
     {

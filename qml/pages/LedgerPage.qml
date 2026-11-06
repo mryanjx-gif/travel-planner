@@ -1,5 +1,5 @@
 // 账本（0.10.2，B-01；PO 选 4A：上面总览，下面一张表；3A：页头选主货币）。数字都来自 plans::ledgerInfo（planPage.ledger）。
-// 整页的外壳和 PlaceholderPage 一样。点一行跳到那个计划的消费标签。
+// 点一行跳到那个计划的消费标签。
 import QtQuick
 import TPApp
 

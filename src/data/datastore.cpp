@@ -253,6 +253,14 @@ void DataStore::replaceData(json::Value v)
     emit contentChanged();
 }
 
+void DataStore::restoreData(json::Value v)
+{
+    m_data = std::move(v);
+    snapPlans();
+    setDirty(true);
+    emit contentChanged();
+}
+
 void DataStore::snapPlans()
 {
     m_planSigs.clear();

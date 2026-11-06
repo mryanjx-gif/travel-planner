@@ -364,7 +364,7 @@ Item {
             Text {
                 visible: root.stop !== null && (root.stop.thumbs || []).length > 6
                 font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
-                text: root.stop ? qsTr("照片 %1 张").arg((root.stop.thumbs || []).length) : ""
+                text: root.stop ? Fmt.one(qsTr("照片 %1 张").arg((root.stop.thumbs || []).length)) : ""
             }
             NotesBlock { visible: root.stop !== null && (root.stop.notes || "") !== ""; text: root.stop ? (root.stop.notes || "") : ""; open: root.stopNotesOpen; onToggled: root.stopNotesOpen = !root.stopNotesOpen }
             Text {   // 下一段怎么走

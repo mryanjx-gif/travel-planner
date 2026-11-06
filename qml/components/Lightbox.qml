@@ -148,7 +148,7 @@ Item {
                     anchors.fill: parent
                     source: root.open ? root.cur.thumb || "" : ""
                     fillMode: Image.PreserveAspectFit
-                    visible: fit.status !== Image.Ready && full.status !== Image.Ready
+                    visible: !root.heicMissing && fit.status !== Image.Ready && full.status !== Image.Ready   // 没装扩展时下面压着提示文字
                     asynchronous: true
                 }
                 Image {

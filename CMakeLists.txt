@@ -3,7 +3,7 @@
 # 规则（PO 2026-11-02）：大更新改第一位，中等更新改第二位，小修改改第三位；正式版之前是 0.x.y，正式版 1.0.0。
 cmake_minimum_required(VERSION 3.24)
 
-set(TP_VERSION "0.11.1")
+set(TP_VERSION "0.11.2")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TP_VERSION_NUMERIC "${TP_VERSION}")
 
 project(TravelPlannerNative
@@ -87,6 +87,7 @@ add_library(tp_map STATIC
     src/map/planmoney.cpp src/map/planmoney.h
     src/map/planweather.cpp src/map/planweather.h
     src/map/plankit.cpp src/map/plankit.h
+    src/map/plancal.cpp src/map/plancal.h
     src/map/photomap.cpp src/map/photomap.h
     src/map/suncalc.cpp src/map/suncalc.h
     src/map/planedit.cpp src/map/planedit.h
@@ -138,6 +139,8 @@ qt_add_executable(TravelPlanner WIN32
     src/app/albummodel.cpp src/app/albummodel.h
     src/app/plancontroller.cpp src/app/plancontroller.h
     src/app/planpagecontroller.cpp src/app/planpagecontroller.h
+    src/app/calendarcontroller.cpp src/app/calendarcontroller.h
+    src/app/journalcontroller.cpp src/app/journalcontroller.h
     src/app/ratescontroller.cpp src/app/ratescontroller.h
     src/app/weathercontroller.cpp src/app/weathercontroller.h
     src/app/planeditor.cpp src/app/planeditor.h
@@ -145,7 +148,7 @@ qt_add_executable(TravelPlanner WIN32
     src/app/thumbprovider.cpp src/app/thumbprovider.h
     src/app/framestats.cpp src/app/framestats.h
     src/app/selftest.cpp src/app/selftest.h src/app/selftest_util.cpp src/app/selftest_util.h
-    src/app/selftest_map.cpp src/app/selftest_routes.cpp src/app/selftest_unlock.cpp src/app/selftest_plans.cpp src/app/selftest_shell.cpp src/app/selftest_pages.cpp src/app/selftest_planpage.cpp src/app/selftest_money.cpp src/app/selftest_weather.cpp src/app/selftest_kit.cpp src/app/selftest_photos_tab.cpp src/app/selftest_library.cpp src/app/selftest_photomode.cpp src/app/selftest_editor.cpp src/app/selftest_globe.cpp src/app/selftest_perf.cpp
+    src/app/selftest_map.cpp src/app/selftest_routes.cpp src/app/selftest_unlock.cpp src/app/selftest_plans.cpp src/app/selftest_shell.cpp src/app/selftest_pages.cpp src/app/selftest_planpage.cpp src/app/selftest_money.cpp src/app/selftest_weather.cpp src/app/selftest_kit.cpp src/app/selftest_photos_tab.cpp src/app/selftest_library.cpp src/app/selftest_photomode.cpp src/app/selftest_calendar.cpp src/app/selftest_editor.cpp src/app/selftest_globe.cpp src/app/selftest_perf.cpp
     src/platform/crashhandler.cpp src/platform/crashhandler.h
     src/platform/nativedialog.cpp src/platform/nativedialog.h
     src/platform/watchdog.cpp src/platform/watchdog.h
@@ -182,10 +185,10 @@ foreach(f GlassPanel TpButton ModalLayer ChoiceCard ChoiceDialog MessageDialog T
           LinkText StatusFilterPill FilterMenu NowCard PlanSheet
           SplitBud TopBar AvatarMenu PlanListPanel LibraryView WishMonthBar WishDialog CommandPalette RoundButton TpIcon
           PlanEditor DateField TpField StylePopover MarkerShape ColorWheel EditOverlay DrawerGrip
-          SchedList RouteSketch RoundIcon MenuRow Lightbox PhotosTab)
+          SchedList RouteSketch RoundIcon MenuRow Lightbox PhotosTab MdEditor CalPlanCard CalPicker)
     set_source_files_properties(qml/components/${f}.qml PROPERTIES QT_RESOURCE_ALIAS ${f}.qml)
 endforeach()
-foreach(f SettingsPanel SettingsCard SettingsRow BackupSection PlaceholderPage LedgerPage PlanPage)
+foreach(f SettingsPanel SettingsCard SettingsRow BackupSection CalendarPage JournalPage LedgerPage PlanPage)
     set_source_files_properties(qml/pages/${f}.qml PROPERTIES QT_RESOURCE_ALIAS ${f}.qml)
 endforeach()
 qt_add_qml_module(TravelPlanner
@@ -264,11 +267,15 @@ qt_add_qml_module(TravelPlanner
         qml/components/ColorWheel.qml
         qml/components/EditOverlay.qml
         qml/components/DrawerGrip.qml
+        qml/components/MdEditor.qml
+        qml/components/CalPlanCard.qml
+        qml/components/CalPicker.qml
         qml/pages/SettingsPanel.qml
         qml/pages/SettingsCard.qml
         qml/pages/SettingsRow.qml
         qml/pages/BackupSection.qml
-        qml/pages/PlaceholderPage.qml
+        qml/pages/CalendarPage.qml
+        qml/pages/JournalPage.qml
         qml/pages/LedgerPage.qml
         qml/pages/PlanPage.qml
 )

@@ -152,6 +152,7 @@ private slots:
     void undoSuppress();
     void undoGroup();          // 0.8.9 站点编辑器：整次编辑算一步、放弃时拿掉
     void undoSharesUnchanged();
+    void undoKeepsUpdatedAt();
     void undoWithStore();
     // ---------- 0.5.0：备份 ----------
     void backupFolderName();
@@ -1357,6 +1358,39 @@ void TestData::undoWithStore()
     s.replaceData(*u.redo(s.data()));
     QVERIFY(s.save().ok);
     QVERIFY(readFile(tmp.filePath("travel.json")).contains("\"name\": \"甲2\""));
+}
+
+// 0.11.2：撤销后数据和原来完全一样，连 updatedAt 也不重新写（日历拖动的一步撤销）
+void TestData::undoKeepsUpdatedAt()
+{
+    QTemporaryDir tmp;
+    writeFileRaw(tmp.filePath("travel.json"), sampleNative());
+    data::DataStore s;
+    QVERIFY(s.load(tmp.path()));
+    data::UndoStack u;
+    s.modify([](Value &d) { d.mutObject().find("plans")->mutArray().front().mutObject().set("name", Value("基准")); });
+    QVERIFY(s.save().ok);   // 现在有 updatedAt 了
+    u.reset(s.data());
+    const Value before = s.data();
+    s.modify([](Value &d) { d.mutObject().find("plans")->mutArray().front().mutObject().set("startDate", Value("2030-01-01")); });
+    QVERIFY(s.save().ok);
+    QVERIFY(u.noteSaved(s.data()));
+    QVERIFY(s.data() != before);
+    s.restoreData(*u.undo(s.data()));
+    QVERIFY(s.isDirty());
+    {
+        data::UndoStack::Suppress g(u);
+        QVERIFY(s.save().ok);
+        u.noteSaved(s.data());
+    }
+    const auto withoutTime = [](Value v) { v.mutObject().remove("savedAt"); return v; };
+    QVERIFY(withoutTime(s.data()) == withoutTime(before));
+    QCOMPARE(s.data()["plans"].asArray()[0]["updatedAt"].toNumber(), before["plans"].asArray()[0]["updatedAt"].toNumber());
+    // 磁盘上也是
+    data::DataStore again;
+    QVERIFY(again.load(tmp.path()));
+    QVERIFY(withoutTime(again.data()) == withoutTime(before));
+    again.lock().release();
 }
 
 // ---------- 0.5.0：备份（D-17 / D-18） ----------

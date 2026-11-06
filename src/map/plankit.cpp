@@ -4,6 +4,7 @@
 
 #include <QRandomGenerator>
 #include <QRegularExpression>
+#include <QHash>
 #include <QSet>
 #include <QVector>
 
@@ -272,10 +273,140 @@ void setEmergency(Value &root, const QVariantMap &f)
     else root.mutObject().set(QStringLiteral("emergency"), std::move(e));
 }
 
+namespace {
+const QRegularExpression &anyPicRe()
+{
+    static const QRegularExpression re(QStringLiteral(R"(!\[[^\]]*\]\(([^)]+)\))"));
+    return re;
+}
+// 去掉照片和记号（Electron excerpt）
+QString journalPlain(const QString &body)
+{
+    static const QRegularExpression marks(QStringLiteral("[#>*_`]"));
+    QString text = body;
+    text.remove(anyPicRe());
+    text.remove(marks);
+    return text.trimmed();
+}
+Value *mutJournal(Value &root, const QString &id, int *index = nullptr)
+{
+    Value *arr = root.mutObject().find(QStringLiteral("journal"));
+    if (!arr || !arr->isArray()) return nullptr;
+    int k = 0;
+    for (Value &j : arr->mutArray()) {
+        if (j.isObject() && str(j, "id") == id) { if (index) *index = k; return &j; }
+        ++k;
+    }
+    return nullptr;
+}
+} // namespace
+
+QVariantMap journalPage(const Value &root, const QString &filter)
+{
+    QHash<QString, QString> names;
+    for (const Value &p : root[QStringLiteral("plans")].asArray()) names.insert(str(p, "id"), str(p, "name"));
+    QVector<const Value *> all;
+    for (const Value &j : root[QStringLiteral("journal")].asArray()) if (j.isObject()) all << &j;
+    std::stable_sort(all.begin(), all.end(), [](const Value *a, const Value *b) { return str(*a, "date") > str(*b, "date"); });
+    QVariantList rows, planRows;
+    QSet<QString> seen;
+    bool hasNone = false;
+    for (const Value *j : all) {
+        const QString plan = str(*j, "plan");
+        const bool linked = names.contains(plan);
+        hasNone = hasNone || !linked;
+        if (linked && !seen.contains(plan)) { seen.insert(plan); planRows << QVariantMap{ { QStringLiteral("id"), plan }, { QStringLiteral("name"), names.value(plan) } }; }
+        if (filter == QLatin1String("none") ? linked : (filter != QLatin1String("all") && plan != filter)) continue;
+        const QString body = str(*j, "body");
+        rows << QVariantMap{ { QStringLiteral("id"), str(*j, "id") }, { QStringLiteral("title"), str(*j, "title") }, { QStringLiteral("date"), str(*j, "date") },
+                             { QStringLiteral("plan"), linked ? plan : QString() }, { QStringLiteral("planName"), names.value(plan) }, { QStringLiteral("text"), journalPlain(body).simplified().left(110) },
+                             { QStringLiteral("file"), photoFileOf(root, anyPicRe().match(body).captured(1)) } };
+    }
+    const bool gone = filter != QLatin1String("all") && (filter == QLatin1String("none") ? !hasNone : !seen.contains(filter));
+    return { { QStringLiteral("total"), int(all.size()) }, { QStringLiteral("plans"), planRows }, { QStringLiteral("hasNone"), hasNone }, { QStringLiteral("rows"), rows }, { QStringLiteral("filterGone"), gone } };
+}
+
+QVariantMap journalEntry(const Value &root, const QString &id)
+{
+    for (const Value &j : root[QStringLiteral("journal")].asArray()) {
+        if (!j.isObject() || str(j, "id") != id) continue;
+        QVariantMap m{ { QStringLiteral("id"), id }, { QStringLiteral("title"), str(j, "title") }, { QStringLiteral("date"), str(j, "date") },
+                       { QStringLiteral("plan"), str(j, "plan") }, { QStringLiteral("stop"), str(j, "stop") }, { QStringLiteral("body"), str(j, "body") } };
+        if (const Value *p = planById(root, str(j, "plan"))) {
+            m.insert(QStringLiteral("planName"), str(*p, "name"));
+            for (const Value &s : (*p)[QStringLiteral("stops")].asArray())
+                if (str(s, "id") == str(j, "stop")) m.insert(QStringLiteral("stopName"), str(s, "name"));
+        }
+        return m;
+    }
+    return {};
+}
+
+QVariantList journalPlanOptions(const Value &root)
+{
+    QVector<const Value *> all;
+    for (const Value &p : root[QStringLiteral("plans")].asArray()) all << &p;
+    std::stable_sort(all.begin(), all.end(), [](const Value *a, const Value *b) { return compare(*a, *b, true) < 0; });
+    QVariantList out;
+    for (const Value *p : all) out << QVariantMap{ { QStringLiteral("key"), str(*p, "id") }, { QStringLiteral("text"), str(*p, "name") } };
+    return out;
+}
+
+QVariantList journalStopOptions(const Value &root, const QString &planId)
+{
+    QVariantList out;
+    const Value *p = planById(root, planId);
+    if (!p) return out;
+    const json::Array &stops = (*p)[QStringLiteral("stops")].asArray();
+    for (int k : validStops(*p)) out << QVariantMap{ { QStringLiteral("key"), str(stops[size_t(k)], "id") }, { QStringLiteral("text"), str(stops[size_t(k)], "name") } };
+    return out;
+}
+
+bool putJournal(Value &root, const QString &id, const QVariantMap &f)
+{
+    if (id.isEmpty() || !root.isObject()) return false;
+    Value *j = mutJournal(root, id);
+    const auto text = [&f](const char *k) { return f.value(QString::fromLatin1(k)).toString(); };
+    if (!j) {
+        if (text("title").trimmed().isEmpty() && text("body").trimmed().isEmpty()) return false;
+        Value *arr = root.mutObject().find(QStringLiteral("journal"));
+        if (!arr || !arr->isArray()) { root.mutObject().set(QStringLiteral("journal"), Value::array()); arr = root.mutObject().find(QStringLiteral("journal")); }
+        json::Object o;
+        o.set(QStringLiteral("id"), Value(id));
+        arr->mutArray().push_back(Value(std::move(o)));
+        j = &arr->mutArray().back();
+    }
+    json::Object &o = j->mutObject();
+    for (const char *k : { "plan", "stop" }) {
+        const QString key = QString::fromLatin1(k);
+        if (text(k).isEmpty()) o.remove(key);
+        else o.set(key, Value(text(k)));
+    }
+    for (const char *k : { "title", "date", "body" }) o.set(QString::fromLatin1(k), Value(text(k)));
+    return true;
+}
+
+bool removeJournal(Value &root, const QString &id)
+{
+    int k = -1;
+    if (!mutJournal(root, id, &k)) return false;
+    json::Array &arr = root.mutObject().find(QStringLiteral("journal"))->mutArray();
+    arr.erase(arr.begin() + k);
+    return true;
+}
+
+int dropEmptyJournal(Value &root, const QString &keepId)
+{
+    QStringList ids;
+    for (const Value &j : root[QStringLiteral("journal")].asArray())
+        if (j.isObject() && str(j, "id") != keepId && str(j, "title").trimmed().isEmpty() && str(j, "body").trimmed().isEmpty()) ids << str(j, "id");
+    for (const QString &id : std::as_const(ids)) removeJournal(root, id);
+    return int(ids.size());
+}
+
 QVariantList journalList(const Value &root, const QString &planId)
 {
-    static const QRegularExpression anyPic(QStringLiteral(R"(!\[[^\]]*\]\(([^)]+)\))"));
-    static const QRegularExpression marks(QStringLiteral("[#>*_`]"));
+    const QRegularExpression &anyPic = anyPicRe();
     QVector<const Value *> rows;
     for (const Value &j : root[QStringLiteral("journal")].asArray())
         if (str(j, "plan") == planId) rows << &j;
@@ -283,11 +414,8 @@ QVariantList journalList(const Value &root, const QString &planId)
     QVariantList out;
     for (const Value *j : rows) {
         const QString body = str(*j, "body");
-        QString text = body;
-        text.remove(anyPic);
-        text.remove(marks);
         out << QVariantMap{ { QStringLiteral("id"), str(*j, "id") }, { QStringLiteral("title"), str(*j, "title") }, { QStringLiteral("date"), str(*j, "date") },
-                            { QStringLiteral("text"), text.trimmed().left(120) }, { QStringLiteral("file"), photoFileOf(root, anyPic.match(body).captured(1)) } };
+                            { QStringLiteral("text"), journalPlain(body).left(120) }, { QStringLiteral("file"), photoFileOf(root, anyPic.match(body).captured(1)) } };
     }
     return out;
 }

@@ -38,7 +38,7 @@ ModalLayer {
     Text {
         width: parent.width
         wrapMode: Text.Wrap
-        text: qsTr("把 %1 张照片归到").arg(root.ids.length)
+        text: Fmt.one(qsTr("把 %1 张照片归到").arg(root.ids.length))
         font.family: serifFamily; font.pixelSize: Theme.px(19); font.bold: true; color: Theme.text
     }
     Text { text: qsTr("计划"); font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted }

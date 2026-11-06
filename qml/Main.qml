@@ -42,7 +42,7 @@ Window {
     property string rhiDevice: ""
     property int fps: 0
     // 当前页（0.8.8 起由 nav 记录，带前进 / 后退）。0.8.10：plan / wish / foot / photo（地图的四种模式）、
-    // calendar / journal / ledger（整页，阶段 ⑤ 之前是占位页）、settings。goPage("map") = 回到当前模式
+    // calendar / journal / ledger（整页）、settings。goPage("map") = 回到当前模式
     readonly property bool settingsOpen: nav.page === "settings"
     readonly property var modeKeys: ["plan", "wish", "foot", "photo"]
     readonly property var fullPageKeys: ["calendar", "journal", "ledger"]
@@ -1047,7 +1047,7 @@ Window {
         id: photoAssign
         objectName: "photoAssign"
         backdrop: scene
-        onAssigned: (n, plan, stop) => toast.show(qsTr("%1 张已归到「%2」· %3（照片文件留在原位置，不用挪）").arg(n).arg(plan).arg(stop), false, qsTr("撤销"), () => app.undo())
+        onAssigned: (n, plan, stop) => toast.show(Fmt.one(qsTr("%1 张已归到「%2」· %3（照片文件留在原位置，不用挪）").arg(n).arg(plan).arg(stop)), false, qsTr("撤销"), () => app.undo())
     }
     // 0.11.0 批量删除（L-08：列前 8 个名字，照片不删）
     MessageDialog {
@@ -1633,6 +1633,10 @@ Window {
         onPhotoCaptionRequested: (ph) => photoCaptionDialog.show(ph)
         onPhotoRemoveRequested: (ph) => photoRemoveDialog.ask(planPage.planId, ph)
         onPhotoViewRequested: (l, i) => lightbox.show(l, i)
+        // 退回来还在游记标签
+        onJournalWriteRequested: { win.tripTab = "journal"; journalPage.writeNew(planPage.planId) }
+        onJournalOpenRequested: (id) => { win.tripTab = "journal"; nav.go("journal", { id: id }) }
+        onCalendarRequested: win.showInCalendar(planPage.planId, planPage.info.startDate || planPage.info.endDate || "")
         onBudgetRequested: {
             budgetDialog.budget = planPage.info.money.budget > 0 ? String(planPage.info.money.budget) : ""
             budgetDialog.cur = planPage.info.money.currency
@@ -1905,7 +1909,7 @@ Window {
         onCleanupClicked: win.startCleanup()
     }
 
-    // ---- 0.8.10 整页：日历、游记（阶段 ⑤ 之前是占位页，PO 选 ① A）；账本 0.10.2 ----
+    // ---- 0.8.10 整页：账本 0.10.2，日历、游记 0.11.2 ----
     LedgerPage {
         objectName: "ledgerPage"
         anchors.fill: parent
@@ -1916,18 +1920,63 @@ Window {
         shown: nav.page === "ledger"
         onOpenPlan: (id) => { win.tripTab = "budget"; win.openTrip(id, -1) }
     }
-    PlaceholderPage {
-        id: fullPage
-        objectName: "fullPage"
+    // ---- 0.11.2 日历、游记 ----
+    CalendarPage {
+        id: calendarPage
+        objectName: "calendarPage"
         anchors.fill: parent
         anchors.margins: win.gap
         anchors.topMargin: win.topH + 4
         backdrop: scene
         z: 20
-        shown: win.fullPageOpen && nav.page !== "ledger"
-        // 淡出时还显示刚才那一页的名字
-        Connections { target: nav; function onChanged() { if (win.fullPageOpen) fullPage.title = win.modeName(nav.page) } }
-        Component.onCompleted: if (win.fullPageOpen) title = win.modeName(nav.page)
+        shown: nav.page === "calendar"
+        onOpenPlan: (id, tab) => { win.tripTab = tab; win.openTrip(id, -1) }
+        onToast: (t, warn) => toast.show(t, warn)
+    }
+    JournalPage {
+        id: journalPage
+        objectName: "journalPage"
+        anchors.fill: parent
+        anchors.margins: win.gap
+        anchors.topMargin: win.topH + 4
+        backdrop: scene
+        z: 20
+        shown: nav.page === "journal"
+        onOpenPlan: (id) => { win.tripTab = "journal"; win.openTrip(id, -1) }
+        onShowPhotos: (l, i) => lightbox.show(l, i)
+        onDeleteRequested: (id, title) => {
+            journalDeleteDialog.entry = id
+            journalDeleteDialog.paragraphs = [qsTr("「%1」\n正文里插入的照片不会被删除。").arg(title || qsTr("无标题"))]
+            journalDeleteDialog.open = true
+        }
+        onAddFromFile: (planId, stopId) => win.addPhotos(planId, stopId, false)
+        onPickPhotoRequested: (rows, all) => {
+            if (rows.length === 0 && all === null) journalPhotoPick.show(photos.library())
+            else journalPhotoPick.show(rows, all)
+        }
+        onLinkRequested: (s) => journalLinkDialog.show(s)
+    }
+    MessageDialog {
+        id: journalDeleteDialog
+        objectName: "journalDeleteDialog"
+        backdrop: scene
+        property string entry: ""
+        title: qsTr("删除这篇游记？")
+        buttons: [{ key: "cancel", text: qsTr("取消") }, { key: "ok", text: qsTr("删除"), kind: "danger" }]
+        onChosen: (key) => {
+            open = false
+            if (key !== "ok") return
+            journalPage.removeCurrent(entry)
+            toast.show(qsTr("已删除"), false, qsTr("撤销"), () => app.undo())
+        }
+    }
+    PhotoPickDialog { id: journalPhotoPick; objectName: "journalPhotoPick"; backdrop: scene; onPicked: (ph) => journalPage.insertPicked(ph) }
+    GuideLinkDialog { id: journalLinkDialog; objectName: "journalLinkDialog"; backdrop: scene; onAccepted: (md) => journalPage.insertLink(md) }
+    // 计划页 ⋯"在日历里看"（Electron：有日期跳到那个月，没有就在右边定位）
+    function showInCalendar(id, date) {
+        win.goPage("calendar")
+        if (date) calendar.showDate(date)
+        else calendarPage.focusUndated(id)
     }
 
     // ---- 照片（0.7.0） ----
@@ -2324,6 +2373,9 @@ Window {
         { name: "search", on: () => editor.open && editor.searchState !== "idle", close: () => editor.clearSearch() },
         { name: "editor", on: () => editor.open, close: () => win.finishEditor() },
         { name: "sheet", on: () => win.mapShown && mapc.markers.selectedPlan !== "", close: () => mapc.markers.clearSelection() },
+        // 0.11.2 日历：拖动中 → 弹出卡、选年月（页面本身由最后的 page 关）
+        { name: "calDrag", on: () => nav.page === "calendar" && calendarPage.dragging, close: () => calendarPage.cancelDrag() },
+        { name: "calCard", on: () => nav.page === "calendar" && calendarPage.popupOpen, close: () => calendarPage.closePopups() },
         { name: "library", on: () => planList.open && plans.libraryOpen, close: () => plans.setLibraryOpen(false) },
         { name: "album", on: () => planList.open && win.albumOpen, close: () => { win.albumOpen = false } },
         { name: "list", on: () => planList.open, close: () => { win.listOpen = false } },
@@ -2404,6 +2456,7 @@ Window {
                                       || daysDialog.open || startDialog.open
                                       || bookingDialog.open || expenseDialog.open || budgetDialog.open || moneyDialog.open || personDialog.open
                                       || emergencyDialog.open || guideLinkDialog.open || photoPickDialog.open || tplDialog.open
+                                      || journalDeleteDialog.open || journalPhotoPick.open || journalLinkDialog.open
                                       || lightbox.open || photoCaptionDialog.open || photoRemoveDialog.open || coverPickDialog.open
     readonly property bool textFocused: activeFocusItem !== null && activeFocusItem.cursorPosition !== undefined
     Shortcut {
@@ -2578,13 +2631,14 @@ Window {
         else if (shotPage === "bubbles" || shotPage === "list" || shotPage === "palette" || shotPage === "menu") shellShot.start()
         else if (shotPage.startsWith("trip")) tripShot.start()
         else if (shotPage.startsWith("editor") || shotPage.startsWith("narrow") || shotPage === "locate" || shotPage === "controls") editShot.start()
+        else if (shotPage.startsWith("calendar") || shotPage.startsWith("journal")) pagesShot.start()
         else if (shotPage.startsWith("mode-") || shotPage === "modes" || shotPage === "modes-narrow" || shotPage.startsWith("ledger") || shotPage.startsWith("library") || shotPage.startsWith("wish-") || shotPage.startsWith("album") || shotPage.startsWith("photo-") || shotPage.startsWith("heic-")) modeShot.start()
         else if (shotPage !== "" && !shotPage.startsWith("ui-") && shotPage !== "selftest") mapc.base = shotPage
     }
 
     // 截图的步骤走完没有（0.10.5，main.cpp 的就绪判断调用）：步骤定时器、相机飞行、地图样式
     function shotBusy() {
-        for (const t of [frameNextTimer, planShot, tripShot, tripShot2, shellShot, editShot, modeShot, libShot, searchShot, styleShot, markerShot, markerTip, lineShot, lineTip, layersShot, unlockShot, unlockTip])
+        for (const t of [frameNextTimer, planShot, tripShot, tripShot2, shellShot, editShot, modeShot, pagesShot, pagesShot2, libShot, searchShot, styleShot, markerShot, markerTip, lineShot, lineTip, layersShot, unlockShot, unlockTip])
             if (t.running) return true
         return mapc.moving || win.mapLive && mapLoader.status !== Loader.Error && !(win.map && win.map.styleLoaded)
     }
@@ -2849,6 +2903,54 @@ Window {
             }
         }
     }
+    // 0.11.2 截图。calendar = 年视图；calendar-month；calendar-card = 弹出卡；calendar-drag = 拖到一半（有撞期）；calendar-notice = 拖完的提示；
+    // calendar-picker = 选年月；calendar-narrow；journal = 列表；journal-empty；journal-read；journal-edit；journal-edit-narrow。都在副本上
+    Timer {
+        id: pagesShot
+        interval: 400
+        onTriggered: {
+            if (shotPage.endsWith("-narrow")) win.width = 620
+            if (shotPage.startsWith("calendar")) {
+                plans.setTestAllStatuses(false)
+                win.goPage("calendar")
+                if (shotPage === "calendar-month" || shotPage === "calendar-narrow") calendar.showDate("2026-12-05")
+            } else {
+                win.goPage("journal")
+                if (shotPage === "journal-empty") for (const id of (journal.page.rows || []).map(r => r.id)) journal.remove(id)   // 几张截图用同一份副本
+                else win.seedJournalShot()
+            }
+            pagesShot2.start()
+        }
+    }
+    Timer {
+        id: pagesShot2
+        interval: 500
+        onTriggered: {
+            const bars = (calendar.info.year || {}).bars || []
+            const busy = bars.filter(b => !b.done && !b.narrow)
+            const any = bars.filter(b => !b.done)
+            const pick = busy.length ? busy[0] : any.length ? any[0] : null
+            if (shotPage === "calendar-card" && pick) calendarPage.showCardAt(pick.id, 320, 170)
+            if (shotPage === "calendar-picker") calendarPage.showPickerAt(320, 60)
+            if (shotPage === "calendar-drag" && pick) calendarPage.dragForShot(pick.id, Fmt.addDays(pick.start, 1), pick.start, 480, 260)
+            if (shotPage === "calendar-notice" && pick) {
+                const r = calendar.drop(pick.id, Fmt.addDays(pick.start, 7), pick.start)
+                if (r.ok) calendarPage.showNotice(r)
+            }
+            if (shotPage === "journal-read") { const rows = journal.page.rows || []; if (rows.length) nav.go("journal", { id: rows[0].id }) }
+            if (shotPage.startsWith("journal-edit")) { const rows = journal.page.rows || []; if (rows.length) nav.go("journal", { id: rows[0].id, edit: true }) }
+        }
+    }
+    function seedJournalShot() {
+        const d = plans.demo()
+        const planId = d.planId || ""
+        if (planId) planPage.seedPhotosForShot(planId)
+        const ph = planId ? photos.planPhotos(planId) : []
+        const pic = i => ph.length ? "![海边的傍晚](photo:" + ph[i % ph.length].id + ")\n\n" : ""
+        journal.save("jn_shot1", { title: "第一天：到了", date: "2026-12-05", plan: planId, body: pic(0) + "**中午到**，先去市场吃了东西，下午沿着海边走了一圈。\n\n## 晚上\n风很大，第二天的船不知道开不开。\n\n> 这里的日落差不多七点半，拍了很多照片，回来慢慢挑。\n\n" + pic(1) + "- 市场的牡蛎\n- 海边步道\n\n路上遇到一对从霍巴特来的老夫妇，聊了很久。" })
+        journal.save("jn_shot2", { title: "第二天：等船", date: "2026-12-06", plan: planId, body: pic(2) + "早上船取消了，在码头边的咖啡馆坐了一上午。下午天晴了，改成开车去灯塔，路上全是羊。回来的时候太阳刚好落到海里，这一天比原来的安排还好。" })
+        journal.save("jn_shot3", { title: "", date: "2026-10-02", plan: "", body: "还没想好标题。随手记几句：下次出门要带转换插头，别忘了下载离线地图。" })
+    }
     Timer {
         id: photoModeShot
         interval: 900
@@ -2881,6 +2983,7 @@ Window {
                 }
             } else if (shotPage.startsWith("heic-")) {
                 if (shotPage.startsWith("heic-off")) photos.setHeicTestOff(true)
+                if (shotPage === "heic-off-album") photos.clearThumbCache()   // 缓存里有缩略图时看不到"要装扩展"的格子
                 photos.startImport(photoShotFiles.filter(f => String(f).endsWith(".heic")))
             }
         }
@@ -2890,6 +2993,8 @@ Window {
         enabled: shotPage.startsWith("heic-")
         function onImportChanged() { if (photos.importStage === "review") photos.confirmImport() }
         function onImportFinished(r) {
+            // 测试 HEIC 按日期会被猜到某个计划：挪回未归类（副本），才看得到"要装扩展"的格子
+            photos.assign(photos.library().filter(p => p.heic).map(p => p.id), "", "")
             win.albumOpen = true
             photos.album.view = "inbox"
             if (shotPage.endsWith("lightbox")) heicShot.start()

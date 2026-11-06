@@ -46,6 +46,9 @@ Item {
     signal photoCaptionRequested(var photo)
     signal photoRemoveRequested(var photo)
     signal photoViewRequested(var list, int index)
+    signal journalWriteRequested()          // 0.11.2 游记标签"写一篇"
+    signal journalOpenRequested(string id)  // 0.11.2 打开全文
+    signal calendarRequested()              // 0.11.2 ⋯ 的"在日历里看"
 
     readonly property bool missing: shown && !(source && source.id)
     readonly property var stops: info.stops || []
@@ -566,6 +569,9 @@ Item {
                 visible: root.tab === "journal"
                 width: parent.width
                 rows: root.info.journal || []
+                readOnly: root.readOnly
+                onWriteRequested: root.journalWriteRequested()
+                onOpenRequested: (id) => root.journalOpenRequested(id)
             }
             GuideTab {
                 id: guideTab
@@ -1040,7 +1046,7 @@ Item {
         onClicked: root.closeRequested()
     }
 
-    // ---- ⋯ 菜单（"在日历里看"在阶段 ⑤、"导出"在阶段 ⑧）----
+    // ---- ⋯ 菜单（"导出"在阶段 ⑧）----
     Rectangle {
         objectName: "tripMenu"
         visible: root.menuOpen
@@ -1072,6 +1078,11 @@ Item {
                 visible: root.info.status !== "wish"
                 text: root.info.isNext ? qsTr("取消下次出发") : qsTr("设为下次出发")
                 onClicked: { root.menuOpen = false; root.toggleNext(root.info.id, !root.info.isNext) }
+            }
+            MenuRow {
+                objectName: "tripInCalendar"
+                text: qsTr("在日历里看")
+                onClicked: { root.menuOpen = false; root.calendarRequested() }
             }
         }
     }

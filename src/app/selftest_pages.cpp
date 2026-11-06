@@ -359,7 +359,7 @@ void runPages(Report &r, AppController *app, map::MapController *mapc, QQuickWin
         click(win, bud);
         QQuickItem *page = item(win, "ledgerPage");
         const bool open = waitFor([page] { return page && page->opacity() > 0.95; }, 1500);
-        QQuickItem *title = item(win, "placeholderTitle");
+        QQuickItem *journalPage = item(win, "journalPage");
         QQuickItem *label = item(win, "dotsLabel");
         r.check(open && nav->page() == QLatin1String("ledger")
                     && shown(item(win, "backBtn")) && !shown(item(win, "statusPill")) && label && label->property("text").toString() == tp::tr("账本"),
@@ -371,7 +371,7 @@ void runPages(Report &r, AppController *app, map::MapController *mapc, QQuickWin
         // 前进 / 后退：足迹 → 日历 → 游记，后退两步回到足迹，再前进到日历
         goPage(win, QStringLiteral("calendar"));
         goPage(win, QStringLiteral("journal"));
-        const bool j = nav->page() == QLatin1String("journal") && waitFor([title] { return title && title->property("text").toString() == tp::tr("游记"); }, 800);
+        const bool j = nav->page() == QLatin1String("journal") && waitFor([journalPage] { return journalPage && journalPage->opacity() > 0.5; }, 800);
         if (g_focus) { key(win, Qt::Key_Left, Qt::AltModifier); key(win, Qt::Key_Left, Qt::AltModifier); } else { nav->back(); nav->back(); }
         const bool b2 = nav->page() == QLatin1String("foot") && pc->mode() == QLatin1String("foot");
         if (g_focus) key(win, Qt::Key_Right, Qt::AltModifier); else nav->forward();

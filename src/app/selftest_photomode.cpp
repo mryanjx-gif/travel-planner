@@ -197,6 +197,11 @@ void runPhotoMode(Report &r, AppController *app, map::MapController *mapc, QQuic
         const double lat0 = mapc->lat(), lng0 = mapc->lng();
         click(win, tripRow);
         r.check(album->plan() == tripId, QStringLiteral("P1：点一趟，展开这趟的照片"), album->plan());
+        {   // 0.11.2 修：点一趟后列表不跳回顶上，这一趟还在视野里（0.11.1 重建前就定位，定位用的是旧行）
+            QQuickItem *again = item(QStringLiteral("albumTrip-") + tripId);
+            const double yy = again ? again->mapToItem(grid, QPointF(0, 0)).y() : -1;
+            r.check(again && yy >= -1 && yy < grid->height() && grid->property("contentY").toDouble() >= 0, QStringLiteral("点一趟后这一趟还在视野里"), QStringLiteral("行 y=%1，contentY=%2").arg(yy).arg(grid->property("contentY").toDouble()));
+        }
         r.check(waitFor([&] { return std::abs(mapc->lat() - lat0) + std::abs(mapc->lng() - lng0) > 0.5; }, 2500), QStringLiteral("P1：地图飞到这趟的范围"));
         waitMapIdle(win, mapc, 3000);
         r.check(layer->rowOfPlan(tripId) >= 0, QStringLiteral("飞到后这趟的照片在视野里"));
@@ -280,8 +285,7 @@ void runPhotoMode(Report &r, AppController *app, map::MapController *mapc, QQuic
             r.check(s1 == QSize(s0.height(), s0.width()), QStringLiteral("长宽换了"), QStringLiteral("%1x%2 → %3x%4").arg(s0.width()).arg(s0.height()).arg(s1.width()).arg(s1.height()));
             r.check(waitFor([&] { return fit->property("source").toString() != src0; }, 1000), QStringLiteral("看大图换了地址（重新读）"), fit->property("source").toString().right(14));
             r.check(waitFor([&] { return fit->property("status").toInt() == 1; }, 3000), QStringLiteral("转完的图读出来了"));
-            r.check(QFileInfo::exists(store->dataDir() + QStringLiteral("/photos/.originals/") + QFileInfo(rotFile).fileName())
-                        || !QFile(store->dataDir() + QStringLiteral("/photos/.originals")).exists() == false, QStringLiteral("原图备份进 .originals"));
+            r.check(QFileInfo::exists(store->dataDir() + QStringLiteral("/photos/.originals/") + rotFile.mid(7)), QStringLiteral("原图备份进 .originals"), rotFile);
             QQuickItem *note = item(QStringLiteral("lightboxNote"));
             r.check(note && note->property("text").toString().contains(QStringLiteral("旋转")), QStringLiteral("写一句已旋转"), note ? note->property("text").toString() : QString());
             // 转回去（数据副本也不留痕）

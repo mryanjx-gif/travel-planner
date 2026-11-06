@@ -7,6 +7,8 @@ Column {
     id: root
     property var blocks: []
     property bool tasks: false
+    property real bodyFont: 14              // 0.11.2 游记正文大一点；标题跟着放大
+    property real picMaxH: 100000           // 0.11.2 阅读时竖图别占满一屏（Electron .jn-fig max-height: 640px）
     signal taskToggled(int line, bool on)
     signal photoClicked(int block)          // 0.10.5 点正文里的照片看大图
     function blockY(i) { const it = rep.itemAt(i); return it ? it.y + it.gap : 0 }
@@ -47,7 +49,7 @@ Column {
                 lineHeight: 1.32
                 linkColor: Theme.accent
                 font.family: serifFamily
-                font.pixelSize: Theme.px(blk.type === "h1" ? 18 : blk.type === "h2" ? 15.5 : 14)
+                font.pixelSize: Theme.px(blk.type === "h1" ? root.bodyFont + 4 : blk.type === "h2" ? root.bodyFont + 1.5 : root.bodyFont)
                 font.bold: blk.type === "h1" || blk.type === "h2"
                 font.strikeout: blk.type === "task" && blk.b.done === true
                 color: blk.type === "quote" || (blk.type === "task" && blk.b.done) ? Theme.muted : Theme.text
@@ -87,7 +89,7 @@ Column {
                     id: pic
                     visible: !!blk.b.thumb
                     width: parent.width
-                    height: visible ? width * blk.picRatio : 0
+                    height: visible ? Math.min(width * blk.picRatio, root.picMaxH) : 0
                     source: blk.b.thumb || ""
                     fillMode: Image.PreserveAspectFit
                     asynchronous: true

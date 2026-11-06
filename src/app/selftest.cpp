@@ -133,6 +133,8 @@ void runAll(Report &r, AppController *app, PhotoController *photos, map::MapCont
     if (want("planphotos")) runPlanPhotos(r, app, win, planPageCtl(), navCtl(), photos);
     if (want("library")) runLibrary(r, app, mapc, win);
     if (want("photomode")) runPhotoMode(r, app, mapc, win, photos);
+    if (want("calendar")) runCalendar(r, app, win);
+    if (want("journal")) runJournal(r, app, win);
     mapc->fitAll(false);
     if (!want("photos")) return;
 

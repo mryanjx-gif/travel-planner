@@ -35,6 +35,17 @@ void setEmergency(json::Value &root, const QVariantMap &fields);
 // ---- 游记 ----
 // [{ id, title, date, text（去掉记号的前 120 字）, file（首图的文件，没有时空） }]，新的在前
 QVariantList journalList(const json::Value &root, const QString &planId);
+// 0.11.2 游记页（J-01–J-04）。filter：all / none（没关联计划）/ 计划 id。
+// { total, plans: [{ id, name }]（有游记的计划）, hasNone, filterGone, rows: [{ id, title, date, plan, planName, text（110 字）, file }] }，新的在前
+QVariantMap journalPage(const json::Value &root, const QString &filter);
+// 一篇：{ id, title, date, plan, stop, body, planName, stopName }。没有这篇时为空；计划或站点已经不在时 planName、stopName 是空的
+QVariantMap journalEntry(const json::Value &root, const QString &id);
+QVariantList journalPlanOptions(const json::Value &root);                     // [{ key, text }]，comparePlans 的顺序
+QVariantList journalStopOptions(const json::Value &root, const QString &planId);   // 有效站点 [{ key, text }]
+// 新建或修改：只动 title、date、plan、stop、body，别的键留着；plan、stop 空时去掉键。没有这篇、标题和正文都是空的时不新建，返回 false
+bool putJournal(json::Value &root, const QString &id, const QVariantMap &fields);
+bool removeJournal(json::Value &root, const QString &id);
+int dropEmptyJournal(json::Value &root, const QString &keepId);               // 删掉标题和正文都是空的（keepId 除外），返回删了几篇
 
 // ---- 攻略 ----
 // { blocks: [{ type: h1 / h2 / p / li / task / quote / img, html, line（task：原文第几行）, done, id, file, caption, width, height }],

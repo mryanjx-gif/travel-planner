@@ -107,6 +107,9 @@ void runPlanPhotos(Report &r, AppController *app, QQuickWindow *win, PlanPageCon
 void runLibrary(Report &r, AppController *app, map::MapController *mapc, QQuickWindow *win);
 // 0.11.1：照片模式、相册、看大图、HEIC（selftest_photomode.cpp）
 void runPhotoMode(Report &r, AppController *app, map::MapController *mapc, QQuickWindow *win, PhotoController *photos);
+// 0.11.2：日历、游记（selftest_calendar.cpp）。分组 calendar、journal
+void runCalendar(Report &r, AppController *app, QQuickWindow *win);
+void runJournal(Report &r, AppController *app, QQuickWindow *win);
 // 0.9.1：性能——启动各步、拖地图每帧、换模式、数据重建、写设置、玻璃和标记各占多少（selftest_perf.cpp）
 FrameStats *frameStats();
 Settings *settingsObj();

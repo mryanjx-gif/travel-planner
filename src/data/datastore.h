@@ -93,7 +93,9 @@ public:
     const json::Value &data() const { return m_data; }
     // 改数据：在回调里改，改完自动标记为"有未保存的改动"
     void modify(const std::function<void(json::Value &)> &fn);
-    void replaceData(json::Value v);   // 整份替换（撤销 / 重做、导入用），同样标记未保存
+    void replaceData(json::Value v);   // 整份替换（导入用），同样标记未保存
+    // 撤销 / 重做：整份换回一版以前的样子，连 updatedAt 也不重新写（0.11.2：撤销后数据和原来完全一样）
+    void restoreData(json::Value v);
     bool isDirty() const { return m_dirty; }
 
     // 保存。force = 冲突时仍然保存（用户在弹框里选了"仍然保存"）

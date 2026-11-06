@@ -67,6 +67,7 @@ bool okDate(const QString &s);
 int days(const QString &a, const QString &b);       // b - a 的天数
 QString addDays(const QString &s, int n);
 bool dated(const json::Value &plan);
+QString planColorOf(const json::Value &plan);       // 自己的颜色，没有就按状态（planColor）
 
 // ---- 此刻 ----
 struct Now

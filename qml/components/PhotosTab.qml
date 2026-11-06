@@ -34,7 +34,7 @@ Column {
         Text {
             objectName: "photoCount"
             anchors.verticalCenter: parent.verticalCenter
-            text: qsTr("%1 张").arg(root.rows.length) + (root.favCount > 0 ? " · " + qsTr("%1 张精选").arg(root.favCount) : "")
+            text: Fmt.one(qsTr("%1 张").arg(root.rows.length)) + (root.favCount > 0 ? " · " + qsTr("%1 张精选").arg(root.favCount) : "")
             font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted
         }
         TpButton {
@@ -105,7 +105,7 @@ Column {
                 objectName: "photoGroupTitle"
                 width: parent.width
                 elide: Text.ElideRight
-                text: (group.modelData.route ? qsTr("第 %1 站").arg(group.modelData.stopNo) + " · " : "") + group.modelData.stop + "  ·  " + qsTr("%1 张").arg(group.modelData.rows.length)
+                text: (group.modelData.route ? qsTr("第 %1 站").arg(group.modelData.stopNo) + " · " : "") + group.modelData.stop + "  ·  " + Fmt.one(qsTr("%1 张").arg(group.modelData.rows.length))
                 font.family: serifFamily; font.pixelSize: Theme.px(14); font.bold: true; color: Theme.text
             }
             Grid {

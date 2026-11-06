@@ -349,6 +349,8 @@ int days(const QString &a, const QString &b)
 
 QString addDays(const QString &s, int n) { return QDate::fromString(s, QStringLiteral("yyyy-MM-dd")).addDays(n).toString(QStringLiteral("yyyy-MM-dd")); }
 
+QString planColorOf(const Value &p) { return planColor(p); }
+
 bool dated(const Value &p)
 {
     const QString a = str(p, "startDate"), b = str(p, "endDate");

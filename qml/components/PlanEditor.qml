@@ -614,7 +614,7 @@ Item {
                                                 width: parent.width; height: Theme.px(26)
                                                 Text {
                                                     anchors.verticalCenter: parent.verticalCenter
-                                                    text: stopPhotos.rows.length > 0 ? qsTr("照片 %1 张").arg(stopPhotos.rows.length) : qsTr("照片")
+                                                    text: stopPhotos.rows.length > 0 ? Fmt.one(qsTr("照片 %1 张").arg(stopPhotos.rows.length)) : qsTr("照片")
                                                     font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.textSoft
                                                 }
                                                 TpButton {

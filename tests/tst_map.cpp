@@ -18,6 +18,7 @@
 #include "markers.h"
 #include "night.h"
 #include "photomap.h"
+#include "plancal.h"
 #include "plankit.h"
 #include "plans.h"
 #include "planedit.h"
@@ -75,6 +76,11 @@ private slots:
     void kitChecks();       // 0.10.4
     void kitEmergency();
     void kitJournal();
+    void calShiftAndPlace();  // 0.11.2
+    void calRoundTrip();
+    void calUnplace();
+    void calOverlapAndViews();
+    void journalPageCrud();
     void kitGuide();
     void moneyRates();
     void moneySpend();
@@ -2931,6 +2937,186 @@ void TestMap::kitEmergency()
     tp::json::Value blank = parseJson(R"({"emergency":{"insurer":"A"}})");
     setEmergency(blank, {});
     QVERIFY(!blank.asObject().contains("emergency"));
+}
+
+namespace {
+// 带所有日期字段的计划：站点两个（一个日程带日期、一个不带）、一条交通、一笔消费、一条待办，和不认识的键
+const char *kCalRoot = R"({"plans":[
+  {"id":"a","name":"甲","status":"planning","startDate":"2026-12-28","endDate":"2027-01-03","days":99,"future":{"x":1},
+   "stops":[{"id":"s1","name":"一","lat":1,"lng":2,"arriveDate":"2026-12-28","departDate":"2026-12-31","extra":"留着",
+             "schedule":[{"date":"2026-12-29","time":"09:00","text":"早"},{"time":"10:00","text":"没日期"},{"date":"随便写的","text":"不是日期"}]},
+            {"id":"s2","name":"二","lat":3,"lng":4,"arriveDate":"2026-12-31","departDate":"2027-01-03"},
+            {"id":"s3","name":"没日期","lat":5,"lng":6}],
+   "bookings":[{"id":"b1","start":"2026-12-28T08:00","end":"2026-12-28T12:00"},{"id":"b2","start":""}],
+   "expenses":[{"id":"e1","date":"2026-12-29","amount":3}],"todos":[{"id":"t1","text":"办","due":"2026-12-20"}]},
+  {"id":"b","name":"乙","status":"wish","stops":[{"id":"s","lat":1,"lng":2,"arriveDate":"2025-03-01","departDate":"2025-03-04"}]},
+  {"id":"c","name":"丙","status":"wish","days":5},
+  {"id":"d","name":"丁","status":"completed"},
+  {"id":"e","name":"戊","status":"planning","startDate":"2027-01-02","endDate":"2027-01-02"}
+]})";
+QString stopDate(const tp::json::Value &plan, int k, const char *key) { return plan["stops"].asArray()[size_t(k)][QString::fromLatin1(key)].toString(); }
+}
+
+void TestMap::calShiftAndPlace()
+{
+    using namespace tp::map::plans;
+    tp::json::Value root = parseJson(kCalRoot);
+    tp::json::Value *a = mutPlan(root, "a"), *b = mutPlan(root, "b"), *c = mutPlan(root, "c");
+    QCOMPARE(planDays(*a), 7);       // 有起止
+    QCOMPARE(planDays(*b), 4);       // 站点跨度
+    QCOMPARE(planDays(*c), 5);       // days
+    QCOMPARE(planDays(*mutPlan(root, "d")), 1);
+    QCOMPARE(datedBookings(*a), 1);
+    // 跨年、跨月：挪到 2027-02-26（经过闰年以外的 2 月底）
+    QVERIFY(placePlan(*a, "2027-02-26", planDays(*a)));
+    QCOMPARE((*a)["startDate"].toString(), QStringLiteral("2027-02-26"));
+    QCOMPARE((*a)["endDate"].toString(), QStringLiteral("2027-03-04"));
+    QCOMPARE(stopDate(*a, 0, "arriveDate"), QStringLiteral("2027-02-26"));
+    QCOMPARE(stopDate(*a, 0, "departDate"), QStringLiteral("2027-03-01"));
+    QCOMPARE(stopDate(*a, 1, "departDate"), QStringLiteral("2027-03-04"));
+    const tp::json::Array &sc = (*a)["stops"].asArray()[0]["schedule"].asArray();
+    QCOMPARE(sc[0]["date"].toString(), QStringLiteral("2027-02-27"));
+    QVERIFY(sc[1]["date"].isNull() || sc[1]["date"].toString().isEmpty());
+    QCOMPARE(sc[2]["date"].toString(), QStringLiteral("随便写的"));
+    QVERIFY(!(*a)["stops"].asArray()[2].asObject().contains("arriveDate"));   // 没写的不凭空加
+    // 交通住宿、消费、待办不动；不认识的键还在；days 不动
+    QCOMPARE((*a)["bookings"].asArray()[0]["start"].toString(), QStringLiteral("2026-12-28T08:00"));
+    QCOMPARE((*a)["expenses"].asArray()[0]["date"].toString(), QStringLiteral("2026-12-29"));
+    QCOMPARE((*a)["todos"].asArray()[0]["due"].toString(), QStringLiteral("2026-12-20"));
+    QCOMPARE((*a)["future"]["x"].toNumber(), 1.0);
+    QCOMPARE((*a)["days"].toNumber(), 99.0);
+    QCOMPARE((*a)["stops"].asArray()[0]["extra"].toString(), QStringLiteral("留着"));
+    // 没定日期、站点有日期：站点平移到新的开始
+    QVERIFY(placePlan(*b, "2026-06-10", planDays(*b)));
+    QCOMPARE((*b)["endDate"].toString(), QStringLiteral("2026-06-13"));
+    QCOMPARE(stopDate(*b, 0, "arriveDate"), QStringLiteral("2026-06-10"));
+    QCOMPARE(stopDate(*b, 0, "departDate"), QStringLiteral("2026-06-13"));
+    // 没定日期、站点也没有：按 days
+    QVERIFY(placePlan(*c, "2028-02-27", planDays(*c)));
+    QCOMPARE((*c)["endDate"].toString(), QStringLiteral("2028-03-02"));   // 2028 闰年
+    QVERIFY(!placePlan(*c, "不是日期", 3));
+}
+
+void TestMap::calRoundTrip()
+{
+    using namespace tp::map::plans;
+    const tp::json::Value orig = parseJson(kCalRoot);
+    // 拖过去再拖回来：完全一样（站点、日程、键的顺序都不变）。覆盖跨月、跨年、倒回去
+    for (const char *day : { "2027-01-01", "2027-01-31", "2028-03-01", "2020-02-29", "2026-12-29" }) {
+        tp::json::Value root = orig;
+        tp::json::Value *a = mutPlan(root, "a");
+        const QString back = (*a)["startDate"].toString();
+        QVERIFY(placePlan(*a, QString::fromLatin1(day), planDays(*a)));
+        QVERIFY(root != orig);
+        QVERIFY(placePlan(*a, back, planDays(*a)));
+        QVERIFY2(root == orig, day);
+    }
+}
+
+void TestMap::calUnplace()
+{
+    using namespace tp::map::plans;
+    tp::json::Value root = parseJson(kCalRoot);
+    tp::json::Value *a = mutPlan(root, "a");
+    unplacePlan(*a);
+    QCOMPARE((*a)["days"].toNumber(), 7.0);
+    QCOMPARE((*a)["startDate"].toString(), QString());
+    QCOMPARE((*a)["endDate"].toString(), QString());
+    QCOMPARE(stopDate(*a, 0, "arriveDate"), QString());
+    QVERIFY(!(*a)["stops"].asArray()[0]["schedule"].asArray()[0].asObject().contains("date"));
+    QCOMPARE((*a)["bookings"].asArray()[0]["start"].toString(), QStringLiteral("2026-12-28T08:00"));
+    QCOMPARE(planDays(*a), 7);   // 去掉日期后天数记在 days 里，再放回去还是 7 天
+    QVERIFY(placePlan(*a, "2027-05-01", planDays(*a)));
+    QCOMPARE((*a)["endDate"].toString(), QStringLiteral("2027-05-07"));
+    // 右边的分组：去掉日期的回到"计划中"
+    const QVariantMap side = calSide(root, { "e" });
+    QCOMPARE(side["planning"].toList().size(), 0);    // a 又放回去了，e 隐藏
+    QCOMPARE(side["wish"].toList().size(), 2);        // b、c；已完成的 d 不算
+    QCOMPARE(side["hidden"].toList().size(), 1);
+}
+
+void TestMap::calOverlapAndViews()
+{
+    using namespace tp::map::plans;
+    const tp::json::Value root = parseJson(kCalRoot);
+    QCOMPARE(overlapCount(root, "a", "2026-12-28", "2027-01-03", {}), 1);        // 戊
+    QCOMPARE(overlapCount(root, "a", "2026-12-28", "2027-01-03", { "e" }), 0);   // 隐藏的不算
+    QCOMPARE(overlapCount(root, "e", "2027-01-03", "2027-01-03", {}), 1);        // 边上一天也算
+    QCOMPARE(overlapCount(root, "e", "2027-01-04", "2027-01-05", {}), 0);
+    // 年视图：跨年的计划；窄条名字写旁边、一起排行，不和戊压在一行
+    const QVariantMap y = calYear(root, {}, 2026, 11, "2026-11-07");
+    QCOMPARE(y["spanDays"].toInt(), 365);
+    QVERIFY(y["today"].toDouble() > 0 && y["today"].toDouble() < 0.03);
+    QCOMPARE(y["months"].toList().size(), 12);
+    QCOMPARE(y["months"].toList()[0].toMap()["cur"].toBool(), true);
+    QCOMPARE(y["months"].toList()[2].toMap()["y"].toInt(), 2027);
+    const QVariantList bars = y["bars"].toList();
+    QCOMPARE(bars.size(), 2);
+    QCOMPARE(bars[0].toMap()["id"].toString(), QStringLiteral("a"));
+    QVERIFY(bars[0].toMap()["narrow"].toBool());
+    QVERIFY(!bars[0].toMap()["labelLeft"].toBool());
+    QCOMPARE(y["lanes"].toInt(), 2);
+    QCOMPARE(calYear(root, {}, 2030, 1, "2026-11-07")["bars"].toList().size(), 0);
+    QCOMPARE(calYear(root, {}, 2030, 1, "2026-11-07")["today"].toDouble(), -1.0);
+    // 月视图：2027 年 1 月从 12-28（周一）开始；甲在第一周占周一到周日，后面一周周日结束
+    const QVariantMap m = calMonth(root, {}, 2027, 1, "2027-01-02");
+    const QVariantList weeks = m["weeks"].toList();
+    QCOMPARE(weeks[0].toMap()["start"].toString(), QStringLiteral("2026-12-28"));
+    QCOMPARE(weeks[0].toMap()["days"].toList()[0].toMap()["out"].toBool(), true);
+    QCOMPARE(weeks[0].toMap()["days"].toList()[5].toMap()["today"].toBool(), true);
+    const QVariantList w0 = weeks[0].toMap()["bars"].toList();
+    QCOMPARE(w0.size(), 2);
+    QCOMPARE(w0[0].toMap()["a"].toInt(), 0);
+    QCOMPARE(w0[0].toMap()["b"].toInt(), 6);
+    QCOMPARE(w0[1].toMap()["lane"].toInt(), 1);
+    QCOMPARE(weeks.size(), 5);
+    // 选年月
+    const QVariantMap pk = calPicker(root, {});
+    QCOMPARE(pk["years"].toList().size(), 2);
+    QCOMPARE(pk["counts"].toMap()["2027-01"].toList().size(), 2);
+}
+
+void TestMap::journalPageCrud()
+{
+    using namespace tp::map::plans;
+    tp::json::Value root = parseJson(R"({"photos":[{"id":"ph1","file":"photos/2026-01/a.jpg"}],"plans":[{"id":"p","name":"甲","stops":[{"id":"s1","name":"一","lat":1,"lng":2}]},{"id":"q","name":"乙"}],"journal":[]})");
+    const tp::json::Value orig = root;
+    QVERIFY(!putJournal(root, "j0", { { "title", " " }, { "body", "" }, { "date", "2026-01-01" } }));   // 什么都没写不新建
+    QVERIFY(root == orig);
+    QVERIFY(putJournal(root, "j1", { { "title", "标题" }, { "date", "2026-02-01" }, { "plan", "p" }, { "stop", "s1" }, { "body", "# 大\n![说明](photo:ph1)\n" + QString(200, QLatin1Char('x')) } }));
+    QVERIFY(putJournal(root, "j2", { { "title", "" }, { "date", "2026-03-01" }, { "plan", "" }, { "body", "没关联" } }));
+    QVERIFY(!root["journal"].asArray()[1].asObject().contains("plan"));
+    // 不认识的键留着；只改给的字段
+    root.mutObject().find("journal")->mutArray()[0].mutObject().set("future", tp::json::Value("留着"));
+    QVERIFY(putJournal(root, "j1", { { "title", "新标题" }, { "date", "2026-02-01" }, { "plan", "p" }, { "stop", "" }, { "body", "b" } }));
+    QCOMPARE(root["journal"].asArray()[0]["future"].toString(), QStringLiteral("留着"));
+    QVERIFY(!root["journal"].asArray()[0].asObject().contains("stop"));
+    QVERIFY(putJournal(root, "j1", { { "title", "标题" }, { "date", "2026-02-01" }, { "plan", "p" }, { "stop", "s1" }, { "body", "# 大\n![说明](photo:ph1)\n" + QString(200, QLatin1Char('x')) } }));
+    QVariantMap pg = journalPage(root, "all");
+    QCOMPARE(pg["total"].toInt(), 2);
+    QCOMPARE(pg["hasNone"].toBool(), true);
+    QCOMPARE(pg["plans"].toList().size(), 1);
+    const QVariantList rows = pg["rows"].toList();
+    QCOMPARE(rows[0].toMap()["id"].toString(), QStringLiteral("j2"));   // 新的在前
+    QCOMPARE(rows[1].toMap()["file"].toString(), QStringLiteral("photos/2026-01/a.jpg"));
+    QCOMPARE(rows[1].toMap()["text"].toString().size(), 110);
+    QCOMPARE(journalPage(root, "p")["rows"].toList().size(), 1);
+    QCOMPARE(journalPage(root, "none")["rows"].toList().size(), 1);
+    QVERIFY(journalPage(root, "q")["filterGone"].toBool());
+    const QVariantMap e = journalEntry(root, "j1");
+    QCOMPARE(e["planName"].toString(), QStringLiteral("甲"));
+    QCOMPARE(e["stopName"].toString(), QStringLiteral("一"));
+    QVERIFY(journalEntry(root, "没有").isEmpty());
+    QCOMPARE(journalStopOptions(root, "p").size(), 1);
+    QCOMPARE(journalPlanOptions(root).size(), 2);
+    // 写了又全删掉：离开时删；正在写的留着
+    QVERIFY(putJournal(root, "j2", { { "title", "" }, { "date", "2026-03-01" }, { "body", "  " } }));
+    QCOMPARE(dropEmptyJournal(root, "j2"), 0);
+    QCOMPARE(dropEmptyJournal(root, ""), 1);
+    QCOMPARE(int(root["journal"].asArray().size()), 1);
+    QVERIFY(removeJournal(root, "j1"));
+    QVERIFY(!removeJournal(root, "j1"));
+    QCOMPARE(int(root["journal"].asArray().size()), 0);
 }
 
 void TestMap::kitJournal()

@@ -57,6 +57,8 @@
 #include "paths.h"
 #include "photocontroller.h"
 #include "plancontroller.h"
+#include "calendarcontroller.h"
+#include "journalcontroller.h"
 #include "planpagecontroller.h"
 #include "ratescontroller.h"
 #include "weathercontroller.h"
@@ -332,6 +334,9 @@ int main(int argc, char *argv[])
     tp::app::RatesController rates(&settings, &net);                    // 0.10.1 汇率和主货币
     tp::app::PlanPageController planPage(&ctl, &plans, &store, &net, &rates, &settings);   // 0.10.0 完整计划页
     tp::app::WeatherController weather(&planPage, &plans, &store, &net);   // 0.10.3 预报和往年气候
+    tp::app::CalendarController calendar(&ctl, &plans, &settings, &store);   // 0.11.2 日历
+    calendar.setPersist(!testRun);
+    tp::app::JournalController journal(&ctl, &store);                        // 0.11.2 游记
     weather.setCacheFile(Paths::cacheDir() + (testRun ? QStringLiteral("/test-weather.json") : QStringLiteral("/weather.json")));
     tp::app::PlanEditor editor(&ctl, &store, &mapc);
     editor.setNet(&net);
@@ -383,6 +388,8 @@ int main(int argc, char *argv[])
     ctx->setContextProperty("roads", &roads);
     ctx->setContextProperty("editor", &editor);
     ctx->setContextProperty("planPage", &planPage);
+    ctx->setContextProperty("calendar", &calendar);
+    ctx->setContextProperty("journal", &journal);
     ctx->setContextProperty("rates", &rates);
     ctx->setContextProperty("weather", &weather);
     ctx->setContextProperty("locator", &locator);

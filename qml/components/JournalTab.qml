@@ -1,24 +1,40 @@
-// 计划页的"游记"标签（0.10.4，P-15；照 Electron pages-plan.js journalHtml）：本计划的游记列表（首图 + 120 字）。"写一篇"和打开全文到阶段 ⑤，现在只能看。
+// 计划页的"游记"标签（0.10.4，P-15；照 Electron pages-plan.js journalHtml）：本计划的游记列表（首图 + 120 字）。0.11.2 加"写一篇"和打开全文（游记整页）。
 import QtQuick
 import TPApp
 
 Column {
     id: root
     property var rows: []
+    property bool readOnly: false
+    signal writeRequested()
+    signal openRequested(string id)
     spacing: Theme.px(10)
 
-    Text {
-        objectName: "journalCount"
-        visible: root.rows.length > 0
-        text: qsTr("%1 篇").arg(root.rows.length)
-        font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted
+    Item {
+        width: parent.width
+        height: Theme.px(32)
+        Text {
+            objectName: "journalCount"
+            anchors.verticalCenter: parent.verticalCenter
+            text: qsTr("%1 篇").arg(root.rows.length)
+            font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted
+        }
+        TpButton {
+            objectName: "journalWrite"
+            visible: !root.readOnly
+            anchors.right: parent.right
+            compact: true
+            kind: "primary"
+            text: qsTr("写一篇")
+            onClicked: root.writeRequested()
+        }
     }
     Text {
         objectName: "journalEmpty"
         visible: root.rows.length === 0
         width: parent.width
         wrapMode: Text.Wrap
-        text: qsTr("这个计划还没有游记。写游记和看全文要等后面的版本（阶段 ⑤）。")
+        text: qsTr("还没有游记。可以按天写，也可以一篇写完整个旅程；正文里可以插入这个计划的照片。")
         font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.muted
     }
     Repeater {
@@ -30,7 +46,10 @@ Column {
             height: Math.max(pic.visible ? pic.height : 0, jCol.implicitHeight) + Theme.px(24)
             radius: Theme.px(16)
             color: "#ffffff"
-            border.width: 1; border.color: Theme.line
+            border.width: 1; border.color: rowMa.containsMouse ? Theme.lineStrong : Theme.line
+            Accessible.role: Accessible.Button
+            Accessible.name: modelData.title || qsTr("无标题")
+            MouseArea { id: rowMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.openRequested(parent.modelData.id) }
             Image {
                 id: pic
                 visible: !!parent.modelData.thumb

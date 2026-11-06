@@ -41,6 +41,7 @@ Item {
         if (compact) {
             const closing = album.plan === id
             album.plan = closing ? "" : id
+            if (closing) grid.positionViewAtIndex(album.tripRow(id), ListView.Contain)   // 收起时也别跳回顶上
             if (!closing && id !== "__nopos") root.flyTo(id)
         } else {
             album.plan = id
@@ -97,7 +98,7 @@ Item {
                 wrapMode: Text.Wrap
                 // 地图上 N 张 · 没有位置 N 张（PO 第 4 题 A）；整页加未归类
                 text: (root.compact ? qsTr("地图上 %1 张").arg(root.album.pinned)
-                                    : qsTr("%1 张").arg(root.album.total) + (root.album.inbox > 0 ? " · " + qsTr("%1 张未归类").arg(root.album.inbox) : ""))
+                                    : Fmt.one(qsTr("%1 张").arg(root.album.total)) + (root.album.inbox > 0 ? " · " + qsTr("%1 张未归类").arg(root.album.inbox) : ""))
                       + (root.album.noPos > 0 ? " · " + qsTr("没有位置 %1 张").arg(root.album.noPos) : "")
                 font.family: serifFamily; font.pixelSize: Theme.px(13); font.bold: true; color: Theme.accent
             }
@@ -141,7 +142,7 @@ Item {
                 Text {
                     width: parent.width
                     wrapMode: Text.Wrap
-                    text: qsTr("%1 张 HEIC 照片显示不了：这台电脑要装 Microsoft Store 里的两个扩展。HEVC 扩展有的电脑要付费。").arg(root.album.heic)
+                    text: Fmt.one(qsTr("%1 张 HEIC 照片显示不了：这台电脑要装 Microsoft Store 里的两个扩展。HEVC 扩展有的电脑要付费。").arg(root.album.heic))
                     font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: "#7a5a1c"
                 }
                 Row {
@@ -280,7 +281,7 @@ Item {
                     Text {
                         width: parent.width
                         elide: Text.ElideRight
-                        text: rowItem.planId === "__nopos" ? qsTr("%1 张，地图上没有").arg(rowItem.count) : qsTr("%1 张").arg(rowItem.count)
+                        text: Fmt.one(rowItem.planId === "__nopos" ? qsTr("%1 张，地图上没有").arg(rowItem.count) : qsTr("%1 张").arg(rowItem.count))
                         font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
                     }
                 }
@@ -318,8 +319,8 @@ Item {
                 elide: Text.ElideRight
                 textFormat: Text.PlainText
                 text: rowItem.kind === "year" ? (rowItem.title ? qsTr("%1 年").arg(rowItem.title) : qsTr("没有日期"))
-                    : rowItem.kind === "month" ? (Fmt.en ? Fmt.monEn[Number(rowItem.sub) - 1] : Number(rowItem.sub) + " 月") + "  ·  " + qsTr("%1 张").arg(rowItem.count)
-                    : (rowItem.stopNo === 0 ? qsTr("还没归到站点") : rowItem.sub === "route" ? qsTr("第 %1 站").arg(rowItem.stopNo) + " · " + rowItem.title : rowItem.title) + "  ·  " + qsTr("%1 张").arg(rowItem.count)
+                    : rowItem.kind === "month" ? (Fmt.en ? Fmt.monEn[Number(rowItem.sub) - 1] : Number(rowItem.sub) + " 月") + "  ·  " + Fmt.one(qsTr("%1 张").arg(rowItem.count))
+                    : (rowItem.stopNo === 0 ? qsTr("还没归到站点") : rowItem.sub === "route" ? qsTr("第 %1 站").arg(rowItem.stopNo) + " · " + rowItem.title : rowItem.title) + "  ·  " + Fmt.one(qsTr("%1 张").arg(rowItem.count))
                 font.family: serifFamily
                 font.pixelSize: Theme.px(rowItem.kind === "year" ? 19 : 13)
                 font.bold: rowItem.kind === "year"
