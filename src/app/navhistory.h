@@ -4,7 +4,7 @@
 //     replace = 换掉当前这一步，不新增；
 //   - back / forward：在记录里移动，不新增。
 // 原生版的页面（0.8.10）：地图的四种模式 plan / wish / foot / photo，整页 calendar / journal / ledger，settings（设置面板）、
-// phototest（开发版照片测试页）。"map" 只是没调用 resetTo 时的起点（单元测试），界面里 goPage("map") 换成当前模式。
+// "map" 只是没调用 resetTo 时的起点（单元测试），界面里 goPage("map") 换成当前模式。
 #pragma once
 
 #include <QObject>

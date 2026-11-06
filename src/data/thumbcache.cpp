@@ -3,6 +3,7 @@
 #include "atomicfile.h"
 #include "exif.h"
 #include "trdata.h"
+#include "wicimage.h"
 
 #include <QBuffer>
 #include <QColorSpace>
@@ -41,24 +42,33 @@ QImage applyOrientation(const QImage &img, int o)
 QImage loadOriented(const QString &path, int maxSide, bool toSrgb, QString *error)
 {
     const exif::Info info = exif::readFile(path);
-    QImageReader r(path);
-    r.setAutoTransform(false);
-    r.setAllocationLimit(1024);   // MB；默认 256 MB，大全景照片会被拒绝
-    const QSize stored = r.size();
-    if (maxSide > 0 && stored.isValid()) {
-        const int longSide = std::max(stored.width(), stored.height());
-        if (longSide > maxSide) {
-            const double k = double(maxSide) / longSide;
-            r.setScaledSize(QSize(std::max(1, int(std::lround(stored.width() * k))), std::max(1, int(std::lround(stored.height() * k)))));
+    QImage img;
+    if (info.container == exif::Container::Heif) {   // 0.11.1：Qt 读不了 HEIC，用 Windows 自带的解码（WIC 自己摆正方向）
+        QString why;
+        img = platform::wic::decode(path, maxSide, &why);
+        if (img.isNull()) {
+            if (error) *error = platform::wic::heifReady() ? trd("读不出这张照片：%1").arg(why) : trd("这台电脑没装 HEIF / HEVC 扩展，HEIC 照片显示不了");
+            return {};
         }
+    } else {
+        QImageReader r(path);
+        r.setAutoTransform(false);
+        r.setAllocationLimit(1024);   // MB；默认 256 MB，大全景照片会被拒绝
+        const QSize stored = r.size();
+        if (maxSide > 0 && stored.isValid()) {
+            const int longSide = std::max(stored.width(), stored.height());
+            if (longSide > maxSide) {
+                const double k = double(maxSide) / longSide;
+                r.setScaledSize(QSize(std::max(1, int(std::lround(stored.width() * k))), std::max(1, int(std::lround(stored.height() * k)))));
+            }
+        }
+        img = r.read();
+        if (img.isNull()) {
+            if (error) *error = trd("读不出这张照片：%1").arg(r.errorString());
+            return {};
+        }
+        img = applyOrientation(img, info.orientation);   // 按 EXIF 方向摆正
     }
-    QImage img = r.read();
-    if (img.isNull()) {
-        if (error) *error = info.container == exif::Container::Heif ? trd("HEIC / HEIF 照片现在没法显示") : trd("读不出这张照片：%1").arg(r.errorString());
-        return {};
-    }
-    // HEIF 不会走到这里（Qt 读不了）；其他格式按 EXIF 方向摆正
-    if (info.container != exif::Container::Heif) img = applyOrientation(img, info.orientation);
     if (toSrgb && img.colorSpace().isValid() && img.colorSpace() != QColorSpace(QColorSpace::SRgb)) {
         if (img.colorSpace().colorModel() == QColorSpace::ColorModel::Rgb) {
             if (img.format() != QImage::Format_RGB32 && img.format() != QImage::Format_ARGB32)
@@ -75,6 +85,7 @@ ThumbCache::ThumbCache(const QString &root) : m_root(root) {}
 
 int ThumbCache::bucket(int requested)
 {
+    if (requested <= 160) return 160;   // 0.11.1 地图上的照片标记
     if (requested <= 320) return 320;
     if (requested <= 640) return 640;
     return 1280;

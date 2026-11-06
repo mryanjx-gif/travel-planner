@@ -15,9 +15,11 @@ void MapController::setGlobeOn(bool on)
     if (globeActive()) {
         const globe::View v = m_globeOps->globeView();
         m_markers.setGlobeView(true, v, m_globeOps->globeZoom(), m_globeOps->globeMoving());
+        m_photoLayer.setGlobeView(true, v, m_globeOps->globeZoom());
     } else {
         m_markers.setGlobeView(false, {}, 0, m_moving);
         m_markers.cameraChanged(m_moving);
+        m_photoLayer.setGlobeView(false, {}, 0);
     }
     if (m_lineHot) { setLineHot(false); m_markers.unhoverLine(); }
     emit scaleChanged();
@@ -28,6 +30,7 @@ void MapController::globeViewChanged()
 {
     if (!globeActive()) return;
     m_markers.setGlobeView(true, m_globeOps->globeView(), m_globeOps->globeZoom(), m_globeOps->globeMoving());
+    m_photoLayer.setGlobeView(true, m_globeOps->globeView(), m_globeOps->globeZoom());
     emit scaleChanged();
 }
 

@@ -38,7 +38,7 @@ void MapController::applyCamera(geo::Camera c)
     m_cam = k;
     m_minZoom = minZ;
     if (changed) {
-        if (!m_markers.onGlobe()) m_markers.cameraChanged(m_moving);   // 0.9.5：在地球上时标记按地球摆
+        if (!m_markers.onGlobe()) { m_markers.cameraChanged(m_moving); m_photoLayer.cameraChanged(); }   // 0.9.5：在地球上时标记按地球摆
         emit cameraChanged();
         if (!globeActive()) emit scaleChanged();
     }

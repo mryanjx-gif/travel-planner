@@ -15,6 +15,7 @@ MapLibre {
     id: map
     objectName: "map"
     property bool interactive: true
+    signal photoOpened(var ids)   // 0.11.1 点了照片标记（看大图在 Main）
     readonly property bool unlock: mapc.base === "unlock"
     readonly property bool sat: mapc.base === "sat"
     // 线宽 3.5 px；DASH_PX 像素 ÷ 线宽（Electron LINE_STYLE.idle / DASH_PX）
@@ -299,6 +300,15 @@ MapLibre {
         tip: mapTip
         // 地球模式时不显示（地球上的标记在阶段 ③）；"已解锁"时藏起来（Electron pages.css：#map.unlock-mode .maplibregl-marker）
         visible: map.interactive && !map.unlock && mapc.markers.shown
+    }
+    // 0.11.1 照片模式：只有照片标记，站点标记和路线不画（筛选在 plancontroller）
+    PhotoMarkers {
+        objectName: "photoMarkers"
+        anchors.fill: parent
+        tip: mapTip
+        active: mapc.photoLayer.active && map.interactive
+        visible: active && !map.unlock
+        onPhotosOpened: (ids) => map.photoOpened(ids)
     }
     // 0.8.9：编辑中的草稿标记（可拖动）、搜索结果的点、点选模式、我的位置（components/EditOverlay.qml）
     EditOverlay {

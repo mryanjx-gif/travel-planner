@@ -72,7 +72,7 @@ p = os.path.join(out, 'lossy.webp'); quad().save(p, quality=90); et(p, *FULL, '-
 p = os.path.join(out, 'lossless.webp'); quad().save(p, lossless=True); et(p, '-DateTimeOriginal=2022:01:02 03:04:05', '-Orientation#=1')
 # GIF
 quad().convert('P').save(os.path.join(out, 'plain.gif'))
-# HEIC（只读 EXIF 和尺寸；Qt 显示不了）
+# HEIC（0.11.1 起 Windows 上用 WIC 真解）。photo_irot.heic（打包里有，这里不生成）是 0.11.1 把这张的 ipco 加 irot（顺时针 90°）手工打的补丁，重新生成打包时要保留
 try:
     import pillow_heif
     pillow_heif.register_heif_opener()

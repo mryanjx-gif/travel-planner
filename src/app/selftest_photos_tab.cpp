@@ -17,6 +17,8 @@
 #include <QGuiApplication>
 #include <QImage>
 #include <QTemporaryDir>
+#include <QDateTime>
+#include <QLineF>
 #include <QUrl>
 #include <QKeyEvent>
 #include <QQuickItem>
@@ -38,12 +40,22 @@ QQuickItem *findItem(QQuickItem *root, const QString &name)
     return nullptr;
 }
 bool shown(QQuickItem *it) { return it && it->isVisible() && it->opacity() > 0.5; }
+// 0.11.1 诊断"站点卡片的照片条"的间歇失败：记下按下时抓住鼠标的元素、和上一次点击隔多久多远
+QString g_lastClick;
+qint64 g_lastClickAt = 0;
+QPointF g_lastClickPos;
 void click(QQuickWindow *win, QQuickItem *it)
 {
     if (!it) return;
     const QPointF p = it->mapToScene(QPointF(it->width() / 2, it->height() / 2));
     const QPointF g = win->mapToGlobal(p);
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
     QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, g, Qt::LeftButton, Qt::LeftButton, QEvent::MouseButtonPress);
+    QQuickItem *grab = win->mouseGrabberItem();
+    g_lastClick = QStringLiteral("按下时抓住的是 %1；离上一次点击 %2 ms、%3 px").arg(grab ? (grab->objectName().isEmpty() ? QString::fromLatin1(grab->metaObject()->className()) : grab->objectName()) : QStringLiteral("（没有）"))
+                      .arg(now - g_lastClickAt).arg(QLineF(p, g_lastClickPos).length(), 0, 'f', 0);
+    g_lastClickAt = now;
+    g_lastClickPos = p;
     QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, g, Qt::NoButton, Qt::LeftButton, QEvent::MouseButtonRelease);
     pause(80);
 }
@@ -257,7 +269,10 @@ void runPlanPhotos(Report &r, AppController *app, QQuickWindow *win, PlanPageCon
             where = QStringLiteral("点在 %1,%2 经过 %3；照片 %4 张").arg(p.x()).arg(p.y()).arg(path.join(QStringLiteral(" > "))).arg(page->property("info").toMap().value(QStringLiteral("photos")).toList().size());
         }
         click(win, thumb);
-        r.check(waitFor([&] { return lb->property("open").toBool(); }, 1000), QStringLiteral("站点卡片的照片条点开看大图"), lb->property("open").toBool() ? QString() : where);
+        const QString grabbed = g_lastClick;
+        const bool stripOk = waitFor([&] { return lb->property("open").toBool(); }, 1000);
+        r.check(stripOk, QStringLiteral("站点卡片的照片条点开看大图"), stripOk ? QString() : where + QStringLiteral("；") + grabbed);
+        r.info(QStringLiteral("照片条这一下：") + where + QStringLiteral("；") + grabbed);
         QMetaObject::invokeMethod(lb, "close");
         waitFor([&] { return !lb->isVisible(); }, 1000);
     } else r.info(QStringLiteral("第一屏没有照片条，没测"));

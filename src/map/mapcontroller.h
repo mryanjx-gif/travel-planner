@@ -15,6 +15,7 @@
 #include "globeops.h"
 #include "globeroutes.h"
 #include "markerlayer.h"
+#include "photolayer.h"
 #include "night.h"
 #include "tripdata.h"
 #include "unlock.h"
@@ -74,6 +75,7 @@ class MapController : public QObject {
     Q_PROPERTY(QString error READ error NOTIFY infoChanged)
     // 站点标记、合并、聚焦、悬停（0.8.2）
     Q_PROPERTY(tp::map::MarkerLayer *markers READ markers CONSTANT)
+    Q_PROPERTY(tp::map::PhotoLayer *photoLayer READ photoLayer CONSTANT)   // 0.11.1 照片模式的标记
     // 瓦片（0.8.5）：连续失败 8 次的横幅、在线底图被关掉（离线 / 单关瓦片）
     Q_PROPERTY(bool tileBanner READ tileBanner NOTIFY tileBannerChanged)
     // 0.9.0：在地球上时地球用的底图（"sat" / "unlock"；不在地球上是空）。"连续失败 8 次"按它算（平面是街道图、地球是卫星图时）
@@ -249,6 +251,7 @@ public:
     QString error() const { return m_error; }
     const TripData &trips() const { return m_trips; }
     MarkerLayer *markers() { return &m_markers; }
+    PhotoLayer *photoLayer() { return &m_photoLayer; }
     const UnlockModel::Result &unlockResult() const { return m_unlock; }
     bool unlockLoaded() const { return m_unlockModel.isLoaded(); }
 
@@ -264,7 +267,7 @@ public:
     // 框住一个国家（我的位置退回"所在国家"，Electron locateFallback：maxZoom 6、1.4 秒）。code = ISO 3166 三字母。返回是否框住了
     bool fitCountry(const QString &code);
     // 框住一组点（地名搜索的结果，M-25 方案 B）：[[lat, lng], …]，让开面板；maxZoom 默认 12
-    Q_INVOKABLE void fitPoints(const QVariantList &pts, double maxZoom = 12);
+    Q_INVOKABLE void fitPoints(const QVariantList &pts, double maxZoom = 12, int durationMs = 800);
     // 0.8.9：这些点里有没有落在没被面板挡住的可见区域里的（[[lat, lng], …]）
     Q_INVOKABLE bool anyVisible(const QVariantList &pts) const;
     // 每像素多少米（我的位置的精度圈，0.8.9）
@@ -437,6 +440,7 @@ private:
 
     TripData m_trips;
     MarkerLayer m_markers;
+    PhotoLayer m_photoLayer;
     UnlockModel m_unlockModel;
     UnlockModel::Result m_unlock;
     bool m_unlockTried = false;

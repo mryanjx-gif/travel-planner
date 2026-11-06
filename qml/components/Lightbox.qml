@@ -1,7 +1,8 @@
 // 看大图（0.10.5，A-07；PO 选 6A、N1、N2）：盖住整个窗口，暗底；← → 切换，Esc 关闭，点空白处关闭；显示序号、说明、站点和拍摄时间；关掉回到原处。
 // 独立组件：show(列表, 第几张)，阶段 ⑤ 的相册和照片模式也用它。列表每项 { file（数据文件夹里的相对路径）, thumb, caption, stop, stopNo, route, takenAt }，有哪项给哪项。
 // N1：滚轮放大（以鼠标为中心）、拖动、双击还原。平时按屏幕大小解码（省内存）；放大时才加载原图，还原或换一张就放掉（占多少内存见 v0.10.5记录.md）。
-// ★ 精选和旋转按钮按功能清单在阶段 ⑤ 加（A-07、A-08）。
+// 0.11.1：★ 精选、F 键、旋转（A-07、A-08，只对库里的照片，也就是有 id 的）；地图上点开的标明"位置来自站点"；
+// HEIC 走 Windows 自带的解码，没装扩展时说去哪装；旋转在后台做。
 import QtQuick
 import TPApp
 
@@ -16,12 +17,17 @@ Item {
     property real panY: 0
     property Item returnFocus: null
     readonly property var cur: items[index] || ({})
-    readonly property url src: open && cur.file ? photos.fileUrl(cur.file) : ""
+    // revision：转过方向后地址带 ?r=，才重新读
+    readonly property url src: open && cur.file && photos.revision >= 0 ? photos.fileUrl(cur.file) : ""
+    property var favOver: ({})             // 这次看大图里改过的精选（items 是点开时的一份）
+    readonly property bool isFav: cur.id !== undefined && (favOver[cur.id] !== undefined ? favOver[cur.id] : cur.fav === true)
+    readonly property bool heicMissing: open && !!cur.file && photos.revision >= 0 && photos.isHeic(cur.file) && !photos.heicReady()
+    property string note: ""               // 旋转的结果、不能旋转的原因（几秒后消失）
     readonly property real dpr: Screen.devicePixelRatio
     readonly property real stageW: Math.max(1, width - 2 * Theme.px(width < Theme.px(620) ? 8 : 64))
     readonly property real stageH: Math.max(1, height - Theme.px(56) - Theme.px(cur.caption ? 84 : 58))
     // 原图的长宽（按 EXIF 方向摆正）从文件头读：从 Electron 导入的照片库里没记，缩放解码后的 implicitWidth 又不是原图的
-    readonly property size realSize: open && cur.file ? photos.imageSize(cur.file) : Qt.size(0, 0)
+    readonly property size realSize: open && cur.file && photos.revision >= 0 ? photos.imageSize(cur.file) : Qt.size(0, 0)
     readonly property real natW: realSize.width > 0 ? realSize.width : fit.implicitWidth
     readonly property real natH: realSize.height > 0 ? realSize.height : fit.implicitHeight
     readonly property real fitK: natW > 0 && natH > 0 ? Math.min(stageW / natW, stageH / natH) : 1
@@ -34,6 +40,7 @@ Item {
         const a = []
         if (cur.stop) a.push(cur.route && cur.stopNo > 0 ? qsTr("第 %1 站").arg(cur.stopNo) + " · " + cur.stop : cur.stop)
         if (cur.takenAt) a.push(String(cur.takenAt).slice(0, 16).replace("T", " "))
+        if (cur.fromStop) a.push(qsTr("位置来自站点"))
         return a.join(" · ")
     }
 
@@ -42,8 +49,33 @@ Item {
         items = list
         index = Math.max(0, Math.min(i, list.length - 1))
         resetZoom()
+        favOver = ({})
+        note = ""
         open = true
         keys.forceActiveFocus()
+    }
+    function toggleFav() {
+        if (cur.id === undefined) return
+        const v = !isFav
+        if (!photos.setFav(cur.id, v)) return
+        const o = Object.assign({}, favOver)
+        o[cur.id] = v
+        favOver = o
+    }
+    function rotate() {
+        if (cur.id === undefined || photos.rotating) return
+        if (!photos.canRotate(cur.file)) { say(qsTr("这种格式不能旋转（只支持 JPG、PNG、WebP）")); return }
+        photos.rotateLater(cur.id, 1)
+    }
+    function say(t) { note = t; noteTimer.restart() }
+    Timer { id: noteTimer; interval: 4000; onTriggered: root.note = "" }
+    Connections {
+        target: photos
+        function onRotateFinished(id, ok, error) {
+            if (!root.open || id !== root.cur.id) return
+            root.resetZoom()
+            root.say(ok ? qsTr("已旋转并保存。第一次旋转时原图备份在 photos\\.originals") : qsTr("旋转失败：") + error)
+        }
     }
     function close() {
         open = false
@@ -54,6 +86,7 @@ Item {
     function step(d) {
         if (items.length < 2) return
         resetZoom()
+        note = ""
         index = (index + d + items.length) % items.length
     }
     function resetZoom() { zoom = 1; panX = 0; panY = 0 }
@@ -89,6 +122,7 @@ Item {
             if (e.key === Qt.Key_Escape) root.close()
             else if (e.key === Qt.Key_Left) root.step(-1)
             else if (e.key === Qt.Key_Right) root.step(1)
+            else if (e.key === Qt.Key_F && !(e.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))) root.toggleFav()
             else return
             e.accepted = true
         }
@@ -149,7 +183,7 @@ Item {
             Text {
                 objectName: "lightboxError"
                 anchors.centerIn: parent
-                visible: root.open && root.cur.file !== undefined && (root.src.toString() === "" || fit.status === Image.Error)
+                visible: root.open && root.cur.file !== undefined && !root.heicMissing && (root.src.toString() === "" || fit.status === Image.Error)
                 text: qsTr("这张照片显示不了")
                 font.family: serifFamily; font.pixelSize: Theme.px(15); color: "#c8d0d8"
             }
@@ -206,6 +240,22 @@ Item {
                 text: (root.index + 1) + " / " + root.items.length
                 font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: "#c8d0d8"
             }
+            LightPill {
+                objectName: "lightboxFav"
+                visible: root.cur.id !== undefined
+                text: root.isFav ? qsTr("★ 已精选") : qsTr("☆ 精选")
+                on: root.isFav
+                tip: root.isFav ? qsTr("取消精选（F）") : qsTr("设为精选（F）")
+                onClicked: root.toggleFav()
+            }
+            LightPill {
+                objectName: "lightboxRotate"
+                visible: root.cur.id !== undefined
+                dim: !!root.cur.file && !photos.canRotate(root.cur.file)
+                text: photos.rotating ? qsTr("旋转中…") : qsTr("↻ 旋转")
+                tip: qsTr("顺时针转 90°，保存到本地文件")
+                onClicked: root.rotate()
+            }
             LightCtl { objectName: "lightboxClose"; name: "close"; label: qsTr("关闭"); onClicked: root.close() }
         }
         // ---- 左右 ----
@@ -227,6 +277,27 @@ Item {
             glyph: "›"
             label: qsTr("下一张")
             onClicked: root.step(1)
+        }
+        // HEIC 没装扩展（PO 第 6 题 A）：说去哪装。放在 MouseArea 上面，能点
+        Column {
+            objectName: "lightboxHeicHint"
+            visible: root.heicMissing
+            anchors.centerIn: parent
+            width: Math.min(parent.width - Theme.px(48), Theme.px(460))
+            spacing: Theme.px(10)
+            Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.Wrap
+                text: qsTr("这张 HEIC 照片显示不了：这台电脑要装 Microsoft Store 里的两个扩展。HEVC 扩展有的电脑要付费。原文件没有动。")
+                font.family: serifFamily; font.pixelSize: Theme.px(15); color: "#f2f4f6"
+            }
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: Theme.px(10)
+                LightPill { objectName: "lightboxStoreHeif"; text: qsTr("HEIF 图像扩展"); onClicked: photos.openStore("heif") }
+                LightPill { objectName: "lightboxStoreHevc"; text: qsTr("HEVC 视频扩展"); onClicked: photos.openStore("hevc") }
+            }
         }
         // ---- 下面：说明、站点和时间 ----
         Column {
@@ -255,9 +326,36 @@ Item {
                 text: root.metaText
                 font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: "#a9b4bf"
             }
+            Text {
+                objectName: "lightboxNote"
+                visible: root.note !== ""
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                elide: Text.ElideRight
+                text: root.note
+                font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: "#ffd24a"
+            }
         }
     }
 
+    component LightPill: Rectangle {
+        id: pill
+        property string text: ""
+        property string tip: ""
+        property bool on: false
+        property bool dim: false
+        signal clicked()
+        width: pillT.implicitWidth + Theme.px(22)
+        height: Theme.px(34)
+        anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+        radius: height / 2
+        color: pillMa.containsMouse ? Qt.rgba(1, 1, 1, 0.2) : Qt.rgba(1, 1, 1, 0.1)
+        opacity: dim ? 0.45 : 1
+        Accessible.role: Accessible.Button
+        Accessible.name: tip !== "" ? tip : text
+        Text { id: pillT; anchors.centerIn: parent; text: pill.text; font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: pill.on ? "#ffd24a" : "#ffffff" }
+        MouseArea { id: pillMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: pill.clicked() }
+    }
     component LightCtl: Rectangle {
         id: ctl
         property string name: ""

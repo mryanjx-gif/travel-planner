@@ -3,7 +3,7 @@
 # 规则（PO 2026-11-02）：大更新改第一位，中等更新改第二位，小修改改第三位；正式版之前是 0.x.y，正式版 1.0.0。
 cmake_minimum_required(VERSION 3.24)
 
-set(TP_VERSION "0.11.0")
+set(TP_VERSION "0.11.1")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TP_VERSION_NUMERIC "${TP_VERSION}")
 
 project(TravelPlannerNative
@@ -66,9 +66,13 @@ set_target_properties(tp_data PROPERTIES AUTOMOC ON)
 add_library(tp_photo STATIC
     src/data/thumbcache.cpp src/data/thumbcache.h
     src/data/photorotate.cpp src/data/photorotate.h
+    src/platform/wicimage.cpp src/platform/wicimage.h
 )
 target_include_directories(tp_photo PUBLIC src/data src/platform)
 target_link_libraries(tp_photo PUBLIC tp_data Qt6::Core Qt6::Gui)
+if(WIN32)
+    target_link_libraries(tp_photo PUBLIC windowscodecs ole32)   # 0.11.1 HEIC 用 Windows 自带的解码（WIC，系统库）
+endif()
 
 # 地图的计算（0.8.0）：投影和相机、昼夜阴影多边形、"已解锁"上色、路线几何。只依赖 Qt Core 和数据层，单元测试 tst_map 共用。
 add_library(tp_map STATIC
@@ -83,6 +87,7 @@ add_library(tp_map STATIC
     src/map/planmoney.cpp src/map/planmoney.h
     src/map/planweather.cpp src/map/planweather.h
     src/map/plankit.cpp src/map/plankit.h
+    src/map/photomap.cpp src/map/photomap.h
     src/map/suncalc.cpp src/map/suncalc.h
     src/map/planedit.cpp src/map/planedit.h
     src/map/globegeom.cpp src/map/globegeom.h
@@ -130,6 +135,7 @@ qt_add_executable(TravelPlanner WIN32
     src/app/windowstate.cpp src/app/windowstate.h
     src/app/tpapplication.cpp src/app/tpapplication.h
     src/app/photocontroller.cpp src/app/photocontroller.h
+    src/app/albummodel.cpp src/app/albummodel.h
     src/app/plancontroller.cpp src/app/plancontroller.h
     src/app/planpagecontroller.cpp src/app/planpagecontroller.h
     src/app/ratescontroller.cpp src/app/ratescontroller.h
@@ -139,7 +145,7 @@ qt_add_executable(TravelPlanner WIN32
     src/app/thumbprovider.cpp src/app/thumbprovider.h
     src/app/framestats.cpp src/app/framestats.h
     src/app/selftest.cpp src/app/selftest.h src/app/selftest_util.cpp src/app/selftest_util.h
-    src/app/selftest_map.cpp src/app/selftest_routes.cpp src/app/selftest_unlock.cpp src/app/selftest_plans.cpp src/app/selftest_shell.cpp src/app/selftest_pages.cpp src/app/selftest_planpage.cpp src/app/selftest_money.cpp src/app/selftest_weather.cpp src/app/selftest_kit.cpp src/app/selftest_photos_tab.cpp src/app/selftest_library.cpp src/app/selftest_editor.cpp src/app/selftest_globe.cpp src/app/selftest_perf.cpp
+    src/app/selftest_map.cpp src/app/selftest_routes.cpp src/app/selftest_unlock.cpp src/app/selftest_plans.cpp src/app/selftest_shell.cpp src/app/selftest_pages.cpp src/app/selftest_planpage.cpp src/app/selftest_money.cpp src/app/selftest_weather.cpp src/app/selftest_kit.cpp src/app/selftest_photos_tab.cpp src/app/selftest_library.cpp src/app/selftest_photomode.cpp src/app/selftest_editor.cpp src/app/selftest_globe.cpp src/app/selftest_perf.cpp
     src/platform/crashhandler.cpp src/platform/crashhandler.h
     src/platform/nativedialog.cpp src/platform/nativedialog.h
     src/platform/watchdog.cpp src/platform/watchdog.h
@@ -151,6 +157,7 @@ qt_add_executable(TravelPlanner WIN32
     src/map/mapcontroller.cpp src/map/mapcontroller.h src/map/mapcontroller_p.h
     src/map/mapcontroller_camera.cpp src/map/mapcontroller_lines.cpp src/map/mapcontroller_unlock.cpp src/map/mapcontroller_edit.cpp src/map/mapcontroller_globe.cpp
     src/map/markerlayer.cpp src/map/markerlayer.h
+    src/map/photolayer.cpp src/map/photolayer.h
     src/map/markerimages.cpp src/map/markerimages.h
     src/map/msicons.h
     src/map/sun.h
@@ -171,14 +178,14 @@ target_compile_definitions(TravelPlanner PRIVATE TP_SOURCE_DIR="${CMAKE_SOURCE_D
 set_source_files_properties(qml/theme/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE QT_RESOURCE_ALIAS Theme.qml)
 set_source_files_properties(qml/theme/Fmt.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE QT_RESOURCE_ALIAS Fmt.qml)
 foreach(f GlassPanel TpButton ModalLayer ChoiceCard ChoiceDialog MessageDialog TextInputDialog ExtChangedCard ErrorCard Banner Toast Segmented
-          TpSelect TpCheck PhotoImportReview PhotoCleanupDialog MapMarkers MapTip RoadBar LayerBubbles UnlockPanel
+          TpSelect TpCheck PhotoImportReview PhotoCleanupDialog MapMarkers PhotoMarkers AlbumView PhotoAssignDialog MapTip RoadBar LayerBubbles UnlockPanel
           LinkText StatusFilterPill FilterMenu NowCard PlanSheet
           SplitBud TopBar AvatarMenu PlanListPanel LibraryView WishMonthBar WishDialog CommandPalette RoundButton TpIcon
           PlanEditor DateField TpField StylePopover MarkerShape ColorWheel EditOverlay DrawerGrip
           SchedList RouteSketch RoundIcon MenuRow Lightbox PhotosTab)
     set_source_files_properties(qml/components/${f}.qml PROPERTIES QT_RESOURCE_ALIAS ${f}.qml)
 endforeach()
-foreach(f SettingsPanel SettingsCard SettingsRow BackupSection PhotoTestPage PlaceholderPage LedgerPage PlanPage)
+foreach(f SettingsPanel SettingsCard SettingsRow BackupSection PlaceholderPage LedgerPage PlanPage)
     set_source_files_properties(qml/pages/${f}.qml PROPERTIES QT_RESOURCE_ALIAS ${f}.qml)
 endforeach()
 qt_add_qml_module(TravelPlanner
@@ -241,6 +248,9 @@ qt_add_qml_module(TravelPlanner
         qml/components/AvatarMenu.qml
         qml/components/PlanListPanel.qml
         qml/components/LibraryView.qml
+        qml/components/PhotoMarkers.qml
+        qml/components/AlbumView.qml
+        qml/components/PhotoAssignDialog.qml
         qml/components/WishMonthBar.qml
         qml/components/WishDialog.qml
         qml/components/CommandPalette.qml
@@ -258,7 +268,6 @@ qt_add_qml_module(TravelPlanner
         qml/pages/SettingsCard.qml
         qml/pages/SettingsRow.qml
         qml/pages/BackupSection.qml
-        qml/pages/PhotoTestPage.qml
         qml/pages/PlaceholderPage.qml
         qml/pages/LedgerPage.qml
         qml/pages/PlanPage.qml

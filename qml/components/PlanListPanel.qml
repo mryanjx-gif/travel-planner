@@ -10,6 +10,7 @@
 // 0.8.10：标题跟着地图模式变（title 由 Main 给）；足迹模式按年份分组（group = y2025 / undated）。
 // 0.11.0：计划模式列表头"展开" = 计划库（LibraryView，面板宽度由 Main 给）；想去模式每行加季节条、开始计划、关联季节，
 // 分组 fit / other / noref（plans::wishInfo），列表头"新建想去"；足迹模式列表头下面一行统计；"在列表里隐藏"的排到最后、变灰。
+// 0.11.1：照片模式的内容换成相册（AlbumView），列表头"展开" = 铺满成整页（albumOpen 由 Main 给）。
 import QtQuick
 import TPApp
 
@@ -31,7 +32,16 @@ Item {
     signal libraryDelete(var ids)
     signal wishStart(string id)
     signal wishSeason(string id)
-    readonly property bool expanded: plans.libraryOpen
+    signal albumExpand(bool on)
+    signal albumOpenPlan(string id)
+    signal albumImport()
+    signal albumShow(var list, int index)
+    signal albumAssign(var ids)
+    signal albumFly(string planId)
+    property bool albumOpen: false
+    property real targetWidth: width
+    readonly property bool photoMode: plans.mode === "photo"
+    readonly property bool expanded: plans.libraryOpen || albumOpen
     readonly property bool wishMode: plans.mode === "wish"
     readonly property bool footMode: plans.mode === "foot"
 
@@ -119,9 +129,9 @@ Item {
             spacing: Theme.px(6)
             HeadPill {
                 objectName: "listExpandBtn"
-                visible: plans.mode === "plan"
+                visible: plans.mode === "plan" || root.photoMode
                 text: root.expanded ? qsTr("收起") : qsTr("展开")
-                onClicked: plans.setLibraryOpen(!root.expanded)
+                onClicked: root.photoMode ? root.albumExpand(!root.albumOpen) : plans.setLibraryOpen(!root.expanded)
             }
             HeadPill {
                 objectName: "wishNewBtn"
@@ -132,7 +142,7 @@ Item {
             Item {
                 id: filterBtn
                 objectName: "listFilterBtn"
-                visible: !root.expanded
+                visible: !root.expanded && !root.photoMode
                 width: fRow.implicitWidth + Theme.px(20)
                 height: Theme.px(28)
                 anchors.verticalCenter: parent.verticalCenter
@@ -186,10 +196,32 @@ Item {
         onVisibleChanged: if (visible) mapc.needUnlockCount()
     }
 
+    // ---- 相册（照片模式，窄列表和整页同一个组件）----
+    Loader {
+        id: albumLoader
+        active: root.photoMode && root.open
+        x: 0
+        y: head.y + head.height + Theme.px(4)
+        width: parent.width
+        height: parent.height - y
+        sourceComponent: Component {
+            AlbumView {
+                objectName: "albumView"
+                compact: !root.albumOpen || root.targetWidth < Theme.px(620)
+                targetWidth: root.targetWidth
+                onOpenPlan: (id) => root.albumOpenPlan(id)
+                onImportClicked: root.albumImport()
+                onShowPhotos: (l, i) => root.albumShow(l, i)
+                onAssignRequested: (ids) => root.albumAssign(ids)
+                onFlyTo: (id) => root.albumFly(id)
+            }
+        }
+    }
+
     // ---- 计划库 ----
     Loader {
         id: libraryLoader
-        active: root.expanded
+        active: plans.libraryOpen
         x: 0
         y: head.y + head.height + Theme.px(4)
         width: parent.width
@@ -208,7 +240,7 @@ Item {
     ListView {
         id: list
         objectName: "planListView"
-        visible: !root.expanded
+        visible: !root.expanded && !root.photoMode
         x: Theme.px(8)
         y: head.y + head.height + Theme.px(4) + (root.footMode ? footStat.implicitHeight + Theme.px(4) : 0)
         width: parent.width - Theme.px(16)
@@ -411,7 +443,7 @@ Item {
 
     // 没有计划 / 当前筛选下没有计划
     Text {
-        visible: root.rows.length === 0 && !root.expanded
+        visible: root.rows.length === 0 && !root.expanded && !root.photoMode
         x: Theme.px(20); y: list.y + Theme.px(16)
         width: root.width - Theme.px(40)
         wrapMode: Text.Wrap
@@ -421,10 +453,10 @@ Item {
     }
 
     // ---- 底部 ----
-    Rectangle { visible: !root.expanded; x: Theme.px(14); width: root.width - Theme.px(28); height: 1; color: Theme.line; y: foot.y - Theme.px(8) }
+    Rectangle { visible: !root.expanded && !root.photoMode; x: Theme.px(14); width: root.width - Theme.px(28); height: 1; color: Theme.line; y: foot.y - Theme.px(8) }
     Text {
         id: foot
-        visible: !root.expanded
+        visible: !root.expanded && !root.photoMode
         x: Theme.px(18)
         anchors.bottom: parent.bottom
         anchors.bottomMargin: Theme.px(12)

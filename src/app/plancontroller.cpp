@@ -307,7 +307,8 @@ QString PlanController::modeForStatus(const QString &status)
 
 QSet<QString> PlanController::statusForMode() const
 {
-    if (m_mode == QLatin1String("photo") || m_testAll) return QSet<QString>(plans::allStatuses().begin(), plans::allStatuses().end());
+    if (m_mode == QLatin1String("photo")) return {};   // 0.11.1：照片模式地图上只有照片（Electron 相册地图也是），不画路线和站点
+    if (m_testAll) return QSet<QString>(plans::allStatuses().begin(), plans::allStatuses().end());
     return { modePrimary() };
 }
 

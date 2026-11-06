@@ -402,6 +402,19 @@ bool setPhotoFav(Value &root, const QString &id, bool on)
     return true;
 }
 
+bool assignPhotos(Value &root, const QStringList &ids, const QString &planId, const QString &stopId)
+{
+    bool any = false;
+    for (const QString &id : ids) {
+        Value *ph = mutPhoto(root, id);
+        if (!ph) continue;
+        ph->mutObject().set(QStringLiteral("plan"), Value(planId));
+        ph->mutObject().set(QStringLiteral("stop"), Value(stopId));
+        any = true;
+    }
+    return any;
+}
+
 bool setPhotoCaption(Value &root, const QString &id, const QString &caption)
 {
     Value *ph = mutPhoto(root, id);

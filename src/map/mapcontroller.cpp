@@ -82,6 +82,17 @@ MapController::MapController(QObject *parent) : QObject(parent)
     connect(&m_animTimer, &QTimer::timeout, this, &MapController::tick);
     // 标记（0.8.2）：和地图同一个相机；点标记平移、点圆圈放大都走这里的动画
     m_markers.setCamera(&m_cam);
+    m_photoLayer.setCamera(&m_cam);
+    connect(&m_photoLayer, &PhotoLayer::rebuildDataWanted, this, [this] {
+        if (!m_store) return;
+        m_photoLayer.rebuild(m_store->data());
+        if (globeActive()) m_photoLayer.setGlobeView(true, m_globeOps->globeView(), m_globeOps->globeZoom());
+    });
+    m_photoLayer.setFitBounds([this](double w, double s, double e, double n, double minZoom, int ms) {
+        const geo::FitResult r = geo::fitBounds(fitCam(), w, s, e, n, geo::Padding{ 60, 60, 60, 60 }, 30);
+        const geo::LatLng c = geo::centerOf({ { s, w }, { n, e } });
+        flyTo(r.ok ? r.lat : c.lat, r.ok ? r.lng : c.lng, std::max(r.ok ? r.zoom : 0.0, minZoom), ms);
+    });
     // 点标记、← → 切站时平移：放在左右面板之间（0.8.7，Electron panToVisible）
     m_markers.setPan([this](double lat, double lng, double zoom, int ms) {
         if (zoom < 0) panToVisible(lat, lng, ms);
@@ -396,6 +407,7 @@ void MapController::rebuildData()
     m_haveData = m_trips.stopCount() > 0;
     m_globeRoutesDirty = true;   // 0.9.5：地球上的线用到时再重建
     m_markers.rebuild(m_trips);   // 选中的计划没了会取消选中；悬停清掉
+    m_photoLayer.rebuild(m_store->data());
     timing.part("标记");
     refreshRoutes();
     timing.part("路线");

@@ -570,7 +570,7 @@ private slots:
         QVERIFY(n.back());
         QCOMPARE(n.page(), QStringLiteral("settings"));
         QVERIFY(n.canForward());
-        n.go(QStringLiteral("phototest"));                 // 后退以后再走：丢掉后面的记录
+        n.go(QStringLiteral("ledger"));                 // 后退以后再走：丢掉后面的记录
         QCOMPARE(n.size(), 3);
         QVERIFY(!n.canForward());
         QVERIFY(!n.forward());

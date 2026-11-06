@@ -338,7 +338,6 @@ HEIC（还没法显示）	HEIC (can't display yet)
 照片文件夹里没被任何照片用到的文件，移到回收站。	Move files in the photos folder that no photo uses to the Recycle Bin.
 照片文件找不到	Photo file not found
 照片没有导入：	Photos weren't imported: 
-照片测试	Photo test
 现在的数据是只读的，不能导入照片。	The data is read-only right now, so photos can't be imported.
 现在的数据是只读的，不能旋转照片。	The data is read-only right now, so photos can't be rotated.
 现在的数据是只读的，不能清理照片。	The data is read-only right now, so photos can't be cleaned up.
@@ -799,3 +798,56 @@ Enter 记下，日期默认今天	Enter to add; dated today
 「%1」对应季节表里的	"%1" matches this row in the season table
 「%1」已改成计划中	"%1" is now Planning
 选择	Select
+# 0.11.1
+没有拍摄时间	No capture time
+未归类	Unsorted
+地图上 %1 张	%1 on the map
+%1 张未归类	%1 unsorted
+没有位置 %1 张	%1 without a location
+导入照片	Import photos
+按旅程	By trip
+按年份	By year
+精选	Favorites
+%1 张 HEIC 照片显示不了：这台电脑要装 Microsoft Store 里的两个扩展。HEVC 扩展有的电脑要付费。	%1 HEIC photos can't be shown: this PC needs two extensions from the Microsoft Store. The HEVC one costs money on some PCs.
+HEIF 图像扩展	HEIF Image Extensions
+HEVC 视频扩展	HEVC Video Extensions
+已选 %1 张	%1 selected
+全选	Select all
+清空	Clear
+归到计划…	Add to a plan…
+全部	All
+没有位置	No location
+%1 张，地图上没有	%1 photos, not on the map
+打开计划 →	Open plan →
+%1 年	%1
+没有日期	No date
+还没归到站点	Not in a stop yet
+要装扩展	Needs an extension
+照片找不到	Photo not found
+取消精选	Remove from favorites
+设为精选	Add to favorites
+还没有照片。点右上角“导入照片”，会按拍摄日期和位置自动归到计划里。	No photos yet. Click "Import photos" at the top right; they are sorted into plans by date and location.
+还没有精选。鼠标放在照片上，点右上角的星星。	No favorites yet. Hover over a photo and click the star in its corner.
+没有未归类的照片。导入时认不出属于哪个计划的照片会放在这里。	No unsorted photos. Imports that don't match any plan land here.
+还没有归到计划的照片。	No photos in any plan yet.
+把 %1 张照片归到	Add %1 photos to
+放到哪一站	Which stop
+照片文件留在原位置，不用挪。	The photo files stay where they are.
+归类	Add
+位置来自站点	Location from the stop
+这种格式不能旋转（只支持 JPG、PNG、WebP）	This format can't be rotated (JPG, PNG and WebP only)
+已旋转并保存。第一次旋转时原图备份在 photos\.originals	Rotated and saved. The first rotation backs up the original in photos\.originals
+旋转失败：	Rotation failed:
+★ 已精选	★ Favorite
+☆ 精选	☆ Favorite
+取消精选（F）	Remove from favorites (F)
+设为精选（F）	Add to favorites (F)
+旋转中…	Rotating…
+↻ 旋转	↻ Rotate
+顺时针转 90°，保存到本地文件	Rotate 90° clockwise and save the file
+这张 HEIC 照片显示不了：这台电脑要装 Microsoft Store 里的两个扩展。HEVC 扩展有的电脑要付费。原文件没有动。	This HEIC photo can't be shown: this PC needs two extensions from the Microsoft Store. The HEVC one costs money on some PCs. The original file is untouched.
+%1 张已归到「%2」· %3（照片文件留在原位置，不用挪）	%1 photos added to "%2" · %3 (the files stay where they are)
+整理照片	Sort photos
+HEIC 照片能导入；这台电脑没装 HEIF / HEVC 扩展，暂时显示不了	HEIC photos can be imported, but this PC has no HEIF / HEVC extensions to show them yet
+%1 张，点一下放大	%1 photos, click to zoom in
+这台电脑没装 HEIF / HEVC 扩展，HEIC 照片显示不了	This PC has no HEIF / HEVC extensions, so HEIC photos can't be shown

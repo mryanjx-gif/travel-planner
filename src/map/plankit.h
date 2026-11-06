@@ -44,6 +44,8 @@ QString toggleTaskLine(const QString &text, int line, bool on);               //
 void setGuide(json::Value &plan, const QString &text);                        // 全是空白时去掉 guide
 // 这个计划的照片（站点顺序，同一站按库里的先后）：[{ id, file, caption, stop（站名）, stopId, stopNo（第几站，从 1 起）, route, fav, takenAt }]
 QVariantList planPhotos(const json::Value &root, const QString &planId);
+// 0.11.1 未归类的照片归到计划（A-03，文件不移动）。plan、stop 都是照片记录已有的字段
+bool assignPhotos(json::Value &root, const QStringList &ids, const QString &planId, const QString &stopId);
 // 照片标签（0.10.5，P-14）。找不到照片 / 计划时返回 false。移除只去掉归属（变成未归类，是封面就连封面去掉），不删文件、不删记录
 bool setPhotoFav(json::Value &root, const QString &id, bool on);
 bool setPhotoCaption(json::Value &root, const QString &id, const QString &caption);

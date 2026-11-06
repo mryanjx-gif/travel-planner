@@ -2,7 +2,7 @@
 // 数据文件夹选择、冲突弹框、外部修改提示、只读 / 更新版本横幅、关闭时没能保存、设置面板（通用 + 数据）、快捷键。
 // 0.5.1：出错小框（右下角，和外部修改卡片叠在一起）、"上次意外退出了"提示。
 // 0.6.0：从 Electron 版导入（选方式、进度、结果）、别处开着时的只读横幅和"仍然编辑"、更新版本写的数据只读。
-// 0.7.0：照片——导入确认表（PhotoImportReview）、清理没用的照片（PhotoCleanupDialog）、开发版"照片测试"页。
+// 0.7.0：照片——导入确认表（PhotoImportReview）、清理没用的照片（PhotoCleanupDialog）。
 // 正式的地图页从阶段 ② 开始做。
 // 0.8.7：左下状态胶囊 + 筛选下拉、"此刻"卡片、右边的简易计划面板、换底图时截一帧盖住再淡出。
 // 0.8.8：顶栏（⋯ 泡泡、↩、列表按钮、头像菜单）代替原型条；"我的旅程"列表（Ctrl B）、Ctrl K 命令面板、前进 / 后退、Esc 一层一层关。
@@ -42,9 +42,8 @@ Window {
     property string rhiDevice: ""
     property int fps: 0
     // 当前页（0.8.8 起由 nav 记录，带前进 / 后退）。0.8.10：plan / wish / foot / photo（地图的四种模式）、
-    // calendar / journal / ledger（整页，阶段 ⑤ 之前是占位页）、settings、phototest。goPage("map") = 回到当前模式
+    // calendar / journal / ledger（整页，阶段 ⑤ 之前是占位页）、settings。goPage("map") = 回到当前模式
     readonly property bool settingsOpen: nav.page === "settings"
-    readonly property bool photoTestOpen: nav.page === "phototest"
     readonly property var modeKeys: ["plan", "wish", "foot", "photo"]
     readonly property var fullPageKeys: ["calendar", "journal", "ledger"]
     readonly property bool onMapPage: modeKeys.indexOf(nav.page) >= 0
@@ -84,7 +83,7 @@ Window {
             if (win.tripTab !== "") planPanel.openTab(win.tripTab)
             win.tripTab = ""
         } else if (old !== "") {
-            if (win.onMapPage && !editor.open) win.revealToast(plans.openPlan(old, false))
+            if (win.onMapPage && !editor.open && plans.mode !== "photo") win.revealToast(plans.openPlan(old, false))   // 照片模式从相册打开的：回相册
             else mapc.markers.clearSelection()
         }
     }
@@ -122,7 +121,7 @@ Window {
     }
 
     // 出错报告里的"页面"（0.5.1）：以后各页面做出来后在这里补
-    Binding { target: errors; property: "page"; value: win.photoTestOpen ? "photo-test" : win.settingsOpen ? "settings" : win.tripOpen ? "trip" : win.fullPageOpen ? nav.page : (win.globeMode ? "globe" : "map-" + plans.mode) }
+    Binding { target: errors; property: "page"; value: win.settingsOpen ? "settings" : win.tripOpen ? "trip" : win.fullPageOpen ? nav.page : (win.globeMode ? "globe" : "map-" + plans.mode) }
 
     // 开发版：故意制造一个 QML 里的 JS 错误（TypeError），实测出错小框
     function devThrow() {
@@ -572,7 +571,17 @@ Window {
             moving: globe.moving
             opacity: win.globeFade
             visible: win.globeMode && mapc.markers.shown
-            active: win.globeMode   // 0.9.6：只在地球上建元素
+            active: win.globeMode && !win.photoMode   // 0.9.6：只在地球上建元素；0.11.1 照片模式只有照片
+        }
+        PhotoMarkers {
+            objectName: "globePhotoMarkers"
+            anchors.fill: parent
+            tip: globeTip
+            moving: globe.moving
+            opacity: win.globeFade
+            visible: active
+            active: win.globeMode && mapc.photoLayer.active
+            onPhotosOpened: (ids) => win.showMapPhotos(ids)
         }
         // 0.9.5 交通小图标：选中计划时一个图标按站点顺序把整条行程走一遍（飞行是飞机、朝前进方向转；其他是圆牌，往左走时左右翻）
         Image {
@@ -713,7 +722,7 @@ Window {
         x: win.rightColX - width
         y: win.topH + 2
         z: 15
-        visible: !win.photoTestOpen && (!win.tripOpen || win.tripRoom)
+        visible: (!win.tripOpen || win.tripRoom) && !win.albumOpen   // 0.11.1 相册铺满时不留地图按钮
         backdrop: scene
         bases: win.bases
         current: win.layerKey
@@ -730,7 +739,7 @@ Window {
         x: win.rightColX - width
         y: layers.y + layers.btnSize + 10
         z: 15
-        visible: win.mapShown || (win.tripOpen && win.tripRoom)   // 0.9.0：地球上也有 ±（Electron 球形时也有）；0.9.5 起 mapShown 含地球
+        visible: (win.mapShown && !win.albumOpen) || (win.tripOpen && win.tripRoom)   // 0.9.0：地球上也有 ±（Electron 球形时也有）；0.9.5 起 mapShown 含地球
         Behavior on x { NumberAnimation { duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
         GlassPanel {
             anchors.fill: parent
@@ -865,7 +874,42 @@ Window {
     }
     function setNowOpen(v) { win.nowOpen = v; if (v) win.listOpen = false }
     property bool listOpen: false
-    onListOpenChanged: { if (listOpen) win.nowOpen = false; else plans.setLibraryOpen(false) }
+    onListOpenChanged: { if (listOpen) win.nowOpen = false; else { plans.setLibraryOpen(false); win.albumOpen = false } }
+    // 0.11.1 相册 = 照片模式的列表铺满（整页）。P1：窄列表点一趟，地图飞到这趟的范围；铺满时不飞
+    property bool albumOpen: false
+    readonly property bool photoMode: plans.mode === "photo"
+    Binding { target: photos.album; property: "active"; value: win.photoMode }
+    Binding { target: mapc.photoLayer; property: "active"; value: win.photoMode && !win.albumOpen }   // 铺满时地图被盖住，标记不用摆
+    Connections {
+        target: plans
+        function onModeChanged() {
+            if (plans.mode !== "photo") { win.albumOpen = false; return }
+            win.fitPhotosOnce()
+        }
+    }
+    Connections { target: mapc.photoLayer; function onInfoChanged() { win.fitPhotosOnce() } }
+    property bool photosFramed: false
+    function fitPhotosOnce() {   // Electron：第一次进来缩放到全部照片
+        if (win.photosFramed || !win.photoMode) return
+        const pts = mapc.photoLayer.pointsOf("")
+        if (pts.length === 0) return
+        win.photosFramed = true
+        mapc.fitPoints(pts, 10, Theme.motion ? 800 : 0)
+    }
+    function flyToPhotos(planId) {
+        if (win.albumOpen) return
+        const pts = mapc.photoLayer.pointsOf(planId)
+        if (pts.length > 0) mapc.fitPoints(pts, 12, Theme.motion ? 800 : 0)
+    }
+    function openTripPhotos(id) {   // 此刻卡"整理照片"：照片模式、展开这一趟、地图飞过去
+        win.goPage("photo")
+        win.listOpen = true
+        photos.album.plan = id
+        win.photosFramed = true
+        Qt.callLater(() => win.flyToPhotos(id))
+    }
+    function showMapPhotos(ids) { const l = photos.album.itemsFor(ids); if (l.length > 0) lightbox.show(l, 0) }
+    Connections { target: win.map; ignoreUnknownSignals: true; function onPhotoOpened(ids) { win.showMapPhotos(ids) } }
     // Ctrl B / 顶栏列表按钮：不在地图页时先回地图（Electron mfList.onclick）
     function toggleList() {
         if (!win.onMapPage) { win.goPage("map"); win.listOpen = true; return }
@@ -931,6 +975,7 @@ Window {
         onOpenPacking: (id) => { win.tripTab = "packing"; win.openTrip(id, -1) }
         onUnsetNext: { win.nowOpen = false; plans.setNextTrip(plans.now.planId, false) }
         onOpenLibrary: win.openLibrary()
+        onOpenPhotos: (id) => win.openTripPhotos(id)
         onMarkDone: (id, name) => { planConfirm.ask("done", id, name) }
     }
 
@@ -943,14 +988,17 @@ Window {
         y: win.topH - 6
         z: 14
         // 0.11.0 展开 = 计划库：占窗口约 60%，右边留地图（PO 第 1 题）；窄窗口只给右边的图层和缩放按钮留一条
-        width: expanded ? (win.width < Theme.px(900) ? win.width - 28 - Theme.px(56) : Math.round(win.width * 0.6)) : Math.min(Theme.px(320), win.width - 28)
+        // 0.11.1 相册铺满整个窗口（PO：照片模式展开成整页）
+        width: targetWidth
+        targetWidth: win.albumOpen ? win.width - 2 * win.gap : expanded ? (win.width < Theme.px(900) ? win.width - 28 - Theme.px(56) : Math.round(win.width * 0.6)) : Math.min(Theme.px(320), win.width - 28)
+        albumOpen: win.albumOpen
         Behavior on width { enabled: Theme.motion; NumberAnimation { duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
         height: win.height - y - 20
         open: win.listOpen && win.mapShown
         backdrop: scene
         info: plans.list
         // 0.8.10：标题跟着模式（PO 选 ② B）
-        title: plans.mode === "foot" ? qsTr("去过的") : plans.mode === "wish" ? qsTr("想去") : plans.mode === "photo" ? qsTr("照片")
+        title: plans.mode === "foot" ? qsTr("去过的") : plans.mode === "wish" ? qsTr("想去") : plans.mode === "photo" ? (win.albumOpen ? qsTr("相册") : qsTr("照片"))
              : plans.libraryOpen ? qsTr("计划库") : qsTr("计划")
         selectedId: mapc.markers.selectedPlan
         nextBadge: win.nowBadge
@@ -968,6 +1016,12 @@ Window {
         onWishStart: (id) => wishDialog.showStart(id)
         onWishSeason: (id) => wishDialog.showSeason(id)
         onExpandedChanged: { mapc.markers.hoverFromList(""); if (expanded) mapc.markers.clearSelection() }
+        onAlbumExpand: (on) => { win.albumOpen = on; photos.album.plan = "" }
+        onAlbumOpenPlan: (id) => { win.tripTab = "photos"; win.openTrip(id, -1) }
+        onAlbumImport: photoFileDialog.open()
+        onAlbumShow: (l, i) => lightbox.show(l, i)
+        onAlbumAssign: (ids) => { if (!photoAssign.ask(ids)) toast.show(qsTr("还没有计划"), false) }
+        onAlbumFly: (id) => win.flyToPhotos(id)
     }
     // 0.11.0 想去：底部月份条（H-03），在左下胶囊右边、放不下时在它上面；开始计划、关联季节
     WishMonthBar {
@@ -988,6 +1042,12 @@ Window {
         objectName: "wishDialog"
         backdrop: scene
         onStarted: (name) => toast.show(qsTr("「%1」已改成计划中").arg(name), false, qsTr("撤销"), () => app.undo())
+    }
+    PhotoAssignDialog {
+        id: photoAssign
+        objectName: "photoAssign"
+        backdrop: scene
+        onAssigned: (n, plan, stop) => toast.show(qsTr("%1 张已归到「%2」· %3（照片文件留在原位置，不用挪）").arg(n).arg(plan).arg(stop), false, qsTr("撤销"), () => app.undo())
     }
     // 0.11.0 批量删除（L-08：列前 8 个名字，照片不删）
     MessageDialog {
@@ -1022,7 +1082,7 @@ Window {
     StatusFilterPill {
         id: statusPill
         objectName: "statusPill"
-        visible: win.mapShown && !win.sheetOpen && !win.editorShown && !plans.libraryOpen   // 0.11.0 计划库有自己的筛选
+        visible: win.mapShown && !win.sheetOpen && !win.editorShown && !plans.libraryOpen && !win.photoMode   // 0.11.0 计划库有自己的筛选；0.11.1 照片模式没有可筛的
         backdrop: scene
         x: win.leftX
         Behavior on x { enabled: Theme.motion; NumberAnimation { duration: 250; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
@@ -1316,7 +1376,7 @@ Window {
     Item {
         id: scaleBar
         objectName: "scaleBar"
-        visible: win.mapShown && !win.drawerPanelOpen && mapc.scaleWidth > 0
+        visible: win.mapShown && !win.drawerPanelOpen && mapc.scaleWidth > 0 && !win.albumOpen
         x: win.leftX + 2
         y: win.leftStackBottom - height
         z: 12
@@ -1339,7 +1399,7 @@ Window {
     Item {
         id: locBtn
         objectName: "locBtn"
-        visible: win.mapShown && !win.sheetOpen && !win.editorShown   // Electron：右边面板开着时藏起来
+        visible: win.mapShown && !win.sheetOpen && !win.editorShown && !win.albumOpen   // Electron：右边面板开着时藏起来
         width: Theme.px(46); height: width
         x: win.width - width - win.gap
         y: win.height - height - win.gap
@@ -1843,7 +1903,6 @@ Window {
         onImportClicked: { importDialog.src = app.electronDataDir; importDialog.open = true }
         onToastRequested: (text, error) => toast.show(text, error)
         onCleanupClicked: win.startCleanup()
-        onPhotoTestClicked: win.goPage("phototest")
     }
 
     // ---- 0.8.10 整页：日历、游记（阶段 ⑤ 之前是占位页，PO 选 ① A）；账本 0.10.2 ----
@@ -1876,19 +1935,6 @@ Window {
         const r = photos.scanCleanup()
         if (!r.ok) toast.show(r.error, true)
         else cleanupDialog.show(r)
-    }
-    PhotoTestPage {
-        id: photoTest
-        anchors.fill: parent
-        anchors.margins: 14
-        anchors.topMargin: win.topH + 4
-        backdrop: scene
-        z: 20
-        open: win.photoTestOpen
-        onCloseClicked: win.goPage("map")
-        onImportClicked: photoFileDialog.open()
-        onCleanupClicked: win.startCleanup()
-        onToastRequested: (text, error) => toast.show(text, error)
     }
     FileDialog {
         id: photoFileDialog
@@ -2279,6 +2325,7 @@ Window {
         { name: "editor", on: () => editor.open, close: () => win.finishEditor() },
         { name: "sheet", on: () => win.mapShown && mapc.markers.selectedPlan !== "", close: () => mapc.markers.clearSelection() },
         { name: "library", on: () => planList.open && plans.libraryOpen, close: () => plans.setLibraryOpen(false) },
+        { name: "album", on: () => planList.open && win.albumOpen, close: () => { win.albumOpen = false } },
         { name: "list", on: () => planList.open, close: () => { win.listOpen = false } },
         // 0.8.10：整页 / 设置 → 回到进来之前的模式；想去 / 足迹 / 照片 → 回"计划"
         { name: "page", on: () => nav.page !== "plan", close: () => win.goPage(win.onMapPage ? "plan" : "map") }
@@ -2397,21 +2444,7 @@ Window {
         interval: 800
         onTriggered: { const r = app.importElectron(app.electronDataDir, "replace"); if (!r.ok) toast.show(r.error, true) }
     }
-    // 截图（0.7.0）：ui-photos 选中第一张；ui-photo-rotate 选中第一张能转的并转一下；ui-photo-import 把 tests/photos 里的照片导入（停在确认表）
-    Timer {
-        id: photoShot
-        interval: 600
-        onTriggered: {
-            const l = photos.library()
-            for (let i = 0; i < l.length; ++i) {
-                if (shotPage === "ui-photo-rotate" ? l[i].canRotate : !l[i].missing) {
-                    photoTest.selectedId = l[i].id
-                    if (shotPage === "ui-photo-rotate") { const r = photos.rotate(l[i].id, 1); if (!r.ok) toast.show(r.error, true) }
-                    break
-                }
-            }
-        }
-    }
+    // 截图（0.7.0）：ui-photo-import 把 tests/photos 里的照片导入（停在确认表）
     Timer {
         id: photoImportShot
         interval: 500
@@ -2531,9 +2564,8 @@ Window {
             extCard.forced = true
             expandFirstError.start()
         }
-        else if (shotPage === "ui-photos" || shotPage === "ui-photo-rotate") { goPage("phototest"); photoShot.start() }
         else if (shotPage === "ui-photo-import" || shotPage === "ui-photo-e2e") photoImportShot.start()
-        else if (shotPage === "ui-photo-clean") { goPage("phototest"); photoCleanShot.start() }
+        else if (shotPage === "ui-photo-clean") photoCleanShot.start()
         else if (shotPage === "ui-settings-photos") goPage("settings")
         else if (shotPage === "ui-crash") crashDialog.crash = { code: "TP-CRASH-K2W7", dump: "crash-20261103-021530.dmp", report: "", gl: true }
         else if (shotPage === "markers" || shotPage === "spread" || shotPage === "pins") markerShot.start()
@@ -2546,7 +2578,7 @@ Window {
         else if (shotPage === "bubbles" || shotPage === "list" || shotPage === "palette" || shotPage === "menu") shellShot.start()
         else if (shotPage.startsWith("trip")) tripShot.start()
         else if (shotPage.startsWith("editor") || shotPage.startsWith("narrow") || shotPage === "locate" || shotPage === "controls") editShot.start()
-        else if (shotPage.startsWith("mode-") || shotPage === "modes" || shotPage === "modes-narrow" || shotPage.startsWith("ledger") || shotPage.startsWith("library") || shotPage.startsWith("wish-")) modeShot.start()
+        else if (shotPage.startsWith("mode-") || shotPage === "modes" || shotPage === "modes-narrow" || shotPage.startsWith("ledger") || shotPage.startsWith("library") || shotPage.startsWith("wish-") || shotPage.startsWith("album") || shotPage.startsWith("photo-") || shotPage.startsWith("heic-")) modeShot.start()
         else if (shotPage !== "" && !shotPage.startsWith("ui-") && shotPage !== "selftest") mapc.base = shotPage
     }
 
@@ -2779,7 +2811,15 @@ Window {
             const d = plans.demo()
             // ledger-now（0.10.5）= 真实的今天：看"已花"几乎是 0 时的样子
             if (d.planId !== undefined && shotPage !== "ledger-now") { plans.setNextTrip(d.planId, true); plans.setTodayOverride(d.today) }
-            if (shotPage.startsWith("library")) {
+            if (shotPage.startsWith("album") || shotPage.startsWith("photo-") || shotPage.startsWith("heic-") || shotPage === "mode-photo") {
+                // 0.11.1：mode-photo = 地图 + 窄列表；photo-trip = P1 点了一趟；photo-lightbox = 看大图（位置来自站点）；
+                // album / album-year / album-fav / album-inbox / album-narrow = 相册整页；
+                // heic-album / heic-lightbox = 真的解 HEIC；heic-off-album / heic-off-lightbox = 没装扩展（假装）
+                plans.setTestAllStatuses(false)
+                win.goPage("photo")
+                win.listOpen = true
+                photoModeShot.start()
+            } else if (shotPage.startsWith("library")) {
                 // 0.11.0：library（画廊）/ library-table / library-region / library-select / library-narrow / library-hover（鼠标在第一张卡片上）；
                 // wish-start = 开始计划的对话框；mode-wish / mode-foot 走下面的 else
                 plans.setTestAllStatuses(false)
@@ -2808,6 +2848,57 @@ Window {
                 win.listOpen = true
             }
         }
+    }
+    Timer {
+        id: photoModeShot
+        interval: 900
+        onTriggered: {
+            const lib = photos.library()
+            for (let i = 0; i < lib.length && i < 40; i += 13) photos.setFav(lib[i].id, true)   // 副本上：几张精选
+            const album = photos.album
+            if (shotPage.startsWith("album")) {
+                if (shotPage === "album-narrow") win.width = 560
+                win.albumOpen = true
+                if (shotPage === "album-year") album.view = "year"
+                if (shotPage === "album-fav") album.view = "fav"
+                if (shotPage === "album-inbox") {
+                    const ids = []
+                    for (let i = 3; i < lib.length && ids.length < 9; i += 7) ids.push(lib[i].id)
+                    photos.assign(ids, "", "")
+                    album.view = "inbox"
+                }
+            } else if (shotPage === "photo-trip" || shotPage === "photo-lightbox") {
+                const t = album.trips
+                let best = null
+                for (const x of t) if (mapc.photoLayer.pointsOf(x.id).length > (best ? mapc.photoLayer.pointsOf(best.id).length : 0)) best = x
+                if (best) {
+                    if (shotPage === "photo-trip") { album.plan = best.id; win.flyToPhotos(best.id) }
+                    else {
+                        const l = []
+                        for (const p of lib) if (p.plan === best.id && !p.lat) l.push(p.id)
+                        win.showMapPhotos(l.slice(0, 12))
+                    }
+                }
+            } else if (shotPage.startsWith("heic-")) {
+                if (shotPage.startsWith("heic-off")) photos.setHeicTestOff(true)
+                photos.startImport(photoShotFiles.filter(f => String(f).endsWith(".heic")))
+            }
+        }
+    }
+    Connections {   // 截图 heic-*：确认表出来后直接导入，再看未归类
+        target: photos
+        enabled: shotPage.startsWith("heic-")
+        function onImportChanged() { if (photos.importStage === "review") photos.confirmImport() }
+        function onImportFinished(r) {
+            win.albumOpen = true
+            photos.album.view = "inbox"
+            if (shotPage.endsWith("lightbox")) heicShot.start()
+        }
+    }
+    Timer {
+        id: heicShot
+        interval: 500
+        onTriggered: { const h = photos.library().filter(p => p.heic); if (h.length) win.showMapPhotos([h[h.length - 1].id]) }
     }
     Timer {
         id: libShot

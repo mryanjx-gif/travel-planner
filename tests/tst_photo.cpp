@@ -8,6 +8,7 @@
 #include "photolib.h"
 #include "photorotate.h"
 #include "thumbcache.h"
+#include "wicimage.h"
 
 #include <QColorSpace>
 #include <QDir>
@@ -326,7 +327,8 @@ private slots:
         const QString photo = tmp.filePath("data/photos/2024-10/a.jpg");
         QVERIFY(writeAll(photo, readAll(fx("full_le.jpg"))));
         ThumbCache c(tmp.filePath("cache/thumbs"));
-        QCOMPARE(ThumbCache::bucket(100), 320);
+        QCOMPARE(ThumbCache::bucket(100), 160);
+        QCOMPARE(ThumbCache::bucket(200), 320);
         QCOMPARE(ThumbCache::bucket(321), 640);
         QCOMPARE(ThumbCache::bucket(4000), 1280);
         QString err;
@@ -352,9 +354,51 @@ private slots:
         c.ensure(photo, 320);
         QCOMPARE(c.clear(), 1);
         // 读不了
-        QVERIFY(c.ensure(fx("photo.heic"), 320, &err).isEmpty());
+        QVERIFY(c.ensure(tmp.filePath("nope.jpg"), 320, &err).isEmpty());
         QVERIFY(!err.isEmpty());
-        QVERIFY(c.ensure(tmp.filePath("nope.jpg"), 320).isEmpty());
+    }
+    // 0.11.1 HEIC 用 Windows 自带的解码：装了扩展就真解（这台开发机装了），没装走"解不了"
+    void heicViaWic()
+    {
+        namespace wic = tp::platform::wic;
+        QTemporaryDir tmp;
+        ThumbCache c(tmp.filePath("thumbs"));
+        QString err;
+        wic::setTestOff(true);
+        QVERIFY(!wic::heifReady());
+        QVERIFY(c.ensure(fx("photo.heic"), 320, &err).isEmpty());
+        QVERIFY2(err.contains(QStringLiteral("HEIF")), qUtf8Printable(err));
+        wic::setTestOff(false);
+        if (!wic::heifReady()) QSKIP("这台电脑没有 HEIF / HEVC 扩展");
+        const auto closeTo = [](QRgb a, int r, int g, int b) { return std::abs(qRed(a) - r) < 45 && std::abs(qGreen(a) - g) < 45 && std::abs(qBlue(a) - b) < 45; };
+        // photo.heic：64×48，左上红、右上绿、左下蓝
+        err.clear();
+        QImage i = loadOriented(fx("photo.heic"), 0, true, &err);
+        QVERIFY2(!i.isNull(), qUtf8Printable(err));
+        QCOMPARE(i.size(), QSize(64, 48));
+        QVERIFY(closeTo(i.pixel(3, 3), 255, 0, 0));
+        QVERIFY(closeTo(i.pixel(60, 3), 0, 255, 0));
+        QVERIFY(closeTo(i.pixel(3, 44), 0, 0, 255));
+        // photo_irot.heic：同一张加了 irot（顺时针 90°），WIC 自己摆正：48×64，左上蓝、右上红
+        i = loadOriented(fx("photo_irot.heic"), 0, true, &err);
+        QVERIFY2(!i.isNull(), qUtf8Printable(err));
+        QCOMPARE(i.size(), QSize(48, 64));
+        QVERIFY(closeTo(i.pixel(3, 3), 0, 0, 255));
+        QVERIFY(closeTo(i.pixel(44, 3), 255, 0, 0));
+        const ex::Info info = ex::readFile(fx("photo_irot.heic"));
+        QCOMPARE(info.displayWidth(), 48);
+        QCOMPARE(info.displayHeight(), 64);
+        // 缩小解码、缩略图缓存
+        i = loadOriented(fx("photo.heic"), 32, true, &err);
+        QCOMPARE(i.size(), QSize(32, 24));
+        const QString out = c.ensure(fx("photo.heic"), 160, &err);
+        QVERIFY2(!out.isEmpty(), qUtf8Printable(err));
+        QCOMPARE(QImage(out).size(), QSize(64, 48));
+        // 坏文件：说读不出来，不是说没装扩展
+        QVERIFY(writeAll(tmp.filePath("bad.heic"), readAll(fx("photo.heic")).left(400)));
+        err.clear();
+        QVERIFY(c.ensure(tmp.filePath("bad.heic"), 320, &err).isEmpty());
+        QVERIFY2(!err.contains(QStringLiteral("HEIF")), qUtf8Printable(err));
     }
     void thumbScaleAndAlpha()
     {

@@ -42,6 +42,9 @@ $AllPages = @(
     'sheet|zh', 'now|zh', 'now|en', 'editor|zh', 'editor-photos|zh', 'editor-photos|en', 'editor-cover|zh', 'filter-overlay|zh', 'filter-overlay|en',
     'library|zh', 'library|en', 'library-table|zh', 'library-table|en', 'library-region|zh', 'library-select|zh', 'library-select|en', 'library-narrow|zh', 'library-hover|zh',
     'mode-wish|zh', 'mode-wish|en', 'wish-start|zh', 'wish-season|zh', 'mode-foot|zh', 'mode-foot|en',
+    'mode-photo|zh', 'mode-photo|en', 'photo-trip|zh', 'photo-lightbox|zh', 'photo-lightbox|en',
+    'album|zh', 'album|en', 'album-year|zh', 'album-fav|zh', 'album-inbox|zh', 'album-inbox|en', 'album-narrow|zh',
+    'heic-album|zh', 'heic-lightbox|zh', 'heic-off-album|zh', 'heic-off-album|en', 'heic-off-lightbox|zh', 'heic-off-lightbox|en',
     'street|zh|hide'
 )
 # 按需跑：逗号分开或多个参数都行

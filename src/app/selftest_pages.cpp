@@ -252,8 +252,8 @@ void runPages(Report &r, AppController *app, map::MapController *mapc, QQuickWin
         const QSet<QString> s2 = statusesOnMap(mapc);
         int total = 0;
         for (int n : byStatus) total += n;
-        r.check(ph && int(mapc->trips().plans().size()) == total && !pc->overlayAvailable() && mapc->overlayTrips().plans().isEmpty(),
-                QStringLiteral("Ctrl 4 照片：画全部计划，没有\"叠上其他旅程\""), QStringLiteral("%1 / %2 个").arg(mapc->trips().plans().size()).arg(total));
+        r.check(ph && mapc->trips().plans().isEmpty() && !pc->overlayAvailable() && mapc->overlayTrips().plans().isEmpty(),
+                QStringLiteral("Ctrl 4 照片：不画计划（0.11.1 地图上只有照片），没有\"叠上其他旅程\""), QStringLiteral("%1 / %2 个").arg(mapc->trips().plans().size()).arg(total));
         // "叠上其他旅程"记在各自的模式里：想去模式打开，回计划模式不受影响
         goPage(win, QStringLiteral("wish"));
         waitMode(pc, win, QStringLiteral("wish"));

@@ -155,14 +155,14 @@ ModalLayer {
                     Image {
                         id: thumb
                         anchors.fill: parent
-                        source: row.modelData.heic ? "" : row.modelData.thumb
+                        source: row.modelData.heic && !photos.heicReady() ? "" : row.modelData.thumb
                         sourceSize.width: 320
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
                     }
                     Text {
                         anchors.centerIn: parent
-                        visible: row.modelData.heic || thumb.status === Image.Error
+                        visible: (row.modelData.heic && !photos.heicReady()) || thumb.status === Image.Error
                         text: row.modelData.heic ? "HEIC" : "?"
                         font.pixelSize: Theme.px(11); font.bold: true; color: Theme.muted
                     }
@@ -187,10 +187,10 @@ ModalLayer {
                         font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
                     }
                     Text {
-                        visible: row.modelData.dup || row.modelData.heic
+                        visible: row.modelData.dup || (row.modelData.heic && !photos.heicReady())
                         width: parent.width
                         text: row.modelData.dup ? (row.modelData.dupInBatch ? qsTr("这一批里选了两次") : qsTr("照片库里已经有一样的"))
-                                                : qsTr("HEIC 照片能导入，但现在还没法显示")
+                                                : qsTr("HEIC 照片能导入；这台电脑没装 HEIF / HEVC 扩展，暂时显示不了")
                         elide: Text.ElideRight
                         font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.warn
                     }

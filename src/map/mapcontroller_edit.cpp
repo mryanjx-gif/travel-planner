@@ -91,7 +91,7 @@ void MapController::rebuildDraft()
     emit draftChanged();
 }
 
-void MapController::fitPoints(const QVariantList &pts, double maxZoom)
+void MapController::fitPoints(const QVariantList &pts, double maxZoom, int durationMs)
 {
     if (pts.isEmpty()) return;
     QVector<geo::LatLng> ll;
@@ -109,7 +109,7 @@ void MapController::fitPoints(const QVariantList &pts, double maxZoom)
     }
     const geo::FitResult r = geo::fitBounds(m_cam, w, s, e, n, fitPad(), maxZoom);
     if (!r.ok) return;
-    flyTo(r.lat, r.lng, r.zoom, 800);
+    flyTo(r.lat, r.lng, r.zoom, durationMs);
 }
 
 bool MapController::anyVisible(const QVariantList &pts) const

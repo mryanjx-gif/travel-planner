@@ -132,6 +132,7 @@ void runAll(Report &r, AppController *app, PhotoController *photos, map::MapCont
     if (want("kit")) runKit(r, app, win, planPageCtl(), navCtl());
     if (want("planphotos")) runPlanPhotos(r, app, win, planPageCtl(), navCtl(), photos);
     if (want("library")) runLibrary(r, app, mapc, win);
+    if (want("photomode")) runPhotoMode(r, app, mapc, win, photos);
     mapc->fitAll(false);
     if (!want("photos")) return;
 
@@ -212,7 +213,7 @@ void runAll(Report &r, AppController *app, PhotoController *photos, map::MapCont
             withTz += !m.value(QStringLiteral("tz")).toString().isEmpty();
             heic += m.value(QStringLiteral("heic")).toBool();
         }
-        r.check(withTz >= 5 && heic == 1, QStringLiteral("确认表内容"), QStringLiteral("有时区 %1 张、HEIC %2 张、已经有了 %3 张").arg(withTz).arg(heic).arg(dup));
+        r.check(withTz >= 5 && heic == 2, QStringLiteral("确认表内容"), QStringLiteral("有时区 %1 张、HEIC %2 张、已经有了 %3 张").arg(withTz).arg(heic).arg(dup));
     }
     *got = false;
     t.restart();

@@ -7,11 +7,14 @@
 #include "datastore.h"
 #include "exif.h"
 #include "photorotate.h"
+#include "settings.h"
 #include "thumbcache.h"
 #include "thumbprovider.h"
 #include "translator.h"
+#include "wicimage.h"
 
 #include <QDateTime>
+#include <QDesktopServices>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -59,7 +62,16 @@ PhotoController::PhotoController(AppController *app, data::ThumbCache *cache, Th
 {
     connect(app, &AppController::dataChanged, this, &PhotoController::onDataChanged);
     connect(app, &AppController::docReplaced, this, &PhotoController::onDataChanged);
+    m_album.setParent(this);
+    m_album.setDocSource([this]() -> const Value & { return m_app->store()->data(); });
+    connect(this, &PhotoController::libraryChanged, &m_album, &AlbumModel::refresh);
     onDataChanged();
+}
+
+void PhotoController::setSettings(Settings *settings)
+{
+    const QString key = QStringLiteral("albumView");
+    m_album.setViewStore(settings->value(key).toString(), [settings, key](const QString &v) { settings->setValue(key, Value(v)); settings->save(); });
 }
 
 PhotoController::~PhotoController() { shutdown(); }
@@ -67,7 +79,7 @@ PhotoController::~PhotoController() { shutdown(); }
 void PhotoController::shutdown()
 {
     m_cancel = true;
-    for (QThread *t : { m_thread, m_trashThread, m_cacheThread })
+    for (QThread *t : { m_thread, m_trashThread, m_cacheThread, m_rotateThread })
         if (t) t->wait();
 }
 
@@ -92,12 +104,35 @@ QString PhotoController::fileOf(const QString &photoId) const
 
 QString PhotoController::fileUrl(const QString &file) const
 {
-    return file.startsWith(QLatin1String("photos/")) ? QUrl::fromLocalFile(dataDir() + u'/' + file).toString() : QString();
+    if (!file.startsWith(QLatin1String("photos/"))) return {};
+    if (tp::map::photomap::isHeic(file)) return ThumbProvider::urlFor(file, 0, 0);
+    const QString url = QUrl::fromLocalFile(dataDir() + u'/' + file).toString();
+    const int n = m_turned.value(file);
+    return n > 0 ? url + QStringLiteral("?r=%1").arg(n) : url;
+}
+
+bool PhotoController::heicReady() const { return platform::wic::heifReady(); }
+bool PhotoController::isHeic(const QString &file) const { return tp::map::photomap::isHeic(file); }
+void PhotoController::setHeicTestOff(bool off) { platform::wic::setTestOff(off); ++m_revision; emit libraryChanged(); }
+
+void PhotoController::openStore(const QString &what)
+{
+    // 商店编号 2026-11-07 核实（技术选型.md）
+    QDesktopServices::openUrl(QUrl(QStringLiteral("ms-windows-store://pdp/?ProductId=") + (what == QLatin1String("hevc") ? QStringLiteral("9NMZLZ57R3T7") : QStringLiteral("9PMMSR1CGPWG"))));
+}
+
+bool PhotoController::assign(const QStringList &ids, const QString &planId, const QString &stopId)
+{
+    return applyEdit([&](json::Value &d) { return tp::map::plans::assignPhotos(d, ids, planId, stopId); });
 }
 
 QSize PhotoController::imageSize(const QString &file) const
 {
     if (!file.startsWith(QLatin1String("photos/"))) return {};
+    if (tp::map::photomap::isHeic(file)) {   // Qt 读不了；文件头自己读（irot 已经算进去）
+        const data::exif::Info i = data::exif::readFile(dataDir() + u'/' + file);
+        return QSize(i.displayWidth(), i.displayHeight());
+    }
     QImageReader r(dataDir() + u'/' + file);
     r.setAutoTransform(true);
     QSize s = r.size();
@@ -173,7 +208,7 @@ QVariantMap PhotoController::photoMap(const Value &ph) const
     m.insert(QStringLiteral("canRotate"), local && pl::canRotate(abs));
     m.insert(QStringLiteral("planName"), planName(ph[QStringLiteral("plan")].toString()));
     m.insert(QStringLiteral("stopName"), stopName(ph[QStringLiteral("plan")].toString(), ph[QStringLiteral("stop")].toString()));
-    const int v = m_thumbVersion.value(id) + m_epoch;
+    const int v = m_epoch;
     m.insert(QStringLiteral("thumb"), local ? ThumbProvider::urlFor(file, 320, v) : QString());
     m.insert(QStringLiteral("thumbLarge"), local ? ThumbProvider::urlFor(file, 1280, v) : QString());
     return m;
@@ -476,9 +511,37 @@ QVariantMap PhotoController::rotate(const QString &photoId, int turnsCw)
         if (ph[QStringLiteral("id")].toString() == photoId) { file = ph[QStringLiteral("file")].toString(); break; }
     if (file.isEmpty()) return result(false, tp::tr("照片找不到"));
     const data::RotateResult r = data::rotatePhoto(dataDir(), file, turnsCw);
+    afterRotate(photoId, file, r);
+    return result(r.ok, r.error);
+}
+
+void PhotoController::rotateLater(const QString &photoId, int turnsCw)
+{
+    if (m_rotateThread) return;
+    data::DataStore *store = m_app->store();
+    if (store->isReadOnly()) { emit rotateFinished(photoId, false, tp::tr("现在的数据是只读的，不能旋转照片。")); return; }
+    const QString file = fileOf(photoId);
+    if (file.isEmpty()) { emit rotateFinished(photoId, false, tp::tr("照片找不到")); return; }
+    const QString dir = dataDir();
+    m_rotateThread = QThread::create([this, photoId, file, dir, turnsCw] {
+        const data::RotateResult r = data::rotatePhoto(dir, file, turnsCw);
+        QMetaObject::invokeMethod(this, [this, photoId, file, r] {
+            if (m_rotateThread) { m_rotateThread->wait(); delete m_rotateThread; m_rotateThread = nullptr; }
+            afterRotate(photoId, file, r);
+            emit rotatingChanged();
+            emit rotateFinished(photoId, r.ok, r.error);
+        }, Qt::QueuedConnection);
+    });
+    m_rotateThread->start();
+    emit rotatingChanged();
+}
+
+void PhotoController::afterRotate(const QString &photoId, const QString &file, const data::RotateResult &r)
+{
+    data::DataStore *store = m_app->store();
     if (!r.ok) {
         qWarning("旋转照片失败（%s）：%s", qUtf8Printable(file), qUtf8Printable(r.error));
-        return result(false, r.error);
+        return;
     }
     qInfo("旋转照片：%s（%s%s）", qUtf8Printable(file), r.lossless ? "无损" : "重新压缩", r.backedUp ? "，原图已备份到 .originals" : "");
     bool needSize = false;
@@ -507,10 +570,10 @@ QVariantMap PhotoController::rotate(const QString &photoId, int turnsCw)
         });
         m_app->noteChanged(true);
     }
-    m_thumbVersion[photoId] += 1;
+    ThumbProvider::noteRotated(file);
+    m_turned[file] += 1;
     ++m_revision;
     emit libraryChanged();
-    return result(true);
 }
 
 // ---------- 清理 ----------

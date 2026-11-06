@@ -369,6 +369,7 @@ int main(int argc, char *argv[])
     engine.addImageProvider(QStringLiteral("thumb"), thumbProvider);
     engine.addImageProvider(QStringLiteral("marker"), new tp::map::MarkerImages);   // 地图标记（0.8.2），引擎接管
     tp::app::PhotoController photos(&ctl, &thumbs, thumbProvider);
+    photos.setSettings(&settings);
     QQmlContext *ctx = engine.rootContext();
     ctx->setContextProperty("tpVersion", QStringLiteral(TP_VERSION_STRING));
     ctx->setContextProperty("serifFamily", serif);
@@ -388,7 +389,7 @@ int main(int argc, char *argv[])
     // 截图 ui-photo-import / ui-photo-e2e：把 tests/photos.txt 里的测试照片当成"选中的文件"
     QVariantList photoShotFiles;
 #ifdef TP_SOURCE_DIR
-    if (shotPage == QLatin1String("ui-photo-import") || shotPage == QLatin1String("ui-photo-e2e")) {
+    if (shotPage == QLatin1String("ui-photo-import") || shotPage == QLatin1String("ui-photo-e2e") || shotPage.startsWith(QLatin1String("heic-"))) {
         QFile pack(QStringLiteral(TP_SOURCE_DIR "/tests/photos.txt"));   // 每行"文件名<Tab>base64"
         const QString dir = Paths::cacheDir() + QStringLiteral("/shot-photos");
         QDir().mkpath(dir);

@@ -15,7 +15,6 @@ GlassPanel {
     signal pickBackupFolder(string then)
     signal importClicked()
     signal cleanupClicked()
-    signal photoTestClicked()
     signal toastRequested(string text, bool error)
 
     radius: Theme.radiusLarge
@@ -312,13 +311,6 @@ GlassPanel {
                             if (!r.ok) root.toastRequested(r.error, true)
                         }
                     }
-                }
-                // 0.7.0：照片测试页
-                SettingsRow {
-                    width: parent.width
-                    label: qsTr("照片测试")
-                    sub: qsTr("看照片库、导入照片、旋转、清理（正式的相册在之后的版本做）。")
-                    TpButton { compact: true; text: qsTr("打开"); onClicked: root.photoTestClicked() }
                 }
                 // 0.5.1：故意制造错误，实测出错小框 / 崩溃 / 卡住
                 SettingsRow {

@@ -17,6 +17,7 @@
 #include "jsonio.h"
 #include "markers.h"
 #include "night.h"
+#include "photomap.h"
 #include "plankit.h"
 #include "plans.h"
 #include "planedit.h"
@@ -65,6 +66,7 @@ class TestMap : public QObject
 {
     Q_OBJECT
 private slots:
+    void photoMapBasics();
     void plansLibrary();
     void tripTone();
     void altitudeRules();
@@ -2056,6 +2058,93 @@ void TestMap::globeSlerpAndLerp()
     slerpCenter(10, 20, 10, 20, 0.3, &lat, &lng);
     QVERIFY(std::abs(lat - 10) < 1e-12 && std::abs(lng - 20) < 1e-12);
     QVERIFY(std::abs(angleBetween(0, 0, 0, 90) - M_PI / 2) < 1e-12);
+}
+
+// 0.11.1 照片模式、相册的计算
+void TestMap::photoMapBasics()
+{
+    namespace pm = tp::map::photomap;
+    const QString js = QStringLiteral(R"({ "plans": [
+      { "id": "a", "name": "旧趟", "status": "completed", "type": "route", "startDate": "2024-05-01", "stops": [
+        { "id": "s1", "name": "一", "lat": 10, "lng": 20, "arriveDate": "2024-05-02" }, { "id": "s2", "name": "二", "lat": 30, "lng": 40 } ] },
+      { "id": "b", "name": "新趟", "status": "planning", "startDate": "2026-01-01", "stops": [ { "id": "s3", "name": "三", "lat": -5, "lng": 100 } ] },
+      { "id": "c", "name": "没照片", "stops": [] } ],
+      "photos": [
+        { "id": "p1", "file": "photos/x/1.jpg", "plan": "a", "stop": "s1" },
+        { "id": "p2", "file": "photos/x/2.jpg", "plan": "a", "stop": "s1", "fav": true },
+        { "id": "p3", "file": "photos/x/3.jpg", "plan": "a", "stop": "s2", "lat": 31, "lng": 41, "takenAt": "2023-03-04T05:06" },
+        { "id": "p4", "file": "photos/x/4.heic", "plan": "b", "stop": "" },
+        { "id": "p5", "file": "photos/x/5.jpg", "plan": "", "stop": "", "lat": 1, "lng": 2 },
+        { "id": "p6", "file": "photos/x/6.jpg", "plan": "gone", "stop": "s9" } ] })");
+    const tp::json::Value root = tp::json::parse(js);
+    const pm::Library lib = pm::read(root);
+    QCOMPARE(lib.recs.size(), 6);
+    QVERIFY(lib.recs[0].hasPos && lib.recs[0].fromStop);      // 没有 GPS：站点的位置
+    QCOMPARE(lib.recs[0].lat, 10.0);
+    QVERIFY(lib.recs[2].hasPos && !lib.recs[2].fromStop);     // GPS 优先
+    QCOMPARE(lib.recs[2].lat, 31.0);
+    QVERIFY(!lib.recs[3].hasPos);                             // 只归到计划：没有位置
+    QVERIFY(lib.recs[4].hasPos && lib.recs[4].plan.isEmpty()); // 未归类但有 GPS
+    QVERIFY(lib.recs[5].plan.isEmpty());                      // 计划没了：算未归类
+    QCOMPARE(lib.pinned, 4);
+    QCOMPARE(lib.noPos, 2);
+    QCOMPARE(lib.favs, 1);
+    QCOMPARE(lib.inbox, 2);
+    QCOMPARE(lib.heic, 1);
+    QCOMPARE(lib.recs[0].day, QStringLiteral("2024-05-02"));  // 到站日期
+    QCOMPARE(lib.recs[2].day, QStringLiteral("2023-03-04"));  // 拍摄时间优先
+    QCOMPARE(lib.recs[3].day, QStringLiteral("2026-01-01"));  // 计划开始
+    QCOMPARE(lib.trips.size(), 2);
+    QCOMPARE(lib.trips[0].id, QStringLiteral("a"));           // 已完成的在前
+    QCOMPARE(lib.trips[0].rep, 1);                            // 代表图优先精选
+
+    // 合并：小比例尺全合在一起；放大后分开；同一站的永远在一起，代表图优先精选
+    QVector<pm::Group> g = pm::cluster(lib.recs, 14);
+    QCOMPARE(g.size(), 3);
+    int same = -1;
+    for (int i = 0; i < g.size(); ++i) if (g[i].members.size() == 2) same = i;
+    QVERIFY(same >= 0);
+    QVERIFY(g[same].samePlace);
+    QCOMPARE(g[same].rep, 1);
+    QVector<pm::Rec> closeBy;
+    for (int i = 0; i < 2000; ++i) { pm::Rec r; r.hasPos = true; r.lat = 30 + (i % 50) * 0.01; r.lng = 110 + (i / 50) * 0.01; closeBy.push_back(r); }
+    g = pm::cluster(closeBy, 3);
+    QCOMPARE(g.size(), 1);
+    QCOMPARE(g[0].members.size(), 2000);
+    QVERIFY(!g[0].samePlace);
+    const QVector<pm::Group> split = pm::cluster(closeBy, 16);
+    QVERIFY(split.size() > 100);
+    int sum = 0;
+    for (const pm::Group &x : split) sum += int(x.members.size());
+    QCOMPARE(sum, 2000);                                      // 一张不多一张不少
+
+    // 行：整页按旅程
+    auto kinds = [](const QVector<pm::Row> &rows) { QStringList k; for (const pm::Row &r : rows) k << r.kind; return k.join(u' '); };
+    QCOMPARE(kinds(pm::rows(lib, QStringLiteral("trip"), QString(), false, 2)), QStringLiteral("plan stop photos stop photos plan stop photos"));
+    QCOMPARE(kinds(pm::rows(lib, QStringLiteral("trip"), QStringLiteral("b"), false, 2)), QStringLiteral("plan stop photos"));
+    // 窄列表：每趟一行 + 没有位置，只展开选中的
+    QCOMPARE(kinds(pm::rows(lib, QStringLiteral("trip"), QString(), true, 3)), QStringLiteral("trip trip trip"));
+    QCOMPARE(kinds(pm::rows(lib, QStringLiteral("trip"), QStringLiteral("a"), true, 3)), QStringLiteral("trip stop photos stop photos trip trip"));
+    const QVector<pm::Row> np = pm::rows(lib, QStringLiteral("trip"), QString::fromLatin1(pm::kNoPos), true, 3);
+    QCOMPARE(kinds(np), QStringLiteral("trip trip trip photos"));
+    QCOMPARE(np.last().recs.size(), 2);
+    // 列数：2 张一行时切两行，同一组
+    const QVector<pm::Row> fav = pm::rows(lib, QStringLiteral("inbox"), QString(), false, 1);
+    QCOMPARE(fav.size(), 2);
+    QCOMPARE(fav[0].group, fav[1].group);
+    // 按年份：新的年在前，没有日期的最后
+    QStringList titles;
+    for (const pm::Row &r : pm::rows(lib, QStringLiteral("year"), QString(), false, 4)) if (r.kind == QLatin1String("year")) titles << r.title;
+    QCOMPARE(titles.first(), QStringLiteral("2026"));
+    QCOMPARE(titles.last(), QString());
+    // 精选
+    QCOMPARE(pm::rows(lib, QStringLiteral("fav"), QString(), false, 4).size(), 1);
+    QCOMPARE(pm::rows(lib, QStringLiteral("fav"), QString(), false, 4).first().recs.first(), 1);
+    // 归到计划
+    tp::json::Value doc = root;
+    QVERIFY(tp::map::plans::assignPhotos(doc, { QStringLiteral("p5") }, QStringLiteral("b"), QStringLiteral("s3")));
+    QCOMPARE(pm::read(doc).recs[4].plan, QStringLiteral("b"));
+    QVERIFY(!tp::map::plans::assignPhotos(doc, { QStringLiteral("nope") }, QStringLiteral("b"), QStringLiteral("s3")));
 }
 
 QTEST_GUILESS_MAIN(TestMap)
