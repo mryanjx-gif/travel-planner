@@ -50,6 +50,7 @@ public:
     Q_INVOKABLE QString setBudget(const QString &text, const QString &currency);
     Q_INVOKABLE QString editPerson(const QString &id, const QString &name, bool remove);   // 0.10.2 同行人改名、删除（plans::editPerson）
     Q_INVOKABLE void showLedger(bool on);                // 账本页打开 / 关上
+    Q_INVOKABLE QString setElev(int k, const QString &text);   // 0.10.3 空 = 去掉并重新取；否则是原因的键（plans::setStopElev）
     Q_INVOKABLE void dismissNights();                    // J1"这几晚不用"：记进 settings.json 的 noStayNights，不改数据
 
     // 测试用：替换 Open-Meteo 请求（和 PlanEditor::Fetch 一样的签名）
@@ -65,6 +66,7 @@ private:
     void refresh();
     void fillTz(const QString &planId);
     void fillBatch(const QString &planId);
+    void fillElev(const QString &planId);    // 0.10.3 只补空的海拔
     void edited();
     QString applyPlan(const std::function<QString(json::Value &plan)> &fn);
 
@@ -79,7 +81,7 @@ private:
     QVariantMap m_info;
     QVariantMap m_ledger;
     bool m_ledgerOn = false;
-    QSet<QString> m_filling;
+    QSet<QString> m_filling, m_fillingElev;
     int m_tzRequests = 0;
 };
 

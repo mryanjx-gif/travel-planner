@@ -43,6 +43,18 @@ QtObject {
         return k === "flight" ? qsTr("机票") : k === "train" ? qsTr("火车") : k === "bus" ? qsTr("大巴") : k === "ferry" ? qsTr("船票")
              : k === "car" ? qsTr("租车") : k === "hotel" ? qsTr("住宿") : k === "ticket" ? qsTr("门票") : qsTr("其他")
     }
+    // 0.10.3 天气（weather.js wmo）
+    function wxLabel(k) {
+        return k === "clear" ? qsTr("晴") : k === "partly" ? qsTr("少云") : k === "cloudy" ? qsTr("阴") : k === "fog" ? qsTr("雾") : k === "drizzle" ? qsTr("毛毛雨")
+             : k === "rain" ? qsTr("雨") : k === "snow" ? qsTr("雪") : k === "showers" ? qsTr("阵雨") : k === "snowShowers" ? qsTr("阵雪") : k === "storm" ? qsTr("雷暴") : "—"
+    }
+    function wxIcon(k) {
+        return k === "clear" || k === "partly" ? "sun" : k === "drizzle" || k === "rain" || k === "showers" ? "rain"
+             : k === "snow" || k === "snowShowers" ? "snow" : k === "storm" ? "storm" : "cloud"
+    }
+    // 小雨 12–18°C（此刻卡）；拿不到时为空
+    function wxText(w) { return w && w.kind ? wxLabel(w.kind) + " " + Math.round(w.lo) + "–" + Math.round(w.hi) + "°C" : "" }
+    function num(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ",") }
     function catLabel(k) {
         return k === "transport" ? qsTr("交通") : k === "stay" ? qsTr("住宿") : k === "food" ? qsTr("餐饮")
              : k === "ticket" ? qsTr("娱乐/门票") : k === "shop" ? qsTr("购物") : qsTr("其他")

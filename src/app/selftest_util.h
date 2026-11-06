@@ -23,6 +23,7 @@ class PlanEditor;
 class PlanPageController;
 class NavHistory;
 class RatesController;
+class WeatherController;
 class Locator;
 class FrameStats;
 class Settings;
@@ -94,6 +95,9 @@ void runPlanPage(Report &r, AppController *app, map::MapController *mapc, QQuick
 RatesController *ratesCtl();
 void runMoney(Report &r, AppController *app, QQuickWindow *win, PlanPageController *page, NavHistory *nav, RatesController *rates);
 void runSplit(Report &r, AppController *app, QQuickWindow *win, PlanPageController *page, NavHistory *nav, RatesController *rates);
+// 0.10.3：天气、气候、海拔、高反、此刻卡（selftest_weather.cpp）
+WeatherController *weatherCtl();
+void runWeather(Report &r, AppController *app, QQuickWindow *win, PlanPageController *page, NavHistory *nav, WeatherController *weather);
 // 0.9.1：性能——启动各步、拖地图每帧、换模式、数据重建、写设置、玻璃和标记各占多少（selftest_perf.cpp）
 FrameStats *frameStats();
 Settings *settingsObj();

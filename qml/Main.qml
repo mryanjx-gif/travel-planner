@@ -903,6 +903,10 @@ Window {
         win.revealToast(plans.openPlan(id, true))
     }
 
+    Connections {
+        target: weather
+        function onClimateFailed() { toast.show(qsTr("往年气候没取到，等一下再试"), true) }
+    }
     NowCard {
         id: nowCard
         objectName: "nowCard"
@@ -2378,6 +2382,7 @@ Window {
                 plans.setNextTrip(d.planId, true)
                 plans.setTodayOverride(d.today)
                 win.nowOpen = true
+                weather.fillDemoForShot()   // 0.10.3 L2
                 frameNextTimer.start()
             } else if (shotPage === "sheet") {
                 const r = mapc.markers.demo("route")
@@ -2428,7 +2433,7 @@ Window {
             if (d.planId === undefined) { console.warn("截图 trip：数据里没有带日期的路线"); return }
             plans.setTodayOverride(d.today)
             if (shotPage === "trip-today") plans.setNextTrip(d.planId, true)
-            if (shotPage === "trip-narrow" || shotPage === "trip-split-narrow") win.width = 500
+            if (shotPage === "trip-narrow" || shotPage === "trip-split-narrow" || shotPage === "trip-alt-narrow") win.width = 500
             let id = d.planId
             if (shotPage === "trip-sketch") id = mapc.markers.demo("route").planId || id   // 没有照片、没有日期：路线简图、预计天数
             if (shotPage === "trip-single") {
@@ -2438,6 +2443,16 @@ Window {
             win.openTrip(id, shotPage === "trip-today" ? plans.now.hereIndex || 0 : -1)
             if (shotPage === "trip-scroll") tripShot2.start()
             if (shotPage === "trip-edit") tripShot2.start()
+            // 0.10.3：trip-weather = 高反提示 + 页头；trip-elev = 站点卡片（天气、气候、海拔就地改）；trip-alt-narrow = 500 宽。开发数据不在预报范围里，填示例
+            if (shotPage === "trip-weather" || shotPage === "trip-elev" || shotPage === "trip-alt-narrow") {
+                const elev = [1000, 3000, 5000, 7000, 9000]
+                let n = 0
+                const list = planPage.info.stops || []
+                for (let k = 0; k < list.length && n < elev.length; ++k)
+                    if (Fmt.nights(list[k].arriveDate, list[k].departDate) > 0) planPage.setElev(k, String(elev[n++]))
+                weather.fillDemoForShot()
+                if (shotPage === "trip-elev") tripShot2.start()
+            }
             if (win.moneyShot) {
                 win.seedMoney()
                 if (shotPage === "trip-settle" || shotPage.startsWith("trip-split")) win.seedSplit()
@@ -2450,6 +2465,7 @@ Window {
         interval: 600
         onTriggered: {
             if (shotPage === "trip-scroll") { planPanel.pickStop(2); planPanel.reveal(2, true); return }
+            if (shotPage === "trip-elev") { planPanel.reveal(1, true); planPanel.beginElev(1); return }
             if (win.moneyShot) {
                 planPanel.openTab(shotPage === "trip-bookings" || shotPage === "trip-booking-form" ? "bookings" : shotPage === "trip-stopbooks" ? "itinerary" : "budget")
                 if (shotPage === "trip-booking-form") bookingDialog.show(null, "hotel")

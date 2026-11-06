@@ -36,6 +36,14 @@ Canvas {
         c.closePath(); c.stroke()
     }
 
+    function cloud(c, dy) {
+        c.beginPath(); c.moveTo(7, 18 + dy)
+        c.bezierCurveTo(2.5, 18 + dy, 2.5, 12 + dy, 7, 12 + dy)
+        c.bezierCurveTo(7, 6.5 + dy, 15.5, 5.5 + dy, 16.5, 11 + dy)
+        c.bezierCurveTo(21.5, 10.5 + dy, 22, 18 + dy, 17, 18 + dy)
+        c.closePath(); c.stroke()
+    }
+
     onPaint: {
         const c = getContext("2d")
         c.reset()
@@ -66,6 +74,16 @@ Canvas {
         case "moon":
             c.beginPath(); c.arc(12, 12, 8, Math.PI * 0.35, Math.PI * 1.65, false); c.bezierCurveTo(13, 7, 13, 17, 17.4, 17.9); c.stroke()
             break
+        case "mountain":
+            poly(c, [2, 20, 9, 7, 13, 14, 16, 10, 22, 20], true); break
+        case "cloud":
+            cloud(c, 0); break
+        case "rain":
+            cloud(c, -3); poly(c, [8, 18, 7, 21]); poly(c, [12.5, 18, 11.5, 21]); poly(c, [17, 18, 16, 21]); break
+        case "snow":
+            cloud(c, -3); circle(c, 8, 19.5, 1, true); circle(c, 12, 21, 1, true); circle(c, 16, 19.5, 1, true); break
+        case "storm":
+            cloud(c, -3); poly(c, [13, 15, 10, 19.5, 13.5, 19.5, 11, 23]); break
         case "close":
             poly(c, [6, 6, 18, 18]); poly(c, [18, 6, 6, 18]); break
         case "search":

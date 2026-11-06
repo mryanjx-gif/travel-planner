@@ -6,6 +6,7 @@
 #include "plancontroller.h"
 #include "planmoney.h"
 #include "planpage.h"
+#include "planweather.h"
 #include "plans.h"
 #include "ratescontroller.h"
 #include "settings.h"
@@ -18,6 +19,7 @@ using json::Value;
 namespace {
 constexpr int kTzBatch = 50;         // Electron fillGeo 每批 50 个
 constexpr int kTzTimeoutMs = 25000;
+constexpr int kElevBatch = 100;      // Electron fillGeo 每批 100 个
 }
 
 PlanPageController::PlanPageController(AppController *app, PlanController *pc, data::DataStore *store, services::NetClient *net,
@@ -35,7 +37,7 @@ void PlanPageController::show(const QString &planId)
     if (planId == m_id) return;
     m_id = planId;
     refresh();
-    if (!planId.isEmpty()) { fillTz(planId); m_rates->ensure(); }
+    if (!planId.isEmpty()) { fillTz(planId); fillElev(planId); m_rates->ensure(); }
 }
 
 void PlanPageController::showLedger(bool on)
@@ -185,6 +187,40 @@ void PlanPageController::dismissNights()
 }
 
 // ---------------- 补时区（Electron weather.js fillGeo）：只补空的；失败只记日志，下次打开再试 ----------------
+
+QString PlanPageController::setElev(int k, const QString &text)
+{
+    const QString err = applyPlan([&](Value &p) { return plans::setStopElev(p, k, text); });
+    if (err.isEmpty() && text.trimmed().isEmpty()) fillElev(m_id);   // 清空后重新取
+    return err;
+}
+
+void PlanPageController::fillElev(const QString &planId)
+{
+    if (m_fillingElev.contains(planId) || m_store->isReadOnly()) return;
+    if (!m_fetch && (!m_net || !m_net->allows(QStringLiteral("weather")))) return;
+    const Value *p = plans::planById(m_store->data(), planId);
+    QVector<plans::TzStop> need = p ? plans::stopsWithoutElev(*p) : QVector<plans::TzStop>();
+    if (need.isEmpty()) return;
+    if (need.size() > kElevBatch) need.resize(kElevBatch);
+    QStringList ids;
+    for (const plans::TzStop &s : need) ids << s.id;
+    m_fillingElev.insert(planId);
+    auto done = [this, planId, ids](int status, const QByteArray &body, int netError) {
+        m_fillingElev.remove(planId);
+        const QVector<double> elev = netError == 0 ? plans::parseElev(body, int(ids.size())) : QVector<double>();
+        int n = 0;
+        if (!elev.isEmpty() && !m_store->isReadOnly()) {
+            m_store->modify([&](Value &d) { n = plans::applyElev(d, planId, ids, elev); });
+            if (n > 0) edited();
+        }
+        qInfo("海拔：补了 %d 站（共问 %d 站，HTTP %d）", n, int(ids.size()), status);
+        if (n > 0) fillElev(planId);   // 一个都没补上（网络问题、回复认不出）就停
+    };
+    const QUrl url = plans::elevUrl(need);
+    if (m_fetch) { m_fetch(url, done); return; }
+    m_net->get(url, kTzTimeoutMs, this, [done](const services::NetClient::Reply &r) { done(r.status, r.body, int(r.error)); });
+}
 
 void PlanPageController::fillTz(const QString &planId)
 {

@@ -20,6 +20,8 @@
 #include "plans.h"
 #include "planedit.h"
 #include "planmoney.h"
+#include <cmath>
+#include "planweather.h"
 #include "planpage.h"
 #include "suncalc.h"
 #include "roads.h"
@@ -62,6 +64,9 @@ class TestMap : public QObject
 {
     Q_OBJECT
 private slots:
+    void altitudeRules();
+    void weatherParsing();
+    void elevEditing();
     void moneyRates();
     void moneySpend();
     void moneySplit();
@@ -2469,6 +2474,182 @@ void TestMap::moneyBookingsView()
     QCOMPARE(missingNights(noStops, "2026-11-01", &undated), QStringList{ "2026-12-02" });   // 只写入住：住一晚
     QCOMPARE(undated, 1);
     QVERIFY(missingNights(parseJson(R"({"status":"planning"})"), "2026-11-01").isEmpty());
+}
+
+
+void TestMap::altitudeRules()
+{
+    using namespace tp::map::plans;
+    const auto warns = [](const tp::json::Value &p) { return altitudeInfo(p).value("warnings").toList(); };
+    const auto tags = [](const tp::json::Value &p) { return altitudeInfo(p).value("tags").toStringList(); };
+    const auto stop = [](double e, const QString &a, const QString &b) {
+        return QStringLiteral(R"({"name":"S","lat":1,"lng":1,"elev":%1,"arriveDate":"%2","departDate":"%3"})").arg(e).arg(a, b);
+    };
+    const auto plan = [](const QStringList &stops) { return parseJson(QStringLiteral(R"({"stops":[%1]})").arg(stops.join(',')).toUtf8()); };
+
+    // 都不到 2500：什么都没有
+    QVERIFY(warns(plan({ stop(1000, "2026-12-01", "2026-12-02"), stop(2400, "2026-12-02", "2026-12-03") })).isEmpty());
+    // 单站
+    const auto one = plan({ stop(3500, "2026-12-01", "2026-12-03") });
+    QVERIFY(warns(one).isEmpty());
+    QCOMPARE(tags(one), QStringList{ "high" });
+    // 跨 3000 边界：3000 算到了；2999 不算
+    auto w = warns(plan({ stop(2000, "2026-12-01", "2026-12-02"), stop(3000, "2026-12-02", "2026-12-03") }));
+    QCOMPARE(w.size(), 1);
+    QCOMPARE(w[0].toMap().value("gain").toInt(), 1000);
+    QVERIFY(warns(plan({ stop(2000, "2026-12-01", "2026-12-02"), stop(2999, "2026-12-02", "2026-12-03") })).isEmpty());
+    // 正好 500 不算超；多天按天数放宽
+    QVERIFY(warns(plan({ stop(3000, "2026-12-01", "2026-12-02"), stop(3500, "2026-12-02", "2026-12-03") })).isEmpty());
+    QVERIFY(warns(plan({ stop(3000, "2026-12-01", "2026-12-03"), stop(3900, "2026-12-03", "2026-12-04") })).isEmpty());
+    w = warns(plan({ stop(3000, "2026-12-01", "2026-12-03"), stop(4100, "2026-12-03", "2026-12-04") }));
+    QCOMPARE(w.size(), 1);
+    QCOMPARE(w[0].toMap().value("days").toInt(), 2);
+    // 没海拔的站跳过，比较前后有海拔的两站；站号是原来的
+    const auto gap = plan({ stop(2000, "2026-12-01", "2026-12-02"), R"({"name":"N","lat":1,"lng":1,"arriveDate":"2026-12-02","departDate":"2026-12-03"})", stop(3800, "2026-12-03", "2026-12-04") });
+    w = warns(gap);
+    QCOMPARE(w.size(), 1);
+    QCOMPARE(w[0].toMap().value("from").toInt(), 1);
+    QCOMPARE(w[0].toMap().value("to").toInt(), 3);
+    QCOMPARE(tags(gap), QStringList({ "", "", "rise" }));
+    // 当天走的站（0 晚）不算睡觉的海拔
+    w = warns(plan({ stop(3000, "2026-12-01", "2026-12-02"), stop(4900, "2026-12-02", "2026-12-02"), stop(3400, "2026-12-02", "2026-12-03") }));
+    QVERIFY(w.isEmpty());
+    // 连续 4 晚往上（每晚 +300，不超过每天 500）
+    QStringList up;
+    for (int i = 0; i < 5; ++i) up << stop(3100 + i * 300, QStringLiteral("2026-12-%1").arg(i + 1, 2, 10, QChar('0')), QStringLiteral("2026-12-%1").arg(i + 2, 2, 10, QChar('0')));
+    w = warns(plan(up));
+    QCOMPARE(w.size(), 1);
+    QCOMPARE(w[0].toMap().value("kind").toString(), QString("run"));
+    QCOMPARE(w[0].toMap().value("nights").toInt(), 4);
+    // 中间休一晚（这站住两晚）就不算连续
+    up[2] = stop(3700, "2026-12-03", "2026-12-05");
+    up[3] = stop(4000, "2026-12-05", "2026-12-06");
+    up[4] = stop(4300, "2026-12-06", "2026-12-07");
+    QVERIFY(warns(plan(up)).isEmpty());
+    // 没写日期：按每站一晚估算，标 approx
+    const auto nd = parseJson(R"({"stops":[{"lat":1,"lng":1,"elev":2000},{"lat":2,"lng":2,"elev":3200}]})");
+    QVERIFY(altitudeInfo(nd).value("approx").toBool());
+    QCOMPARE(warns(nd).size(), 1);
+    // null、空字符串算没有海拔
+    QVERIFY(altitudeInfo(parseJson(R"({"stops":[{"lat":1,"lng":1,"elev":null},{"lat":2,"lng":2,"elev":""}]})")).value("warnings").toList().isEmpty());
+}
+
+void TestMap::weatherParsing()
+{
+    using namespace tp::map::plans;
+    // 窗口：16 天内、没过完、没完成
+    const auto w = [](const char *j) { return parseJson(j); };
+    QVERIFY(inForecastWindow(w(R"({"startDate":"2026-11-21","endDate":"2026-11-25"})"), "2026-11-06"));
+    QVERIFY(!inForecastWindow(w(R"({"startDate":"2026-11-22","endDate":"2026-11-25"})"), "2026-11-06"));
+    QVERIFY(!inForecastWindow(w(R"({"startDate":"2026-10-01","endDate":"2026-11-05"})"), "2026-11-06"));
+    QVERIFY(inForecastWindow(w(R"({"startDate":"2026-10-01","endDate":"2026-11-06"})"), "2026-11-06"));
+    QVERIFY(!inForecastWindow(w(R"({"status":"completed","startDate":"2026-11-07"})"), "2026-11-06"));
+    QVERIFY(!inForecastWindow(w(R"({"status":"planning"})"), "2026-11-06"));
+    // 这一站用哪天
+    QCOMPARE(stopWxDate(w(R"({"arriveDate":"2026-11-08","departDate":"2026-11-10"})"), "2026-11-06"), QString("2026-11-08"));
+    QCOMPARE(stopWxDate(w(R"({"arriveDate":"2026-11-05","departDate":"2026-11-10"})"), "2026-11-06"), QString("2026-11-06"));
+    QCOMPARE(stopWxDate(w(R"({})"), "2026-11-06"), QString());
+    // WMO
+    QCOMPARE(wmoKind(0), QString("clear"));
+    QCOMPARE(wmoKind(3), QString("cloudy"));
+    QCOMPARE(wmoKind(63), QString("rain"));
+    QCOMPARE(wmoKind(86), QString("snowShowers"));
+    QCOMPARE(wmoKind(99), QString("storm"));
+    QCOMPARE(wmoKind(44), QString("unknown"));
+    // 一个地点时回复不是数组；出错的留空
+    const QByteArray single = R"({"daily":{"time":["2026-11-06","2026-11-07"],"weather_code":[61,0],"temperature_2m_max":[18.4,null],"temperature_2m_min":[11.6,3],"precipitation_probability_max":[70,null]}})";
+    QVector<QJsonObject> d = parseDaily(single, 1);
+    QCOMPARE(d.size(), 1);
+    QVariantMap day = wxDay(d[0], "2026-11-06");
+    QCOMPARE(day.value("kind").toString(), QString("rain"));
+    QCOMPARE(day.value("pop").toInt(), 70);
+    QVERIFY(wxDay(d[0], "2026-11-07").isEmpty());    // 温度是 null
+    QVERIFY(wxDay(d[0], "2026-11-08").isEmpty());
+    QVERIFY(wxDay(d[0], "").isEmpty());
+    d = parseDaily(R"([{"error":true},{"daily":{"time":["2026-11-06"],"weather_code":[0],"temperature_2m_max":[1],"temperature_2m_min":[0]}}])", 2);
+    QVERIFY(d[0].isEmpty());
+    QVERIFY(!wxDay(d[1], "2026-11-06").contains("pop"));
+    QVERIFY(parseDaily("not json", 2)[0].isEmpty());
+    // URL 有所有坐标
+    const QUrl u = forecastUrl({ { "a", 1.23456, 2.5 }, { "b", -3, 4 } });
+    QCOMPARE(u.host(), QString("api.open-meteo.com"));
+    QVERIFY(u.toString().contains("latitude=1.235,-3.000"));
+    QVERIFY(u.toString().contains("forecast_days=16"));
+    // 气候的年份：上个月刚过完 6 天以内不算；1 月算去年的 12 月
+    QCOMPARE(climYears(10, "2026-11-06").last(), 2025);
+    QCOMPARE(climYears(10, "2026-11-07").last(), 2026);
+    QCOMPARE(climYears(9, "2026-11-01").last(), 2026);
+    QCOMPARE(climYears(12, "2027-01-20").last(), 2026);
+    QCOMPARE(climYears(11, "2026-11-20").last(), 2025);
+    QCOMPARE(climYears(12, "2026-11-20").size(), 10);
+    // 合并：约 30 km 内同月算一个点；不同月分开；最多 12 个点
+    const auto cp = climPlan(w(R"({"stops":[{"lat":10,"lng":20,"arriveDate":"2026-03-01"},{"lat":10.1,"lng":20.1,"arriveDate":"2026-03-05"},{"lat":10,"lng":20,"arriveDate":"2026-04-01"},{"lat":40,"lng":20,"arriveDate":"2026-03-07"}]})"), "2026-11-06");
+    QCOMPARE(cp.points.size(), 3);
+    QCOMPARE(cp.stopKeys[0], cp.stopKeys[1]);
+    QVERIFY(cp.stopKeys[0] != cp.stopKeys[2]);
+    QVERIFY(cp.stopKeys[0].endsWith("@3"));
+    QVERIFY(cp.stopKeys[2].endsWith("@4"));
+    QString many = "{\"stops\":[";
+    for (int i = 0; i < 14; ++i) many += QStringLiteral("%1{\"lat\":%2,\"lng\":0,\"arriveDate\":\"2026-03-01\"}").arg(i ? "," : "").arg(i * 3);
+    const auto cm = climPlan(parseJson((many + "]}").toUtf8()), "2026-11-06");
+    QCOMPARE(cm.points.size(), 12);
+    QVERIFY(cm.stopKeys[13].isEmpty());
+    // 累加：两年，每个点平均；null 跳过；≥ 1 mm 算下雨
+    QVector<ClimAcc> acc(2);
+    climAdd(acc, R"([{"daily":{"temperature_2m_max":[30,null],"temperature_2m_min":[20],"precipitation_sum":[0.9,1,null]}},{"error":true}])");
+    climAdd(acc, R"([{"daily":{"temperature_2m_max":[20],"temperature_2m_min":[10],"precipitation_sum":[4]}},{"error":true}])");
+    const QJsonObject r0 = climResult(acc[0], { 2016, 2025 });
+    QCOMPARE(r0.value("hi").toDouble(), 25.0);
+    QCOMPARE(r0.value("lo").toDouble(), 15.0);
+    QCOMPARE(r0.value("rainDays").toDouble(), 1.0);
+    QCOMPARE(r0.value("mm").toDouble(), 2.95);
+    QCOMPARE(r0.value("years").toString(), QStringLiteral("2016–2025"));
+    QVERIFY(climResult(acc[1], { 2016, 2025 }).isEmpty());
+}
+
+void TestMap::elevEditing()
+{
+    using namespace tp::map::plans;
+    tp::json::Value root = parseJson(R"({"plans":[{"id":"p","stops":[
+        {"id":"a","lat":1,"lng":1,"elev":100},{"id":"b","lat":2,"lng":2},{"id":"c","lat":3,"lng":3,"elev":null},
+        {"id":"d","lat":4,"lng":4,"elev":""},{"id":"x"},{"id":"e","lat":5,"lng":5,"elev":"山顶"}]}]})");
+    const tp::json::Value *p = planById(root, "p");
+    const QVector<TzStop> need = stopsWithoutElev(*p);
+    QStringList ids;
+    for (const TzStop &s : need) ids << s.id;
+    QCOMPARE(ids, QStringList({ "b", "c", "d" }));   // 只补空的；手写的不动；没坐标的不问
+    QVERIFY(elevUrl(need).toString().contains("latitude=2.00000,3.00000,4.00000"));
+    const QVector<double> v = parseElev(R"({"elevation":[1234.5,null,5]})", 3);
+    QCOMPARE(v[0], 1234.5);
+    QVERIFY(std::isnan(v[1]));
+    QCOMPARE(v[2], 5.0);
+    QVERIFY(std::isnan(parseElev("oops", 1)[0]));
+    QCOMPARE(applyElev(root, "p", ids, v), 2);
+    double e = 0;
+    p = planById(root, "p");
+    const tp::json::Array &st = (*p)["stops"].asArray();
+    QVERIFY(stopElev(st[1], &e));
+    QCOMPARE(e, 1235.0);
+    QVERIFY(!stopElev(st[2], &e));
+    QVERIFY(stopElev(st[3], &e));
+    QCOMPARE(e, 5.0);
+    QVERIFY(!stopElev(st[5], &e));   // "山顶"
+    QCOMPARE((st[5])["elev"].toString(), QString("山顶"));
+    // 已有的不覆盖
+    QCOMPARE(applyElev(root, "p", { "a" }, { 999 }), 0);
+    // 手动改：下标是有效站点的下标（没坐标的 x 不算）
+    tp::json::Value *mp = mutPlan(root, "p");
+    QCOMPARE(setStopElev(*mp, 4, "2000.4"), QString());
+    QVERIFY(stopElev((*planById(root, "p"))["stops"].asArray()[5], &e));
+    QCOMPARE(e, 2000.0);
+    QCOMPARE(setStopElev(*mp, 0, "abc"), QString("badElev"));
+    QCOMPARE(setStopElev(*mp, 0, "9001"), QString("badElev"));
+    QCOMPARE(setStopElev(*mp, 0, "-501"), QString("badElev"));
+    QCOMPARE(setStopElev(*mp, 9, "1"), QString("gone"));
+    QVERIFY(stopElev((*planById(root, "p"))["stops"].asArray()[0], &e));
+    QCOMPARE(e, 100.0);
+    QCOMPARE(setStopElev(*mp, 0, "  "), QString());
+    QVERIFY(!(*planById(root, "p"))["stops"].asArray()[0].asObject().find("elev"));
 }
 
 #include "tst_map.moc"

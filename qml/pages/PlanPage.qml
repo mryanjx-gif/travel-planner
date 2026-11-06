@@ -12,7 +12,10 @@ Item {
     property Item backdrop: null
     property var source: ({})
     property var info: ({})                 // 关掉（变空）时面板滑出去，内容留着
-    onSourceChanged: if (source && source.id) info = source
+    onSourceChanged: if (source && source.id) {
+        if (source.id !== info.id) { altOpen = false; elevEdit = -1 }
+        info = source
+    }
     property bool shown: false
     property int focusIndex: -1             // 聚焦的站点（mapc.markers.focusStop）
     signal closeRequested()
@@ -45,14 +48,40 @@ Item {
     readonly property Item hdr: list.headerItem
     readonly property real navNatural: hdr ? list.y + hdr.y + hdr.navY - list.contentY : 0
     readonly property bool collapsed: hdr ? hdr.y + hdr.titleBottom - list.contentY < 0 : false
-    readonly property bool scheduleEditing: edit.j !== -2
+    readonly property bool scheduleEditing: edit.j !== -2 || elevEdit >= 0
     property string tab: "itinerary"        // itinerary / bookings / budget
     property bool menuOpen: false
     property real menuY: 0
     property var openNotes: ({})
     property bool cardClick: false
     QtObject { id: edit; property int stop: -1; property int j: -2; property var draft: ({}); property string err: "" }
-    function cancelSchedule() { edit.j = -2 }
+    function cancelSchedule() { edit.j = -2; elevEdit = -1 }
+    // 0.10.3 海拔就地改。状态放外面：滚远了卡片销毁也不丢
+    property int elevEdit: -1
+    property string elevDraft: ""
+    property string elevErr: ""
+    property bool altOpen: false            // 高反提示超过 2 条时展开
+    function beginElev(k) { edit.j = -2; elevErr = ""; elevDraft = String(Math.round(stops[k].elev)); elevEdit = k }
+    function saveElev() {
+        const e = planPage.setElev(elevEdit, elevDraft)
+        if (e) { elevErr = e === "badElev" ? qsTr("海拔要写成 -500 到 9000 之间的数字") : qsTr("数据现在只能看、不能改"); return }
+        elevEdit = -1
+    }
+    function altWarnText(w) {
+        if (w.kind === "run") return qsTr("到第 %1 站时已经连续 %2 晚在 3000 m 以上往上走，中间没有休整日（建议每 3–4 天一天不往上）").arg(w.stop).arg(w.nights)
+        const head = qsTr("第 %1 → %2 站：睡觉的海拔从 %3 m 升到 %4 m").arg(w.from).arg(w.to).arg(Fmt.num(w.fromE)).arg(Fmt.num(w.toE))
+        return head + (w.days > 1 ? qsTr("（+%1 m，%2 天），超过每天 500 m").arg(Fmt.num(w.gain)).arg(w.days) : qsTr("（+%1 m），超过每天 500 m").arg(Fmt.num(w.gain)))
+    }
+    function altTagText(t) { return t === "rise" ? qsTr("上升太快") : t === "high" ? qsTr("3000 m 以上") : "" }
+    function wxLine(w) {
+        return qsTr("%1 预报：%2 <b>%3–%4°C</b>").arg(Fmt.md(w.date)).arg(Fmt.wxLabel(w.kind)).arg(Math.round(w.lo)).arg(Math.round(w.hi))
+             + (w.pop !== undefined ? qsTr(" · 降水概率 %1%").arg(Math.round(w.pop)) : "")
+    }
+    function climLine(c) {
+        return qsTr("往年 %1：<b>%2–%3°C</b> · 降水 %4 mm · %5 天下雨（%6）").arg(Fmt.en ? Fmt.monEn[c.month - 1] : qsTr("%1 月").arg(c.month))
+            .arg(Math.round(c.lo)).arg(Math.round(c.hi)).arg(Math.round(c.mm)).arg(Math.round(c.rainDays)).arg(c.years)
+    }
+    readonly property bool hasOpenMeteo: stops.some(s => s.elev !== undefined) || (weather.stops || []).some(x => x.wx || x.clim)
     // 换标签。quick = 消费标签，光标放到一行快记（J3）
     function openTab(t) {
         edit.j = -2
@@ -168,6 +197,10 @@ Item {
 
     ListView {
         id: list
+        // 页头变高时（比如补完海拔才出现高反提示）：本来在顶上就留在顶上，标题不被挤出去
+        property bool atTop: true
+        onContentYChanged: atTop = contentY <= originY + 1
+        onOriginYChanged: if (atTop) contentY = originY
         objectName: "tripList"
         anchors.fill: parent
         anchors.topMargin: Theme.px(6)
@@ -320,6 +353,53 @@ Item {
                     }
                 }
             }
+            // ---- 高反提示（第 7 题 A：页头一条 + 站点上标记；超过 2 条折叠）----
+            Rectangle {
+                objectName: "tripAlt"
+                readonly property var warns: root.info.altWarnings || []
+                visible: warns.length > 0
+                width: parent.width
+                height: visible ? altCol.implicitHeight + Theme.px(16) : 0
+                radius: Theme.radiusControl
+                color: "#fbf1dc"
+                Column {
+                    id: altCol
+                    x: Theme.px(12); y: Theme.px(8)
+                    width: parent.width - Theme.px(24)
+                    spacing: Theme.px(4)
+                    Text {
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        textFormat: Text.StyledText
+                        text: "<b>" + qsTr("高反提示") + "</b>" + (root.info.altApprox ? qsTr("（有的站点没有日期，按每站住一晚估算）") : "")
+                        font.family: serifFamily; font.pixelSize: Theme.px(13); color: "#7a5a1c"
+                    }
+                    Repeater {
+                        model: root.altOpen ? parent.parent.warns : parent.parent.warns.slice(0, 2)
+                        delegate: Text {
+                            required property var modelData
+                            width: altCol.width
+                            wrapMode: Text.Wrap
+                            text: "· " + root.altWarnText(modelData)
+                            font.family: serifFamily; font.pixelSize: Theme.px(13); color: "#7a5a1c"
+                        }
+                    }
+                    LinkText {
+                        objectName: "tripAltMore"
+                        visible: altCol.parent.warns.length > 2
+                        small: true
+                        tone: "#7a5a1c"
+                        text: root.altOpen ? qsTr("收起") : qsTr("还有 %1 项").arg(altCol.parent.warns.length - 2)
+                        onClicked: root.altOpen = !root.altOpen
+                    }
+                    Text {
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        text: qsTr("参照 Wilderness Medical Society 2019 年指南：3000 m 以上，睡觉的海拔每天升高不超过 500 m，每 3–4 天休整一天。只是提醒，不是医疗建议。海拔数据来自 90 m 网格的地形数据，可以点站点里的海拔手动改。")
+                        font.family: serifFamily; font.pixelSize: Theme.px(11.5); color: "#8f7440"
+                    }
+                }
+            }
             // ---- 标签 ----
             Item {
                 width: parent.width
@@ -391,14 +471,41 @@ Item {
             }
             // 切换条停在这里，往下滚时贴在页头下面（画在列表外面）
             Item { id: navSpace; width: parent.width; height: root.stepping && root.tab === "itinerary" ? root.navH : 0 }
-            Text {
+            Item {
                 visible: root.tab === "itinerary"
-                bottomPadding: Theme.px(2)
-                text: root.stops.length === 0 ? qsTr("没有有效的站点坐标。") : root.route ? qsTr("站点安排") : qsTr("行程安排")
-                font.family: serifFamily; font.pixelSize: Theme.px(14); font.bold: true; color: root.stops.length === 0 ? Theme.muted : Theme.text
+                width: parent.width
+                height: stopsTitle.implicitHeight
+                Text {
+                    id: stopsTitle
+                    bottomPadding: Theme.px(2)
+                    text: root.stops.length === 0 ? qsTr("没有有效的站点坐标。") : root.route ? qsTr("站点安排") : qsTr("行程安排")
+                    font.family: serifFamily; font.pixelSize: Theme.px(14); font.bold: true; color: root.stops.length === 0 ? Theme.muted : Theme.text
+                }
+                LinkText {   // 第 6 题 A：点了才拉，这次打开里不再显示
+                    objectName: "tripClimate"
+                    visible: root.stops.length > 0 && weather.climateAvailable && !weather.climateShown
+                    anchors.right: parent.right
+                    small: true
+                    text: weather.climateBusy ? qsTr("取数据中…") : qsTr("往年同月气候")
+                    onClicked: if (!weather.climateBusy) weather.fetchClimate()
+                }
             }
         }
-        footer: Item { width: 1; height: Theme.px(24) }
+        footer: Item {
+            width: list.width
+            height: attribution.visible ? attribution.implicitHeight + Theme.px(24) : Theme.px(24)
+            Text {   // CC BY 署名（设置 → 关于要到阶段 ⑥，先放这里）
+                id: attribution
+                objectName: "tripAttribution"
+                visible: root.tab === "itinerary" && root.hasOpenMeteo
+                x: root.margin
+                y: Theme.px(4)
+                width: parent.width - 2 * root.margin
+                wrapMode: Text.Wrap
+                text: qsTr("天气、气候、海拔数据：Open-Meteo（CC BY 4.0）")
+                font.family: serifFamily; font.pixelSize: Theme.px(11.5); color: Theme.muted
+            }
+        }
 
         delegate: Item {
             id: wrap
@@ -499,6 +606,101 @@ Item {
                             wrapMode: Text.Wrap
                             textFormat: Text.StyledText
                             text: root.sunText(wrap.s.sun)
+                            font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.textSoft
+                        }
+                    }
+                    // 海拔：点了就地改（Enter 保存、Esc 取消）；清空后重新取
+                    Row {
+                        objectName: "tripElev" + wrap.index
+                        visible: wrap.s.elev !== undefined && root.elevEdit !== wrap.index
+                        width: parent.width
+                        spacing: Theme.px(5)
+                        TpIcon { width: Theme.px(15); height: width; name: "mountain"; color: Theme.muted; anchors.verticalCenter: parent.verticalCenter }
+                        Text {
+                            objectName: "tripElevText"
+                            anchors.verticalCenter: parent.verticalCenter
+                            textFormat: Text.StyledText
+                            text: qsTr("海拔 <b>%1 m</b>").arg(Fmt.num(wrap.s.elev || 0))
+                            font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.textSoft
+                            MouseArea {
+                                objectName: "tripElevClick"
+                                anchors.fill: parent
+                                enabled: !root.readOnly
+                                cursorShape: root.readOnly ? Qt.ArrowCursor : Qt.PointingHandCursor
+                                onClicked: root.beginElev(wrap.index)
+                                Accessible.role: Accessible.Button
+                                Accessible.name: qsTr("点一下修改海拔")
+                            }
+                        }
+                        Rectangle {
+                            objectName: "tripAltTag"
+                            visible: (wrap.s.altTag || "") !== ""
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: altTagText.implicitWidth + Theme.px(14); height: Theme.px(20); radius: height / 2
+                            color: "#fbf1dc"
+                            Text { id: altTagText; anchors.centerIn: parent; text: root.altTagText(wrap.s.altTag); font.family: serifFamily; font.pixelSize: Theme.px(11.5); font.bold: wrap.s.altTag === "rise"; color: "#7a5a1c" }
+                        }
+                    }
+                    Column {
+                        visible: root.elevEdit === wrap.index
+                        width: parent.width
+                        spacing: Theme.px(3)
+                        Row {
+                            spacing: Theme.px(6)
+                            TpField {
+                                id: elevField
+                                objectName: "tripElevField"
+                                width: Theme.px(90)
+                                value: root.elevDraft
+                                bad: root.elevErr !== ""
+                                onEdited: (t) => root.elevDraft = t
+                                onAccepted: root.saveElev()
+                                onEscaped: root.cancelSchedule()
+                                Connections {
+                                    target: root
+                                    function onElevEditChanged() { if (root.elevEdit === wrap.index) elevField.focusAll() }
+                                }
+                            }
+                            TpButton { compact: true; kind: "primary"; text: qsTr("好"); onClicked: root.saveElev() }
+                            TpButton { compact: true; kind: "ghost"; text: qsTr("取消"); onClicked: root.cancelSchedule() }
+                        }
+                        Text {
+                            width: parent.width
+                            wrapMode: Text.Wrap
+                            text: root.elevErr !== "" ? root.elevErr : qsTr("海拔（米）。清空后联网时会重新自动取")
+                            font.family: serifFamily; font.pixelSize: Theme.px(12); color: root.elevErr !== "" ? Theme.danger : Theme.muted
+                        }
+                    }
+                    // 天气（16 天内）和往年同月气候
+                    Row {
+                        readonly property var w: ((weather.stops || [])[wrap.index] || {}).wx
+                        objectName: "tripWx" + wrap.index
+                        visible: !!w
+                        width: parent.width
+                        spacing: Theme.px(5)
+                        TpIcon { width: Theme.px(15); height: width; name: parent.w ? Fmt.wxIcon(parent.w.kind) : "cloud"; color: Theme.muted }
+                        Text {
+                            objectName: "tripWxText"
+                            width: parent.width - Theme.px(20)
+                            wrapMode: Text.Wrap
+                            textFormat: Text.StyledText
+                            text: parent.w ? root.wxLine(parent.w) : ""
+                            font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.textSoft
+                        }
+                    }
+                    Row {
+                        readonly property var c: ((weather.stops || [])[wrap.index] || {}).clim
+                        objectName: "tripClim" + wrap.index
+                        visible: !!c
+                        width: parent.width
+                        spacing: Theme.px(5)
+                        TpIcon { width: Theme.px(15); height: width; name: "plan"; color: Theme.muted }
+                        Text {
+                            objectName: "tripClimText"
+                            width: parent.width - Theme.px(20)
+                            wrapMode: Text.Wrap
+                            textFormat: Text.StyledText
+                            text: parent.c ? root.climLine(parent.c) : ""
                             font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.textSoft
                         }
                     }

@@ -2,6 +2,7 @@
 
 #include "planmoney.h"
 #include "plans.h"
+#include "planweather.h"
 #include "suncalc.h"
 
 #include <QDate>
@@ -233,6 +234,11 @@ QVariantMap pageInfo(const Value &root, const QString &planId, const QString &to
     m.insert(QStringLiteral("nights"), missingNights(p, today, &undated));
     m.insert(QStringLiteral("nightsUndated"), undated);
     const QVector<QVariantList> books = stopBookings(p);
+    // 0.10.3 高反
+    const QVariantMap alt = altitudeInfo(p);
+    m.insert(QStringLiteral("altWarnings"), alt.value(QStringLiteral("warnings")));
+    m.insert(QStringLiteral("altApprox"), alt.value(QStringLiteral("approx")));
+    const QStringList altTags = alt.value(QStringLiteral("tags")).toStringList();
 
     QVariantList out = m.value(QStringLiteral("stops")).toList();
     for (int k = 0; k < out.size() && k < st.size(); ++k) {
@@ -246,6 +252,9 @@ QVariantMap pageInfo(const Value &root, const QString &planId, const QString &to
         sm.insert(QStringLiteral("lng"), lng);
         sm.insert(QStringLiteral("days"), schedDays(s, live ? today : QString()));
         sm.insert(QStringLiteral("books"), books[k]);
+        double elev = 0;
+        if (stopElev(s, &elev)) sm.insert(QStringLiteral("elev"), elev);
+        if (k < altTags.size()) sm.insert(QStringLiteral("altTag"), altTags[k]);
         const QString d = stopDate(s);
         const sun::Times t = sun::info(lat, lng, d, str(s, "tz"));
         if (t.ok)

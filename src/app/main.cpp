@@ -57,6 +57,7 @@
 #include "plancontroller.h"
 #include "planpagecontroller.h"
 #include "ratescontroller.h"
+#include "weathercontroller.h"
 #include "planeditor.h"
 #include "locator.h"
 #include "geocoder.h"
@@ -319,6 +320,8 @@ int main(int argc, char *argv[])
     geocoder.setCacheFile(Paths::cacheDir() + (testRun ? QStringLiteral("/test-geocode.json") : QStringLiteral("/geocode.json")));
     tp::app::RatesController rates(&settings, &net);                    // 0.10.1 汇率和主货币
     tp::app::PlanPageController planPage(&ctl, &plans, &store, &net, &rates, &settings);   // 0.10.0 完整计划页
+    tp::app::WeatherController weather(&planPage, &plans, &store, &net);   // 0.10.3 预报和往年气候
+    weather.setCacheFile(Paths::cacheDir() + (testRun ? QStringLiteral("/test-weather.json") : QStringLiteral("/weather.json")));
     tp::app::PlanEditor editor(&ctl, &store, &mapc);
     editor.setNet(&net);
     editor.setRoads(&roads);
@@ -369,6 +372,7 @@ int main(int argc, char *argv[])
     ctx->setContextProperty("editor", &editor);
     ctx->setContextProperty("planPage", &planPage);
     ctx->setContextProperty("rates", &rates);
+    ctx->setContextProperty("weather", &weather);
     ctx->setContextProperty("locator", &locator);
     // 截图 ui-photo-import / ui-photo-e2e：把 tests/photos.txt 里的测试照片当成"选中的文件"
     QVariantList photoShotFiles;
@@ -553,6 +557,7 @@ int main(int argc, char *argv[])
         tp::app::SelfTest::setPerf(frameStats, &settings);
         tp::app::SelfTest::setEditor(&editor, &locator, &geocoder);
         tp::app::SelfTest::setPlanPage(&planPage, &nav, &rates);
+        tp::app::SelfTest::setWeather(&weather);
         tp::app::SelfTest::start(QDir::fromNativeSeparators(selftestReport), &ctl, &photos, &mapc, win,
                                  GraphicsBackend::displayName(backend.api) + (backend.deviceInfo.isEmpty() ? QString() : QStringLiteral(" · ") + backend.deviceInfo),
                                  &roads, &net, &tileServer, &tileCache);

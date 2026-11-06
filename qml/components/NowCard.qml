@@ -98,6 +98,14 @@ Item {
                         : root.kind === "next" ? ("<b>" + root.countdown(root.info.daysUntil) + "</b>") : ""
                 }
             }
+            Text {   // L2 今天的天气（拿不到时不占位）
+                objectName: "nowWeather"
+                visible: root.live && text !== ""
+                width: parent.width
+                topPadding: Theme.px(2)
+                font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.textSoft
+                text: Fmt.wxText(weather.today)
+            }
             Text {   // 日期
                 visible: !root.live
                 width: parent.width

@@ -723,3 +723,17 @@ Enter 记下，日期默认今天	Enter to add; dated today
 花了	Spent
 还有 %1 趟没有花费	%1 more trips have no spending
 %1 天	%1 days
+# 0.10.3
+海拔要写成 -500 到 9000 之间的数字	Elevation must be a number between -500 and 9000
+到第 %1 站时已经连续 %2 晚在 3000 m 以上往上走，中间没有休整日（建议每 3–4 天一天不往上）	By stop %1 you've gone up for %2 nights in a row above 3,000 m with no rest day (take a day without ascent every 3–4 days)
+第 %1 → %2 站：睡觉的海拔从 %3 m 升到 %4 m	Stops %1 → %2: sleeping elevation rises from %3 m to %4 m
+（+%1 m，%2 天），超过每天 500 m	 (+%1 m in %2 days), more than 500 m a day
+（+%1 m），超过每天 500 m	 (+%1 m), more than 500 m a day
+%1 预报：%2 <b>%3–%4°C</b>	%1 forecast: %2 <b>%3–%4°C</b>
+ · 降水概率 %1%	 · %1% chance of precipitation
+往年 %1：<b>%2–%3°C</b> · 降水 %4 mm · %5 天下雨（%6）	Past years, %1: <b>%2–%3°C</b> · %4 mm of rain · %5 rainy days (%6)
+（有的站点没有日期，按每站住一晚估算）	 (some stops have no dates, assuming one night each)
+参照 Wilderness Medical Society 2019 年指南：3000 m 以上，睡觉的海拔每天升高不超过 500 m，每 3–4 天休整一天。只是提醒，不是医疗建议。海拔数据来自 90 m 网格的地形数据，可以点站点里的海拔手动改。	Based on the Wilderness Medical Society 2019 guidelines: above 3,000 m, raise your sleeping elevation by no more than 500 m a day and rest one day every 3–4 days. This is a reminder, not medical advice. Elevations come from 90 m terrain data; click a stop's elevation to edit it.
+天气、气候、海拔数据：Open-Meteo（CC BY 4.0）	Weather, climate and elevation data: Open-Meteo (CC BY 4.0)
+海拔 <b>%1 m</b>	Elevation <b>%1 m</b>
+往年气候没取到，等一下再试	Couldn't get past years' climate. Try again in a moment.
