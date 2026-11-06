@@ -24,6 +24,7 @@ class PlanPageController : public QObject
     Q_OBJECT
     Q_PROPERTY(QString planId READ planId NOTIFY changed)
     Q_PROPERTY(QVariantMap info READ info NOTIFY changed)      // plans::pageInfo + 缩略图地址 + readOnly（打开的计划被删掉时为空）
+    Q_PROPERTY(QVariantMap ledger READ ledger NOTIFY ledgerChanged)   // 0.10.2 账本（plans::ledgerInfo）；只在账本页开着时算
 
 public:
     PlanPageController(AppController *app, PlanController *plans, data::DataStore *store, services::NetClient *net,
@@ -31,6 +32,7 @@ public:
 
     QString planId() const { return m_id; }
     QVariantMap info() const { return m_info; }
+    QVariantMap ledger() const { return m_ledger; }
 
     Q_INVOKABLE void show(const QString &planId);   // 空 = 关闭
 
@@ -46,6 +48,8 @@ public:
     Q_INVOKABLE QString saveExpense(const QString &id, const QVariantMap &fields);
     Q_INVOKABLE bool deleteExpense(const QString &id);
     Q_INVOKABLE QString setBudget(const QString &text, const QString &currency);
+    Q_INVOKABLE QString editPerson(const QString &id, const QString &name, bool remove);   // 0.10.2 同行人改名、删除（plans::editPerson）
+    Q_INVOKABLE void showLedger(bool on);                // 账本页打开 / 关上
     Q_INVOKABLE void dismissNights();                    // J1"这几晚不用"：记进 settings.json 的 noStayNights，不改数据
 
     // 测试用：替换 Open-Meteo 请求（和 PlanEditor::Fetch 一样的签名）
@@ -55,6 +59,7 @@ public:
 
 signals:
     void changed();
+    void ledgerChanged();
 
 private:
     void refresh();
@@ -72,6 +77,8 @@ private:
     Fetch m_fetch;
     QString m_id;
     QVariantMap m_info;
+    QVariantMap m_ledger;
+    bool m_ledgerOn = false;
     QSet<QString> m_filling;
     int m_tzRequests = 0;
 };

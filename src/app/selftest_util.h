@@ -93,6 +93,7 @@ void runPlanPage(Report &r, AppController *app, map::MapController *mapc, QQuick
 // 0.10.1：交通住宿、消费、汇率（selftest_money.cpp）
 RatesController *ratesCtl();
 void runMoney(Report &r, AppController *app, QQuickWindow *win, PlanPageController *page, NavHistory *nav, RatesController *rates);
+void runSplit(Report &r, AppController *app, QQuickWindow *win, PlanPageController *page, NavHistory *nav, RatesController *rates);
 // 0.9.1：性能——启动各步、拖地图每帧、换模式、数据重建、写设置、玻璃和标记各占多少（selftest_perf.cpp）
 FrameStats *frameStats();
 Settings *settingsObj();

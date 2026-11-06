@@ -38,8 +38,18 @@ void PlanPageController::show(const QString &planId)
     if (!planId.isEmpty()) { fillTz(planId); m_rates->ensure(); }
 }
 
+void PlanPageController::showLedger(bool on)
+{
+    m_ledgerOn = on;
+    if (on) { m_rates->ensure(); refresh(); }
+}
+
 void PlanPageController::refresh()
 {
+    if (m_ledgerOn) {
+        const QVariantMap l = plans::ledgerInfo(m_store->data(), m_rates->main(), m_rates->table());
+        if (l != m_ledger) { m_ledger = l; emit ledgerChanged(); }
+    }
     QVariantMap m;
     if (!m_id.isEmpty()) {
         m = PlanController::withThumbs(plans::pageInfo(m_store->data(), m_id, m_plans->today()));
@@ -154,6 +164,11 @@ bool PlanPageController::deleteExpense(const QString &id)
 QString PlanPageController::setBudget(const QString &text, const QString &currency)
 {
     return applyPlan([&](Value &p) { return plans::setBudget(p, text, currency); });
+}
+
+QString PlanPageController::editPerson(const QString &id, const QString &name, bool remove)
+{
+    return applyPlan([&](Value &p) { return plans::editPerson(p, id, name, remove); });
 }
 
 void PlanPageController::dismissNights()

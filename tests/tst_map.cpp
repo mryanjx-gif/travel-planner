@@ -64,6 +64,8 @@ class TestMap : public QObject
 private slots:
     void moneyRates();
     void moneySpend();
+    void moneySplit();
+    void moneyLedger();
     void moneyEdit();
     void moneyBookingsView();
     // 0.9.0 地球
@@ -2196,6 +2198,155 @@ void TestMap::moneySpend()
     QCOMPARE(over.value("currency").toString(), QStringLiteral("AUD"));
     QVERIFY(over.value("over").toBool());
     QVERIFY(qFuzzyCompare(over.value("pct").toDouble(), 1.0));
+}
+
+void TestMap::moneySplit()
+{
+    using namespace tp::map::plans;
+    const auto rowsOf = [](const QVariantMap &m) { QHash<QString, QVariantMap> h; for (const QVariant &v : m.value("settle").toMap().value("rows").toList()) h.insert(v.toMap().value("name").toString(), v.toMap()); return h; };
+    const auto trs = [](const QVariantMap &m) { QStringList l; for (const QVariant &v : m.value("settle").toMap().value("transfers").toList()) { const QVariantMap t = v.toMap(); l << t.value("from").toString() + ">" + t.value("to").toString() + ":" + QString::number(t.value("amount").toDouble()); } return l; };
+    Rates t = parseRates(R"({"date":"2026-11-05","rates":{"AUD":0.2,"USD":0.14}})", "frankfurter", "CNY");
+
+    // 平摊、只算几个人、按金额、部分写金额、退款、旧数据、外币、缺汇率；交通住宿不进结算
+    const tp::json::Value plan = parseJson(R"({"currency":"CNY","people":[{"id":"a","name":"我"},{"id":"b","name":"王"},{"id":"c","name":"李"}],
+      "bookings":[{"id":"h","kind":"hotel","cost":999}],
+      "expenses":[{"id":"e1","amount":300,"paidBy":"a"},
+                  {"id":"e2","amount":100,"paidBy":"b","split":[{"who":"a"},{"who":"b"}]},
+                  {"id":"e3","amount":100,"paidBy":"c","split":[{"who":"a","amount":70},{"who":"c","amount":30}]},
+                  {"id":"e4","amount":90,"paidBy":"a","split":[{"who":"a","amount":10},{"who":"b"},{"who":"c"}]},
+                  {"id":"e5","amount":-30,"paidBy":"a"},
+                  {"id":"e6","amount":50},
+                  {"id":"e7","amount":14,"currency":"USD","paidBy":"b"},
+                  {"id":"e8","amount":5,"currency":"ISK","paidBy":"b"},
+                  {"id":"e9","amount":6,"paidBy":"不认识","split":[{"who":"早删了"}]}]})");
+    const QVariantMap m = settleInfo(plan, "CNY", t);
+    QVERIFY(m.value("multi").toBool());
+    QCOMPARE(m.value("expenseCount").toInt(), 9);
+    QCOMPARE(m.value("bookingOnly").toDouble(), 999.0);
+    const auto h = rowsOf(m);
+    // 付了：a = 300 + 90 − 30 + 50 + 6 = 416；b = 100 + 100（14 USD）= 200；c = 100
+    QCOMPARE(h["我"].value("paid").toDouble(), 416.0);
+    QCOMPARE(h["王"].value("paid").toDouble(), 200.0);
+    QCOMPARE(h["李"].value("paid").toDouble(), 100.0);
+    // 该出：a = 100 + 50 + 70 + 10 − 10 + 50 + 33.33 + 2 = 305.33；b = 100 + 50 + 40 − 10 + 33.33 + 2 = 215.33；c = 100 + 30 + 40 − 10 + 33.33 + 2 = 195.33
+    QCOMPARE(h["我"].value("share").toDouble(), 305.33);
+    QCOMPARE(h["王"].value("share").toDouble(), 215.33);
+    QCOMPARE(h["李"].value("share").toDouble(), 195.33);
+    QCOMPARE(h["我"].value("net").toDouble(), 110.67);
+    QCOMPARE(m.value("settle").toMap().value("missing").toStringList(), QStringList{ "ISK" });
+    const QVariantList used = m.value("settle").toMap().value("rates").toList();
+    QCOMPARE(used.size(), 1);
+    QCOMPARE(used[0].toMap().value("cur").toString(), QStringLiteral("USD"));
+    QCOMPARE(trs(m), QStringList({ "李>我:95.33", "王>我:15.33" }));   // 最少转账
+
+    // 最少转账：一个人欠两个人，两笔；账平了没有
+    QCOMPARE(trs(settleInfo(parseJson(R"({"currency":"CNY","people":[{"id":"a","name":"A"},{"id":"b","name":"B"},{"id":"c","name":"C"}],
+      "expenses":[{"amount":90,"paidBy":"a","split":[{"who":"c"}]},{"amount":60,"paidBy":"b","split":[{"who":"c"}]}]})"), "CNY", t)), QStringList({ "C>A:90", "C>B:60" }));
+    QVERIFY(trs(settleInfo(parseJson(R"({"currency":"CNY","people":[{"id":"a","name":"A"},{"id":"b","name":"B"}],
+      "expenses":[{"amount":10,"paidBy":"a"},{"amount":10,"paidBy":"b"}]})"), "CNY", t)).isEmpty());
+    // 一个人：不算 multi；没有同行人：rows 空
+    QVERIFY(!settleInfo(parseJson(R"({"people":[{"id":"a","name":"A"}]})"), "CNY", t).value("multi").toBool());
+    QVERIFY(settleInfo(parseJson(R"({"expenses":[{"amount":10}]})"), "CNY", t).value("settle").toMap().value("rows").toList().isEmpty());
+
+    // spendInfo 每笔带上怎么分
+    QHash<QString, QVariantMap> rows;
+    for (const QVariant &v : spendInfo(plan, "CNY", t).value("rows").toList()) rows.insert(v.toMap().value("id").toString(), v.toMap());
+    QCOMPARE(rows["e1"].value("among").toStringList(), QStringList({ "a", "b", "c" }));
+    QCOMPARE(rows["e1"].value("payerName").toString(), QStringLiteral("我"));
+    QCOMPARE(rows["e2"].value("among").toStringList(), QStringList({ "a", "b" }));
+    QVERIFY(rows["e3"].value("custom").toBool());
+    QCOMPARE(rows["e3"].value("amounts").toMap().value("a").toDouble(), 70.0);
+    QVERIFY(!rows["e4"].value("custom").toBool());     // 只写了一部分金额
+    QCOMPARE(rows["e6"].value("among").toStringList(), QStringList{ "a" });   // 旧数据只算付款人自己
+    QCOMPARE(rows["e6"].value("onlyName").toString(), QStringLiteral("我"));
+    QCOMPARE(rows["e9"].value("payer").toString(), QStringLiteral("a"));      // 不认识的付款人退回第一个
+    QCOMPARE(rows["e9"].value("among").toStringList(), QStringList({ "a", "b", "c" }));
+
+    // putExpense：分账字段
+    tp::json::Value p = parseJson(R"({"currency":"AUD","people":[{"id":"a","name":"我","x":1},{"id":"b","name":"王"}],"expenses":[{"id":"e","amount":10,"paidBy":"b","split":[{"who":"a"}],"keep":7}]})");
+    const auto exp = [&](const QString &id) -> const tp::json::Value & { for (const tp::json::Value &x : p["expenses"].asArray()) if (x["id"].toString() == id) return x; static tp::json::Value none; return none; };
+    QCOMPARE(putExpense(p, "e", { { "amount", "10" }, { "date", "" } }), QString());   // 没有 paidBy：分账字段不动
+    QCOMPARE(exp("e")["paidBy"].toString(), QStringLiteral("b"));
+    QCOMPARE(int(exp("e")["split"].asArray().size()), 1);
+    QCOMPARE(putExpense(p, "e", { { "amount", "10" }, { "paidBy", "a" }, { "split", QVariantList() } }), QString());   // 所有人平摊：去掉 split
+    QVERIFY(!exp("e").asObject().contains("split"));
+    QCOMPARE(exp("e")["keep"].toNumber(), 7.0);
+    const QVariantList bad{ QVariantMap{ { "who", "a" }, { "amount", "3" } }, QVariantMap{ { "who", "b" }, { "amount", "3" } } };
+    QCOMPARE(putExpense(p, "e", { { "amount", "10" }, { "paidBy", "a" }, { "split", bad } }), QStringLiteral("badSplit"));
+    const QVariantList good{ QVariantMap{ { "who", "a" }, { "amount", "7" } }, QVariantMap{ { "who", "b" }, { "amount", "3" } } };
+    QCOMPARE(putExpense(p, "e", { { "amount", "10" }, { "paidBy", "a" }, { "split", good } }), QString());
+    QCOMPARE(exp("e")["split"].asArray()[0]["amount"].toNumber(), 7.0);
+    // 退款也能按金额分
+    const QVariantList back{ QVariantMap{ { "who", "a" }, { "amount", "-7" } }, QVariantMap{ { "who", "b" }, { "amount", "-3" } } };
+    QCOMPARE(putExpense(p, "e", { { "amount", "-10" }, { "paidBy", "a" }, { "split", back } }), QString());
+    // 新加：默认第一个人付、所有人平摊；同时加人
+    QCOMPARE(putExpense(p, "", { { "amount", "5" }, { "title", "n" }, { "newPeople", QVariantList{ QVariantMap{ { "id", "c" }, { "name", "  李  " } } } } }), QString());
+    QCOMPARE(int(p["people"].asArray().size()), 3);
+    QCOMPARE(p["people"].asArray()[2]["name"].toString(), QStringLiteral("李"));
+    QCOMPARE(p["people"].asArray()[0]["x"].toNumber(), 1.0);   // 同行人不认识的键保留
+    QCOMPARE(p["expenses"].asArray().back()["paidBy"].toString(), QStringLiteral("a"));
+
+    // 同行人：改名、删除（用到的不能删；删空去掉 people）
+    QCOMPARE(editPerson(p, "b", " 老王 ", false), QString());
+    QCOMPARE(p["people"].asArray()[1]["name"].toString(), QStringLiteral("老王"));
+    QCOMPARE(editPerson(p, "b", "", false), QString());
+    QCOMPARE(p["people"].asArray()[1]["name"].toString(), QStringLiteral("老王"));   // 空名字不改
+    QCOMPARE(editPerson(p, "没有", "x", false), QStringLiteral("gone"));
+    QCOMPARE(editPerson(p, "b", "", true), QStringLiteral("used"));   // split 里用到
+    QCOMPARE(editPerson(p, "a", "", true), QStringLiteral("used"));   // 付款人
+    QCOMPARE(editPerson(p, "c", "", true), QString());
+    QCOMPARE(int(p["people"].asArray().size()), 2);
+    tp::json::Value lone = parseJson(R"({"people":[{"id":"z","name":"Z"}]})");
+    QCOMPARE(editPerson(lone, "z", "", true), QString());
+    QVERIFY(!lone.asObject().contains("people"));
+
+    // 改旧的预订时勾"记到消费"：加一条，只加一次；有同行人时默认平摊
+    tp::json::Value q = parseJson(R"({"currency":"CNY","people":[{"id":"a","name":"A"},{"id":"b","name":"B"}],"bookings":[{"id":"h","kind":"hotel","title":"H","cost":100,"start":"2026-12-01"}]})");
+    QCOMPARE(settleInfo(q, "CNY", t).value("bookingOnly").toDouble(), 100.0);
+    const QVariantMap f{ { "kind", "hotel" }, { "title", "H" }, { "startDate", "2026-12-01" }, { "cost", "100" }, { "toExp", true } };
+    QCOMPARE(putBooking(q, "h", f), QString());
+    QCOMPARE(putBooking(q, "h", f), QString());
+    QCOMPARE(int(q["expenses"].asArray().size()), 1);
+    QCOMPARE(q["expenses"].asArray()[0]["paidBy"].toString(), QStringLiteral("a"));
+    QCOMPARE(settleInfo(q, "CNY", t).value("bookingOnly").toDouble(), 0.0);
+    QCOMPARE(rowsOf(settleInfo(q, "CNY", t))["A"].value("net").toDouble(), 50.0);
+}
+
+void TestMap::moneyLedger()
+{
+    using namespace tp::map::plans;
+    Rates t = parseRates(R"({"date":"d","rates":{"AUD":0.2,"USD":0.14}})", "frankfurter", "CNY");
+    const tp::json::Value root = parseJson(R"({"plans":[
+      {"id":"p1","name":"一","status":"completed","currency":"AUD","budget":100,"startDate":"2025-01-01","endDate":"2025-01-02",
+       "bookings":[{"id":"b","kind":"hotel","cost":10,"start":"2025-01-01"},{"id":"b2","kind":"flight","cost":20,"start":"2024-12-30"}],
+       "expenses":[{"id":"e","amount":20,"cat":"transport","date":"2024-12-30","bookingId":"b2"},{"id":"e2","amount":5,"cat":"food","currency":"ISK","date":"2025-01-01"}]},
+      {"id":"p2","name":"二","status":"planning","currency":"CNY","expenses":[{"id":"x","amount":1000,"cat":"food","date":""},{"id":"y","amount":-100,"cat":"food","date":"2026-05-01"}]},
+      {"id":"p3","name":"空","status":"wish","currency":"CNY"},
+      {"id":"p4","name":"零","currency":"CNY","expenses":[{"id":"z","amount":0}]},
+      "不是计划"]})");
+    const QVariantMap m = ledgerInfo(root, "CNY", t);
+    const QVariantList trips = m.value("trips").toList();
+    QCOMPARE(trips.size(), 2);
+    QCOMPARE(m.value("emptyCount").toInt(), 2);
+    QCOMPARE(trips[0].toMap().value("id").toString(), QStringLiteral("p2"));   // 花得多的在前（900 > 150）
+    const QVariantMap a = trips[1].toMap();
+    QVERIFY(qAbs(a.value("spent").toDouble() - 150) < 1e-6);                  // (10 + 20) AUD × 5，不算两遍；ISK 没汇率
+    QCOMPARE(a.value("days").toInt(), 2);
+    QVERIFY(qAbs(a.value("budgetMain").toDouble() - 500) < 1e-6);
+    QCOMPARE(m.value("missing").toStringList(), QStringList{ "ISK" });
+    QVERIFY(qAbs(m.value("total").toDouble() - 1050) < 1e-6);
+    QVERIFY(qAbs(m.value("perTrip").toDouble() - 525) < 1e-6);
+    QVERIFY(qAbs(m.value("perDay").toDouble() - 75) < 1e-6);                  // 只算有日期的那一趟
+    QStringList ys;
+    for (const QVariant &v : m.value("years").toList()) ys << v.toMap().value("y").toString();
+    QCOMPARE(ys, QStringList({ "2026", "2025", "2024", "" }));
+    QCOMPARE(m.value("cats").toList().size(), 3);                             // 餐饮、住宿、交通
+    QCOMPARE(ledgerInfo(parseJson(R"({})"), "CNY", t).value("trips").toList().size(), 0);
+    // 没有汇率表：外币都算缺，和主货币一样的照算
+    const QVariantMap none = ledgerInfo(root, "CNY", Rates());
+    QVERIFY(none.value("missing").toStringList().contains("AUD"));
+    QVERIFY(qAbs(none.value("total").toDouble() - 900) < 1e-6);
+    QVERIFY(none.value("trips").toList()[1].toMap().value("budgetMain").toDouble() < 0);
 }
 
 void TestMap::moneyEdit()

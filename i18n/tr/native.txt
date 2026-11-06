@@ -643,7 +643,6 @@ WiFi	Wi-Fi
 记	Add
 Enter 记下，日期默认今天	Enter to add; dated today
 展开更多	More
-还没有记账。旅途中随手记，回来就知道钱花在哪了。	No expenses yet. Jot them down on the go to see where the money went.
 来自交通住宿，在那边改	From Bookings; edit it there
 来自交通住宿	From Bookings
 退款	Refund
@@ -683,3 +682,44 @@ Enter 记下，日期默认今天	Enter to add; dated today
 “消费”里对应的那一笔也会一起删掉。	The matching entry in Expenses will be deleted too.
 删除这一笔？	Delete this expense?
 已删除，“消费”里对应的那一笔也删了（可以撤销）	Deleted, along with the matching entry in Expenses (can be undone)
+还没有记账。旅途中随手记，回来就知道钱花在哪了。和别人一起出去时，在“展开更多”里添加同行人，就能分账。	No expenses yet. Jot them down as you go and you'll know where the money went. Traveling with others? Add them under “More” to split costs.
+按金额分 · %1 人	Custom amounts · %1 people
+只算 %1	Only %1
+%1 人平摊	Split among %1
+%1付	%1 paid
+结算（按 %1）	Settle up (in %1)
+账已经平了，不用转账。	All settled, no transfers needed.
+同行人	Travel companions
+付了	Paid
+该出	Share
+差额	Balance
+缺少 %1 的汇率，这些消费没算进结算。	No exchange rate for %1, so these expenses aren't in the settlement.
+用到的汇率：%1	Rates used: %1
+交通住宿的费用（%1）没有算进结算。要分摊，就到那条记录里勾“记一笔到消费”。	Bookings (%1) aren't in the settlement. To split one, open it and tick “Add to Expenses”.
+谁付的	Paid by
+为谁付	Split among
+每人 %1	%1 each
+不平摊，按金额分	Split by custom amounts
+已分 %1 / %2	Assigned %1 / %2
+这一笔：%1	This expense: %1
+添加同行人的名字，回车（一起出去时用来分账）	Add a companion, press Enter
+添加	Add
+分摊加起来是 %1，和金额 %2 对不上	The shares add up to %1, which doesn't match the amount %2
+记一笔到“消费”（可以单独改、分摊）	Add to Expenses (can be edited and split)
+我	Me
+名字	Name
+删除这个人	Remove this person
+有消费用到这个人，不能删除。	This person is used by an expense and can't be removed.
+一共花了	Total spent
+%1 趟	%1 trips
+平均每趟 %1	Average per trip %1
+平均每天 %1	Average per day %1
+没写日期	No date
+还没有花费。在计划的“消费”或“交通住宿”里记下来，这里就会汇总。	Nothing spent yet. Record costs under a plan's Expenses or Bookings and they'll add up here.
+按花费	By spending
+按日期	By date
+旅程	Trip
+天数	Days
+花了	Spent
+还有 %1 趟没有花费	%1 more trips have no spending
+%1 天	%1 days

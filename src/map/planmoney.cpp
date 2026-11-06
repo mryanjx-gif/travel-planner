@@ -7,6 +7,7 @@
 #include <QDateTime>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QPair>
 #include <QRandomGenerator>
 #include <QSet>
 #include <QTimeZone>
@@ -93,6 +94,94 @@ void eachBooking(const Value &plan, const std::function<void(const Value &)> &fn
 {
     for (const Value &b : plan[kBookings].asArray())
         if (b.isObject()) fn(b);
+}
+
+// ---- 分账（Electron split.js）----
+const QString kPeople = QStringLiteral("people"), kSplit = QStringLiteral("split"), kPaidBy = QStringLiteral("paidBy");
+
+struct Person { QString id, name; };
+
+QVector<Person> peopleOf(const Value &plan)
+{
+    QVector<Person> out;
+    for (const Value &p : plan[kPeople].asArray())
+        if (!str(p, "id").isEmpty()) out.push_back({ str(p, "id"), str(p, "name") });
+    return out;
+}
+
+bool isPerson(const QVector<Person> &ps, const QString &id)
+{
+    return std::any_of(ps.begin(), ps.end(), [&](const Person &p) { return p.id == id; });
+}
+
+QString payerOf(const QVector<Person> &ps, const Value &x)
+{
+    const QString id = str(x, "paidBy");
+    return isPerson(ps, id) ? id : ps.isEmpty() ? QString() : ps.first().id;
+}
+
+bool hasAmount(const Value &s)
+{
+    const Value *v = s.asObject().find(QStringLiteral("amount"));
+    return v && !v->isNull() && !(v->isString() && v->toString().isEmpty());
+}
+
+// split 里还认得的人（谁都不认得 = 空）
+QVector<const Value *> splitOf(const QVector<Person> &ps, const Value &x)
+{
+    QVector<const Value *> out;
+    for (const Value &s : x[kSplit].asArray())
+        if (isPerson(ps, str(s, "who"))) out.push_back(&s);
+    return out;
+}
+
+// 这一笔分摊给谁：写了 split 就是那几个人；有付款人时所有人；旧数据（两个都没写）只算付款人自己
+QStringList amongOf(const QVector<Person> &ps, const Value &x)
+{
+    QStringList out;
+    for (const Value *s : splitOf(ps, x)) out << str(*s, "who");
+    if (!out.isEmpty()) return out;
+    const bool legacy = str(x, "paidBy").isEmpty() && !x.asObject().contains(kSplit);
+    if (legacy && !ps.isEmpty()) return { payerOf(ps, x) };
+    for (const Person &p : ps) out << p.id;
+    return out;
+}
+
+// 这一笔每个人该出多少（这一笔的币种）：写了金额的按金额，剩下的钱由没写的人平摊
+QHash<QString, double> shares(const QVector<Person> &ps, const Value &x)
+{
+    QHash<QString, double> out;
+    if (ps.isEmpty()) return out;
+    double rest = num(x, "amount");
+    QStringList free;
+    const QVector<const Value *> list = splitOf(ps, x);
+    for (const Value *s : list) {
+        if (hasAmount(*s)) { out[str(*s, "who")] += num(*s, "amount"); rest -= num(*s, "amount"); }
+        else free << str(*s, "who");
+    }
+    if (list.isEmpty()) free = amongOf(ps, x);
+    for (const QString &id : std::as_const(free)) out[id] += rest / free.size();
+    return out;
+}
+
+double round2(double v) { return std::round(v * 100) / 100; }
+
+// 分类合计 → 色条（小于等于 0 的不进）
+QVariantList catsOut(const QHash<QString, double> &byCat)
+{
+    double sum = 0;
+    for (double v : byCat) if (v > 0) sum += v;
+    QVariantList cats;
+    for (const char *k : { "transport", "stay", "food", "ticket", "shop", "other" }) {
+        const double v = byCat.value(QString::fromLatin1(k));
+        if (v > 0) cats << QVariantMap{ { QStringLiteral("k"), QString::fromLatin1(k) }, { QStringLiteral("v"), v }, { QStringLiteral("pct"), qRound(v / sum * 100) }, { QStringLiteral("share"), v / sum } };
+    }
+    return cats;
+}
+
+int tripDays(const Value &plan)
+{
+    return dated(plan) ? int(QDate::fromString(str(plan, "startDate"), Qt::ISODate).daysTo(QDate::fromString(str(plan, "endDate"), Qt::ISODate))) + 1 : 0;
 }
 
 } // namespace
@@ -194,6 +283,9 @@ QVariantMap spendInfo(const Value &plan, const QString &main, const Rates &rates
     double total = 0, bookTotal = 0, expTotal = 0, mainTotal = 0;
     QHash<QString, double> byCat;
     QVariantList rowsOut;
+    const QVector<Person> ps = peopleOf(plan);
+    QHash<QString, const Value *> records;
+    for (const Value &x : plan[kExpenses].asArray()) if (!str(x, "id").isEmpty()) records.insert(str(x, "id"), &x);
     for (const SpendRow &r : spendRows(plan)) {
         const double k = perMain(rates, main, r.cur);
         double inPlan = 0;
@@ -205,26 +297,144 @@ QVariantMap spendInfo(const Value &plan, const QString &main, const Rates &rates
         total += inPlan;
         (r.fromBooking || r.linked ? bookTotal : expTotal) += inPlan;
         byCat[r.cat] += inPlan;
-        rowsOut << QVariantMap{ { QStringLiteral("id"), r.id }, { QStringLiteral("bookingId"), r.bookingId }, { QStringLiteral("fromBooking"), r.fromBooking },
-                                { QStringLiteral("linked"), r.linked }, { QStringLiteral("kind"), r.kind }, { QStringLiteral("date"), r.date }, { QStringLiteral("cat"), r.cat },
-                                { QStringLiteral("title"), r.title }, { QStringLiteral("cur"), r.cur }, { QStringLiteral("notes"), r.notes },
-                                { QStringLiteral("amount"), r.amount }, { QStringLiteral("foreign"), r.cur != cur } };
+        QVariantMap row{ { QStringLiteral("id"), r.id }, { QStringLiteral("bookingId"), r.bookingId }, { QStringLiteral("fromBooking"), r.fromBooking },
+                         { QStringLiteral("linked"), r.linked }, { QStringLiteral("kind"), r.kind }, { QStringLiteral("date"), r.date }, { QStringLiteral("cat"), r.cat },
+                         { QStringLiteral("title"), r.title }, { QStringLiteral("cur"), r.cur }, { QStringLiteral("notes"), r.notes },
+                         { QStringLiteral("amount"), r.amount }, { QStringLiteral("foreign"), r.cur != cur } };
+        if (const Value *x = records.value(r.id); x && !ps.isEmpty()) {
+            const QString payer = payerOf(ps, *x);
+            const auto nameOf = [&](const QString &id) { for (const Person &p : ps) if (p.id == id) return p.name; return QString(); };
+            const QStringList among = amongOf(ps, *x);
+            const QVector<const Value *> list = splitOf(ps, *x);
+            const bool custom = !list.isEmpty() && std::all_of(list.begin(), list.end(), [](const Value *s) { return hasAmount(*s); });
+            QVariantMap amounts;
+            if (custom) for (const Value *s : list) amounts.insert(str(*s, "who"), num(*s, "amount"));
+            row.insert(QStringLiteral("payer"), payer);
+            row.insert(QStringLiteral("payerName"), nameOf(payer));
+            row.insert(QStringLiteral("among"), among);
+            row.insert(QStringLiteral("onlyName"), among.size() == 1 ? nameOf(among.first()) : QString());
+            row.insert(QStringLiteral("custom"), custom);
+            row.insert(QStringLiteral("amounts"), amounts);
+        }
+        rowsOut << row;
     }
-    double catSum = 0;
-    for (double v : std::as_const(byCat)) if (v > 0) catSum += v;
-    QVariantList cats;
-    for (const char *k : { "transport", "stay", "food", "ticket", "shop", "other" }) {
-        const double v = byCat.value(QString::fromLatin1(k));
-        if (v > 0) cats << QVariantMap{ { QStringLiteral("k"), QString::fromLatin1(k) }, { QStringLiteral("v"), v }, { QStringLiteral("pct"), qRound(v / catSum * 100) }, { QStringLiteral("share"), v / catSum } };
-    }
+    const QVariantList cats = catsOut(byCat);
     const double budget = std::max(0.0, num(plan, "budget"));
-    int days = 0;
-    if (dated(plan)) days = int(QDate::fromString(str(plan, "startDate"), Qt::ISODate).daysTo(QDate::fromString(str(plan, "endDate"), Qt::ISODate))) + 1;
-    return { { QStringLiteral("currency"), cur }, { QStringLiteral("total"), total }, { QStringLiteral("bookTotal"), bookTotal }, { QStringLiteral("expTotal"), expTotal },
+    const int days = tripDays(plan);
+    QVariantMap out{ { QStringLiteral("currency"), cur }, { QStringLiteral("total"), total }, { QStringLiteral("bookTotal"), bookTotal }, { QStringLiteral("expTotal"), expTotal },
              { QStringLiteral("missing"), missing }, { QStringLiteral("mainTotal"), mainTotal }, { QStringLiteral("mainMissing"), mainMissing },
              { QStringLiteral("cats"), cats }, { QStringLiteral("rows"), rowsOut }, { QStringLiteral("budget"), budget }, { QStringLiteral("remain"), budget - total },
              { QStringLiteral("over"), budget > 0 && total > budget }, { QStringLiteral("pct"), budget > 0 ? std::clamp(total / budget, 0.0, 1.0) : 0.0 },
              { QStringLiteral("days"), days }, { QStringLiteral("daily"), days > 0 ? total / days : 0.0 } };
+    out.insert(settleInfo(plan, main, rates));
+    return out;
+}
+
+QVariantMap settleInfo(const Value &plan, const QString &main, const Rates &rates)
+{
+    const QVector<Person> ps = peopleOf(plan);
+    const QString planCur = planCurrency(plan);
+    QHash<QString, double> paid, share;
+    QStringList missing;
+    QVector<QPair<QString, double>> used;
+    int count = 0;
+    QSet<QString> usedIds;
+    for (const Value &x : plan[kExpenses].asArray()) {
+        if (!x.isObject()) continue;
+        ++count;
+        usedIds.insert(str(x, "paidBy"));
+        for (const Value &s : x[kSplit].asArray()) usedIds.insert(str(s, "who"));
+        if (ps.isEmpty()) continue;
+        const QString cur = str(x, "currency").isEmpty() ? planCur : str(x, "currency");
+        const double k = perMain(rates, main, cur);
+        if (k < 0) { if (!missing.contains(cur)) missing << cur; continue; }
+        if (cur != main && std::none_of(used.begin(), used.end(), [&](const auto &u) { return u.first == cur; })) used.push_back({ cur, k });
+        paid[payerOf(ps, x)] += num(x, "amount") * k;
+        const QHash<QString, double> sh = shares(ps, x);
+        for (auto it = sh.begin(); it != sh.end(); ++it) share[it.key()] += it.value() * k;
+    }
+    QVariantList people, rows;
+    struct Bal { QString name; double v; };
+    QVector<Bal> cred, debt;
+    for (const Person &p : ps) {
+        people << QVariantMap{ { QStringLiteral("id"), p.id }, { QStringLiteral("name"), p.name }, { QStringLiteral("used"), usedIds.contains(p.id) } };
+        const double a = round2(paid.value(p.id)), b = round2(share.value(p.id)), net = round2(paid.value(p.id) - share.value(p.id));
+        rows << QVariantMap{ { QStringLiteral("id"), p.id }, { QStringLiteral("name"), p.name }, { QStringLiteral("paid"), a }, { QStringLiteral("share"), b }, { QStringLiteral("net"), net } };
+        if (net > 0.005) cred.push_back({ p.name, net });
+        else if (net < -0.005) debt.push_back({ p.name, -net });
+    }
+    // 最少转账：每次让欠得最多的人还给被欠得最多的人
+    QVariantList transfers;
+    const auto byV = [](const Bal &a, const Bal &b) { return a.v > b.v; };
+    for (int guard = 0; !cred.isEmpty() && !debt.isEmpty() && guard < 200; ++guard) {
+        std::stable_sort(cred.begin(), cred.end(), byV);
+        std::stable_sort(debt.begin(), debt.end(), byV);
+        const double v = std::min(cred.first().v, debt.first().v);
+        if (v > 0.005) transfers << QVariantMap{ { QStringLiteral("from"), debt.first().name }, { QStringLiteral("to"), cred.first().name }, { QStringLiteral("amount"), round2(v) } };
+        cred.first().v -= v;
+        debt.first().v -= v;
+        if (cred.first().v <= 0.005) cred.removeFirst();
+        if (debt.first().v <= 0.005) debt.removeFirst();
+    }
+    QVariantList usedOut;
+    for (const auto &u : std::as_const(used)) usedOut << QVariantMap{ { QStringLiteral("cur"), u.first }, { QStringLiteral("per"), u.second } };
+    double bookingOnly = 0;
+    for (const SpendRow &r : spendRows(plan)) if (r.fromBooking) bookingOnly += std::abs(r.amount);
+    return { { QStringLiteral("people"), people }, { QStringLiteral("multi"), ps.size() >= 2 }, { QStringLiteral("expenseCount"), count }, { QStringLiteral("bookingOnly"), bookingOnly },
+             { QStringLiteral("settle"), QVariantMap{ { QStringLiteral("cur"), main }, { QStringLiteral("rows"), rows }, { QStringLiteral("transfers"), transfers },
+                                                     { QStringLiteral("missing"), missing }, { QStringLiteral("rates"), usedOut }, { QStringLiteral("date"), rates.date } } } };
+}
+
+// ---------------- 账本 ----------------
+
+QVariantMap ledgerInfo(const Value &root, const QString &main, const Rates &rates)
+{
+    QVector<QVariantMap> trips;
+    QHash<QString, double> byCat, byYear;
+    QStringList missing;
+    double total = 0, datedSpent = 0;
+    int emptyCount = 0, datedDays = 0;
+    for (const Value &plan : root[QStringLiteral("plans")].asArray()) {
+        if (!plan.isObject()) continue;
+        const QString start = str(plan, "startDate"), end = str(plan, "endDate");
+        double spent = 0;
+        bool any = false;
+        for (const SpendRow &r : spendRows(plan)) {
+            if (r.amount == 0) continue;
+            any = true;
+            const double k = perMain(rates, main, r.cur);
+            if (k < 0) { if (!missing.contains(r.cur)) missing << r.cur; continue; }
+            const double v = r.amount * k;
+            spent += v;
+            byCat[r.cat] += v;
+            const QString day = okDate(r.date) ? r.date : okDate(start) ? start : end;
+            byYear[okDate(day) ? day.left(4) : QString()] += v;
+        }
+        if (!any) { ++emptyCount; continue; }
+        total += spent;
+        const int days = tripDays(plan);
+        if (days > 0) { datedSpent += spent; datedDays += days; }
+        const QString cur = planCurrency(plan);
+        const double budget = std::max(0.0, num(plan, "budget")), kb = perMain(rates, main, cur);
+        trips.push_back({ { QStringLiteral("id"), str(plan, "id") }, { QStringLiteral("name"), str(plan, "name") }, { QStringLiteral("status"), statusOf(plan) },
+                          { QStringLiteral("start"), start }, { QStringLiteral("end"), end }, { QStringLiteral("days"), days }, { QStringLiteral("spent"), spent },
+                          { QStringLiteral("budget"), budget }, { QStringLiteral("budgetCur"), cur }, { QStringLiteral("budgetMain"), kb > 0 ? budget * kb : -1.0 } });
+    }
+    std::stable_sort(trips.begin(), trips.end(), [](const QVariantMap &a, const QVariantMap &b) { return a.value(QStringLiteral("spent")).toDouble() > b.value(QStringLiteral("spent")).toDouble(); });
+    QVariantList tripsOut;
+    for (const QVariantMap &t : std::as_const(trips)) tripsOut << t;
+    QStringList yearKeys = byYear.keys();
+    std::sort(yearKeys.begin(), yearKeys.end(), std::greater<QString>());   // 没写日期（空）排到最后
+    double top = 0;
+    for (double v : std::as_const(byYear)) top = std::max(top, v);
+    QVariantList years;
+    for (const QString &y : std::as_const(yearKeys)) {
+        const double v = byYear.value(y);
+        years << QVariantMap{ { QStringLiteral("y"), y }, { QStringLiteral("v"), v }, { QStringLiteral("share"), top > 0 ? std::max(0.0, v / top) : 0.0 } };
+    }
+    return { { QStringLiteral("total"), total }, { QStringLiteral("trips"), tripsOut }, { QStringLiteral("emptyCount"), emptyCount },
+             { QStringLiteral("perTrip"), trips.isEmpty() ? 0.0 : total / trips.size() }, { QStringLiteral("perDay"), datedDays > 0 ? datedSpent / datedDays : 0.0 },
+             { QStringLiteral("cats"), catsOut(byCat) }, { QStringLiteral("years"), years }, { QStringLiteral("missing"), missing } };
 }
 
 // ---------------- 交通住宿 ----------------
@@ -377,24 +587,27 @@ QString putBooking(Value &plan, const QString &id, const QVariantMap &f)
     if (cost != 0) o.set(QStringLiteral("cost"), Value(cost));
     else o.remove(QStringLiteral("cost"));
 
-    if (id.isEmpty()) {
-        if (f.value(QStringLiteral("toExp")).toBool() && cost != 0) {   // Electron "同时记到消费"
-            json::Object e;
-            e.set(QStringLiteral("id"), Value(newId("ex")));
-            e.set(QStringLiteral("date"), Value(start.left(10)));
-            e.set(QStringLiteral("cat"), Value(catOfKind(kind)));
-            e.set(QStringLiteral("title"), Value(text("title")));
-            e.set(QStringLiteral("amount"), Value(cost));
-            e.set(QStringLiteral("bookingId"), Value(useId));
-            mutList(plan, kExpenses).push_back(Value(std::move(e)));
-        }
-    } else if (plan[kExpenses].isArray()) {
+    bool recorded = false;
+    if (!id.isEmpty() && plan[kExpenses].isArray()) {
         for (Value &x : mutList(plan, kExpenses))
             if (str(x, "bookingId") == id) {
+                recorded = true;
                 json::Object &e = x.mutObject();
                 e.set(QStringLiteral("amount"), Value(cost));
                 if (!text("title").isEmpty()) e.set(QStringLiteral("title"), Value(text("title")));
             }
+    }
+    if (!recorded && f.value(QStringLiteral("toExp")).toBool() && cost != 0) {   // Electron "同时记到消费"
+        const QVector<Person> ps = peopleOf(plan);
+        json::Object e;
+        e.set(QStringLiteral("id"), Value(newId("ex")));
+        e.set(QStringLiteral("date"), Value(start.left(10)));
+        e.set(QStringLiteral("cat"), Value(catOfKind(kind)));
+        e.set(QStringLiteral("title"), Value(text("title")));
+        e.set(QStringLiteral("amount"), Value(cost));
+        e.set(QStringLiteral("bookingId"), Value(useId));
+        if (!ps.isEmpty()) e.set(kPaidBy, Value(ps.first().id));
+        mutList(plan, kExpenses).push_back(Value(std::move(e)));
     }
     return {};
 }
@@ -422,6 +635,37 @@ QString putExpense(Value &plan, const QString &id, const QVariantMap &f)
     if (!ok) return QStringLiteral("badAmount");
     if (!text("date").isEmpty() && !okDate(text("date"))) return QStringLiteral("badDate");
 
+    // 分账字段先算好、先查（按金额分时加起来要等于这一笔）
+    const bool hasPaid = f.contains(kPaidBy);
+    json::Array split;
+    double fixedSum = 0;
+    bool allFixed = true;
+    for (const QVariant &v : f.value(kSplit).toList()) {
+        const QVariantMap m = v.toMap();
+        json::Object o;
+        o.set(QStringLiteral("who"), Value(m.value(QStringLiteral("who")).toString()));
+        if (m.contains(QStringLiteral("amount"))) {
+            bool amtOk = true;
+            const QString t = m.value(QStringLiteral("amount")).toString();
+            const double a = t.trimmed().isEmpty() ? 0 : parseNum(t, &amtOk);
+            if (!amtOk) return QStringLiteral("badSplit");
+            o.set(QStringLiteral("amount"), Value(a));
+            fixedSum += a;
+        } else {
+            allFixed = false;
+        }
+        split.push_back(Value(std::move(o)));
+    }
+    if (!split.empty() && allFixed && std::abs(fixedSum - amount) > 0.005) return QStringLiteral("badSplit");
+    for (const QVariant &v : f.value(QStringLiteral("newPeople")).toList()) {
+        const QVariantMap m = v.toMap();
+        json::Object o;
+        o.set(QStringLiteral("id"), Value(m.value(QStringLiteral("id")).toString()));
+        o.set(QStringLiteral("name"), Value(m.value(QStringLiteral("name")).toString().trimmed().left(20)));
+        mutList(plan, kPeople).push_back(Value(std::move(o)));
+    }
+    const QVector<Person> ps = peopleOf(plan);
+
     json::Array &list = mutList(plan, kExpenses);
     Value *x = nullptr;
     if (!id.isEmpty()) {
@@ -443,6 +687,13 @@ QString putExpense(Value &plan, const QString &id, const QVariantMap &f)
     setOrRemove(o, "notes", text("notes"));
     // 和计划币种一样就不写（"不写 = 计划的币种"），已经写了的照写
     if (!cur.isEmpty() && (cur != planCurrency(plan) || o.contains(QStringLiteral("currency")))) o.set(QStringLiteral("currency"), Value(cur));
+    if (hasPaid) {
+        o.set(kPaidBy, Value(f.value(kPaidBy).toString()));
+        if (split.empty()) o.remove(kSplit);
+        else o.set(kSplit, Value(std::move(split)));
+    } else if (id.isEmpty() && !ps.isEmpty()) {
+        o.set(kPaidBy, Value(ps.first().id));   // 一行快记：我付、所有人平摊（Electron 新加一笔的默认）
+    }
     return {};
 }
 
@@ -454,6 +705,26 @@ bool removeExpense(Value &plan, const QString &id)
     if (it == list.end()) return false;
     list.erase(it);
     return true;
+}
+
+QString editPerson(Value &plan, const QString &id, const QString &name, bool remove)
+{
+    if (!isPerson(peopleOf(plan), id)) return QStringLiteral("gone");
+    if (remove) {
+        for (const Value &x : plan[kExpenses].asArray()) {
+            if (str(x, "paidBy") == id) return QStringLiteral("used");
+            for (const Value &s : x[kSplit].asArray()) if (str(s, "who") == id) return QStringLiteral("used");
+        }
+        json::Array &list = mutList(plan, kPeople);
+        list.erase(std::remove_if(list.begin(), list.end(), [&](const Value &p) { return str(p, "id") == id; }), list.end());
+        if (list.empty()) plan.mutObject().remove(kPeople);
+        return {};
+    }
+    const QString n = name.trimmed().left(20);
+    if (n.isEmpty()) return {};
+    for (Value &p : mutList(plan, kPeople))
+        if (str(p, "id") == id) p.mutObject().set(QStringLiteral("name"), Value(n));
+    return {};
 }
 
 QString setBudget(Value &plan, const QString &text, const QString &currency)

@@ -277,13 +277,13 @@ void runPages(Report &r, AppController *app, map::MapController *mapc, QQuickWin
         QQuickItem *bud = item(win, "bud-ledger");
         waitFor([bud] { return bud && bud->opacity() > 0.95; }, 1500);
         click(win, bud);
-        QQuickItem *page = item(win, "fullPage");
+        QQuickItem *page = item(win, "ledgerPage");
         const bool open = waitFor([page] { return page && page->opacity() > 0.95; }, 1500);
         QQuickItem *title = item(win, "placeholderTitle");
         QQuickItem *label = item(win, "dotsLabel");
-        r.check(open && nav->page() == QLatin1String("ledger") && title && title->property("text").toString() == tp::tr("账本")
+        r.check(open && nav->page() == QLatin1String("ledger")
                     && shown(item(win, "backBtn")) && !shown(item(win, "statusPill")) && label && label->property("text").toString() == tp::tr("账本"),
-                QStringLiteral("点\"账本\"：整页占位盖住地图，⋯ 上显示\"账本\"，出现 ↩，左下胶囊藏起来"));
+                QStringLiteral("点\"账本\"：账本盖住地图，⋯ 上显示\"账本\"，出现 ↩，左下胶囊藏起来"));
         const QString e = escOnce(win);
         const bool back = waitFor([nav] { return nav->page() == QLatin1String("foot"); }, 800);
         r.check(e == QLatin1String("page") && back && pc->mode() == QLatin1String("foot") && waitFor([page] { return page && !page->isVisible(); }, 1500),

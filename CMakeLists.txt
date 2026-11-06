@@ -3,7 +3,7 @@
 # 规则（PO 2026-11-02）：大更新改第一位，中等更新改第二位，小修改改第三位；正式版之前是 0.x.y，正式版 1.0.0。
 cmake_minimum_required(VERSION 3.24)
 
-set(TP_VERSION "0.10.1")
+set(TP_VERSION "0.10.2")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TP_VERSION_NUMERIC "${TP_VERSION}")
 
 project(TravelPlannerNative
@@ -175,7 +175,7 @@ foreach(f GlassPanel TpButton ModalLayer ChoiceCard ChoiceDialog MessageDialog T
           SchedList RouteSketch RoundIcon MenuRow)
     set_source_files_properties(qml/components/${f}.qml PROPERTIES QT_RESOURCE_ALIAS ${f}.qml)
 endforeach()
-foreach(f SettingsPanel SettingsCard SettingsRow BackupSection PhotoTestPage PlaceholderPage PlanPage)
+foreach(f SettingsPanel SettingsCard SettingsRow BackupSection PhotoTestPage PlaceholderPage LedgerPage PlanPage)
     set_source_files_properties(qml/pages/${f}.qml PROPERTIES QT_RESOURCE_ALIAS ${f}.qml)
 endforeach()
 qt_add_qml_module(TravelPlanner
@@ -218,6 +218,8 @@ qt_add_qml_module(TravelPlanner
         qml/components/BudgetTab.qml
         qml/components/BookingDialog.qml
         qml/components/ExpenseDialog.qml
+        qml/components/TpChip.qml
+        qml/components/CatBar.qml
         qml/components/RouteSketch.qml
         qml/components/RoundIcon.qml
         qml/components/MenuRow.qml
@@ -242,6 +244,7 @@ qt_add_qml_module(TravelPlanner
         qml/pages/BackupSection.qml
         qml/pages/PhotoTestPage.qml
         qml/pages/PlaceholderPage.qml
+        qml/pages/LedgerPage.qml
         qml/pages/PlanPage.qml
 )
 

@@ -1,4 +1,5 @@
 // 自检：0.10.1 交通住宿、消费、汇率——标签、弹出表单、费用同步和连带删除、不算两遍、退款、缺汇率、主货币、J1 没订住宿、J2 站点卡片、J3 一行快记、汇率的两个来源。
+// 0.10.2 分账和账本（runSplit）：一个人时都不显示、表单里加同行人、平摊和按金额、结算、K1 复制、同行人改名和删除、账本的数字和跳转。
 // 都在数据副本上做，最后把数据和主货币改回去。汇率不联网（setFetchForTest）。
 #include "selftest_util.h"
 
@@ -10,8 +11,11 @@
 #include "planpagecontroller.h"
 #include "plans.h"
 #include "ratescontroller.h"
+#include "translator.h"
 
+#include <QClipboard>
 #include <QDateTime>
+#include <QGuiApplication>
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <qpa/qwindowsysteminterface.h>
@@ -311,6 +315,211 @@ void runMoney(Report &r, AppController *app, QQuickWindow *win, PlanPageControll
     pc->setTodayOverride(QString());
     pc->setTestAllStatuses(true);
     win->setProperty("nowOpen", false);
+    win->resize(oldSize);
+    pause(150);
+}
+
+void runSplit(Report &r, AppController *app, QQuickWindow *win, PlanPageController *page, NavHistory *nav, RatesController *rates)
+{
+    r.section(QStringLiteral("0.10.2 分账、账本"));
+    PlanController *pc = plansCtl();
+    data::DataStore *store = app->store();
+    QQuickItem *panel = item(win, QStringLiteral("planPage"));
+    if (!r.check(pc && page && nav && panel && rates, QStringLiteral("计划页和汇率都在"))) return;
+    const QString oldMain = rates->main();
+    const plans::Rates oldTable = rates->table();
+    rates->setFetchForTest([](const QUrl &, std::function<void(int, const QByteArray &, int)> done) {
+        done(200, QByteArrayLiteral(R"({"base":"CNY","date":"2026-11-05","rates":{"AUD":0.2,"USD":0.14}})"), 0);
+    });
+    rates->resetForTest(QStringLiteral("AUD"), plans::Rates(), 0);
+    rates->ensure();
+
+    pc->setTestAllStatuses(false);
+    const QVariantMap demo = pc->demo();
+    const QString id = demo.value(QStringLiteral("planId")).toString();
+    if (!r.check(!id.isEmpty(), QStringLiteral("有带日期的路线"))) { rates->setFetchForTest({}); return; }
+    pc->setTodayOverride(demo.value(QStringLiteral("today")).toString());
+    const Value before = store->data();
+    const QSize oldSize = win->size();
+    if (win->width() < 1300) win->resize(1400, win->height());
+    store->modify([&](Value &d) {
+        Value *p = plans::mutPlan(d, id);
+        for (const char *k : { "bookings", "expenses", "people", "budget" }) p->mutObject().remove(QString::fromLatin1(k));
+        p->mutObject().set(QStringLiteral("currency"), Value(QStringLiteral("AUD")));
+    });
+    win->setProperty("tripTab", QStringLiteral("budget"));
+    QMetaObject::invokeMethod(win, "openTrip", Q_ARG(QVariant, id), Q_ARG(QVariant, -1));
+    waitStill(panel);
+    r.check(panel->property("tab").toString() == QLatin1String("budget"), QStringLiteral("打开到消费标签"));
+
+    // ---- 一个人：什么都不显示；旧数据（没有 paidBy）算"我"的 ----
+    page->saveExpense(QString(), { { QStringLiteral("title"), QStringLiteral("以前的") }, { QStringLiteral("amount"), QStringLiteral("30") }, { QStringLiteral("cat"), QStringLiteral("food") }, { QStringLiteral("date"), pc->today() } });
+    r.check(!(*curPlan(store, id))[QStringLiteral("expenses")].asArray()[0].asObject().contains(QStringLiteral("paidBy")), QStringLiteral("没有同行人时不写 paidBy"));
+    pause(60);
+    r.check(!isShown(item(win, QStringLiteral("moneySettle"))) && !isShown(item(win, QStringLiteral("moneyPeople"))), QStringLiteral("没有同行人：不显示结算和同行人"));
+
+    // ---- 表单里加同行人（第一次加时"我"放第一位）----
+    QQuickItem *dlg = item(win, QStringLiteral("expenseDialog"));
+    showExpense(dlg, QStringLiteral("晚饭"));
+    dlg->setProperty("amount", QStringLiteral("240"));
+    r.check(!isShown(findItem(dlg, QStringLiteral("expPayer-") + tp::tr("我"))), QStringLiteral("没有同行人时表单里没有付款人"));
+    for (const char *n : { "小王", "小李" }) {
+        dlg->setProperty("addName", QString::fromUtf8(n));
+        QMetaObject::invokeMethod(dlg, "addPerson");
+    }
+    dlg->setProperty("addName", QStringLiteral("小王"));
+    QMetaObject::invokeMethod(dlg, "addPerson");
+    r.check(dlg->property("ps").toList().size() == 3 && dlg->property("ps").toList().first().toMap().value(QStringLiteral("name")).toString() == tp::tr("我"), QStringLiteral("加了两个人，\"我\"在第一位；重名的不加"));
+    pause(60);
+    r.check(text(findItem(dlg, QStringLiteral("expEach"))).contains(QStringLiteral("80")), QStringLiteral("写明每人 80"), text(findItem(dlg, QStringLiteral("expEach"))));
+    r.check(text(findItem(dlg, QStringLiteral("expNet"))).contains(QStringLiteral("+160")), QStringLiteral("点开能看到这一笔每人的净额"), text(findItem(dlg, QStringLiteral("expNet"))));
+    pause(300);
+    click(win, item(win, QStringLiteral("expOk")));
+    r.check(!dlg->property("open").toBool(), QStringLiteral("保存后关掉"));
+    waitGone(dlg);
+    const Value *p = curPlan(store, id);
+    r.check((*p)[QStringLiteral("people")].asArray().size() == 3, QStringLiteral("同行人写进了 people"));
+    pause(60);
+    QVariantMap m = money(page);
+    r.check(m.value(QStringLiteral("multi")).toBool() && isShown(item(win, QStringLiteral("moneySettle"))) && isShown(item(win, QStringLiteral("moneyPeople"))), QStringLiteral("两个人以上：显示结算和同行人"));
+    QQuickItem *settleCard = item(win, QStringLiteral("moneySettle"));
+    QQuickItem *totalItem = item(win, QStringLiteral("moneyTotal"));
+    r.check(settleCard && totalItem && settleCard->mapToScene(QPointF()).y() < totalItem->mapToScene(QPointF()).y(), QStringLiteral("结算在最上面（5A）"));
+    // 我付 240、三人平摊；以前那笔只算我：我 +160，小王、小李各 −80
+    QVariantMap settle = m.value(QStringLiteral("settle")).toMap();
+    r.check(settle.value(QStringLiteral("transfers")).toList().size() == 2, QStringLiteral("两笔转账"));
+    QVariant line;
+    for (const QVariant &v : m.value(QStringLiteral("rows")).toList())
+        if (v.toMap().value(QStringLiteral("title")).toString() == QStringLiteral("晚饭")) QMetaObject::invokeMethod(item(win, QStringLiteral("tripBudget")), "splitText", Q_RETURN_ARG(QVariant, line), Q_ARG(QVariant, v));
+    r.check(line.toString().contains(QStringLiteral("3")) && line.toString().contains(tp::tr("我")), QStringLiteral("每笔一行写明谁付、怎么分"), line.toString());
+
+    // ---- K1 复制 ----
+    click(win, item(win, QStringLiteral("settleCopy")));
+    const QString clip = QGuiApplication::clipboard()->text();
+    r.check(clip.contains(QStringLiteral("小王 → ")) && clip.contains(QStringLiteral("AUD 80")), QStringLiteral("复制结算结果"), clip);
+    r.check(text(item(win, QStringLiteral("settleCopy"))) == tp::tr("已复制"), QStringLiteral("按钮提示已复制"));
+
+    // ---- 按金额分：对不上不存，对上了存 ----
+    QString dinnerId;
+    QVariantMap dinner;
+    for (const QVariant &v : m.value(QStringLiteral("rows")).toList())
+        if (v.toMap().value(QStringLiteral("title")).toString() == QStringLiteral("晚饭")) { dinner = v.toMap(); dinnerId = dinner.value(QStringLiteral("id")).toString(); }
+    QMetaObject::invokeMethod(dlg, "show", Q_ARG(QVariant, QVariant(dinner)), Q_ARG(QVariant, QVariant()));
+    r.check(dlg->property("among").toList().size() == 3 && !dlg->property("custom").toBool(), QStringLiteral("改这一笔：三人平摊"));
+    dlg->setProperty("custom", true);
+    pause(60);
+    const QStringList pids = [&] { QStringList l; for (const QVariant &v : dlg->property("ps").toList()) l << v.toMap().value(QStringLiteral("id")).toString(); return l; }();
+    QMetaObject::invokeMethod(dlg, "setAmount", Q_ARG(QVariant, pids[0]), Q_ARG(QVariant, QStringLiteral("100")));
+    QMetaObject::invokeMethod(dlg, "setAmount", Q_ARG(QVariant, pids[1]), Q_ARG(QVariant, QStringLiteral("100")));
+    QMetaObject::invokeMethod(dlg, "setAmount", Q_ARG(QVariant, pids[2]), Q_ARG(QVariant, QStringLiteral("30")));
+    const Value atBad = store->data();
+    QMetaObject::invokeMethod(dlg, "save");
+    r.check(dlg->property("open").toBool() && dlg->property("err").toString() == QLatin1String("badSplit") && store->data() == atBad, QStringLiteral("分摊对不上：不关、不改数据"), dlg->property("err").toString());
+    QMetaObject::invokeMethod(dlg, "setAmount", Q_ARG(QVariant, pids[2]), Q_ARG(QVariant, QStringLiteral("40")));
+    QMetaObject::invokeMethod(dlg, "save");
+    r.check(!dlg->property("open").toBool(), QStringLiteral("对上了就存"));
+    waitGone(dlg);
+    p = curPlan(store, id);
+    int customN = 0;
+    for (const Value &x : (*p)[QStringLiteral("expenses")].asArray()) if (x[QStringLiteral("id")].toString() == dinnerId) customN = int(x[QStringLiteral("split")].asArray().size());
+    r.check(customN == 3, QStringLiteral("split 按金额写进数据"));
+    m = money(page);
+    bool sawCustom = false;
+    for (const QVariant &v : m.value(QStringLiteral("rows")).toList()) if (v.toMap().value(QStringLiteral("custom")).toBool()) sawCustom = true;
+    r.check(sawCustom, QStringLiteral("再打开是按金额分"));
+
+    // ---- 一行快记：我付、所有人平摊 ----
+    QQuickItem *budget = item(win, QStringLiteral("tripBudget"));
+    budget->setProperty("qTitle", QStringLiteral("咖啡"));
+    budget->setProperty("qAmount", QStringLiteral("9"));
+    click(win, item(win, QStringLiteral("quickAdd")));
+    bool quickPaid = false;
+    for (const Value &x : (*curPlan(store, id))[QStringLiteral("expenses")].asArray())
+        if (x[QStringLiteral("title")].toString() == QStringLiteral("咖啡")) quickPaid = x[QStringLiteral("paidBy")].toString() == pids[0] && !x.asObject().contains(QStringLiteral("split"));
+    r.check(quickPaid, QStringLiteral("一行快记默认我付、所有人平摊"));
+
+    // ---- 缺汇率、用到的汇率 ----
+    page->saveExpense(QString(), { { QStringLiteral("title"), QStringLiteral("没有汇率") }, { QStringLiteral("amount"), QStringLiteral("5") }, { QStringLiteral("currency"), QStringLiteral("ISK") }, { QStringLiteral("cat"), QStringLiteral("shop") }, { QStringLiteral("date"), pc->today() } });
+    page->saveExpense(QString(), { { QStringLiteral("title"), QStringLiteral("美元") }, { QStringLiteral("amount"), QStringLiteral("14") }, { QStringLiteral("currency"), QStringLiteral("USD") }, { QStringLiteral("cat"), QStringLiteral("shop") }, { QStringLiteral("date"), pc->today() } });
+    pause(60);
+    r.check(text(item(win, QStringLiteral("settleMissing"))).contains(QStringLiteral("ISK")) && isShown(item(win, QStringLiteral("settleMissing"))), QStringLiteral("结算写明缺哪种汇率"));
+    r.check(text(item(win, QStringLiteral("settleRates"))).contains(QStringLiteral("1 USD")), QStringLiteral("列出用到的汇率"), text(item(win, QStringLiteral("settleRates"))));
+
+    // ---- 交通住宿的钱不进结算，写明白 ----
+    QVariantMap hotel{ { QStringLiteral("kind"), QStringLiteral("hotel") }, { QStringLiteral("title"), QStringLiteral("自检酒店") }, { QStringLiteral("cost"), QStringLiteral("500") } };
+    const QVariantList netBefore = money(page).value(QStringLiteral("settle")).toMap().value(QStringLiteral("rows")).toList();
+    page->saveBooking(QString(), hotel);
+    pause(60);
+    r.check(money(page).value(QStringLiteral("settle")).toMap().value(QStringLiteral("rows")).toList() == netBefore, QStringLiteral("交通住宿的费用不进结算"));
+    r.check(isShown(item(win, QStringLiteral("settleBookingNote"))), QStringLiteral("写明没算进结算"));
+    QString hotelId;
+    for (const Value &b : (*curPlan(store, id))[QStringLiteral("bookings")].asArray()) hotelId = b[QStringLiteral("id")].toString();
+    hotel.insert(QStringLiteral("toExp"), true);
+    page->saveBooking(hotelId, hotel);
+    pause(60);
+    r.check(!isShown(item(win, QStringLiteral("settleBookingNote"))) && money(page).value(QStringLiteral("settle")).toMap().value(QStringLiteral("rows")).toList() != netBefore, QStringLiteral("改旧预订时勾\"记到消费\"：进结算"));
+
+    // ---- 同行人改名、删除 ----
+    QQuickItem *pd = item(win, QStringLiteral("personDialog"));
+    QVariantMap who;
+    for (const QVariant &v : money(page).value(QStringLiteral("people")).toList()) if (v.toMap().value(QStringLiteral("name")).toString() == QStringLiteral("小李")) who = v.toMap();
+    QMetaObject::invokeMethod(pd, "show", Q_ARG(QVariant, QVariant(who)));
+    pause(60);
+    r.check(who.value(QStringLiteral("used")).toBool() && isShown(findItem(pd, QStringLiteral("personUsed"))) && !isShown(findItem(pd, QStringLiteral("personDel"))), QStringLiteral("有消费用到的人不能删"));
+    pd->setProperty("name", QStringLiteral("老李"));
+    click(win, item(win, QStringLiteral("personOk")));
+    pause(60);
+    r.check(!pd->property("open").toBool(), QStringLiteral("保存后关掉"));
+    waitGone(pd);
+    r.check(money(page).value(QStringLiteral("settle")).toMap().value(QStringLiteral("rows")).toList().at(2).toMap().value(QStringLiteral("name")).toString() == QStringLiteral("老李"), QStringLiteral("改名了，结算跟着变"));
+    r.check(page->editPerson(who.value(QStringLiteral("id")).toString(), QString(), true) == QLatin1String("used"), QStringLiteral("硬删也不让"));
+    page->saveExpense(QString(), { { QStringLiteral("title"), QStringLiteral("加人") }, { QStringLiteral("amount"), QStringLiteral("1") }, { QStringLiteral("cat"), QStringLiteral("other") }, { QStringLiteral("date"), pc->today() },
+                                   { QStringLiteral("newPeople"), QVariantList{ QVariantMap{ { QStringLiteral("id"), QStringLiteral("pp_tmp") }, { QStringLiteral("name"), QStringLiteral("路人") } } } } });
+    r.check(page->editPerson(QStringLiteral("pp_tmp"), QString(), true).isEmpty() && money(page).value(QStringLiteral("people")).toList().size() == 3, QStringLiteral("没用到的人能删"));
+
+    // ---- 账本 ----
+    const double budgetMain = money(page).value(QStringLiteral("mainTotal")).toDouble();   // 离开计划页后 info 就空了
+    nav->go(QStringLiteral("ledger"));
+    QQuickItem *ledger = item(win, QStringLiteral("ledgerPage"));
+    waitFor([&] { return ledger && ledger->opacity() > 0.95; }, 1500);
+    pause(60);
+    const QVariantMap led = page->ledger();
+    r.check(isShown(ledger) && !led.isEmpty(), QStringLiteral("账本打开了"));
+    QVariantMap mine;
+    for (const QVariant &v : led.value(QStringLiteral("trips")).toList()) if (v.toMap().value(QStringLiteral("id")).toString() == id) mine = v.toMap();
+    // 主货币 AUD = 这条计划的币种：账本里这一趟和消费页的合计除掉缺汇率的应该一样
+    r.check(!mine.isEmpty() && qAbs(mine.value(QStringLiteral("spent")).toDouble() - budgetMain) < 0.01, QStringLiteral("账本这一趟的数字和消费页一样"),
+            QStringLiteral("%1 / %2").arg(mine.value(QStringLiteral("spent")).toDouble()).arg(budgetMain));
+    r.check(led.value(QStringLiteral("missing")).toStringList().contains(QStringLiteral("ISK")) && isShown(item(win, QStringLiteral("ledgerMissing"))), QStringLiteral("写明缺哪种汇率"));
+    r.check(text(item(win, QStringLiteral("ledgerTotal"))).startsWith(QStringLiteral("AUD ")), QStringLiteral("总额按主货币"), text(item(win, QStringLiteral("ledgerTotal"))));
+    rates->setMain(QStringLiteral("CNY"));
+    pause(60);
+    r.check(text(item(win, QStringLiteral("ledgerTotal"))).startsWith(QStringLiteral("CNY ")), QStringLiteral("页头换主货币，总额跟着变"), text(item(win, QStringLiteral("ledgerTotal"))));
+    const QVariantList tripsNow = page->ledger().value(QStringLiteral("trips")).toList();
+    r.check(ledger->property("sorted").toList().size() == tripsNow.size(), QStringLiteral("每趟一行"), QString::number(tripsNow.size()));
+    bool desc = true;
+    for (int i = 1; i < tripsNow.size(); ++i) if (tripsNow[i - 1].toMap().value(QStringLiteral("spent")).toDouble() < tripsNow[i].toMap().value(QStringLiteral("spent")).toDouble()) desc = false;
+    r.check(desc, QStringLiteral("默认按花费排"));
+    ledger->setProperty("sortBy", QStringLiteral("date"));
+    pause(60);
+    const QVariantList byDate = ledger->property("sorted").toList();
+    r.check(byDate.size() == tripsNow.size(), QStringLiteral("能按日期排"));
+    ledger->setProperty("sortBy", QStringLiteral("spent"));
+    // 点一行：跳到那个计划的消费标签
+    ledger->setProperty("sortBy", QStringLiteral("date"));
+    QMetaObject::invokeMethod(ledger, "openPlan", Q_ARG(QString, id));
+    waitStill(panel);
+    r.check(nav->page() == QLatin1String("trip") && page->planId() == id && panel->property("tab").toString() == QLatin1String("budget"), QStringLiteral("点一行到那个计划的消费标签"));
+    ledger->setProperty("sortBy", QStringLiteral("spent"));
+
+    // ---- 收尾 ----
+    nav->go(pc->mode());
+    waitStill(panel);
+    store->modify([&](Value &d) { d = before; });
+    rates->setFetchForTest({});
+    rates->resetForTest(oldMain, oldTable, 0);
+    pc->setTodayOverride(QString());
+    pc->setTestAllStatuses(true);
     win->resize(oldSize);
     pause(150);
 }

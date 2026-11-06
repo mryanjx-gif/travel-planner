@@ -19,6 +19,7 @@ ModalLayer {
     property string cost: ""
     property string notes: ""
     property bool toExp: false
+    property bool linked: false
     property string err: ""
     readonly property bool isNew: bookingId === ""
     readonly property bool hotel: kind === "hotel"
@@ -44,6 +45,7 @@ ModalLayer {
         cost = b.cost ? String(b.cost) : ""
         notes = b.notes || ""
         toExp = false
+        linked = !!b.linked
         err = ""
         open = true
         titleField.focusAll()
@@ -144,8 +146,8 @@ ModalLayer {
             }
             TpCheck {
                 objectName: "bookToExp"
-                visible: root.isNew
-                text: qsTr("同时单独记一笔到“消费”（可以单独改）")
+                visible: !root.linked   // 改旧的也能勾：要分摊就得先记到消费（0.10.2）
+                text: root.isNew ? qsTr("同时单独记一笔到“消费”（可以单独改）") : qsTr("记一笔到“消费”（可以单独改、分摊）")
                 checked: root.toExp
                 onToggled: (c) => { root.toExp = c }
             }

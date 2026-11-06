@@ -127,6 +127,7 @@ void runAll(Report &r, AppController *app, PhotoController *photos, map::MapCont
     if (want("editor")) runEditor(r, app, mapc, win, roads);
     if (want("planpage")) runPlanPage(r, app, mapc, win, planPageCtl(), navCtl());
     if (want("money")) runMoney(r, app, win, planPageCtl(), navCtl(), ratesCtl());
+    if (want("split")) runSplit(r, app, win, planPageCtl(), navCtl(), ratesCtl());
     mapc->fitAll(false);
     if (!want("photos")) return;
 

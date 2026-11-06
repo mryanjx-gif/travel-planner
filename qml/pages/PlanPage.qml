@@ -31,6 +31,7 @@ Item {
     signal editExpense(var row)
     signal deleteExpense(var row)
     signal budgetRequested()
+    signal editPerson(var person)
 
     readonly property bool missing: shown && !(source && source.id)
     readonly property var stops: info.stops || []
@@ -372,6 +373,7 @@ Item {
                 onRemove: (row) => root.deleteExpense(row)
                 onMore: (draft) => root.addExpense(draft)
                 onBudgetRequested: root.budgetRequested()
+                onPersonClicked: (p) => root.editPerson(p)
             }
             // ---- 备注 ----
             Column {

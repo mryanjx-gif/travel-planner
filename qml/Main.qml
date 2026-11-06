@@ -1469,6 +1469,7 @@ Window {
         onAddExpense: (draft) => expenseDialog.show(null, draft)
         onEditExpense: (row) => expenseDialog.show(row, null)
         onDeleteExpense: (row) => moneyDialog.ask("expense", row)
+        onEditPerson: (p) => personDialog.show(p)
         onBudgetRequested: {
             budgetDialog.budget = planPage.info.money.budget > 0 ? String(planPage.info.money.budget) : ""
             budgetDialog.cur = planPage.info.money.currency
@@ -1477,7 +1478,62 @@ Window {
         }
     }
     BookingDialog { id: bookingDialog; objectName: "bookingDialog"; backdrop: scene; currency: (planPage.info.money || {}).currency || "" }
-    ExpenseDialog { id: expenseDialog; objectName: "expenseDialog"; backdrop: scene; planCurrency: (planPage.info.money || {}).currency || ""; today: plans.today }
+    ExpenseDialog { id: expenseDialog; objectName: "expenseDialog"; backdrop: scene; planCurrency: (planPage.info.money || {}).currency || ""; today: plans.today; people: (planPage.info.money || {}).people || [] }
+    // 同行人改名、删除（0.10.2，Electron editPerson：有消费用到时不能删）
+    ModalLayer {
+        id: personDialog
+        objectName: "personDialog"
+        backdrop: scene
+        cardWidth: 380
+        property var person: ({})
+        property string name: ""
+        property bool del: false
+        onDismissed: open = false
+        function show(p) {
+            person = p
+            name = p.name
+            del = false
+            personField.clear()
+            open = true
+            personField.focusAll()
+        }
+        function save() {
+            planPage.editPerson(person.id, name, del)
+            open = false
+        }
+        Text { text: qsTr("同行人"); font.family: serifFamily; font.pixelSize: Theme.px(19); font.bold: true; color: Theme.text }
+        TpField {
+            id: personField
+            objectName: "personName"
+            width: parent.width
+            placeholder: qsTr("名字")
+            value: personDialog.name
+            onEdited: (t) => { personDialog.name = t }
+            onAccepted: personDialog.save()
+            onEscaped: personDialog.open = false
+        }
+        TpCheck {
+            objectName: "personDel"
+            visible: !personDialog.person.used
+            text: qsTr("删除这个人")
+            checked: personDialog.del
+            onToggled: (c) => { personDialog.del = c }
+        }
+        Text {
+            objectName: "personUsed"
+            visible: !!personDialog.person.used
+            width: parent.width
+            wrapMode: Text.Wrap
+            text: qsTr("有消费用到这个人，不能删除。")
+            font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.muted
+        }
+        Row {
+            anchors.right: parent.right
+            spacing: Theme.px(8)
+            TpButton { text: qsTr("取消"); onClicked: personDialog.open = false }
+            TpButton { objectName: "personOk"; kind: "primary"; text: qsTr("保存"); onClicked: personDialog.save() }
+        }
+    }
     ModalLayer {
         id: budgetDialog
         objectName: "budgetDialog"
@@ -1613,7 +1669,17 @@ Window {
         onPhotoTestClicked: win.goPage("phototest")
     }
 
-    // ---- 0.8.10 整页：日历、游记、账本（阶段 ⑤ 之前是占位页，PO 选 ① A） ----
+    // ---- 0.8.10 整页：日历、游记（阶段 ⑤ 之前是占位页，PO 选 ① A）；账本 0.10.2 ----
+    LedgerPage {
+        objectName: "ledgerPage"
+        anchors.fill: parent
+        anchors.margins: win.gap
+        anchors.topMargin: win.topH + 4
+        backdrop: scene
+        z: 20
+        shown: nav.page === "ledger"
+        onOpenPlan: (id) => { win.tripTab = "budget"; win.openTrip(id, -1) }
+    }
     PlaceholderPage {
         id: fullPage
         objectName: "fullPage"
@@ -1622,7 +1688,7 @@ Window {
         anchors.topMargin: win.topH + 4
         backdrop: scene
         z: 20
-        shown: win.fullPageOpen
+        shown: win.fullPageOpen && nav.page !== "ledger"
         // 淡出时还显示刚才那一页的名字
         Connections { target: nav; function onChanged() { if (win.fullPageOpen) fullPage.title = win.modeName(nav.page) } }
         Component.onCompleted: if (win.fullPageOpen) title = win.modeName(nav.page)
@@ -2106,7 +2172,7 @@ Window {
                                       || importDialog.open || importProgressDialog.open || importReportDialog.open || takeOverDialog.open
                                       || photoReview.open || cleanupDialog.open || planConfirm.open || editorDialog.open
                                       || daysDialog.open || startDialog.open
-                                      || bookingDialog.open || expenseDialog.open || budgetDialog.open || moneyDialog.open
+                                      || bookingDialog.open || expenseDialog.open || budgetDialog.open || moneyDialog.open || personDialog.open
     readonly property bool textFocused: activeFocusItem !== null && activeFocusItem.cursorPosition !== undefined
     Shortcut {
         sequence: "Ctrl+Z"
@@ -2295,7 +2361,7 @@ Window {
         else if (shotPage === "bubbles" || shotPage === "list" || shotPage === "palette" || shotPage === "menu") shellShot.start()
         else if (shotPage.startsWith("trip")) tripShot.start()
         else if (shotPage.startsWith("editor") || shotPage.startsWith("narrow") || shotPage === "locate" || shotPage === "controls") editShot.start()
-        else if (shotPage.startsWith("mode-") || shotPage === "modes" || shotPage === "modes-narrow" || shotPage === "ledger") modeShot.start()
+        else if (shotPage.startsWith("mode-") || shotPage === "modes" || shotPage === "modes-narrow" || shotPage.startsWith("ledger")) modeShot.start()
         else if (shotPage !== "" && !shotPage.startsWith("ui-") && shotPage !== "selftest") mapc.base = shotPage
     }
 
@@ -2328,7 +2394,16 @@ Window {
 
     // 截图（0.10.1）：trip-bookings = 交通住宿（含没订住宿的提醒）；trip-budget = 消费；trip-booking-form / trip-expense-form = 弹出表单；
     // trip-stopbooks = 站点卡片上当天的交通住宿。在数据副本上加几条示例
-    readonly property bool moneyShot: ["trip-bookings", "trip-budget", "trip-booking-form", "trip-expense-form", "trip-stopbooks"].indexOf(shotPage) >= 0
+    // 0.10.2：trip-settle = 有同行人的消费页和结算；trip-split-form = 分账表单（按金额分）；trip-split-narrow = 500 宽的分账表单
+    readonly property bool moneyShot: ["trip-bookings", "trip-budget", "trip-booking-form", "trip-expense-form", "trip-stopbooks", "trip-settle", "trip-split-form", "trip-split-narrow"].indexOf(shotPage) >= 0
+    function seedSplit() {
+        const a = plans.today
+        const ids = ["pp_shotme", "pp_shotw", "pp_shotl"]
+        if (((planPage.info.money || {}).people || []).length === 0)
+            planPage.saveExpense("", { title: "Dinner", amount: "240", cat: "food", date: a, newPeople: [{ id: ids[0], name: qsTr("我") }, { id: ids[1], name: "小王" }, { id: ids[2], name: "小李" }], paidBy: ids[0], split: [] })
+        planPage.saveExpense("", { title: "Tickets", amount: "90", cat: "ticket", date: a, paidBy: ids[1], split: [{ who: ids[0] }, { who: ids[1] }] })
+        planPage.saveExpense("", { title: "Taxi", amount: "100", currency: "USD", cat: "transport", date: a, paidBy: ids[2], split: [{ who: ids[0], amount: "60" }, { who: ids[2], amount: "40" }] })
+    }
     function seedMoney() {
         if ((planPage.info.money || {}).budget === 3000) return   // 前一张截图已经加过（几张截图用同一份副本）
         const stops = planPage.info.stops || []
@@ -2353,7 +2428,7 @@ Window {
             if (d.planId === undefined) { console.warn("截图 trip：数据里没有带日期的路线"); return }
             plans.setTodayOverride(d.today)
             if (shotPage === "trip-today") plans.setNextTrip(d.planId, true)
-            if (shotPage === "trip-narrow") win.width = 500
+            if (shotPage === "trip-narrow" || shotPage === "trip-split-narrow") win.width = 500
             let id = d.planId
             if (shotPage === "trip-sketch") id = mapc.markers.demo("route").planId || id   // 没有照片、没有日期：路线简图、预计天数
             if (shotPage === "trip-single") {
@@ -2363,7 +2438,11 @@ Window {
             win.openTrip(id, shotPage === "trip-today" ? plans.now.hereIndex || 0 : -1)
             if (shotPage === "trip-scroll") tripShot2.start()
             if (shotPage === "trip-edit") tripShot2.start()
-            if (win.moneyShot) { win.seedMoney(); tripShot2.start() }
+            if (win.moneyShot) {
+                win.seedMoney()
+                if (shotPage === "trip-settle" || shotPage.startsWith("trip-split")) win.seedSplit()
+                tripShot2.start()
+            }
         }
     }
     Timer {
@@ -2375,6 +2454,9 @@ Window {
                 planPanel.openTab(shotPage === "trip-bookings" || shotPage === "trip-booking-form" ? "bookings" : shotPage === "trip-stopbooks" ? "itinerary" : "budget")
                 if (shotPage === "trip-booking-form") bookingDialog.show(null, "hotel")
                 if (shotPage === "trip-expense-form") expenseDialog.show(null, { title: "", cat: "food" })
+                if (shotPage.startsWith("trip-split")) {
+                    for (const x of planPage.info.money.rows) if (x.custom) { expenseDialog.show(x, null); break }
+                }
                 return
             }
             planPanel.beginFirstEdit()
@@ -2433,7 +2515,7 @@ Window {
         }
     }
     // 截图（0.8.10）：modes = 打开 ⋯（8 颗泡泡）；modes-narrow = 640 宽时 ⋯ 排两行；mode-foot / mode-wish / mode-photo = 切到那种模式、
-    // 打开列表；ledger = 账本占位页。会改数据副本（设为下次出发）
+    // 打开列表；ledger / ledger-narrow = 账本。会改数据副本（设为下次出发）
     Timer {
         id: modeShot
         interval: 2000
@@ -2444,7 +2526,8 @@ Window {
             if (shotPage === "modes" || shotPage === "modes-narrow") {
                 if (shotPage === "modes-narrow") win.width = 640
                 Qt.callLater(() => topBar.setBubbles(true))
-            } else if (shotPage === "ledger") {
+            } else if (shotPage.startsWith("ledger")) {
+                if (shotPage === "ledger-narrow") win.width = 500
                 win.goPage("ledger")
             } else {
                 win.goPage(shotPage.slice(5))
