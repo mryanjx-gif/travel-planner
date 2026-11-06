@@ -737,3 +737,27 @@ Enter 记下，日期默认今天	Enter to add; dated today
 天气、气候、海拔数据：Open-Meteo（CC BY 4.0）	Weather, climate and elevation data: Open-Meteo (CC BY 4.0)
 海拔 <b>%1 m</b>	Elevation <b>%1 m</b>
 往年气候没取到，等一下再试	Couldn't get past years' climate. Try again in a moment.
+用这份清单（%1 项）替换原来的模板，以后别的计划可以“从模板添加”。	Replace the current template with this list (%1 items). Other plans can then use "Add from template".
+这个计划还没有照片	This plan has no photos yet
+加 %1 条	Add %1 items
+只对这个计划有效。	For this plan only.
+所有计划共用。	Shared by all plans.
+紧急联系人 %1	Emergency contact %1
+这张照片找不到了	This photo can't be found
+显示的文字，可以不填	Link text (optional)
+写	Write
+看	Read
+%1 字 · 停手后自动保存	%1 characters · saves when you pause
+写攻略：注意事项、想吃的店、交通、门票、链接……\n\n# 大标题、## 小标题、- 列表、- [ ] 勾选项、**加粗**，网址会自动变成链接。	Write your guide: things to note, places to eat, transport, tickets, links…\n\n# Heading, ## Subheading, - List, - [ ] Checklist item, **bold**. URLs become links automatically.
+%1 字	%1 characters
+%1 篇	Entries: %1
+这个计划还没有游记。写游记和看全文要等后面的版本（阶段 ⑤）。	This plan has no journal entries yet. Writing entries and reading them in full will come in a later version.
+%1 条待办已过期	%1 overdue
+%1 条待办 3 天内到期	%1 due within 3 days
+加了 %1 项	Items added: %1
+模板里有 %1 项。	Template items: %1.
+模板还没存过，“从模板添加”会用一份默认清单。	No template saved yet, so "Add from template" uses a default list.
+打勾、增删都会自动保存。	Ticks, additions and deletions save automatically.
+还没填。出发前查一下当地的报警、急救电话和中国使领馆电话（外交部“中国领事”、当地政府网站）。	Not filled in yet. Before you leave, look up the local police and ambulance numbers and your embassy or consulate.
+填一次，所有计划共用。	Fill this in once; all plans share it.
+这些只存在你自己的电脑上。	This is stored only on your own computer.

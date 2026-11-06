@@ -17,6 +17,7 @@
 #include "jsonio.h"
 #include "markers.h"
 #include "night.h"
+#include "plankit.h"
 #include "plans.h"
 #include "planedit.h"
 #include "planmoney.h"
@@ -67,6 +68,10 @@ private slots:
     void altitudeRules();
     void weatherParsing();
     void elevEditing();
+    void kitChecks();       // 0.10.4
+    void kitEmergency();
+    void kitJournal();
+    void kitGuide();
     void moneyRates();
     void moneySpend();
     void moneySplit();
@@ -2605,6 +2610,164 @@ void TestMap::weatherParsing()
     QCOMPARE(r0.value("mm").toDouble(), 2.95);
     QCOMPARE(r0.value("years").toString(), QStringLiteral("2016–2025"));
     QVERIFY(climResult(acc[1], { 2016, 2025 }).isEmpty());
+}
+
+void TestMap::kitChecks()
+{
+    using namespace tp::map::plans;
+    tp::json::Value root = parseJson(R"({"plans":[{"id":"p","status":"planning","startDate":"2026-12-01","packing":[
+        {"id":"a","text":"护照","done":true,"x":1},{"id":"b","text":"雨具","done":false}],
+        "todos":[{"id":"t1","text":"甲","done":false,"due":"2026-11-08"},{"id":"t2","text":"乙","done":false,"due":"2026-11-01"},
+                 {"id":"t3","text":"丙","done":true,"due":"2026-11-01"},{"id":"t4","text":"丁","done":false,"due":"2026-12-01"}]},
+        {"id":"w","status":"wish","todos":[{"id":"t","text":"x","done":false,"due":"2020-01-01"}]}]})");
+    tp::json::Value *p = mutPlan(root, "p");
+    QVariantMap k = kitInfo(root, *p, "2026-11-06");
+    // M1：显示顺序没勾的在前，数据顺序不变
+    QCOMPARE(k["packing"].toList()[0].toMap()["id"].toString(), QStringLiteral("b"));
+    QCOMPARE((*p)["packing"].asArray()[0]["id"].toString(), QStringLiteral("a"));
+    QCOMPARE(k["packDone"].toInt(), 1);
+    QCOMPARE(k["doneAll"].toInt(), 2);
+    QCOMPARE(k["totalAll"].toInt(), 6);
+    // M2：3 天内、已过期；勾了的不算
+    QCOMPARE(k["dueSoon"].toInt(), 1);
+    QCOMPARE(k["dueOver"].toInt(), 1);
+    QCOMPARE(k["todos"].toList()[0].toMap()["dueState"].toString(), QStringLiteral("soon"));
+    QCOMPARE(k["todos"].toList()[1].toMap()["dueState"].toString(), QStringLiteral("over"));
+    QCOMPARE(k["todos"].toList()[2].toMap()["dueState"].toString(), QString());
+    // 只在计划中的计划上提醒
+    QCOMPARE(kitInfo(root, *planById(root, "w"), "2026-11-06")["dueOver"].toInt(), 0);
+    // M4
+    QCOMPARE(splitLines("- 徒步杖\r\n\n  * 三季徒步鞋 \n1. 头灯\n[ ] 地图\n- [x] 水壶\n1.5L 水\n   "),
+             QStringList({ "徒步杖", "三季徒步鞋", "头灯", "地图", "水壶", "1.5L 水" }));
+    QCOMPARE(addChecks(*p, "packing", "x\ny"), 2);
+    QCOMPARE(addChecks(*p, "packing", "  \n "), 0);
+    QCOMPARE(addChecks(*p, "other", "z"), 0);
+    QCOMPARE((*p)["packing"].asArray().size(), size_t(4));
+    QVERIFY((*p)["packing"].asArray()[3]["id"].toString().startsWith("pk_"));
+    QCOMPARE((*p)["packing"].asArray()[3]["done"], tp::json::Value(false));
+    // 打勾、日期、删除：只动那个键
+    QVERIFY(setCheckDone(*p, "packing", "a", false));
+    QCOMPARE((*p)["packing"].asArray()[0]["x"].toNumber(), 1.0);
+    QVERIFY(!setCheckDone(*p, "packing", "nope", true));
+    QVERIFY(setCheckDue(*p, "t4", "2026-12-02"));
+    QVERIFY(!setCheckDue(*p, "t4", "明天"));
+    QVERIFY(setCheckDue(*p, "t4", ""));
+    QVERIFY(!(*p)["todos"].asArray()[3].asObject().contains("due"));
+    QVERIFY(removeCheck(*p, "todos", "t4"));
+    QVERIFY(!removeCheck(*p, "todos", "t4"));
+    // 模板：默认 11 项、去重；存了以后用存的
+    root = parseJson(R"({"plans":[{"id":"p","packing":[{"id":"a","text":"雨具","done":true}]},{"id":"q"}]})");
+    QCOMPARE(defaultPacking().size(), 11);
+    QCOMPARE(addFromTemplate(root, "p"), 10);
+    QCOMPARE(addFromTemplate(root, "p"), 0);
+    QCOMPARE(saveTemplate(root, "q"), 0);
+    QVERIFY(!root.asObject().contains("packingTemplate"));
+    QCOMPARE(saveTemplate(root, "p"), 11);
+    QCOMPARE(addFromTemplate(root, "q"), 11);
+    QCOMPARE((*planById(root, "q"))["packing"].asArray()[0]["text"].toString(), QStringLiteral("雨具"));
+}
+
+void TestMap::kitEmergency()
+{
+    using namespace tp::map::plans;
+    tp::json::Value root = parseJson(R"({"keep":1,"emergency":{"insurer":"A","future":"留着","contacts":[{"name":"甲","phone":"1","extra":"留"},
+        {"name":"乙"},{"name":"丙"},{"name":"丁"}]},"plans":[{"id":"p","localEmergency":[{"label":"报警","phone":"110"},{"label":"旧的一段文字","phone":""}]}]})");
+    tp::json::Value *p = mutPlan(root, "p");
+    setLocalEmergency(*p, { { "急救", " 120 " } });
+    const tp::json::Array &l = (*p)["localEmergency"].asArray();
+    QCOMPARE(l.size(), size_t(2));     // 报警清空了；导入来的一段文字留着
+    QCOMPARE(l[0]["label"].toString(), QStringLiteral("急救"));
+    QCOMPARE(l[0]["phone"].toString(), QStringLiteral("120"));
+    QCOMPARE(l[1]["label"].toString(), QStringLiteral("旧的一段文字"));
+    tp::json::Value q = parseJson(R"({"localEmergency":[{"label":"报警","phone":"110"}]})");
+    setLocalEmergency(q, {});
+    QVERIFY(!q.asObject().contains("localEmergency"));
+
+    setEmergency(root, { { "policyNo", "P1" }, { "n0", "甲" }, { "p0", "9" }, { "n2", "新" } });
+    const tp::json::Value &e = root["emergency"];
+    QVERIFY(!e.asObject().contains("insurer"));
+    QCOMPARE(e["future"].toString(), QStringLiteral("留着"));
+    QCOMPARE(e["policyNo"].toString(), QStringLiteral("P1"));
+    const tp::json::Array &c = e["contacts"].asArray();
+    QCOMPARE(c.size(), size_t(3));     // 甲、新、丁（第 2 个空了；第 4 个表单里没有，留着）
+    QCOMPARE(c[0]["extra"].toString(), QStringLiteral("留"));
+    QCOMPARE(c[0]["phone"].toString(), QStringLiteral("9"));
+    QCOMPARE(c[1]["name"].toString(), QStringLiteral("新"));
+    QCOMPARE(c[2]["name"].toString(), QStringLiteral("丁"));
+    tp::json::Value blank = parseJson(R"({"emergency":{"insurer":"A"}})");
+    setEmergency(blank, {});
+    QVERIFY(!blank.asObject().contains("emergency"));
+}
+
+void TestMap::kitJournal()
+{
+    using namespace tp::map::plans;
+    const QString longBody = QString(200, QLatin1Char('x'));
+    tp::json::Object j1;
+    j1.set("id", tp::json::Value("old")); j1.set("plan", tp::json::Value("p")); j1.set("date", tp::json::Value("2026-01-01")); j1.set("body", tp::json::Value(longBody));
+    tp::json::Value root = parseJson(R"({"photos":[{"id":"ph1","file":"photos/2026-01/a.jpg"}],"plans":[{"id":"p"}],
+        "journal":[{"id":"n","plan":"p","title":"新","date":"2026-02-01","body":"# 标题\n![说明](photo:ph1)\n**加粗** 的 `字`"},
+                   {"id":"other","plan":"q","date":"2030-01-01","body":"别的"}]})");
+    root.mutObject().find("journal")->mutArray().push_back(tp::json::Value(std::move(j1)));
+    const QVariantList l = journalList(root, "p");
+    QCOMPARE(l.size(), 2);
+    QCOMPARE(l[0].toMap()["id"].toString(), QStringLiteral("n"));
+    QCOMPARE(l[0].toMap()["file"].toString(), QStringLiteral("photos/2026-01/a.jpg"));
+    QCOMPARE(l[0].toMap()["text"].toString(), QStringLiteral("标题\n\n加粗 的 字"));
+    QCOMPARE(l[1].toMap()["text"].toString().size(), 120);
+    QCOMPARE(l[1].toMap()["file"].toString(), QString());
+}
+
+void TestMap::kitGuide()
+{
+    using namespace tp::map::plans;
+    const tp::json::Value root = parseJson(R"({"photos":[{"id":"ph1","file":"photos/a.jpg","width":400,"height":300}]})");
+    const QString text = QStringLiteral(
+        "# 交通\n第一行 <b>不是标签</b>\n**粗** 看 https://a.com/x?a=1&b=2，然后\n\n## 小 **标题**\n> 引用\n- 列表\n- [ ] 没勾\n- [x] 勾了\n* [X] 也勾了\n"
+        "![海边](photo:ph1)\n![](photo:gone)\n[文字](https://b.com) 和 [不是网址](javascript:alert(1))\n#不是标题\n### 三级");
+    const QVariantMap g = guideBlocks(root, text);
+    const QVariantList b = g["blocks"].toList();
+    QStringList types;
+    for (const QVariant &v : b) types << v.toMap()["type"].toString();
+    QCOMPARE(types, QStringList({ "h1", "p", "h2", "quote", "li", "task", "task", "task", "img", "img", "p", "h2" }));
+    const QString p = b[1].toMap()["html"].toString();
+    QVERIFY(p.contains("&lt;b&gt;不是标签&lt;/b&gt;<br><b>粗</b>"));      // 转义；多行用 <br>
+    QVERIFY(p.contains("<a href=\"https://a.com/x?a=1&amp;b=2\">"));
+    QVERIFY(p.contains("</a>，然后"));                                    // 中文标点不算进网址
+    QCOMPARE(b[5].toMap()["line"].toInt(), 7);
+    QCOMPARE(b[5].toMap()["done"].toBool(), false);
+    QCOMPARE(b[6].toMap()["done"].toBool(), true);
+    QCOMPARE(b[8].toMap()["file"].toString(), QStringLiteral("photos/a.jpg"));
+    QCOMPARE(b[8].toMap()["caption"].toString(), QStringLiteral("海边"));
+    QCOMPARE(b[8].toMap()["width"].toDouble(), 400.0);
+    QCOMPARE(b[9].toMap()["file"].toString(), QString());
+    const QString tail = b[10].toMap()["html"].toString();
+    QVERIFY(tail.contains("<a href=\"https://b.com\">文字</a>"));
+    QVERIFY(!tail.contains("href=\"javascript"));                         // 只认 http(s)
+    const QVariantList heads = g["heads"].toList();
+    QCOMPARE(heads.size(), 3);
+    QCOMPARE(heads[1].toMap()["text"].toString(), QStringLiteral("小 标题"));
+    QCOMPARE(heads[1].toMap()["block"].toInt(), 2);
+    QCOMPARE(heads[2].toMap()["level"].toInt(), 3);
+    QVERIFY(guideBlocks(root, "")["blocks"].toList().isEmpty());
+    // 打勾写回那一行，别的不动
+    const QString t = QStringLiteral("a\n- [ ] 甲\n  * [x] 乙\n- 丙");
+    QCOMPARE(toggleTaskLine(t, 1, true), QStringLiteral("a\n- [x] 甲\n  * [x] 乙\n- 丙"));
+    QCOMPARE(toggleTaskLine(t, 2, false), QStringLiteral("a\n- [ ] 甲\n  * [ ] 乙\n- 丙"));
+    QCOMPARE(toggleTaskLine(t, 3, true), t);
+    QCOMPARE(toggleTaskLine(t, 99, true), t);
+    tp::json::Value plan = parseJson(R"({"guide":"x"})");
+    setGuide(plan, " \n ");
+    QVERIFY(!plan.asObject().contains("guide"));
+    setGuide(plan, "y");
+    QCOMPARE(plan["guide"].toString(), QStringLiteral("y"));
+    // 插入照片的列表：站点顺序，没坐标的站不算
+    const tp::json::Value r2 = parseJson(R"({"plans":[{"id":"p","stops":[{"id":"s1","name":"一","lat":1,"lng":1},{"id":"s2","name":"二","lat":2,"lng":2},{"id":"x","name":"无坐标"}]}],
+        "photos":[{"id":"b","file":"f/b","plan":"p","stop":"s2"},{"id":"a","file":"f/a","plan":"p","stop":"s1"},{"id":"c","file":"f/c","plan":"p","stop":"x"},{"id":"d","file":"f/d","plan":"q","stop":"s1"}]})");
+    const QVariantList ph = planPhotos(r2, "p");
+    QCOMPARE(ph.size(), 2);
+    QCOMPARE(ph[0].toMap()["id"].toString(), QStringLiteral("a"));
+    QCOMPARE(ph[1].toMap()["stop"].toString(), QStringLiteral("二"));
 }
 
 void TestMap::elevEditing()

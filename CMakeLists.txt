@@ -3,7 +3,7 @@
 # 规则（PO 2026-11-02）：大更新改第一位，中等更新改第二位，小修改改第三位；正式版之前是 0.x.y，正式版 1.0.0。
 cmake_minimum_required(VERSION 3.24)
 
-set(TP_VERSION "0.10.3")
+set(TP_VERSION "0.10.4")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TP_VERSION_NUMERIC "${TP_VERSION}")
 
 project(TravelPlannerNative
@@ -82,6 +82,7 @@ add_library(tp_map STATIC
     src/map/planpage.cpp src/map/planpage.h
     src/map/planmoney.cpp src/map/planmoney.h
     src/map/planweather.cpp src/map/planweather.h
+    src/map/plankit.cpp src/map/plankit.h
     src/map/suncalc.cpp src/map/suncalc.h
     src/map/planedit.cpp src/map/planedit.h
     src/map/globegeom.cpp src/map/globegeom.h
@@ -138,7 +139,7 @@ qt_add_executable(TravelPlanner WIN32
     src/app/thumbprovider.cpp src/app/thumbprovider.h
     src/app/framestats.cpp src/app/framestats.h
     src/app/selftest.cpp src/app/selftest.h src/app/selftest_util.cpp src/app/selftest_util.h
-    src/app/selftest_map.cpp src/app/selftest_routes.cpp src/app/selftest_unlock.cpp src/app/selftest_plans.cpp src/app/selftest_shell.cpp src/app/selftest_pages.cpp src/app/selftest_planpage.cpp src/app/selftest_money.cpp src/app/selftest_weather.cpp src/app/selftest_editor.cpp src/app/selftest_globe.cpp src/app/selftest_perf.cpp
+    src/app/selftest_map.cpp src/app/selftest_routes.cpp src/app/selftest_unlock.cpp src/app/selftest_plans.cpp src/app/selftest_shell.cpp src/app/selftest_pages.cpp src/app/selftest_planpage.cpp src/app/selftest_money.cpp src/app/selftest_weather.cpp src/app/selftest_kit.cpp src/app/selftest_editor.cpp src/app/selftest_globe.cpp src/app/selftest_perf.cpp
     src/platform/crashhandler.cpp src/platform/crashhandler.h
     src/platform/nativedialog.cpp src/platform/nativedialog.h
     src/platform/watchdog.cpp src/platform/watchdog.h
@@ -221,6 +222,14 @@ qt_add_qml_module(TravelPlanner
         qml/components/BookingDialog.qml
         qml/components/ExpenseDialog.qml
         qml/components/TpChip.qml
+        qml/components/CheckCard.qml
+        qml/components/PackingTab.qml
+        qml/components/EmergencyDialog.qml
+        qml/components/JournalTab.qml
+        qml/components/GuideTab.qml
+        qml/components/GuideBlocks.qml
+        qml/components/GuideLinkDialog.qml
+        qml/components/PhotoPickDialog.qml
         qml/components/CatBar.qml
         qml/components/RouteSketch.qml
         qml/components/RoundIcon.qml

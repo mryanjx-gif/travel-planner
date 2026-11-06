@@ -2,7 +2,7 @@
 // 照 Electron pages-plan.js render / itineraryHtml / bindItinerary / setFocus，PO 选的改进：
 //   I1 交通画成站点之间的连接线、I2 日程按天分组（SchedList）、I3 在路上时高亮今天、I4 往下滚时页头收成一行。
 // 站点列表按需加载（最长的路线 48 站）：ListView，模型只是站点个数，数据变了不重建卡片、滚动位置不动（P-04）。
-// 标签（PO：没做的不显示，后面每批加上去）：行程、交通住宿、消费（0.10.1）。别的标签的内容放在列表的页头里，模型变成 0，页头收起和滚动都一样。
+// 标签（PO：没做的不显示，后面每批加上去）：行程、交通住宿、行李与待办（0.10.4）、消费（0.10.1）、游记、攻略（0.10.4）。放不下时能左右拖。别的标签的内容放在列表的页头里，模型变成 0，页头收起和滚动都一样。
 // source = planPage.info（plans::pageInfo）。
 import QtQuick
 import TPApp
@@ -35,6 +35,12 @@ Item {
     signal deleteExpense(var row)
     signal budgetRequested()
     signal editPerson(var person)
+    signal notice(string text)              // 0.10.4 行李与待办的小提示
+    signal saveTemplateRequested()
+    signal editLocalEmergency()
+    signal editEmergency()
+    signal guideLinkRequested(string selected)
+    signal guidePhotoRequested()
 
     readonly property bool missing: shown && !(source && source.id)
     readonly property var stops: info.stops || []
@@ -49,7 +55,7 @@ Item {
     readonly property real navNatural: hdr ? list.y + hdr.y + hdr.navY - list.contentY : 0
     readonly property bool collapsed: hdr ? hdr.y + hdr.titleBottom - list.contentY < 0 : false
     readonly property bool scheduleEditing: edit.j !== -2 || elevEdit >= 0
-    property string tab: "itinerary"        // itinerary / bookings / budget
+    property string tab: "itinerary"        // itinerary / bookings / packing / budget / journal / guide
     property bool menuOpen: false
     property real menuY: 0
     property var openNotes: ({})
@@ -85,10 +91,29 @@ Item {
     // 换标签。quick = 消费标签，光标放到一行快记（J3）
     function openTab(t) {
         edit.j = -2
+        flushGuide()
         scrollAnim.stop()
         tab = t === "quick" ? "budget" : t
         list.contentY = list.originY
         Qt.callLater(() => { list.contentY = list.originY; if (t === "quick" && list.headerItem) list.headerItem.focusQuick() })
+    }
+    // 0.10.4 攻略
+    function flushGuide() { if (list.headerItem) list.headerItem.guide.flush() }
+    function guideInsertLink(md) { list.headerItem.guide.replaceSelection(md) }
+    function guideInsertPhoto(ph) { list.headerItem.guide.insertPhoto(ph) }
+    function guideBeginEdit() { list.headerItem.guide.beginEdit() }
+    function pasteForShot(t) {   // 截图：粘贴的输入框和紧急信息卡都在清单下面
+        list.headerItem.packing.paste(t)
+        shotBottom.start()
+    }
+    Timer { id: shotBottom; interval: 200; onTriggered: list.contentY = list.originY + list.contentHeight - list.height }
+    function scrollInGuide(y, animate) {
+        const h = list.headerItem
+        const to = Math.max(list.originY, Math.min(h.y + h.guide.y + y - compactH - Theme.px(8), list.originY + list.contentHeight - list.height))
+        scrollAnim.stop()
+        if (!animate || !Theme.motion) { list.contentY = to; return }
+        scrollAnim.to = to
+        scrollAnim.start()
     }
     // 消费标签里点"来自交通住宿"的一行：回到交通住宿，打开它的表单
     function editBookingById(id) {
@@ -216,6 +241,8 @@ Item {
             id: head
             readonly property real titleBottom: titleRow.y + titleRow.height
             readonly property real navY: navSpace.y
+            readonly property alias guide: guideTab
+            readonly property alias packing: packingTab
             function focusQuick() { budgetTab.focusQuick() }
             x: root.margin
             width: list.width - 2 * root.margin
@@ -405,29 +432,66 @@ Item {
                 width: parent.width
                 height: Theme.px(34)
                 Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.line }
-                Row {
-                    x: Theme.px(2)
-                    height: parent.height
-                    spacing: Theme.px(20)
-                    Repeater {
-                        model: ["itinerary", "bookings", "budget"]
-                        delegate: Item {
-                            required property string modelData
-                            readonly property bool on: root.tab === modelData
-                            readonly property int n: modelData === "bookings" ? root.info.bookCount || 0 : modelData === "budget" ? ((root.info.money || {}).rows || []).length : 0
-                            objectName: "tripTab-" + modelData
-                            width: tabLabel.implicitWidth
-                            height: parent.height
-                            Accessible.role: Accessible.PageTab
-                            Accessible.name: tabLabel.text
-                            Text {
-                                id: tabLabel
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: (parent.modelData === "bookings" ? qsTr("交通住宿") : parent.modelData === "budget" ? qsTr("消费") : qsTr("行程")) + (parent.n > 0 ? " " + parent.n : "")
-                                font.family: serifFamily; font.pixelSize: Theme.px(14); font.bold: parent.on; color: parent.on ? Theme.text : Theme.muted
+                Flickable {
+                    id: tabsFlick
+                    objectName: "tripTabs"
+                    anchors.fill: parent
+                    contentWidth: tabsRow.width + Theme.px(4)
+                    contentHeight: height
+                    flickableDirection: Flickable.HorizontalFlick
+                    boundsBehavior: Flickable.StopAtBounds
+                    clip: true
+                    Row {
+                        id: tabsRow
+                        x: Theme.px(2)
+                        height: parent.height
+                        spacing: Theme.px(20)
+                        Repeater {
+                            model: ["itinerary", "bookings", "packing", "budget", "journal", "guide"]
+                            delegate: Item {
+                                required property string modelData
+                                readonly property bool on: root.tab === modelData
+                                readonly property var kit: root.info.kit || ({})
+                                // 数字（Electron counts）：行李与待办写"勾了几条 / 一共"，攻略写了就是 ✓
+                                readonly property string n: {
+                                    switch (modelData) {
+                                    case "bookings": return root.info.bookCount > 0 ? String(root.info.bookCount) : ""
+                                    case "budget": { const c = ((root.info.money || {}).rows || []).length; return c > 0 ? String(c) : "" }
+                                    case "packing": return kit.totalAll > 0 ? kit.doneAll + "/" + kit.totalAll : ""
+                                    case "journal": return (root.info.journal || []).length > 0 ? String(root.info.journal.length) : ""
+                                    case "guide": return (root.info.guide || "") !== "" ? "✓" : ""
+                                    }
+                                    return ""
+                                }
+                                readonly property int due: modelData === "packing" ? (kit.dueSoon || 0) + (kit.dueOver || 0) : 0   // M2
+                                objectName: "tripTab-" + modelData
+                                width: tabLabel.implicitWidth + (due > 0 ? dueBadge.width + Theme.px(5) : 0)
+                                height: parent.height
+                                onOnChanged: if (on) tabsFlick.contentX = Math.max(0, Math.min(x - Theme.px(24), tabsFlick.contentWidth - tabsFlick.width))
+                                Accessible.role: Accessible.PageTab
+                                Accessible.name: tabLabel.text
+                                Text {
+                                    id: tabLabel
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: (parent.modelData === "bookings" ? qsTr("交通住宿") : parent.modelData === "packing" ? qsTr("行李与待办") : parent.modelData === "budget" ? qsTr("消费")
+                                           : parent.modelData === "journal" ? qsTr("游记") : parent.modelData === "guide" ? qsTr("攻略") : qsTr("行程")) + (parent.n !== "" ? " " + parent.n : "")
+                                    font.family: serifFamily; font.pixelSize: Theme.px(14); font.bold: parent.on; color: parent.on ? Theme.text : Theme.muted
+                                }
+                                Rectangle {
+                                    id: dueBadge
+                                    objectName: "tripTabDue"
+                                    visible: parent.due > 0
+                                    anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: Math.max(height, dueCount.implicitWidth + Theme.px(8))
+                                    height: Theme.px(17)
+                                    radius: height / 2
+                                    color: "#fbf1dc"
+                                    Text { id: dueCount; anchors.centerIn: parent; text: parent.parent.due; font.family: serifFamily; font.pixelSize: Theme.px(11); font.bold: true; color: "#7a5a1c" }
+                                }
+                                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 2; color: Theme.accent; visible: parent.on }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.openTab(parent.modelData) }
                             }
-                            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 2; color: Theme.accent; visible: parent.on }
-                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.openTab(parent.modelData) }
                         }
                     }
                 }
@@ -454,6 +518,39 @@ Item {
                 onMore: (draft) => root.addExpense(draft)
                 onBudgetRequested: root.budgetRequested()
                 onPersonClicked: (p) => root.editPerson(p)
+            }
+            PackingTab {
+                id: packingTab
+                objectName: "tripPacking"
+                visible: root.tab === "packing"
+                width: parent.width
+                kit: root.info.kit || ({})
+                readOnly: root.readOnly
+                onNotice: (t) => root.notice(t)
+                onSaveTemplateRequested: root.saveTemplateRequested()
+                onEditLocal: root.editLocalEmergency()
+                onEditEmergency: root.editEmergency()
+            }
+            JournalTab {
+                objectName: "tripJournal"
+                visible: root.tab === "journal"
+                width: parent.width
+                rows: root.info.journal || []
+            }
+            GuideTab {
+                id: guideTab
+                objectName: "tripGuide"
+                visible: root.tab === "guide"
+                width: parent.width
+                planId: root.info.id || ""
+                guide: root.info.guide || ""
+                view: root.info.guideView || ({})
+                readOnly: root.readOnly
+                viewH: Math.max(Theme.px(280), list.height - root.compactH - Theme.px(130))
+                viewTop: list.contentY - head.y - y + root.compactH
+                onScrollRequested: (yy, animate) => root.scrollInGuide(yy, animate)
+                onLinkRequested: (s) => root.guideLinkRequested(s)
+                onPhotoRequested: root.guidePhotoRequested()
             }
             // ---- 备注 ----
             Column {

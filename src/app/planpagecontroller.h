@@ -51,6 +51,23 @@ public:
     Q_INVOKABLE QString editPerson(const QString &id, const QString &name, bool remove);   // 0.10.2 同行人改名、删除（plans::editPerson）
     Q_INVOKABLE void showLedger(bool on);                // 账本页打开 / 关上
     Q_INVOKABLE QString setElev(int k, const QString &text);   // 0.10.3 空 = 去掉并重新取；否则是原因的键（plans::setStopElev）
+    // 行李与待办（0.10.4）。key = packing / todos
+    Q_INVOKABLE QStringList splitLines(const QString &text) const;     // M4
+    Q_INVOKABLE int addChecks(const QString &key, const QString &text);   // 加了几条；只读时 -1
+    Q_INVOKABLE bool setCheckDone(const QString &key, const QString &id, bool done);
+    Q_INVOKABLE bool setCheckDue(const QString &id, const QString &due);
+    Q_INVOKABLE bool removeCheck(const QString &key, const QString &id);
+    Q_INVOKABLE int addFromTemplate();                                 // 加了几条；只读时 -1
+    Q_INVOKABLE int saveTemplate();                                    // 存了几项
+    // 紧急信息（plans::setLocalEmergency、setEmergency）
+    Q_INVOKABLE QString saveLocalEmergency(const QVariantMap &phones);
+    Q_INVOKABLE QString saveEmergency(const QVariantMap &fields);
+    // 攻略。planId 跟着调用方：停手保存时可能已经换了计划（写完马上关掉）
+    Q_INVOKABLE QString setGuide(const QString &planId, const QString &text);
+    Q_INVOKABLE bool toggleGuideTask(int line, bool on);
+    Q_INVOKABLE QVariantMap guideBlocks(const QString &text) const;    // plans::guideBlocks + 缩略图地址（预览用）
+    Q_INVOKABLE QVariantList planPhotos() const;                       // 这个计划的照片（插入照片）
+    Q_INVOKABLE void seedKitForShot();                                 // 截图用：在数据副本上加示例游记、紧急信息
     Q_INVOKABLE void dismissNights();                    // J1"这几晚不用"：记进 settings.json 的 noStayNights，不改数据
 
     // 测试用：替换 Open-Meteo 请求（和 PlanEditor::Fetch 一样的签名）
@@ -69,6 +86,7 @@ private:
     void fillElev(const QString &planId);    // 0.10.3 只补空的海拔
     void edited();
     QString applyPlan(const std::function<QString(json::Value &plan)> &fn);
+    QString applyRoot(const std::function<QString(json::Value &root)> &fn);
 
     AppController *m_app;
     PlanController *m_plans;

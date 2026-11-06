@@ -407,7 +407,7 @@ Window {
     }
 
     // 关窗口：按"关闭按钮"设置（直接退出 / 收到托盘 / 最小化），退出前先保存
-    onClosing: (close) => { close.accepted = false; app.closeButton() }
+    onClosing: (close) => { close.accepted = false; planPanel.flushGuide(); app.closeButton() }
 
     // ---- 被玻璃采样的那一层：地图 + 地球 ----
     property bool mapWanted: false
@@ -922,6 +922,7 @@ Window {
         onShowOnMap: (id) => win.showPlanOnMap(id)
         onOpenTrip: (id, stop) => win.openTrip(id, stop)
         onQuickExpense: (id) => { win.tripTab = "quick"; win.openTrip(id, -1) }
+        onOpenPacking: (id) => { win.tripTab = "packing"; win.openTrip(id, -1) }
         onUnsetNext: { win.nowOpen = false; plans.setNextTrip(plans.now.planId, false) }
         onMarkDone: (id, name) => { planConfirm.ask("done", id, name) }
     }
@@ -1474,11 +1475,38 @@ Window {
         onEditExpense: (row) => expenseDialog.show(row, null)
         onDeleteExpense: (row) => moneyDialog.ask("expense", row)
         onEditPerson: (p) => personDialog.show(p)
+        onNotice: (t) => toast.show(t, false)
+        onSaveTemplateRequested: {
+            tplDialog.paragraphs = [qsTr("用这份清单（%1 项）替换原来的模板，以后别的计划可以“从模板添加”。").arg(planPage.info.kit.packing.length)]
+            tplDialog.open = true
+        }
+        onEditLocalEmergency: emergencyDialog.showLocal(planPage.info.kit)
+        onEditEmergency: emergencyDialog.showGlobal(planPage.info.kit)
+        onGuideLinkRequested: (s) => guideLinkDialog.show(s)
+        onGuidePhotoRequested: {
+            const list = planPage.planPhotos()
+            if (list.length === 0) toast.show(qsTr("这个计划还没有照片"), false)
+            else photoPickDialog.show(list)
+        }
         onBudgetRequested: {
             budgetDialog.budget = planPage.info.money.budget > 0 ? String(planPage.info.money.budget) : ""
             budgetDialog.cur = planPage.info.money.currency
             budgetDialog.bad = false
             budgetDialog.open = true
+        }
+    }
+    EmergencyDialog { id: emergencyDialog; objectName: "emergencyDialog"; backdrop: scene }
+    GuideLinkDialog { id: guideLinkDialog; objectName: "guideLinkDialog"; backdrop: scene; onAccepted: (md) => planPanel.guideInsertLink(md) }
+    PhotoPickDialog { id: photoPickDialog; objectName: "photoPickDialog"; backdrop: scene; onPicked: (ph) => planPanel.guideInsertPhoto(ph) }
+    MessageDialog {
+        id: tplDialog
+        objectName: "tplDialog"
+        backdrop: scene
+        title: qsTr("存成行李模板？")
+        buttons: [{ key: "cancel", text: qsTr("取消") }, { key: "ok", text: qsTr("存成模板"), kind: "primary" }]
+        onChosen: (key) => {
+            open = false
+            if (key === "ok" && planPage.saveTemplate() > 0) toast.show(qsTr("模板已更新"), false)
         }
     }
     BookingDialog { id: bookingDialog; objectName: "bookingDialog"; backdrop: scene; currency: (planPage.info.money || {}).currency || "" }
@@ -2177,6 +2205,7 @@ Window {
                                       || photoReview.open || cleanupDialog.open || planConfirm.open || editorDialog.open
                                       || daysDialog.open || startDialog.open
                                       || bookingDialog.open || expenseDialog.open || budgetDialog.open || moneyDialog.open || personDialog.open
+                                      || emergencyDialog.open || guideLinkDialog.open || photoPickDialog.open || tplDialog.open
     readonly property bool textFocused: activeFocusItem !== null && activeFocusItem.cursorPosition !== undefined
     Shortcut {
         sequence: "Ctrl+Z"
@@ -2401,6 +2430,37 @@ Window {
     // trip-stopbooks = 站点卡片上当天的交通住宿。在数据副本上加几条示例
     // 0.10.2：trip-settle = 有同行人的消费页和结算；trip-split-form = 分账表单（按金额分）；trip-split-narrow = 500 宽的分账表单
     readonly property bool moneyShot: ["trip-bookings", "trip-budget", "trip-booking-form", "trip-expense-form", "trip-stopbooks", "trip-settle", "trip-split-form", "trip-split-narrow"].indexOf(shotPage) >= 0
+    readonly property bool kitShot: ["trip-packing", "trip-packing-narrow", "trip-packing-paste", "trip-emergency-form", "trip-journal", "trip-guide", "trip-guide-narrow", "trip-guide-edit", "trip-guide-edit-narrow", "trip-guide-new"].indexOf(shotPage) >= 0
+    function runKitShot() {
+        planPage.seedKitForShot()
+        const a = plans.today
+        if (shotPage.startsWith("trip-packing") || shotPage === "trip-emergency-form") {
+            planPanel.openTab("packing")
+            const kit = planPage.info.kit
+            if (kit.todos.length < 3) planPage.addChecks("todos", "办签证\n换汇\n订租车\n核实学期安排，确认 7–8 月能空出来")
+            if (kit.packing.length === 0) planPage.addFromTemplate()
+            const t = planPage.info.kit.todos, p = planPage.info.kit.packing
+            const soon = new Date(a + "T12:00:00")
+            soon.setDate(soon.getDate() + 2)
+            planPage.setCheckDue(t[0].id, Qt.formatDate(soon, "yyyy-MM-dd"))
+            if (t.length > 1) planPage.setCheckDue(t[1].id, "2020-01-01")
+            if (p.length > 1) planPage.setCheckDone("packing", p[0].id, true)
+            if (shotPage === "trip-packing-paste") planPanel.pasteForShot("徒步杖\n三季徒步鞋\n头灯")
+            if (shotPage === "trip-emergency-form") emergencyDialog.showGlobal(planPage.info.kit)
+            return
+        }
+        if (shotPage === "trip-journal") { planPanel.openTab("journal"); return }
+        if (shotPage === "trip-guide-new") planPage.setGuide(planPage.info.id, "")
+        else planPage.setGuide(planPage.info.id, win.shotGuide())
+        planPanel.openTab("guide")
+        if (shotPage.startsWith("trip-guide-edit")) planPanel.guideBeginEdit()
+    }
+    function shotGuide() {
+        const ph = planPage.planPhotos()
+        return "# 交通\n机场到市区约 40 分钟，**提前买票**。详情看 https://example.com/a?x=1&y=2\n\n- 地铁\n- 机场巴士\n\n## 换乘时要注意的几件事，这个标题很长很长很长很长很长很长很长很长很长很长很长很长\n> 末班车 23:30\n\n"
+             + (ph.length ? "![海边](photo:" + ph[0].id + ")\n\n" : "")
+             + "# 准备\n- [ ] 买转换插头\n- [x] 订第一晚的酒店\n- [ ] 下载离线地图\n\n## 吃的\n[市场](https://example.com/market) 早上去。\n\n## 住的\n老城区走路方便。"
+    }
     function seedSplit() {
         const a = plans.today
         const ids = ["pp_shotme", "pp_shotw", "pp_shotl"]
@@ -2433,7 +2493,7 @@ Window {
             if (d.planId === undefined) { console.warn("截图 trip：数据里没有带日期的路线"); return }
             plans.setTodayOverride(d.today)
             if (shotPage === "trip-today") plans.setNextTrip(d.planId, true)
-            if (shotPage === "trip-narrow" || shotPage === "trip-split-narrow" || shotPage === "trip-alt-narrow") win.width = 500
+            if (shotPage === "trip-narrow" || shotPage === "trip-split-narrow" || shotPage === "trip-alt-narrow" || shotPage.endsWith("-narrow") && win.kitShot) win.width = 500
             let id = d.planId
             if (shotPage === "trip-sketch") id = mapc.markers.demo("route").planId || id   // 没有照片、没有日期：路线简图、预计天数
             if (shotPage === "trip-single") {
@@ -2453,6 +2513,9 @@ Window {
                 weather.fillDemoForShot()
                 if (shotPage === "trip-elev") tripShot2.start()
             }
+            // 0.10.4：trip-packing = 行李与待办（M1、M2、紧急信息）；trip-packing-paste = M4；trip-emergency-form；trip-journal；trip-guide = 读；trip-guide-edit = 写和预览；
+            // trip-guide-new = 空攻略；*-narrow = 500 宽。数据是副本，改了不要紧
+            if (win.kitShot) tripShot2.start()
             if (win.moneyShot) {
                 win.seedMoney()
                 if (shotPage === "trip-settle" || shotPage.startsWith("trip-split")) win.seedSplit()
@@ -2466,6 +2529,7 @@ Window {
         onTriggered: {
             if (shotPage === "trip-scroll") { planPanel.pickStop(2); planPanel.reveal(2, true); return }
             if (shotPage === "trip-elev") { planPanel.reveal(1, true); planPanel.beginElev(1); return }
+            if (win.kitShot) { win.runKitShot(); return }
             if (win.moneyShot) {
                 planPanel.openTab(shotPage === "trip-bookings" || shotPage === "trip-booking-form" ? "bookings" : shotPage === "trip-stopbooks" ? "itinerary" : "budget")
                 if (shotPage === "trip-booking-form") bookingDialog.show(null, "hotel")

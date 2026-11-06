@@ -4,12 +4,14 @@
 #include "datastore.h"
 #include "netclient.h"
 #include "plancontroller.h"
+#include "plankit.h"
 #include "planmoney.h"
 #include "planpage.h"
 #include "planweather.h"
 #include "plans.h"
 #include "ratescontroller.h"
 #include "settings.h"
+#include "thumbprovider.h"
 
 namespace tp::app {
 
@@ -20,6 +22,26 @@ namespace {
 constexpr int kTzBatch = 50;         // Electron fillGeo 每批 50 个
 constexpr int kTzTimeoutMs = 25000;
 constexpr int kElevBatch = 100;      // Electron fillGeo 每批 100 个
+constexpr int kGuidePhotoWidth = 960;   // 攻略正文最宽约 600，高分屏也够
+
+// file → thumb（正文里的照片、游记首图）
+QVariantList withThumb(QVariantList rows, int width)
+{
+    for (QVariant &v : rows) {
+        QVariantMap m = v.toMap();
+        const QString f = m.value(QStringLiteral("file")).toString();
+        if (!f.startsWith(QLatin1String("photos/"))) continue;
+        m.insert(QStringLiteral("thumb"), ThumbProvider::urlFor(f, width, 0));
+        v = m;
+    }
+    return rows;
+}
+QVariantMap guideWithThumbs(const Value &root, const QString &text)
+{
+    QVariantMap g = plans::guideBlocks(root, text);
+    g.insert(QStringLiteral("blocks"), withThumb(g.value(QStringLiteral("blocks")).toList(), kGuidePhotoWidth));
+    return g;
+}
 }
 
 PlanPageController::PlanPageController(AppController *app, PlanController *pc, data::DataStore *store, services::NetClient *net,
@@ -68,6 +90,12 @@ void PlanPageController::refresh()
             QStringList nights = m.value(QStringLiteral("nights")).toStringList();
             for (const Value &d : m_settings->value(QStringLiteral("noStayNights"))[m_id].asArray()) nights.removeAll(d.toString());
             m.insert(QStringLiteral("nights"), nights);
+            // 0.10.4
+            m.insert(QStringLiteral("kit"), plans::kitInfo(m_store->data(), p, m_plans->today()));
+            m.insert(QStringLiteral("journal"), withThumb(plans::journalList(m_store->data(), m_id), 320));
+            const QString guide = p[QStringLiteral("guide")].toString();
+            m.insert(QStringLiteral("guide"), guide);
+            m.insert(QStringLiteral("guideView"), guideWithThumbs(m_store->data(), guide));
         }
     }
     if (m == m_info) return;
@@ -137,6 +165,132 @@ QString PlanPageController::applyPlan(const std::function<QString(Value &)> &fn)
     m_store->modify([&](Value &d) { d = copy; });
     edited();
     return {};
+}
+
+QString PlanPageController::applyRoot(const std::function<QString(Value &)> &fn)
+{
+    if (m_store->isReadOnly()) return QStringLiteral("readOnly");
+    Value copy = m_store->data();
+    const QString err = fn(copy);
+    if (!err.isEmpty() || copy == m_store->data()) return err;
+    m_store->modify([&](Value &d) { d = copy; });
+    edited();
+    return {};
+}
+
+QStringList PlanPageController::splitLines(const QString &text) const { return plans::splitLines(text); }
+
+int PlanPageController::addChecks(const QString &key, const QString &text)
+{
+    int n = -1;
+    applyPlan([&](Value &p) { n = plans::addChecks(p, key, text); return QString(); });
+    return n;
+}
+
+bool PlanPageController::setCheckDone(const QString &key, const QString &id, bool done)
+{
+    bool ok = false;
+    applyPlan([&](Value &p) { ok = plans::setCheckDone(p, key, id, done); return QString(); });
+    return ok;
+}
+
+bool PlanPageController::setCheckDue(const QString &id, const QString &due)
+{
+    bool ok = false;
+    applyPlan([&](Value &p) { ok = plans::setCheckDue(p, id, due); return QString(); });
+    return ok;
+}
+
+bool PlanPageController::removeCheck(const QString &key, const QString &id)
+{
+    bool ok = false;
+    applyPlan([&](Value &p) { ok = plans::removeCheck(p, key, id); return QString(); });
+    return ok;
+}
+
+int PlanPageController::addFromTemplate()
+{
+    int n = -1;
+    applyRoot([&](Value &d) { n = plans::addFromTemplate(d, m_id); return QString(); });
+    return n;
+}
+
+int PlanPageController::saveTemplate()
+{
+    int n = 0;
+    applyRoot([&](Value &d) { n = plans::saveTemplate(d, m_id); return QString(); });
+    return n;
+}
+
+QString PlanPageController::saveLocalEmergency(const QVariantMap &phones)
+{
+    return applyPlan([&](Value &p) { plans::setLocalEmergency(p, phones); return QString(); });
+}
+
+QString PlanPageController::saveEmergency(const QVariantMap &fields)
+{
+    return applyRoot([&](Value &d) { plans::setEmergency(d, fields); return QString(); });
+}
+
+QString PlanPageController::setGuide(const QString &planId, const QString &text)
+{
+    return applyRoot([&](Value &d) {
+        Value *p = plans::mutPlan(d, planId);
+        if (!p) return QStringLiteral("gone");
+        plans::setGuide(*p, text);
+        return QString();
+    });
+}
+
+bool PlanPageController::toggleGuideTask(int line, bool on)
+{
+    return applyPlan([&](Value &p) {
+        plans::setGuide(p, plans::toggleTaskLine(p[QStringLiteral("guide")].toString(), line, on));
+        return QString();
+    }).isEmpty();
+}
+
+QVariantMap PlanPageController::guideBlocks(const QString &text) const { return guideWithThumbs(m_store->data(), text); }
+
+QVariantList PlanPageController::planPhotos() const { return withThumb(plans::planPhotos(m_store->data(), m_id), 320); }
+
+void PlanPageController::seedKitForShot()
+{
+    if (m_id.isEmpty()) return;
+    // 这个计划没有照片时借库里第一张放到第一站（副本），才截得到正文里的照片和游记首图
+    if (plans::planPhotos(m_store->data(), m_id).isEmpty()) {
+        const Value *p = plans::planById(m_store->data(), m_id);
+        const QVector<int> st = plans::validStops(*p);
+        if (!st.isEmpty() && !m_store->data()[QStringLiteral("photos")].asArray().empty()) {
+            const QString stop = (*p)[QStringLiteral("stops")].asArray()[size_t(st.first())][QStringLiteral("id")].toString();
+            applyRoot([&](Value &d) {
+                json::Object &ph = d.mutObject().find(QStringLiteral("photos"))->mutArray()[0].mutObject();
+                ph.set(QStringLiteral("plan"), Value(m_id));
+                ph.set(QStringLiteral("stop"), Value(stop));
+                return QString();
+            });
+        }
+    }
+    const QVariantList photos = plans::planPhotos(m_store->data(), m_id);
+    const QString pic = photos.isEmpty() ? QString() : photos.first().toMap().value(QStringLiteral("id")).toString();
+    applyRoot([&](Value &d) {
+        plans::setEmergency(d, { { QStringLiteral("insurer"), QStringLiteral("Allianz") }, { QStringLiteral("policyNo"), QStringLiteral("AZ-2041-77") }, { QStringLiteral("insurerPhone"), QStringLiteral("+61 2 9390 6222") },
+                                 { QStringLiteral("n0"), QStringLiteral("小王") }, { QStringLiteral("r0"), QStringLiteral("朋友") }, { QStringLiteral("p0"), QStringLiteral("+86 138 0000 0000") } });
+        Value *p = plans::mutPlan(d, m_id);
+        plans::setLocalEmergency(*p, { { QStringLiteral("报警"), QStringLiteral("000") }, { QStringLiteral("急救"), QStringLiteral("000") }, { QStringLiteral("使领馆 / 领事保护"), QStringLiteral("+61 2 6228 3999") } });
+        // 游记只加一次（几张截图用同一份副本）
+        if (plans::journalList(d, m_id).isEmpty()) {
+            json::Object j;
+            j.set(QStringLiteral("id"), Value("jn_shot"));
+            j.set(QStringLiteral("plan"), Value(m_id));
+            j.set(QStringLiteral("title"), Value(QStringLiteral("第一天：到了")));
+            j.set(QStringLiteral("date"), Value(m_plans->today()));
+            j.set(QStringLiteral("body"), Value((pic.isEmpty() ? QString() : QStringLiteral("![](photo:%1)\n\n").arg(pic))
+                + QStringLiteral("**中午到**，先去市场吃了东西，下午沿着海边走了一圈。晚上风很大，第二天的船不知道开不开。这里的日落差不多七点半，拍了很多照片，回来慢慢挑。")));
+            d.mutObject().find(QStringLiteral("journal"))->mutArray().push_back(Value(std::move(j)));
+        }
+        return QString();
+    });
 }
 
 QString PlanPageController::saveBooking(const QString &id, const QVariantMap &f)

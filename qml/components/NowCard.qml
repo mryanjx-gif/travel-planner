@@ -19,6 +19,7 @@ Item {
     signal openTrip(string planId, int stop)    // 0.10.0：今天的行程（stop = 今天所在的站）/ 打开计划（-1）
     signal markDone(string planId, string name)
     signal quickExpense(string planId)          // 0.10.1 记一笔（J3）
+    signal openPacking(string planId)           // 0.10.4 行李与待办（和 Electron 一样只在"下一次出发"时有）
     signal unsetNext()
     readonly property string kind: info.kind || "none"
     readonly property bool live: kind === "live"
@@ -246,6 +247,13 @@ Item {
                     }
                     MouseArea { id: moreMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: moreMenu.open = !moreMenu.open }
                 }
+            }
+            LinkText {
+                objectName: "nowPacking"
+                visible: root.kind === "next"
+                topPadding: Theme.px(10)
+                text: qsTr("行李与待办")
+                onClicked: root.openPacking(root.info.planId)
             }
             LinkText {
                 objectName: "nowExpense"
