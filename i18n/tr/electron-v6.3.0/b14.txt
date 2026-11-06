@@ -1,0 +1,8 @@
+窗口	Window
+点右上角 × 时怎么办	What the × button does
+关闭按钮	Close button
+直接退出	Quit
+最小化到托盘	Minimize to tray
+最小化到任务栏	Minimize to taskbar
+直接退出：关窗口就退出；最小化到托盘：窗口收进屏幕右下角的小图标，任务栏里不显示，点小图标再打开；最小化到任务栏：和按最小化一样。菜单"文件 → 退出"（Ctrl+Q）和托盘里的"退出"总是真的退出	Quit: closing the window exits the app. Minimize to tray: the window goes into the small icon at the bottom-right of the screen and leaves the taskbar; click the icon to bring it back. Minimize to taskbar: same as the minimize button. File → Quit (Ctrl+Q) and Quit in the tray menu always really exit
+Windows 11 默认把新 app 的托盘图标收在任务栏右下角的"^"里，想常显的话把它拖出来，或在"设置 → 个性化 → 任务栏"里打开。	Windows 11 hides new tray icons behind the "^" at the bottom-right of the taskbar; drag it out or enable it in Settings → Personalization → Taskbar to keep it visible.

@@ -1,0 +1,22 @@
+连接卡住了（很久没有收到内容），已自动停下。可以再说一次。	The connection stalled (nothing received for a long time) and was stopped. Please try again.
+这次回答太长，被截断了。可以说"一次只改一个计划，攻略写短一点"再试。	This answer was too long and got cut off. Try "one plan at a time, keep the guide short".
+自动续轮次数到上限了，停在这里。可以接着说"继续"。	Reached the limit of automatic steps. Say "continue" to go on.
+还没有保存的对话	No saved chats yet
+（没有标题）	(untitled)
+最近的对话	Recent chats
+这份修改太长，写到一半被截断了，没法用。可以说"一次只改一个计划，攻略写短一点"再试。	These changes were cut off halfway and can't be used. Try "one plan at a time, keep the guide short".
+没能先存备份	Couldn't make a backup first
+未知原因	unknown reason
+仍然应用	Apply anyway
+查完了	Done
+到预计时间了	Estimated time reached
+查找进度	Research progress
+已查：	Checked: 
+还要查：	Still to check: 
+，大约还要	, about 
+还在回答，等它写完，或者点输入框右边的 ■ 停止	Still answering. Wait for it to finish, or click ■ to the right of the input to stop
+继续查	Keep searching
+先到这里	Stop here
+/ 预计	/ est.
+已写	Written
+秒没有新内容	s with nothing new

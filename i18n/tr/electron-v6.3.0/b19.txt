@@ -1,0 +1,50 @@
+订单号：	Booking ref:
+24 小时救援	24-hour assistance
+作者	Author
+Jason Yan · 个人作品，免费分享，不用于商业	Jason Yan · a personal project, shared for free, not for commercial use
+新手引导	Quick tour
+在地图上把几个常用按钮再指一遍	Point out the main buttons on the map again
+再看一次	Show again
+已置顶 · 点一下取消	Pinned · tap to unpin
+在路上 ·	On the road ·
+刚回来 ·	Just back ·
+定位失败：	Location failed:
+定位超时	Timed out
+地图和数据来源：	Maps and data sources:
+省界、国界：Natural Earth（公有领域）	Province and country borders: Natural Earth (public domain)
+街道图 / 浅灰 / 卫星图（地图页和首页地球）：Esri 在线瓦片 · Esri 及其数据提供方	Streets / Light gray / Satellite: Esri online tiles · Esri and its data providers
+天气、往年气候、海拔和时区：Open-Meteo（CC BY 4.0；海拔 Copernicus DEM GLO-90，往年气候 ERA5 · Copernicus 气候变化服务）	Weather, past climate, elevation and time zones: Open-Meteo (CC BY 4.0; elevation Copernicus DEM GLO-90, climate ERA5 · Copernicus Climate Change Service)
+地名搜索、道路路线：© OpenStreetMap 贡献者（ODbL），Nominatim、OSRM（FOSSGIS）	Place search and road routes: © OpenStreetMap contributors (ODbL), Nominatim, OSRM (FOSSGIS)
+日出日落：suncalc 2.0.2（BSD-2-Clause，Copyright (c) 2026, Volodymyr Agafonkin）	Sunrise and sunset: suncalc 2.0.2 (BSD-2-Clause, Copyright (c) 2026, Volodymyr Agafonkin)
+黑龙江省	Heilongjiang
+吉林省	Jilin
+辽宁省	Liaoning
+北京市	Beijing
+天津市	Tianjin
+河北省	Hebei
+山西省	Shanxi
+山东省	Shandong
+河南省	Henan
+陕西省	Shaanxi
+甘肃省	Gansu
+宁夏回族自治区	Ningxia
+新疆维吾尔自治区	Xinjiang
+西藏自治区	Tibet
+青海省	Qinghai
+重庆市	Chongqing
+贵州省	Guizhou
+上海市	Shanghai
+江苏省	Jiangsu
+浙江省	Zhejiang
+安徽省	Anhui
+江西省	Jiangxi
+湖北省	Hubei
+湖南省	Hunan
+福建省	Fujian
+广东省	Guangdong
+广西壮族自治区	Guangxi
+海南省	Hainan
+西沙群岛	Paracel Islands
+内蒙古自治区	Inner Mongolia
+四川省	Sichuan
+云南省	Yunnan

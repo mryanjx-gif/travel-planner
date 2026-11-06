@@ -1,0 +1,541 @@
+# 原生版新加的界面文字（中文<Tab>英文）。同一句以这里为准（覆盖 Electron 词典）。\n 表示换行。
+# 0.4.0
+保存失败：	Save failed: 
+恢复失败：	Restore failed: 
+打开	Open
+地图库没有加载（测试环境或安装不完整）	The map library didn't load (test environment or incomplete install)
+地球	Globe
+data.js 读不出来，已暂停保存	data.js can't be read — saving is paused
+为了不覆盖原文件，现在只能看、不能改。可以从历史版本或 data.backup.js 恢复。	To avoid overwriting the original file, you can view but not edit for now. You can restore from version history or data.backup.js.
+打开数据文件夹	Open data folder
+历史版本…	Version history…
+这份数据是更新版本的 app 写的	This data was written by a newer version of the app
+数据版本 %1，这个 app 只认识到 4。能看能改，保存时不认识的内容会原样保留；建议先升级 app。	Data version %1; this app only knows up to 4. You can view and edit, and anything it doesn't recognise is kept as is when saving. Updating the app is recommended.
+图形后端：	Graphics backend: 
+没用 Vulkan 的原因：	Why Vulkan isn't used: 
+数据：	Data: 
+（没有数据）	(no data)
+刷新 	Refresh 
+ 帧/秒（静止时不刷新）	 fps (no redraw when idle)
+选择数据文件夹（里面应有 data.js 和 photos 文件夹）	Choose the data folder (it should contain data.js and a photos folder)
+找不到数据文件夹	Data folder not found
+数据放在哪？	Where should your data live?
+上次用的数据文件夹不见了：	The data folder used last time is missing: 
+还没有可用的数据文件夹。	There is no usable data folder yet.
+这台电脑上有 Electron 版旅行计划的数据。两个版本可以共用同一份数据。	This computer has data from the Electron version of Travel Planner. Both versions can share the same data.
+用 Electron 版的数据文件夹	Use the Electron version's data folder
+两个版本看到的是同一份数据。	Both versions see the same data.
+在软件文件夹里新建	Start new data in the app folder
+从空数据开始；卸载、重装都不会删除。	Starts empty; uninstalling or reinstalling won't delete it.
+选择其他文件夹…	Choose another folder…
+这个文件夹里没有 data.js	There is no data.js in this folder
+在这里新建空数据	Start empty data here
+建一个空的 data.js 和 photos 文件夹。	Creates an empty data.js and a photos folder.
+重新选择	Choose again
+打开之后，数据文件夹里的 data.js 被其他程序改过（比如 Electron 版）。这次保存要怎么办？	Since the app was opened, data.js in the data folder was changed by another program (such as the Electron version). What should this save do?
+先不保存	Don't save yet
+改动留在窗口里。之后可以重新加载看最新数据（没保存的改动会丢）。	Your changes stay in the window. You can reload later to see the latest data (unsaved changes will be lost).
+仍然保存，覆盖别处的改动	Save anyway and overwrite the other changes
+用窗口里的数据覆盖。被覆盖的那一版存成 data.backup.js，可以找回。	Overwrites with the data in this window. The overwritten version is kept as data.backup.js, so it can be recovered.
+关闭前没能保存	Couldn't save before closing
+data.js 在打开之后被别处改过，窗口里的改动还没存进去。	data.js was changed elsewhere after the app was opened, and the changes in this window haven't been saved yet.
+<b>另存一份后退出</b>：data.js 不动，窗口里的数据存成 data.unsaved-日期-时间.js，放在数据文件夹里，以后可以手动合并。	<b>Save a copy and quit</b>: data.js is left alone; the data in this window is saved as data.unsaved-date-time.js in the data folder, to merge by hand later.
+<b>仍然保存并退出</b>：覆盖别处的改动（被覆盖的那一版存成 data.backup.js）。	<b>Save anyway and quit</b>: overwrites the other changes (the overwritten version is kept as data.backup.js).
+<b>另存一份后退出</b>：data.js 不动，窗口里的数据存成 data.unsaved-日期-时间.js，放在数据文件夹里。	<b>Save a copy and quit</b>: data.js is left alone; the data in this window is saved as data.unsaved-date-time.js in the data folder.
+仍然保存并退出	Save anyway and quit
+另存一份后退出	Save a copy and quit
+恢复到这一天的版本？	Restore the version from this day?
+%1 个计划	%1 plans
+现在的 data.js 会先存成 data.backup.js，然后换成这一版。	The current data.js will be saved as data.backup.js first, then replaced with this version.
+显示在“旅行计划 v版本号”后面，留空就不显示。	Shown after "Travel Planner v<version>". Leave empty to show nothing.
+拒绝访问。	Access denied.
+数据在别处更新了	Data was updated elsewhere
+data.js 被其他程序改过（比如 Electron 版）。重新加载可以看到最新数据。	data.js was changed by another program (such as the Electron version). Reload to see the latest data.
+关闭提示	Dismiss
+稍后	Later
+通用	General
+收到托盘	To tray
+最小化	Minimize
+Ctrl+Q 和托盘里的“退出”总是真的退出。	Ctrl+Q and "Quit" in the tray always really quit.
+字号	Text size
+窗口标题	Window title
+（没有自定义文字）	 (no custom text)
+修改…	Edit…
+还没有选	Not chosen yet
+命令行临时指定，不会记进设置	Set temporarily from the command line; not saved in settings
+软件文件夹里的默认位置；卸载、重装都不会删除	Default location in the app folder; uninstalling or reinstalling won't delete it
+和 Electron 版共用	Shared with the Electron version
+每天第一次保存前自动存一份，保留最近 14 天。改坏了可以从这里恢复。	A copy is saved automatically before the first save each day; the last 14 days are kept. If something goes wrong, restore from here.
+还没有历史版本。	No versions yet.
+外观、联网服务、AI 助手、关于等设置会在之后的版本加上。	Appearance, online services, AI assistant, About and other settings will be added in later versions.
+没有选文件夹	No folder chosen
+data.js 被别处改过，先处理没保存的改动再换文件夹。	data.js was changed elsewhere. Deal with the unsaved changes before switching folders.
+已切换到新的数据文件夹	Switched to the new data folder
+找不到 Electron 版的数据文件夹	Can't find the Electron version's data folder
+已重新加载	Reloaded
+已恢复（原来的 data.js 已存成 data.backup.js）	Restored (the previous data.js was saved as data.backup.js)
+另存失败，改动还在窗口里。	Saving a copy failed; your changes are still in the window.
+# ---- 0.5.0：自动保存、撤销 / 重做 ----
+先处理“data.js 被别处改过”，再撤销或重做。	Resolve "data.js was changed elsewhere" first, then undo or redo.
+# ---- 0.5.0：备份 ----
+备份设置	Backup settings
+备份文件夹	Backup folder
+正在准备备份…	Preparing backup…
+正在备份 %1 / %2 个文件…	Backing up %1 / %2 files…
+今天备份过	Backed up today
+昨天备份过	Backed up yesterday
+%1 天前备份过	Backed up %1 days ago
+每 %1 天自动备份一次	auto every %1 days
+自动备份没开	auto backup off
+上次：%1	Last: %1
+少一天	One day fewer
+多一天	One day more
+每次在里面新建“旅行计划备份-日期-时间”，复制 data.js 和全部照片。	Each backup creates a "旅行计划备份-date-time" folder inside it with data.js and all photos.
+打开软件时，如果离上次备份超过设定的天数，就自动备份一次。	When the app opens, it backs up automatically if more than this many days have passed since the last backup.
+已备份到 %1（%2 个文件）	Backed up to %1 (%2 files)
+自动备份：已备份到 %1	Automatic backup: saved to %1
+已取消备份	Backup cancelled
+数据文件夹未设置	No data folder set
+没有选备份文件夹	No backup folder chosen
+备份文件夹不能放在数据文件夹里面	The backup folder can't be inside the data folder
+建不了备份文件夹：%1	Can't create the backup folder: %1
+复制 %1 失败：%2	Couldn't copy %1: %2
+写不进备份文件夹	can't write to the backup folder
+文件不见了	the file is missing
+# ---- 0.5.0：开发版测试改动 ----
+开发版测试	Dev build tests
+测试改动	Test change
+改一下	Change it
+给第一个计划的名字加一个 ★（满三个时去掉），停手 0.8 秒后自动保存；Ctrl+Z 撤销、Ctrl+Y 重做。	Adds a ★ to the first plan's name (removes them after three) and saves automatically 0.8 s after you stop; Ctrl+Z undoes, Ctrl+Y redoes.
+只在文件夹名里带“测试”或 test 的数据副本上能用。	Only works on a data copy whose folder name contains "测试" or "test".
+现在是只读模式，不能改。	Read-only mode is on, so nothing can be changed.
+这份数据里没有计划。	There are no plans in this data.
+# ---- 0.5.0：数据层的出错说明（以前英文界面里也显示中文） ----
+还没有打开数据文件夹	No data folder is open yet
+data.js 打不开（可能被别的程序占用或没有权限）	Can't open data.js (another program may be using it, or there's no permission)
+window.TRAVEL_DATA 不是一个对象	window.TRAVEL_DATA isn't an object
+data.js 读不出来，为了不覆盖原文件，现在是只读模式。请从 data.backup.js 或历史版本恢复后重新加载。	data.js can't be read, so read-only mode is on to avoid overwriting it. Restore from data.backup.js or a previous version, then reload.
+数据文件夹不存在：%1	The data folder doesn't exist: %1
+写入后回读内容不一致	The file read back after writing doesn't match
+备份名称不对	Invalid backup name
+读不到这份备份	Can't read this backup
+这份备份的内容不对	This backup's content isn't valid
+第 %1 行	line %1
+开头的注释没有结束（缺少 */）	The opening comment isn't closed (missing */)
+找不到 window.TRAVEL_DATA =（%1）	Can't find window.TRAVEL_DATA = (%1)
+window.TRAVEL_DATA 后面应该是 =（%1）	window.TRAVEL_DATA should be followed by = (%1)
+JSON 格式错误：%1（%2）	JSON format error: %1 (%2)
+结尾的注释没有结束	The closing comment isn't closed
+数据后面还有别的内容（%1）	There's extra content after the data (%1)
+嵌套层数太多（超过 %1 层）	Nested too deeply (more than %1 levels)
+文本意外结束，缺少值	Unexpected end of text; a value is missing
+这里不应该出现字符 “%1”	Unexpected character "%1"
+无法识别的内容（应为 true / false / null）	Unrecognized content (expected true / false / null)
+这里应该是用双引号括起来的键名	Expected a key name in double quotes
+键名后面应该是冒号	Expected a colon after the key name
+这里应该是逗号或 }	Expected a comma or }
+这里应该是逗号或 ]	Expected a comma or ]
+字符串没有结束（缺少右引号）	Unterminated string (missing closing quote)
+字符串里有未转义的控制字符（U+%1）	Unescaped control character in string (U+%1)
+字符串在转义符处意外结束	String ended unexpectedly at an escape character
+\u 后面应该有 4 位十六进制数	\u must be followed by 4 hex digits
+无效的转义符 \%1	Invalid escape \%1
+负号后面应该是数字	Expected a digit after the minus sign
+小数点后面应该是数字	Expected a digit after the decimal point
+指数部分应该是数字	Expected digits in the exponent
+无法解析的数字	Unparseable number
+%1（错误码 %2）	%1 (error code %2)
+无法写入 %1：%2	Can't write %1: %2
+写入 %1 失败：%2	Writing %1 failed: %2
+把临时文件改名为 %1 失败：%2	Renaming the temporary file to %1 failed: %2
+无法读取 %1：%2	Can't read %1: %2
+# ---- 0.5.1：出错小框、崩溃 / 卡住 / 显卡对话框、开发版制造错误 ----
+出了点问题	Error
+旅行计划刚才遇到了一个错误，有些功能可能不正常。	Travel Planner just ran into an error. Some features may not work properly.
+请把错误码发给 Jason。	Please send this error code to Jason.
+详情	Details
+已复制	Copied
+复制	Copy
+复制错误信息	Copy error details
+已复制，可以直接粘贴发给 Jason	Copied. Paste it in a message to Jason
+上次旅行计划意外退出了	Travel Planner closed unexpectedly last time
+错误码：%1	Error code: %1
+请把错误码发给 Jason；方便的话，把日志文件夹里的 %1 也一起发过去，能帮忙找到原因。	Please send this error code to Jason. If you can, also send %1 from the log folder; it helps find the cause.
+没保存的改动可能丢了。	Unsaved changes may be lost.
+这次已自动改用 OpenGL 显示（上次用 Vulkan 启动时出的问题）。	Switched to OpenGL for this session (the problem happened while starting with Vulkan).
+打开日志文件夹	Open log folder
+知道了	Got it
+制造错误	Trigger errors
+JS 错误、C++ 异常弹右下角小框；两种崩溃都会直接退出，下次打开时提示；卡住 12 秒，10 秒后弹系统对话框。	JS error and C++ exception show a card at the bottom right; both crashes quit at once and are reported on next launch; Freeze blocks for 12 s and the system dialog appears after 10 s.
+JS 错误	JS error
+C++ 异常	C++ exception
+崩溃（主线程）	Crash (main)
+崩溃（后台线程）	Crash (thread)
+卡住	Freeze
+旅行计划好像卡住了	Travel Planner seems to be stuck
+错误码：%1\n\n请把错误码发给 Jason。	Error code: %1\n\nPlease send this error code to Jason.
+可以再等一会儿；一直不动的话，点“结束并重新打开”（没保存的改动会丢）。	You can wait a bit longer. If it stays stuck, choose End and reopen (unsaved changes will be lost).
+复制错误信息，继续等	Copy details and wait
+继续等	Wait
+结束并重新打开	End and reopen
+旅行计划没法用显卡画出窗口	Travel Planner can't draw its window with the graphics card
+显卡驱动报告：	The graphics driver reported: 
+可以换成 OpenGL 重新打开试试。	You can try reopening with OpenGL.
+复制错误信息并退出	Copy details and quit
+用 OpenGL 重新打开	Reopen with OpenGL
+显卡出错：	Graphics error: 
+# 0.6.0：原生版数据格式、锁文件、从 Electron 版导入
+数据文件被别处改过。重新加载会丢掉当前窗口里没保存的改动。	The data file was changed elsewhere. Reloading will discard the unsaved changes in this window.
+数据文件被别的程序改过（比如另一个旅行计划窗口）。重新加载可以看到最新数据。	The data file was changed by another program (for example another Travel Planner window). Reload to see the latest data.
+数据文件读不出来，已暂停保存	Can't read the data file — saving is paused
+为了不覆盖原文件，现在只能看、不能改。可以从历史版本或 travel.backup.json 恢复。	To avoid overwriting the original file, you can view but not edit. You can restore from a history version or travel.backup.json.
+这份数据是更新版本的旅行计划写的	This data was written by a newer version of Travel Planner
+数据格式版本 %1，这个版本只认识到 %2。为了不弄乱数据，现在只能看、不能改。请先更新软件。	Data format version %1; this version only understands up to %2. To keep the data intact you can view but not edit. Please update the app first.
+这份数据正在别处打开	This data is open somewhere else
+%1 正开着这份数据，现在只能看、不能改。那边关掉以后，这里会自动恢复编辑。	%1 has this data open, so you can view but not edit. Editing resumes here automatically once it's closed there.
+仍然编辑…	Edit anyway…
+选择数据文件夹	Choose data folder
+这台电脑上有 Electron 版旅行计划的数据。原生版用自己的数据文件夹，可以把 Electron 版的计划和照片导入进来（Electron 版的数据不会被改动）。	This computer has data from the Electron version of Travel Planner. The native version uses its own data folder; you can import the Electron version's plans and photos (the Electron data won't be changed).
+从 Electron 版导入	Import from the Electron version
+导入到：	Import into: 
+新建空数据	Start with empty data
+这个文件夹里还没有旅行计划的数据	This folder has no Travel Planner data yet
+建一个空的 travel.json 和 photos 文件夹。	Create an empty travel.json and a photos folder.
+数据文件被别处改过	The data file was changed elsewhere
+打开之后，数据文件夹里的 travel.json 被别的程序改过（比如另一个旅行计划窗口）。这次保存要怎么办？	Since it was opened, travel.json in the data folder was changed by another program (for example another Travel Planner window). What should this save do?
+用窗口里的数据覆盖。被覆盖的那一版存成 travel.backup.json，可以找回。	Overwrite with the data in this window. The overwritten version is kept as travel.backup.json and can be recovered.
+travel.json 在打开之后被别处改过，窗口里的改动还没存进去。	travel.json was changed elsewhere after it was opened; the changes in this window haven't been saved.
+<b>另存一份后退出</b>：travel.json 不动，窗口里的数据存成 travel.unsaved-日期-时间.json，放在数据文件夹里，以后可以手动合并。	<b>Save a copy and quit</b>: travel.json is left alone; the data in this window is saved as travel.unsaved-date-time.json in the data folder so you can merge it later.
+<b>仍然保存并退出</b>：覆盖别处的改动（被覆盖的那一版存成 travel.backup.json）。	<b>Save anyway and quit</b>: overwrite the other changes (the overwritten version is kept as travel.backup.json).
+<b>另存一份后退出</b>：travel.json 不动，窗口里的数据存成 travel.unsaved-日期-时间.json，放在数据文件夹里。	<b>Save a copy and quit</b>: travel.json is left alone; the data in this window is saved as travel.unsaved-date-time.json in the data folder.
+现在的 travel.json 会先存成 travel.backup.json，然后换成这一版。	The current travel.json will be kept as travel.backup.json, then replaced with this version.
+这是 Electron 版的数据文件夹	This is the Electron version's data folder
+原生版用自己的数据文件夹，不在这里写东西。可以把它导入到现在的数据里（Electron 版的数据不会被改动）。	The native version uses its own data folder and doesn't write here. You can import it into your current data (the Electron data won't be changed).
+导入到现在的数据…	Import into current data…
+来源：	From: 
+没有找到 Electron 版的数据文件夹，请先选一个。	Couldn't find the Electron version's data folder. Please choose one first.
+Electron 版的数据不会被改动；照片会复制一份到现在的数据文件夹。	The Electron data won't be changed; photos are copied into the current data folder.
+只加新的（推荐）	Add new only (recommended)
+只加入这里还没有的计划；已经有的跳过。	Only add plans that aren't here yet; existing ones are skipped.
+替换全部	Replace everything
+用 Electron 版的数据换掉这里现有的数据。现在的数据先备份成 travel.before-import-日期-时间.json。	Replace the data here with the Electron data. The current data is first backed up as travel.before-import-date-time.json.
+选择 Electron 版的数据文件夹…	Choose the Electron data folder…
+选择 Electron 版的数据文件夹（里面有 data.js）	Choose the Electron data folder (it contains data.js)
+这个文件夹里没有 Electron 版的 data.js	This folder has no data.js from the Electron version
+正在导入…	Importing…
+正在复制照片：%1 / %2	Copying photos: %1 / %2
+正在读取 Electron 版的数据…	Reading the Electron data…
+取消的话，已经复制的照片会删掉，数据不变。	If you cancel, photos already copied are removed and the data stays unchanged.
+导入完成	Import finished
+导入已取消	Import cancelled
+导入没有完成	Import didn't finish
+已经复制的照片删掉了，数据没有变。	Photos already copied were removed; the data is unchanged.
+出错了：	Error: 
+数据没有变。	The data is unchanged.
+导入了 %1 个计划、%2 个站点、%3 张照片、%4 篇游记。	Imported %1 plans, %2 stops, %3 photos and %4 journal entries.
+已经有的 %1 个计划跳过了。	Skipped %1 plans that were already here.
+原来的数据备份成了 %1。	The previous data was backed up as %1.
+<b>%1 张照片找不到文件</b>（记录保留了，显示为缺图）：	<b>%1 photo files couldn't be found</b> (the records are kept and shown as missing): 
+ 等	 and more
+Electron 版的照片文件夹里有 %1 个文件没被任何计划用到，没有导入。	%1 files in the Electron photos folder aren't used by any plan and weren't imported.
+有 %1 个这个版本不认识的字段，已经原样保留：	Fields unknown to this version (%1) were kept as they are: 
+详细情况记在日志里（F12 打开日志文件夹）。	Details are in the log (F12 opens the log folder).
+仍然在这里编辑？	Edit here anyway?
+%1 正开着这份数据。两边都改的话，后保存的会覆盖先保存的（被覆盖的那一版存成 travel.backup.json，可以找回）。	%1 has this data open. If both sides edit, the later save overwrites the earlier one (the overwritten version is kept as travel.backup.json and can be recovered).
+建议先把那边关掉。	It's best to close it there first.
+仍然编辑	Edit anyway
+data.js 读不出来：	Can't read data.js: 
+没有找到 Electron 版；导入时可以手动选它的数据文件夹。	The Electron version wasn't found; you can choose its data folder when importing.
+导入…	Import…
+每次在里面新建“旅行计划备份-日期-时间”，复制数据文件和全部照片。	Each time, a “旅行计划备份-date-time” folder is created there with the data file and all photos.
+数据文件被别处改过，先处理没保存的改动再换文件夹。	The data file was changed elsewhere. Deal with the unsaved changes before switching folders.
+正在导入，请稍等	Import in progress, please wait
+现在是只读模式，不能导入。	Read-only mode — can't import.
+不能导入到同一个文件夹	Can't import into the same folder
+先保存现在的改动，再导入。	Save the current changes before importing.
+备份现在的数据失败：	Couldn't back up the current data: 
+导入期间数据文件被别处改过，导入没有保存。	The data file was changed elsewhere during the import; the import wasn't saved.
+已恢复（原来的数据已存成 travel.backup.json）	Restored (the previous data was kept as travel.backup.json)
+已保存	Saved
+先处理“数据文件被别处改过”，再撤销或重做。	Deal with “data file changed elsewhere” before undoing or redoing.
+这是 Electron 版的数据文件夹。原生版不在这里写东西，可以把它导入到原生版的数据文件夹。	This is the Electron version's data folder. The native version doesn't write here; you can import it into a native data folder.
+不能在这里建文件夹（可能没有写入权限）：%1	Can't create a folder here (maybe no write permission): %1
+写不了 travel.json：%1	Can't write travel.json: %1
+JSON 后面还有多余的内容	Extra content after the JSON
+第 %1 行第 %2 列：%3	Line %1, column %2: %3
+travel.json 打不开（可能被别的程序占用或没有权限）	Can't open travel.json (it may be in use by another program, or no permission)
+travel.json 的内容不是一个对象	travel.json doesn't contain an object
+travel.json 不是旅行计划的数据文件	travel.json isn't a Travel Planner data file
+travel.json 读不出来，为了不覆盖原文件，现在是只读模式。请从 travel.backup.json 或历史版本恢复后重新加载。	Can't read travel.json, so to avoid overwriting it you're in read-only mode. Restore from travel.backup.json or a history version, then reload.
+这份数据是更新版本的旅行计划写的，这个版本只能看、不能改。请先更新软件。	This data was written by a newer version of Travel Planner; this version can view but not edit it. Please update the app first.
+这份数据正在 %1 里打开，现在只能看。	This data is open in %1, so it's view-only for now.
+现在是只读模式，不能恢复。	Read-only mode — can't restore.
+另一台电脑	another computer
+%1 上的旅行计划 %2	Travel Planner %2 on %1
+顶层	Top level
+data.js 打不开：%1	Can't open data.js: %1
+data.js 读不出来：%1	Can't read data.js: %1
+data.js 里没有数据	data.js contains no data
+写不进数据文件夹	Can't write to the data folder
+# 0.7.0 照片
+%1 / %2	%1 / %2
+%1 张按拍摄日期 / 位置自动归了类，%2 张没认出来（没有拍摄信息，或日期、位置对不上任何计划），先放“未归类”。可以逐张改。	%1 were sorted automatically by date taken / location; %2 weren't recognised (no photo info, or the date and location don't match any plan) and go to "Unsorted" for now. You can change each one.
+%1 张照片	%1 photos
+<b>%1 张照片库里已经有一样的</b>，默认不导入。	<b>%1 are already in the photo library</b> and won't be imported unless you tick them.
+HEIC / HEIF 照片现在没法显示	HEIC / HEIF photos can't be displayed yet
+HEIC 照片能导入，但现在还没法显示	HEIC photos can be imported but can't be displayed yet
+HEIC（还没法显示）	HEIC (can't display yet)
+临时文件删不掉	Can't delete the temporary file
+写完回读不一致，原图在 .originals 里	The file read back differently after writing; the original is in .originals
+加载中…	Loading…
+原图备份失败：%1	Couldn't back up the original: %1
+另外 %1 张旋转前的原图，原照片已经不在了（共 %2），也一起清理	Also clean up pre-rotation originals whose photos are gone: %1 (%2 in total)
+只读拍摄时间、位置和相机信息，不改原文件。	Only the date, location and camera info are read; the original files aren't changed.
+向右转 90°	Rotate right 90°
+向左转 90°	Rotate left 90°
+复制后大小不对：%1	Wrong size after copying: %1
+复制失败：%1	Copy failed: %1
+导入 %1 张	Import %1
+导入 %1 张照片	Import photos: %1
+导入已取消，已经复制的照片删掉了。	Import cancelled; the photos already copied were removed.
+导入照片…	Import photos…
+导入这张	Import this one
+尺寸	Size
+已导入 %1 张：%2 张归到计划	Imported %1: %2 added to plans
+已移到回收站：%1 个文件	Moved to the Recycle Bin: %1
+建不了文件夹 %1	Can't create folder %1
+开发版	Development build
+归属	Belongs to
+所有文件	All files
+拍摄参数	Exposure
+拍摄方向	Direction
+拍摄时间	Taken
+撤销记录里还用得到的 %1 个	%1 still needed by undo history
+改名失败：%1	Rename failed: %1
+数据文件在别处改过，先重新加载再清理照片。	The data file was changed elsewhere. Reload first, then clean up photos.
+文件	File
+最近 10 分钟加进来的 %1 个	%1 added in the last 10 minutes
+有位置	has location
+检查…	Check…
+正在导入照片…	Importing photos…
+正在导入照片，请等这一批做完。	Photos are being imported; please wait for this batch to finish.
+正在清理，请等一下。	Cleaning up; please wait.
+正在移到回收站…	Moving to the Recycle Bin…
+正在统计…	Calculating…
+正在读取照片的拍摄信息…	Reading photo info…
+没有选照片	No photos selected
+没有选要清理的文件	No files selected to clean up
+没能旋转：	Couldn't rotate: 
+清理没用的照片…	Clean up unused photos…
+清理照片	Clean up photos
+照片写不出来	Couldn't write the photo
+照片写不出来（这台电脑可能缺 %1 的图片插件）	Couldn't write the photo (this computer may be missing the %1 image plugin)
+照片库里已经有一样的	Already in the photo library
+照片库里还没有照片。点右上角“导入照片…”试试。	No photos in the library yet. Try "Import photos…" at the top right.
+照片打不开：%1	Can't open the photo: %1
+照片文件夹里有 <b>%1 个文件</b>没被任何照片用到（共 %2）：	Files in the photos folder that no photo uses: <b>%1</b> (%2 in total): 
+照片文件夹里没有多余的文件。	There are no unused files in the photos folder.
+照片文件夹里没被任何照片用到的文件，移到回收站。	Move files in the photos folder that no photo uses to the Recycle Bin.
+照片文件找不到	Photo file not found
+照片没有导入：	Photos weren't imported: 
+照片测试	Photo test
+现在的数据是只读的，不能导入照片。	The data is read-only right now, so photos can't be imported.
+现在的数据是只读的，不能旋转照片。	The data is read-only right now, so photos can't be rotated.
+现在的数据是只读的，不能清理照片。	The data is read-only right now, so photos can't be cleaned up.
+看照片库、导入照片、旋转、清理（正式的相册在之后的版本做）。	Browse the photo library, import, rotate and clean up (the real album comes in a later version).
+移不到回收站	Couldn't move to the Recycle Bin
+移到回收站 %1 个，%2 个没移动（详情在日志里）	Moved %1 to the Recycle Bin; %2 weren't moved (details in the log)
+移到回收站以后，需要时还可以从回收站找回来。	Files moved to the Recycle Bin can be restored from there if needed.
+移到回收站（%1 个）	Move to Recycle Bin (%1)
+缩略图写不进缓存：%1	Couldn't write the thumbnail to the cache: %1
+缩略图缓存	Thumbnail cache
+缩略图缓存已清空，用到时会重新生成。	Thumbnail cache cleared; thumbnails will be regenerated when needed.
+读不出来	Can't read
+读不出这张照片：%1	Can't read this photo: %1
+超过 1 GB 时自动删掉最旧的。	The oldest are deleted automatically above 1 GB.
+还有没保存的改动，先保存好再清理照片。	There are unsaved changes. Save them before cleaning up photos.
+这一批里选了两次	Selected twice in this batch
+这次先不动。	 are left alone this time.
+这种格式不能旋转	This format can't be rotated
+选择要导入的照片	Choose photos to import
+选的文件里没有能导入的照片（支持 JPG、PNG、WebP、HEIC、GIF、BMP）。	None of the selected files can be imported (supported: JPG, PNG, WebP, HEIC, GIF, BMP).
+镜头	Lens
+，%1 张在“未归类”	, %1 in "Unsorted"
+，海拔 %1 米	, elevation %1 m
+，跳过 %1 张	, %1 skipped
+：又被用到了，没有动	: in use again, left alone
+：路径不对	: invalid path
+# 0.7.3：图形后端退回原因
+命令行指定了 OpenGL	OpenGL was requested on the command line
+命令行指定了 Vulkan，但探测失败：	Vulkan was requested on the command line, but the check failed: 
+上次用 Vulkan 启动后程序没能正常画出画面	Last time the app started with Vulkan, it didn't get to draw the window properly
+没有 Vulkan 版地图库（maplibre/vulkan）	The Vulkan map library (maplibre/vulkan) is missing
+这个 Qt 编译时没有启用 Vulkan	This Qt build has no Vulkan support
+无法创建 Vulkan 实例（显卡驱动可能不支持 Vulkan）	Couldn't start Vulkan (the graphics driver may not support it)
+Vulkan 没有找到可用的显卡	Vulkan found no usable graphics card
+Vulkan 初始化失败：	Vulkan failed to start: 
+# 0.8.0 地图
+省界数据没有加载成功	Border data failed to load
+还没有数据	No data yet
+%1 个计划 · %2 条路线 · %3 段（其中道路 %4 段）· %5 个站点	%1 plans · %2 routes · %3 legs (%4 by road) · %5 stops
+已解锁 %1 个国家 / 地区 · %2 个省 / 州	Unlocked %1 countries / regions · %2 provinces / states
+# 0.8.2 地图标记
+已切回「%1」底图	Switched back to “%1”
+…等 %1 个计划	… %1 plans in total
+# 0.8.4
+正在按道路计算路线 %1 / %2…（约 %3 分钟）	Calculating road routes %1 / %2… (about %3 min)
+已算好 %1 段	%1 legs calculated
+，%1 段没算出来（按直线显示，可在编辑器里重试）	, %1 failed (shown as straight lines; you can retry in the editor)
+。还没保存。	. Not saved yet.
+，已保存。	, saved.
+有 %1 段自驾/徒步还没按道路算路线，现在地图上先画直线。	%1 drive/walk legs have no road route yet; they're drawn as straight lines for now.
+现在计算	Calculate now
+停止	Stop
+保存	Save
+好	OK
+先不算	Not now
+两站之间找不到可走的路	No walkable route found between the two stops
+两站之间找不到可走的道路	No road route found between the two stops
+距离太远，路线服务不支持	Too far for the routing service
+路线服务出错（%1）	Routing service error (%1)
+路线服务返回异常（HTTP %1）	Unexpected reply from the routing service (HTTP %1)
+路线服务超时	Routing service timed out
+联网已关闭（离线模式）	Online access is off (offline mode)
+道路路线已关闭（设置 → 联网服务）	Road routing is turned off (Settings → Online services)
+不允许的地址	Address not allowed
+连不上路线服务（可能断网）	Can't reach the routing service (you may be offline)
+# 0.8.5：已解锁手动标记
+%1 已经由计划「%2」点亮，不用手动标记。	%1 is already unlocked by the plan “%2”; no need to mark it manually.
+# 0.8.7：筛选、此刻、简易计划面板
+第 %1 / %2 天	Day %1 / %2
+第 <b>%1</b> / %2 天	Day <b>%1</b> / %2
+%1 天前回来	Back %1 days ago
+%1 天前	%1 days ago
+%1 天后	In %1 days
+已打开「%1」筛选	Turned on the “%1” filter
+，并取消隐藏这条路线	 and unhid this route
+已取消隐藏这条路线	Unhid this route
+已取消置顶	Unpinned
+已取消下次出发	Next trip unset
+确定删除「%1」吗？	Delete “%1”?
+删除后可以按 Ctrl+Z 撤销。计划里的照片文件不会删除，还在照片库里。	You can press Ctrl+Z to undo. Photo files in the plan are not deleted and stay in the photo library.
+「%1」的日期已经过了。标记为“已完成”吗？	The dates of “%1” have passed. Mark it as “Completed”?
+已删除「%1」	Deleted “%1”
+已标记为已完成	Marked as completed
+还有 %1 项	%1 more
+取消指定下次出发	Unset as next trip
+「%1」日期已经过了	The dates of “%1” have passed
+另有 %1 个计划日期已经过了	%1 more plans are past their dates
+%1 到期（%2 天后）	expires %1 (in %2 days)
+标为已完成	Mark completed
+%1 站	%1 stops
+约 %1	about %1
+共 %1 站 · 点上面的站名或按 ← → 一站一站看	%1 stops · click a stop above or use ← → to go one by one
+住 %1 晚	%1 nights
+照片 %1 张	%1 photos
+下一段：%1 → <b>%2</b>	Next leg: %1 → <b>%2</b>
+删除计划…	Delete plan…
+隐藏了 %1 个计划	%1 plans hidden
+全部显示	Show all
+
+# 0.8.8：顶栏、头像菜单、我的旅程、Ctrl K
+修改窗口标题…	Change window title…
+更换数据文件夹…	Change data folder…
+菜单	Menu
+只读	Read-only
+共 %1 个计划 · 计划中 %2 · 想去 %3 · 已完成 %4	%1 plans · %2 planning · %3 wishlist · %4 done
+路线 · %1 站	Route · %1 stops
+（%1 天）	 (%1 days)
+还没有计划。	No plans yet.
+切到地球	Switch to globe
+切到平面地图	Switch to flat map
+底图：	Base map: 
+显示全部隐藏的计划	Show all hidden plans
+清除筛选（全选）	Clear filters (select all)
+最近	Recent
+第 %1 站 · %2	Stop %1 · %2
+%1 公里	%1 km
+%1 米	%1 m
+%1。可以在 Windows 设置 → 隐私和安全性 → 位置 里打开定位	%1. You can turn on location in Windows Settings → Privacy & security → Location
+%1，先显示今天所在的站点：%2	%1. Showing where you are today instead: %2
+%1，先显示所在国家	%1. Showing your home country instead
+%1，暂按直线显示	%1, shown as a straight line for now
+ATM	ATM
+WiFi	Wi-Fi
+保持单一目的地	Keep as single destination
+名称还没填，先不保存	No name yet, not saved
+在地图上点选	Pick on map
+地名数据 © OpenStreetMap 贡献者	Place data © OpenStreetMap contributors
+地名服务出错（HTTP %1）	Place search error (HTTP %1)
+地名服务拒绝了请求（HTTP %1），可能是请求太多被限流，或者服务停用了	The place search service refused the request (HTTP %1). It may be rate-limited or switched off
+地名服务超时	Place search timed out
+地名服务返回异常（HTTP %1）	Unexpected reply from place search (HTTP %1)
+坐标和样式	Coordinates & style
+坐标无效（纬度 -90~90，经度 -180~180）：%1	Invalid coordinates (latitude −90 to 90, longitude −180 to 180): %1
+填好名称、加上至少一个站点后自动保存	Saves automatically once it has a name and at least one stop
+已放弃这次的修改	Changes discarded
+已添加站点：%1	Stop added: %1
+年-月-日	YYYY-MM-DD
+徒步至少 %1	Walking at least %1
+徒步约 %1	Walking about %1
+自驾至少 %1	Driving at least %1
+自驾约 %1	Driving about %1
+恢复成打开编辑器时的样子吗？这次改的都会丢掉（新建的计划会删掉）。	Go back to how it was when you opened the editor? Everything changed this time will be lost (a new plan will be deleted).
+手动输入坐标	Enter coordinates
+按站点位置建议：%1	Suggested from stop locations: %1
+搜不到：%1。可以改用「点选」在地图上点一下，或者「坐标」手动输入。	Search failed: %1. You can use “Pick” to click on the map, or “Coordinates” to type them in.
+搜索图标	Search icons
+收起 ▴	Collapse ▴
+改 ▾	Edit ▾
+放大	Zoom in
+缩小	Zoom out
+放弃修改	Discard changes
+放弃这次的修改	Discard changes
+数据现在只能看、不能改	The data is read-only right now
+数据现在只能看、不能改，没法编辑	The data is read-only right now, so it can't be edited
+有 %1 段自驾/徒步没算出道路路线，暂按直线显示；可以再打开编辑器重试	%1 driving/walking legs couldn't be routed and are shown as straight lines. You can retry in the editor
+有两个站点了，已改成「路线」；想要几个独立标记，可以改回「单一目的地」	Two stops now, so this is a “Route”. Switch back to “Single destination” if you want separate markers
+有站点的坐标无效，先不保存	A stop has invalid coordinates, not saved
+正在保存…	Saving…
+没有定位权限	No location permission
+没算出来	Not routed
+清除	Clear
+点一下加站点 · Esc 退出	Click to add a stop · Esc to finish
+点开填写日期、备注	Open to add dates and notes
+点选	Pick
+点选中…（点此退出）	Picking… (click to stop)
+照片 %1	%1 photos
+现在关闭会放弃这次的修改。	Closing now will discard these changes.
+第 %1 站的地图标记	Map marker for stop %1
+精度约 %1 · 来自 Windows 定位	Accurate to about %1 · from Windows location
+系统定位超时	System location timed out
+结束日期早于开始日期，先不保存	End date is before start date, not saved
+继续编辑	Keep editing
+编辑器开着时不能撤销：先点「完成」，或者点「放弃这次的修改」	Can't undo while the editor is open. Click “Done”, or “Discard changes”
+至少需要一个站点，先不保存	Needs at least one stop, not saved
+行程 %1 条	Schedule: %1
+行程 %1 条 · 照片 %2 张（这一版在这里还不能改）	Schedule: %1 · Photos: %2 (can't be edited here in this version)
+计划名称，例如：京都赏枫	Plan name, e.g. Kyoto autumn leaves
+请先完成或放弃当前编辑	Finish or discard the current edit first
+请先完成或放弃编辑器里的改动，再批量计算	Finish or discard the changes in the editor before calculating
+还不能保存	Can't save yet
+这个计划有封面照片（这一版在这里还不能改）。	This plan has a cover photo (can't be changed here in this version).
+连不上地名服务（可能没联网，或者服务暂时不可用）	Can't reach the place search service (maybe offline, or the service is down)
+选日期	Pick a date
+足迹	Footprints
+账本	Ledger
+去过的	Visited
+花费	Costs
+地图模式	Map mode
+已切到「%1」	Switched to “%1”
+也显示	Also show
+只看已完成的旅程	Completed trips only
+全部旅程 · 照片在阶段 ⑤ 钉到地图上	All trips · photos get pinned to the map in stage ⑤
+去过的 · %1 趟	Visited · %1 trips
+这一页在阶段 ⑤ 做	This page comes in stage ⑤
+# 0.9.3
+地球后面的星星闪烁、偶尔有流星。电脑比较慢时可以关掉	Twinkling stars and the odd meteor behind the globe. Turn off on slow computers
+# 0.9.7
+叠上其他旅程	Overlay other trips
+不叠其他旅程	Stop overlaying other trips
+其他状态的旅程画成淡灰细线，垫在下面	Trips with other statuses are drawn as thin grey lines underneath

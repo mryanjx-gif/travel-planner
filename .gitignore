@@ -1,0 +1,29 @@
+# 验证、编译、内存测试的输出（每次重新生成）
+/验证结果/
+/内存测试-结果/
+/*-结果.txt
+
+# 编译输出和安装包
+/build*/
+/out/
+/dist/
+
+# 第三方源码和编译产物（固定提交，能重新生成）；只留授权文本和说明
+/third_party/maplibre-native-qt/*
+!/third_party/maplibre-native-qt/LICENSES/
+
+# 等 PO 删的文件
+/【删除】/
+
+# 工具和临时文件
+__pycache__/
+*.pyc
+*.user
+.vs/
+.vscode/
+.claude/
+*.log
+*.dmp
+*.tmp
+Thumbs.db
+desktop.ini

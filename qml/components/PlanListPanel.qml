@@ -1,0 +1,326 @@
+// "我的旅程"列表（0.8.8，功能清单 S-08）：顶栏下面、左边的浮动玻璃面板；顶栏的列表按钮或 Ctrl B 打开 / 关闭，✕ 关闭。
+// 照 Electron v6.3.0 index.html #sidebar + map-app.js renderList / placeSel：
+//   - 列表头"我的旅程" + 筛选（打开和左下状态胶囊同一个下拉）+ ✕；
+//   - 每一行：颜色点、置顶标记、名称、"路线 · N 站 / 单一目的地 · 日期"、眼睛（在地图上隐藏 / 显示；隐藏的那一行变淡）；
+//   - 点一行 = 选中这个计划、飞过去（selectPlan(id, true)）；当前项垫一颗玻璃胶囊，换计划时先沿移动方向拉长盖住起点和终点、
+//     再收成终点大小（520 ms，弹性回弹）；
+//   - 底部"共 N 个计划 · 计划中 · 想去 · 已完成"；没有计划 / 当前筛选下没有计划时各一句提示。
+// 原生版（PO 0.8.8 选方案 B）：分界处加一行小标题和数量（置顶 / 计划中 / 想去 / 已完成；排序本来就是这个顺序），
+// 下次出发的那一趟名字后面带倒计时。
+// 0.8.10：标题跟着地图模式变（title 由 Main 给）；足迹模式按年份分组（group = y2025 / undated）。
+import QtQuick
+import TPApp
+
+Item {
+    id: root
+    property Item backdrop: null
+    property bool open: false
+    property var info: ({})               // plans.list
+    property string selectedId: ""
+    property string nextBadge: ""         // 下次出发那一趟的角标（倒计时 / 第几天 / 几天前）
+    property bool filterOpen: false
+    property string title: qsTr("我的旅程")
+    signal closeRequested()
+    signal filterClicked()
+    signal planClicked(string id)
+    signal eyeClicked(string id, bool hidden)
+
+    visible: opacity > 0.01
+    opacity: open ? 1 : 0
+    transform: Translate { x: root.open ? 0 : -Theme.px(14); Behavior on x { enabled: Theme.motion; NumberAnimation { duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } } }
+    Behavior on opacity { enabled: Theme.motion; NumberAnimation { duration: 180 } }
+
+    readonly property var rows: info.rows || []
+    // 加上小标题的显示顺序：{ header: true, group, count } 或 { row }
+    readonly property var flat: {
+        const out = []
+        let g = ""
+        for (const r of rows) {
+            if (r.group !== g) { g = r.group; out.push({ header: true, group: g, count: r.groupCount }) }
+            out.push({ header: false, row: r })
+        }
+        return out
+    }
+    function groupLabel(g) {
+        if (g.length === 5 && g[0] === "y") return g.slice(1)
+        if (g === "undated") return qsTr("没有日期")
+        return g === "pin" ? qsTr("已置顶") : g === "wish" ? qsTr("想去") : g === "completed" ? qsTr("已完成") : qsTr("计划中")
+    }
+    function dateRange(r) {
+        // map-app.js dateRange：start → end（N 天）；只有一个日期就显示它；都没有 = 未定日期
+        if (r.startDate && r.endDate) return r.startDate + " → " + r.endDate + (r.days > 0 ? qsTr("（%1 天）").arg(r.days) : "")
+        return r.startDate || r.endDate || qsTr("未定日期")
+    }
+    function metaOf(r) { return (r.type === "route" ? qsTr("路线 · %1 站").arg(r.stops) : qsTr("单一目的地")) + " · " + dateRange(r) }
+    function containsGlobal(gx, gy) {
+        if (!visible) return false
+        const p = root.mapFromItem(null, gx, gy)
+        return p.x >= 0 && p.y >= 0 && p.x <= width && p.y <= height
+    }
+    function filterButtonContains(gx, gy) {
+        const p = filterBtn.mapFromItem(null, gx, gy)
+        return filterBtn.visible && p.x >= 0 && p.y >= 0 && p.x <= filterBtn.width && p.y <= filterBtn.height
+    }
+    readonly property alias filterButton: filterBtn
+
+    GlassPanel {
+        anchors.fill: parent
+        backdrop: root.backdrop
+        radius: Theme.px(16)
+    }
+    MouseArea { anchors.fill: parent; onWheel: (w) => w.accepted = true }   // 面板里的空白处不穿透到地图
+
+    // ---- 列表头 ----
+    Item {
+        id: head
+        x: Theme.px(16); y: Theme.px(10)
+        width: parent.width - Theme.px(26)
+        height: Theme.px(36)
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            objectName: "listTitle"
+            text: root.title
+            font.family: serifFamily; font.pixelSize: Theme.px(16); font.bold: true; color: Theme.text
+        }
+        Row {
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Theme.px(6)
+            Item {
+                id: filterBtn
+                objectName: "listFilterBtn"
+                width: fRow.implicitWidth + Theme.px(20)
+                height: Theme.px(28)
+                anchors.verticalCenter: parent.verticalCenter
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("筛选")
+                Rectangle {
+                    anchors.fill: parent
+                    radius: height / 2
+                    color: root.filterOpen ? "#ffffff" : (fMa.containsMouse ? Qt.rgba(1, 1, 1, 0.7) : Qt.rgba(1, 1, 1, 0.45))
+                    border.color: root.filterOpen ? Theme.accent : Theme.line
+                }
+                Row {
+                    id: fRow
+                    anchors.centerIn: parent
+                    spacing: Theme.px(4)
+                    Text { anchors.verticalCenter: parent.verticalCenter; text: qsTr("筛选"); font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.text }
+                    Rectangle {
+                        visible: plans.excludedCount > 0
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: Math.max(height, ec.implicitWidth + Theme.px(10)); height: Theme.px(17); radius: height / 2
+                        color: Theme.accent
+                        Text { id: ec; anchors.centerIn: parent; text: plans.excludedCount; font.pixelSize: Theme.px(11); font.bold: true; color: "#ffffff" }
+                    }
+                    TpIcon { anchors.verticalCenter: parent.verticalCenter; name: "down"; width: Theme.px(13); height: Theme.px(13); color: Theme.muted }
+                }
+                MouseArea { id: fMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.filterClicked() }
+            }
+            Item {
+                width: Theme.px(28); height: Theme.px(28)
+                anchors.verticalCenter: parent.verticalCenter
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("关闭列表")
+                Rectangle { anchors.fill: parent; radius: width / 2; color: xMa.containsMouse ? Qt.rgba(1, 1, 1, 0.6) : "transparent" }
+                TpIcon { anchors.centerIn: parent; name: "close"; width: Theme.px(15); height: Theme.px(15); color: Theme.muted }
+                MouseArea { id: xMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
+            }
+        }
+    }
+
+    // ---- 列表 ----
+    ListView {
+        id: list
+        objectName: "planListView"
+        x: Theme.px(8)
+        y: head.y + head.height + Theme.px(4)
+        width: parent.width - Theme.px(16)
+        height: parent.height - y - foot.height - Theme.px(24)
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        model: root.flat
+        spacing: 0
+        currentIndex: -1
+
+        // 当前项的玻璃胶囊（#plSel）：放在内容里、垫在行下面
+        Rectangle {
+            id: cap
+            parent: list.contentItem
+            z: -1
+            x: 0
+            width: list.width
+            radius: Theme.px(12)
+            color: Qt.rgba(1, 1, 1, 0.62)
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.95)
+            visible: false
+            property real toY: 0
+            property real toH: 0
+            SequentialAnimation {
+                id: stretch
+                ParallelAnimation {
+                    NumberAnimation { id: s1y; target: cap; property: "y"; duration: 218; easing.type: Easing.BezierSpline; easing.bezierCurve: [0.4, 0, 0.6, 1, 1, 1] }
+                    NumberAnimation { id: s1h; target: cap; property: "height"; duration: 218; easing.type: Easing.BezierSpline; easing.bezierCurve: [0.4, 0, 0.6, 1, 1, 1] }
+                }
+                ParallelAnimation {
+                    NumberAnimation { id: s2y; target: cap; property: "y"; duration: 302; easing.type: Easing.BezierSpline; easing.bezierCurve: [0.34, 1.56, 0.64, 1, 1, 1] }
+                    NumberAnimation { id: s2h; target: cap; property: "height"; duration: 302; easing.type: Easing.BezierSpline; easing.bezierCurve: [0.34, 1.56, 0.64, 1, 1, 1] }
+                }
+            }
+            // 换到 (y, h)：沿移动方向先拉长盖住起点和终点（0.42 处），再收成终点大小
+            function moveTo(y, h) {
+                const from = visible ? { y: cap.y, h: cap.height } : null
+                visible = true
+                stretch.stop()
+                if (!from || (from.y === y && from.h === h) || !Theme.motion) { cap.y = y; cap.height = h; return }
+                const lo = Math.min(from.y, y), hi = Math.max(from.y + from.h, y + h)
+                s1y.to = lo; s1h.to = hi - lo
+                s2y.to = y; s2h.to = h
+                stretch.start()
+            }
+        }
+        function placeCap() {
+            for (let i = 0; i < count; ++i) {
+                const d = root.flat[i]
+                if (d && !d.header && d.row.id === root.selectedId) {
+                    const it = itemAtIndex(i)
+                    if (it) { cap.moveTo(it.y, it.height); return }
+                    positionViewAtIndex(i, ListView.Contain)
+                    capLater.restart()
+                    return
+                }
+            }
+            cap.visible = false
+            stretch.stop()
+        }
+        Timer { id: capLater; interval: 0; onTriggered: list.placeCap() }
+
+        delegate: Item {
+            id: cell
+            required property var modelData
+            required property int index
+            readonly property bool header: modelData.header
+            readonly property var r: header ? ({}) : modelData.row
+            width: list.width
+            height: header ? Theme.px(index === 0 ? 24 : 32) : Theme.px(52)
+            objectName: header ? "" : "planRow-" + r.id
+
+            // 小标题（方案 B）
+            Text {
+                visible: cell.header
+                x: Theme.px(10)
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: Theme.px(3)
+                text: cell.header ? root.groupLabel(cell.modelData.group) + "  " + cell.modelData.count : ""
+                font.family: serifFamily; font.pixelSize: Theme.px(11); font.letterSpacing: 1.2; color: Theme.muted
+            }
+
+            Rectangle {
+                visible: !cell.header && rowMa.containsMouse && cell.r.id !== root.selectedId
+                anchors.fill: parent
+                radius: Theme.px(12)
+                color: Qt.rgba(1, 1, 1, 0.32)
+            }
+            Item {
+                visible: !cell.header
+                anchors.fill: parent
+                opacity: cell.r.hidden ? 0.45 : 1
+                Rectangle {
+                    id: dot
+                    x: Theme.px(12)
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Theme.px(9); height: width; radius: width / 2
+                    color: cell.r.color || Theme.accent
+                }
+                Column {
+                    x: dot.x + dot.width + Theme.px(10)
+                    width: parent.width - x - eye.width - Theme.px(10)
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: Theme.px(1)
+                    Row {
+                        width: parent.width
+                        spacing: Theme.px(5)
+                        TpIcon { visible: cell.r.pinned === true; name: "pin"; width: Theme.px(12); height: Theme.px(12); color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
+                        Text {
+                            id: nameText
+                            width: Math.min(implicitWidth, parent.width - (cell.r.pinned ? Theme.px(17) : 0) - (badge.visible ? badge.width + Theme.px(5) : 0))
+                            text: cell.r.name || qsTr("未命名计划")
+                            elide: Text.ElideRight
+                            font.family: serifFamily; font.pixelSize: Theme.px(14); font.bold: cell.r.id === root.selectedId; color: Theme.text
+                        }
+                        Rectangle {
+                            id: badge
+                            visible: cell.r.isNext === true && root.nextBadge !== ""
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: bt.implicitWidth + Theme.px(12); height: Theme.px(17); radius: height / 2
+                            color: "#f3e3d9"
+                            Text { id: bt; anchors.centerIn: parent; text: root.nextBadge; font.family: serifFamily; font.pixelSize: Theme.px(11); font.bold: true; color: "#8a4210" }
+                        }
+                    }
+                    Text {
+                        width: parent.width
+                        text: cell.header ? "" : root.metaOf(cell.r)
+                        elide: Text.ElideRight
+                        font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
+                    }
+                }
+            }
+            MouseArea {
+                id: rowMa
+                anchors.fill: parent
+                enabled: !cell.header
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                Accessible.role: Accessible.ListItem
+                Accessible.name: cell.r.name || ""
+                onClicked: root.planClicked(cell.r.id)
+            }
+            // 眼睛：在地图上隐藏 / 显示（不变淡，好找）
+            Item {
+                id: eye
+                objectName: cell.header ? "" : "eye-" + cell.r.id
+                visible: !cell.header
+                anchors.right: parent.right
+                anchors.rightMargin: Theme.px(6)
+                anchors.verticalCenter: parent.verticalCenter
+                width: Theme.px(32); height: Theme.px(32)
+                Accessible.role: Accessible.Button
+                Accessible.name: cell.r.hidden ? qsTr("在地图上显示") : qsTr("在地图上隐藏")
+                Rectangle { anchors.fill: parent; radius: width / 2; color: eyeMa.containsMouse ? Qt.rgba(1, 1, 1, 0.7) : "transparent" }
+                TpIcon { anchors.centerIn: parent; name: cell.r.hidden ? "eyeOff" : "eye"; width: Theme.px(16); height: Theme.px(16); color: cell.r.hidden ? Theme.faint : Theme.muted }
+                MouseArea { id: eyeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.eyeClicked(cell.r.id, !cell.r.hidden) }
+            }
+        }
+
+        onCountChanged: capLater.restart()
+    }
+    onSelectedIdChanged: list.placeCap()
+    onFlatChanged: capLater.restart()
+    onOpenChanged: if (open) capLater.restart()
+
+    // 没有计划 / 当前筛选下没有计划
+    Text {
+        visible: root.rows.length === 0
+        x: Theme.px(20); y: list.y + Theme.px(16)
+        width: root.width - Theme.px(40)
+        wrapMode: Text.Wrap
+        lineHeight: 1.4
+        text: (root.info.total || 0) > 0 ? qsTr("当前筛选下没有计划。") + "\n" + qsTr("可以在「筛选」里点「全选」恢复。") : qsTr("还没有计划。")
+        font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted
+    }
+
+    // ---- 底部 ----
+    Rectangle { x: Theme.px(14); width: root.width - Theme.px(28); height: 1; color: Theme.line; y: foot.y - Theme.px(8) }
+    Text {
+        id: foot
+        x: Theme.px(18)
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Theme.px(12)
+        width: root.width - Theme.px(36)
+        wrapMode: Text.WordWrap
+        maximumLineCount: 2
+        elide: Text.ElideRight
+        text: qsTr("共 %1 个计划 · 计划中 %2 · 想去 %3 · 已完成 %4").arg(root.info.total || 0).arg(root.info.planning || 0).arg(root.info.wish || 0).arg(root.info.completed || 0)
+        font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
+    }
+}

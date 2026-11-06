@@ -1,0 +1,298 @@
+印尼盾	Indonesian rupiah
+取到）	)
+古建筑	Historic building
+图书馆	Library
+土耳其	Turkey
+埃及镑	Egyptian pound
+塞波黑	Serbia & Bosnia
+塞班岛	Saipan
+墨西哥	Mexico
+夜深了	Good night
+夜生活	Nightlife
+大标题	Heading
+大洋洲	Oceania
+奥匈捷	Austria, Hungary & Czechia
+小木屋	Cabin
+小标题	Subheading
+尼泊尔	Nepal
+已出发	Departed
+已完成	Completed
+已导入	Imported
+已算好	Calculated
+已置顶	Pinned
+已解锁	Unlocked
+已隐藏	Hidden
+常用药	Medicines
+度假村	Resort
+张照片	photos
+张精选	featured
+快捷键	Shortcuts
+总预算	Total budget
+意大利	Italy
+所在地	Home country
+按区域	By region
+按名称	By name
+按年份	By year
+按旅程	By trip
+按计划	By plan
+换计划	Change plan
+摩洛哥	Morocco
+新加坡	Singapore
+新台币	New Taiwan dollar
+新西兰	New Zealand
+旅行中	Traveling
+无标题	Untitled
+无说明	No note
+早上好	Good morning
+晚上好	Good evening
+最适合	Best
+月）：	):
+有备注	Has notes
+有封面	Has cover
+未分类	Uncategorized
+未命名	Untitled
+未填写	Not filled
+未归类	Unsorted
+柬埔寨	Cambodia
+沿道路	By road
+清真寺	Mosque
+游乐园	Amusement park
+滑板车	Kick scooter
+滑翔伞	Paragliding
+皮划艇	Kayaking
+目的地	Destination
+看照片	View photos
+站 ·	stops ·
+站）→	stops) →
+联网的	online
+自行车	Bicycle
+菲律宾	Philippines
+葡萄酒	Wine
+街道图	Streets
+视野内	In view
+计划中	Planning
+计划库	Library
+订单号	Booking ref.
+记一笔	Add expense
+费用（	Cost (
+越南盾	Vietnamese dong
+选计划	Choose plan
+金额（	Amount (
+阿根廷	Argentina
+阿联酋	UAE
+高尔夫	Golf
+（已有	(
+，另有	, plus
+，显示	, showing
+，照片	, photos
+[地图]	[Map]
+· 合计	· total
+· 想去	· wishlist
+· 汇率	· rates
+……还有	… and
+↻ 旋转	↻ Rotate
+✓ 去过	✓ visited
+」定日期	”
+上次用的	Last used
+不用图标	No icon
+个文件）	files)
+交通住宿	Bookings
+今天出发	Leaving today
+仍然保存	Save anyway
+以后再说	Later
+克罗地亚	Croatia
+全部 →	All →
+全部旅程	All trips
+全部类型	All types
+写入失败	Write failed
+冰岛克朗	Icelandic króna
+出发时间	Departure time
+切换底图	Switch basemap
+删除站点	Delete stop
+删除计划	Delete plan
+到达时间	Arrival time
+北欧四国	Nordics
+去下一站	to next stop
+取消精选	Unfeature
+取消置顶	Unpin
+取消隐藏	Unhide
+可以不填	Optional
+回到今天	Back to today
+回到游记	Back to journal
+固定侧栏	Pin sidebar
+地点名称	Place name
+备份中…	Backing up…
+天后出发	days to go
+天在路上	days on the road
+天气天象	Weather & sky
+字体大小	Font size
+存成模板	Save as template
+季节表里	In the season guide,
+导入照片	Import photos
+封面照片	Cover photo
+展开列表	Expand list
+已切回「	Switched back to “
+已备份到	Backed up to
+平面地图	Flat map
+年斋月约	Ramadan approx.
+开始日期	Start date
+开始计划	Start planning
+开源组件	Open-source components
+张失败：	failed:
+张未归类	unsorted
+微软雅黑	Microsoft YaHei
+思源宋体	Noto Serif SC
+恢复默认	Reset to default
+愿望清单	Wishlist
+我的旅程	My trips
+我的足迹	My footprint
+截止日期	Due date
+户外运动	Outdoors
+手动标记	Marked manually
+打开计划	Open plan
+折叠列表	Collapse list
+按站点数	By number of stops
+挪威克朗	Norwegian krone
+换洗衣物	Clothes
+插入照片	Insert photo
+插入链接	Insert link
+搜索中…	Searching…
+收起侧栏	Hide sidebar
+改成路线	Change to route
+放弃编辑	Discard changes
+数字顺序	Numbers
+整个地球	Whole globe
+整理照片	Sort photos
+斯里兰卡	Sri Lanka
+新加坡元	Singapore dollar
+新建计划	New plan
+新西兰元	New Zealand dollar
+旅行计划	Travel Planner
+日历 →	Calendar →
+星空动画	Starfield animation
+显示侧栏	Show sidebar
+景点文化	Sights & culture
+更新中…	Updating…
+更新日志	Changelog
+月适合去	: good to go
+未保存…	Unsaved…
+未定日期	No dates
+未知错误	Unknown error
+某个计划	One plan
+查找中…	Searching…
+格鲁吉亚	Georgia
+正在读取	Reading
+每次旅行	Per trip
+没填时间	No time
+没有待办	No to-dos
+没有数据	No data
+没有日期	No date
+没有结果	No results
+没有计划	No plans
+洗漱用品	Toiletries
+添加照片	Add photos
+添加计划	Add plan
+渐变侧栏	Gradient sidebar
+湖 水域	Lake & water
+澳大利亚	Australia
+照片说明	Caption
+犹太会堂	Synagogue
+现在备份	Back up now
+现在更新	Update now
+现在计算	Calculate now
+瑞典克朗	Swedish krona
+瑞士法郎	Swiss franc
+相关计划	Related plans
+看看 →	Take a look →
+看这一周	View this week
+站点备注	Stop notes
+站点安排	Stop plan
+类型确认	Confirm type
+结束日期	End date
+统计范围	Range
+编辑攻略	Edit guide
+编辑计划	Edit plan
+联网汇率	Online rates
+自然风光	Nature
+行李清单	Packing list
+行程安排	Itinerary
+表里没写	Not listed
+计划内容	Plan details
+计划列表	Plan list
+计划名称	Plan name
+设为封面	Set as cover
+设为精选	Feature
+购物生活	Shopping & daily life
+跟随计划	Same as plan
+路线 ·	Route ·
+路线标记	Route markers
+转换插头	Plug adapter
+轮渡 船	Ferry & boat
+载入中…	Loading…
+还没取到	Not fetched yet
+选择样式	Choose style
+选文件夹	Choose folder
+配色主题	Color theme
+酒店名称	Hotel name
+重新加载	Reload
+重新查找	Search again
+键盘操作	Keyboard
+雪地摩托	Snowmobile
+马尔代夫	Maldives
+马来西亚	Malaysia
+默认排序	Default order
+（不改）	(no change)
+· 已完成	· completed
+· 有位置	· with location
+· 现在（	· now (
+、整个国家	, whole country
+上次备份：	Last backup:
+下一次出发	Next trip
+从模板添加	Add from template
+从首页移除	Remove from home
+保存失败：	Save failed:
+先勾选照片	Select photos first
+全部改成：	Change all to:
+关联季节表	Link to season guide
+出发前待办	Before you go
+删除这一条	Delete this
+动物 宠物	Animals & pets
+单一目的地	Single destination
+印度教寺庙	Hindu temple
+回到计划库	Back to library
+土耳其里拉	Turkish lira
+在地图上看	View on map
+地图不可用	Map unavailable
+处手动标记	manually marked
+备份失败：	Backup failed:
+备注与封面	Notes & cover
+娱乐/门票	Fun/Tickets
+季节表 →	Season guide →
+已单独设置	Set individually
+已自动保存	Saved automatically
+已设为封面	Set as cover
+床位 青旅	Hostel
+开始计划「	Start planning “
+张已归到「	photos moved to “
+张归到计划	photos to plan
+张照片 ·	photos ·
+张照片归到	photos to
+归到计划…	Move to plan…
+房车 接驳	Campervan & shuttle
+打开文件夹	Open folder
+拖动改大小	Drag to resize
+按开始日期	By start date
+按拍摄位置	By photo location
+按拍摄日期	By photo date
+按计划筛选	Filter by plan
+换一个计划	Choose another plan
+搜索失败：	Search failed:
+放到哪一站	Which stop?
+数据文件夹	Data folder
+旋转失败：	Rotate failed:
+显示的文字	Link text
+显示菜单栏	Show menu bar
+晴天 日出	Sun & sunrise
+更改样式…	Change style…
+最大的几笔	Largest expenses
+最近的游记	Recent journal

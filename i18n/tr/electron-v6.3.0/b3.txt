@@ -1,0 +1,288 @@
+最适合 ·	Best ·
+月最适合：	— best now:
+未命名地点	Unnamed place
+未命名站点	Unnamed stop
+未命名计划	Untitled plan
+本月适合去	Good to go this month
+查找失败：	Search failed:
+标记已完成	Mark as completed
+模板已更新	Template updated
+汇率已更新	Rates updated
+没关联计划	No linked plan
+没有找到。	Nothing found.
+清单是空的	The list is empty
+照片找不到	Photo not found
+现在去正好	Great time to go
+登顶 雪山	Summit & snow peaks
+确定删除「	Delete “
+移到回收站	Move to Recycle Bin
+自定义颜色	Custom color
+行李与待办	Packing & to-dos
+西亚/中亚	West/Central Asia
+要塞 长城	Fortress & Great Wall
+计划库 →	Library →
+货币与汇率	Currency & exchange rates
+还没备份过	Never backed up
+还没定日期	No dates yet
+还没有游记	No journal entries yet
+还没有照片	No photos yet
+还没有计划	No plans yet
+还没设预算	No budget set
+这个范围里	In this range
+这天做什么	What to do this day
+露营 帐篷	Camping & tents
+首页的地球	Home globe
+（不关联）	(none)
+＋ 加一条	＋ Add
+· 修改行程	· edit itinerary
+。还没保存。	. Not saved yet.
+上一张（←）	Previous (←)
+上一站（←）	Previous stop (←)
+下一张（→）	Next (→)
+下一站（→）	Next stop (→)
+个想去的地方	places on the wishlist
+个省 / 州	provinces / states
+从计划里移除	Remove from plan
+任何要记的事	Anything to remember
+修改窗口标题	Edit window title
+先选一个计划	Choose a plan first
+全部完成 ✓	All done ✓
+全部计划 →	All plans →
+全部跟随计划	All same as plan
+关联季节表…	Link to season guide…
+切换路线站点	Switch route stops
+刚刚回来 ·	Just back ·
+删除这一笔？	Delete this expense?
+去日历定日期	Set dates in calendar
+名称不能为空	Name can't be empty
+在地图上定位	Locate on map
+在地图上显示	Show on map
+在地图上隐藏	Hide on map
+在日历里隐藏	Hide in calendar
+地图数据来源	Map data sources
+墨夜（深色）	Ink (dark)
+天后出发 ·	days to go ·
+天，平均每天	days, per day
+已添加站点：	Stop added:
+已由计划点亮	Unlocked by a plan
+已经由计划「	is already unlocked by plan “
+张 · 已选	photos · selected
+张在"未归类	in “Unsorted
+恢复默认布局	Reset layout
+打开地图 →	Open map →
+打开完整页面	Open full page
+打开相册 →	Open album →
+打开行程 →	Open itinerary →
+打开计划 →	Open plan →
+找不到照片：	Photo not found:
+改成"计划中	Change to “Planning
+数据格式不对	Invalid data format
+旅行计划 v	Travel Planner v
+暂无行程安排	No itinerary yet
+有位置的照片	Photos with location
+有点热/人多	Hot / crowded
+极光（深色）	Aurora (dark)
+每周自动备份	Weekly auto backup
+没有拍摄时间	No date taken
+没有联网功能	No network access
+消费分类占比	Spending by category
+用这份清单（	Use this list (
+省界、国界：	Province and country borders:
+移到回收站？	Move to Recycle Bin?
+站的地图标记	stop map markers
+计划名称 *	Plan name *
+请填开始日期	Please enter a start date
+路线服务超时	Routing service timed out
+还没有游记。	No journal entries yet.
+还没有照片。	No photos yet.
+这一页出错了	This page hit an error
+问候语、地球	Greeting, globe
+阿联酋迪拉姆	UAE dirham
+项（已隐藏）	(hidden)
+（公有领域）	(public domain)
+（整个旅程）	(whole trip)
+＋ 新建计划	＋ New plan
+＋ 添加照片	＋ Add photos
+* 最后保存：	* Last saved:
+Esri 浅灰	Esri Light Gray
+· 加一条行程	· add an item
+」已改成计划中	” changed to Planning
+一周从哪天开始	First day of the week
+个计划在准备中	plans in the works
+个这个月去正好	are a great fit this month
+今天的行程 →	Today's itinerary →
+从电脑添加照片	Add photos from computer
+例如：京都赏枫	e.g. Kyoto autumn leaves
+全部移到回收站	Move all to Recycle Bin
+关闭（Esc）	Close (Esc)
+删除这条记录？	Delete this record?
+删除这篇游记？	Delete this journal entry?
+后退 / 前进	Back / Forward
+周视图、月视图	Week and month views
+在地图上看 →	View on map →
+在日历里隐藏的	Hidden in calendar
+在计划库里置顶	Pin in library
+地图无法启动（	Map failed to start (
+存成行李模板？	Save as packing template?
+展开 / 收起	Expand / collapse
+张，放大地图看	photos, zoom in to see
+张，点一下放大	photos, click to zoom
+打开计划页 →	Open plan page →
+找不到这个计划	Plan not found
+找不到这篇游记	Journal entry not found
+搜索计划或站点	Search plans or stops
+改关联的季节表	Change linked season row
+数据文件夹位置	Data folder location
+旅行中 · 第	Traveling · day
+最新的几篇游记	Latest journal entries
+最近旅行的照片	Photos from recent trips
+汇率更新失败：	Rate update failed:
+清理没用的照片	Clean up unused photos
+点击回到这一站	Click to return to this stop
+点击标记为去过	Click to mark as visited
+球形（地球仪）	Globe
+的汇率（来源：	rates (source:
+计划的地图标记	Plan map markers
+请填写计划名称	Please enter a plan name
+跟随计划的图标	Same icon as plan
+路线服务出错（	Routing service error (
+路线（多站点）	Route (multiple stops)
+还没有任何计划	No plans yet
+还没有行李清单	No packing list yet
+这一周没有安排	Nothing planned this week
+选择备份文件夹	Choose backup folder
+选择年份和月份	Choose year and month
+问候语里的名字	Name in greeting
+马来西亚林吉特	Malaysian ringgit
+鼠标侧键也可以	Mouse side buttons work too
+（点名字关联）	(click a name to link)
+（还没有内容）	(no content yet)
+＋ 加一条行程	＋ Add itinerary item
+，暂按直线显示	, shown as a straight line for now
+Esri 卫星图	Esri Satellite
+Esri 街道图	Esri Streets
+· 打开计划 →	· Open plan →
+✎ 手动输入坐标	✎ Enter coordinates
+」对应季节表里的	” matches season row
+全部都定了日期。	All have dates.
+地图库没有加载。	Map library didn't load.
+夜晚 星空 极光	Night, stars & aurora
+如 晚饭、出租车	e.g. dinner, taxi
+字 · 自动保存	chars · saved automatically
+张照片移到回收站	photos moved to Recycle Bin
+护照 / 身份证	Passport / ID
+按住拖动，换位置	Hold and drag to move
+按站点位置建议：	Suggested from stops:
+次旅行（已完成）	trips (completed)
+正在按道路计算…	Calculating road route…
+每个版本改了什么	What changed in each version
+没关联季节表的：	Not linked to season guide:
+没有匹配的图标。	No matching icons.
+没有计划中的旅行	No trips in planning
+肯尼亚/坦桑尼亚	Kenya / Tanzania
+至少需要一个站点	At least one stop is required
+计划中的旅行列表	Trips in planning
+设预算 / 币种	Set budget / currency
+还没有想去的地方	Nothing on the wishlist yet
+还没选备份文件夹	No backup folder chosen
+银行卡、少量现金	Bank cards, some cash
+（已删除的计划）	(deleted plan)
+（来自交通住宿）	(from bookings)
+＋ 选择封面照片	＋ Choose cover photo
+🖱 在地图上点选	🖱 Pick on map
+km 路线（估算）	km of routes (est.)
+● 有未保存的改动	● Unsaved changes
+个计划 · 计划中	plans · planning
+什么时候去哪里合适	When to go where
+修改预算 / 币种	Edit budget / currency
+可能已经被删除了。	may have been deleted.
+同时记到"消费"里	Also add to “Spending”
+奥兰多迪士尼+环球	Orlando Disney + Universal
+开始时间（可不填）	Start time (optional)
+张没用到的照片，共	unused photos, total
+张照片的拍摄信息…	photos' metadata…
+整个国家 / 地区	Whole country / region
+显示 / 隐藏侧栏	Show / hide sidebar
+正在按道路计算路线	Calculating road route
+正在载入省界数据…	Loading border data…
+没有汇率，没算进去	have no exchange rate and aren't counted
+添加一件物品，回车	Add an item, press Enter
+省界数据没加载成功	Border data failed to load
+结束时间（可不填）	End time (optional)
+置顶到左侧列表顶部	Pin to top of list
+订单号 / 确认码	Booking ref / confirmation
+选择首页显示哪些框	Choose which boxes to show on Home
+Windows 自带	Built into Windows
+两站之间找不到可走的	No route found between the two stops
+个国家 / 地区 ·	countries / regions ·
+写完了，切到阅读样子	Done — switch to reading view
+前进 (Alt+→)	Forward (Alt+→)
+后退 (Alt+←)	Back (Alt+←)
+坐标无效，按直线显示	Invalid coordinates, shown as straight line
+张 · 左右滑动查看	photos · swipe to browse
+当前筛选下没有计划。	No plans match the current filter.
+手机、充电器、充电宝	Phone, charger, power bank
+正在按道路计算路线…	Calculating road route…
+没有有效的站点坐标。	No valid stop coordinates.
+没有符合条件的计划。	No matching plans.
+结束日期早于开始日期	End date is before start date
+这个计划已经删除了。	This plan has been deleted.
+还没有封面照片	No cover photo yet
+[小地图] 换底图失败	[Mini map] Failed to switch basemap
+」点亮，不用手动标记。	”; no need to mark it manually.
+从计划里移除这张照片？	Remove this photo from the plan?
+保存到 data.js	Save to data.js
+分类占比会显示在这里。	Category breakdown will appear here.
+去过的地点、天数、里程	Places, days and distance traveled
+取消置顶（地图页列表）	Unpin (map list)
+在地图上点击以添加站点	Click on the map to add a stop
+字 · 停手后自动保存	chars · saves automatically when you pause
+想去 · 这个月去正好	Wishlist · great time to go this month
+手动标记 · 点击取消	Marked manually · click to remove
+打开 app 时的底图	Basemap when the app opens
+打开 app 时的形状	Map shape when the app opens
+更新日志 · 当前 v	Changelog · current v
+每周自动备份：已备份到	Weekly auto backup: backed up to
+消费统计折算成哪种货币	Currency used for spending totals
+省界数据没有加载成功（	Border data failed to load (
+请先保存或取消当前编辑	Please save or cancel the current edit first
+路线上每个站点显示什么	What each stop shows on the route
+首页地球放大到这个国家	The home globe zooms to this country
+交通、门票、注意事项……	Transport, tickets, notes…
+全 app 统一用这一种	Used throughout the app
+在地图页的计划列表里置顶	Pin in the map page list
+在左边展开这个站点的备注	Show this stop's notes on the left
+已保存到 data.js	Saved to data.js
+已旋转并保存。原图备份在	Rotated and saved. Original backed up at
+手动标记去过的省 / 州	Mark visited provinces / states
+按"已完成"计划的站点算	Based on stops of “completed” plans
+更换数据文件夹、重新加载	Change data folder, reload
+点 › 从第 1 站开始	Click › to start from stop 1
+结束日期不能早于开始日期	End date can't be before start date
+结束，要标记为已完成吗？	— mark it as completed?
+请先修正表单里标红的地方	Please fix the fields marked in red first
+距离太远，路线服务不支持	Too far for the routing service
+🖱 点选中…（点此退出）	🖱 Picking… (click here to stop)
+data.js 被别处改过	data.js was changed elsewhere
+。打勾、增删都会自动保存。	. Ticks, additions and deletions save automatically.
+从这一站到下一站的交通方式	Transport from this stop to the next
+各计划里没勾掉的待办和行李	Unticked to-dos and packing items from your plans
+固定侧栏 (Ctrl+B)	Pin sidebar (Ctrl+B)
+张已复制进 photos/	photos copied into photos/
+收起侧栏 (Ctrl+B)	Hide sidebar (Ctrl+B)
+显示侧栏 (Ctrl+B)	Show sidebar (Ctrl+B)
+没有运行在桌面 app 里	Not running in the desktop app
+添加站点后会按位置自动建议	Suggested automatically from stop locations
+等待计算…（暂按直线显示）	Waiting… (straight line for now)
+联网加载；断网时用系统宋体	Loaded online; falls back to system Song font offline
+路线服务返回异常（HTTP	Routing service error (HTTP
+data.js 里没有季节表	No season guide in data.js
+。已展开对应站点的「坐标」。	. The stop's “Coordinates” section has been opened.
+地图无法启动（需要显卡加速）	Map failed to start (needs graphics acceleration)
+填了结束时间，也要填开始时间	If you set an end time, set a start time too
+定下日期，状态改成「计划中」	Set dates and change status to “Planning”
+已进入全屏，按 F11 退出	Full screen — press F11 to exit
+模板里的物品都已经在清单里了	Everything in the template is already on the list
+版本、更新日志、地图数据来源	Version, changelog, map data sources
+状态从「想去」改成「计划中」	Change status from “Wishlist” to “Planning”
+不错。只算关联了季节表的愿望（	good. Only wishes linked to the season guide count (

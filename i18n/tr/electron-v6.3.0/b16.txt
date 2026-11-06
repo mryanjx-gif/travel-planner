@@ -1,0 +1,74 @@
+此刻 / 下一次出发：点开看详情	Now / next trip: click for details
+页面：计划 / 日历 / 相册 / 游记 / 愿望清单	Pages: plans / calendar / album / journal / wishlist
+搜索或跳转…	Search or jump…
+接下来去哪儿？	Where next?
+在地图上定位（飞到这个计划）	Locate on the map (fly to this plan)
+在地图上定位	Locate on the map
+打开完整计划	Open full plan
+返回上一页	Go back
+返回	Back
+关掉这一页，在地图上打开这个计划的简易面板	Close this page and open the compact panel on the map
+简易版	Compact view
+玻璃材质	Glass material
+地图上的面板（列表、详情、此刻卡片、控件）。液态：用显卡算真实折射和边缘高光，实验功能，不支持 WebGL2、减少动效或系统"减少透明效果"时自动换成标准；标准：普通毛玻璃	Panels over the map (list, details, the now card, controls). Liquid: real refraction and edge highlights computed on the GPU, experimental; falls back to Standard without WebGL2, with reduced motion, or when the system asks for reduced transparency. Standard: ordinary frosted glass
+液态（实验）	Liquid (experimental)
+标准	Standard
+页面：地图 / 计划 / 日历 / 相册 / 游记 / 愿望清单	Pages: map / plans / calendar / album / journal / wishlist
+当前：液态（WebGL 已激活）	Now: liquid (WebGL active)
+设置里选了"标准"	"Standard" is selected in settings
+"动效"设成了减少动效（或系统关了动画）	Motion is set to reduced (or the system disables animations)
+Windows 关了"透明效果"（设置 → 个性化 → 颜色）	Windows transparency effects are off (Settings → Personalization → Colors)
+显卡初始化失败，已退回标准	GPU initialisation failed, fell back to standard
+显卡不支持 WebGL2	The GPU does not support WebGL2
+地图还没启动	The map has not started yet
+当前：标准 ·	Now: standard ·
+未激活	not active
+浮动面板和泡泡的质感。液态：中间清晰、边缘一圈像厚玻璃一样把背后的画面弯折（SVG 滤镜，所有页面都有）；WebGL：用显卡算物理折射的实验版，只在地图上；标准：普通毛玻璃。减少动效或系统"减少透明效果"时都自动换成标准	Texture of floating panels and bubbles. Liquid: clear centre, a thick-glass rim that bends what is behind it (SVG filter, on every page); WebGL: experimental physically based refraction, map only; Standard: plain frosted glass. Both fall back to Standard with reduced motion or when the system asks for reduced transparency
+液态	Liquid
+WebGL（实验）	WebGL (experimental)
+当前：标准	Now: standard
+设置里没选 WebGL 版	WebGL is not selected in settings
+设置里选了 WebGL 版	WebGL is selected in settings
+这个版本的 Chromium 不支持 SVG 滤镜做背景模糊	This Chromium build does not support SVG filters in backdrop-filter
+当前：液态（SVG 透镜已激活）	Now: liquid (SVG lens active)
+透明效果	Transparency
+玻璃面板是否透出背景。开：总是透明；跟随系统：Windows 关了"透明效果"（个性化 → 颜色）时整个 app 换成实色；关：全部实色	Whether glass panels show the background through. On: always; Follow system: solid when Windows transparency effects (Personalisation → Colours) are off; Off: all solid
+关	Off
+浮动面板和泡泡的质感。液态：中间清晰、边缘一圈像厚玻璃一样把背后的画面弯折（SVG 滤镜，所有页面都有）；WebGL：用显卡算物理折射的实验版，只在地图上；标准：普通毛玻璃。透明效果关着时都是实色	Texture of floating panels and bubbles. Liquid: clear centre, a thick-glass rim that bends what is behind it (SVG filter, on every page); WebGL: experimental physically based refraction, map only; Standard: plain frosted glass. All solid while transparency is off
+设置里关了"透明效果"（或选了跟随系统而 Windows 关了透明效果）	Transparency is off in settings (or set to follow a system that has it off)
+设置里关了"透明效果"	Transparency is off in settings
+设为下次出发	Set as next trip
+已设为下次出发	Set as next trip ✓
+取消：地图页顶栏不再显示这趟	Cancel: this trip no longer shows in the map page's top bar
+地图页顶栏的 ⋯ 里出现"下次出发"，点开看这趟的安排、待办和倒计时	"Next trip" appears under ⋯ in the map page's top bar: today's schedule, to-dos and countdown
+下次出发	Next trip
+下次出发：点开看今天的安排、待办和提醒	Next trip: today's schedule, to-dos and reminders
+在路上	On the road
+刚回来	Just back
+取消指定	Unassign
+取消指定这个计划为下次出发	Stop treating this plan as the next trip
+今天出发	Departs today
+明天出发	Departs tomorrow
+还没定日期	No dates yet
+关闭列表	Close list
+右上角头像显示首字母；分账里的"我"用这个名字。空着也可以	The avatar at the top right shows its initial; split bills use it as "me". Can be left empty
+我	Me
+离线地图	Offline maps
+地图瓦片走浏览器缓存（上限 2 GB）：看过的地方会留下，断网时这些区域还能显示，没看过的退回"已解锁"底图；停下来时会顺手把上下一级的瓦片先取好。真正的"下载某个区域"要用底图服务方（Esri）的离线导出，还没接	Map tiles use the browser cache (up to 2 GB): places you have viewed stay available offline, the rest falls back to the "Unlocked" basemap; when the map rests, the tiles one zoom level up and down are fetched ahead. Real "download an area" needs the basemap provider's (Esri) offline export, not wired up yet
+缓存大小：计算中…	Cache size: calculating…
+缓存大小：桌面 app 里才能看	Cache size: only available in the desktop app
+缓存大小：读不到	Cache size: unavailable
+缓存大小：	Cache size:
+刷新	Refresh
+清空缓存	Clear cache
+清空地图缓存	Clear map cache
+清掉以后，看过的地图要重新联网下载；行程、照片、数据都不受影响。	After clearing, viewed map areas will download again; plans, photos and data are not affected.
+玻璃面板是否透出背景。关 = 全部实色（不跟随 Windows 的设置）	Whether glass panels show the background through. Off = all solid (does not follow the Windows setting)
+地图上的面板、泡泡和控件。液态：用显卡算真实折射和边缘高光（需要 WebGL2，不支持时自动换成标准）；标准：普通毛玻璃。透明效果关着时都是实色	Panels, bubbles and controls over the map. Liquid: real refraction and edge highlights on the GPU (needs WebGL2, falls back to Standard); Standard: plain frosted glass. All solid while transparency is off
+泡泡的液态分裂、状态胶囊的冒泡、页面的淡入这些。"跟随系统"按 Windows 的"动画效果"设置；电脑慢或用电池时可以关	The liquid split of the bubbles, the status capsule pop, page fades. "Follow system" uses the Windows animation setting; turn it off on a slow computer or on battery
+页面、计划、站点、新建、撤销 / 重做	Pages, plans, stops, new plan, undo / redo
+打开 / 关闭计划列表	Open / close the plan list
+地图页左边的"我的旅程"	"My trips" on the left of the map page
+关掉盖在地图上的页面或面板	Close the page or panel over the map
+开了以后不连任何网络服务：地图只用"已解锁"；地名搜索、道路路线、汇率、天气、AI 助手都暂停。已经存下来的数据照常用	When on, no network service is used: the map uses only "Unlocked"; place search, road routes, exchange rates, weather and the AI assistant pause. Saved data works as usual
+消费统计、分账结算都折算成这种货币	Spending totals and settlements are converted to this currency

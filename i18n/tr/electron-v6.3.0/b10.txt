@@ -1,0 +1,256 @@
+AI 助手已关闭（设置 → 联网服务）	The AI assistant is turned off (Settings → Online services)
+还没有设置 API 密钥：设置 → AI 助手。API 和 Claude 订阅分开计费。	No API key yet: Settings → AI assistant. The API is billed separately from a Claude subscription.
+这个月已经用了约 $	About $
+，达到上限 $	used this month, which reaches the cap of $
+。可以在 设置 → AI 助手 里调高。	. You can raise it in Settings → AI assistant.
+先打开要加交通住宿的那个计划，再粘贴订单文字。	Open the plan you want to add bookings to first, then paste the order text.
+发送失败	Could not send
+出错了	Something went wrong
+已停止	Stopped
+加站点	Add stop
+改站点	Edit stop
+加日程	Add itinerary item
+加待办	Add to-do
+加行李	Add packing item
+加交通住宿	Add booking
+站（不存在）	(no such stop)
+，插在	, inserted after
+最前面	the start
+，加在最后	, added at the end
+· 去下一站：	· to next stop:
+正在用地名搜索核对坐标…	Checking the coordinates with place search…
+✓ 地名搜索核对过：	✓ Checked with place search:
+地名搜索已关闭，没法核对。	Place search is off, so this could not be checked.
+坐标和搜索结果对不上，选一个：	The coordinates don't match the search results. Pick one:
+地名搜索查不到这个地点。	Place search can't find this place.
+> 用 AI 给的坐标（	> Use the AI's coordinates (
+），备注里标"坐标待核实"	), marked "coordinates to verify" in the notes
+名字 →	Name →
+去下一站 →	To next stop →
+备注 →	Notes →
+（截止	(due
+· 订单号	· Ref
+要先打开那个计划的页面，才能应用修改。	Open that plan's page first to apply the changes.
+✓ 已应用	✓ Applied
+项。按 Ctrl+Z 可以撤销（光标不在输入框里时）。	changes. Press Ctrl+Z to undo (when the cursor isn't in a text box).
+没有应用。	Not applied.
+修改预览	Preview of changes
+（没有可以应用的修改）	(No changes that can be applied)
+不应用	Don't apply
+应用	Apply
+（坐标待核实：AI 给的，地名搜索没对上）	(Coordinates to verify: from the AI, not matched by place search)
+有自驾 / 徒步段：到地图编辑器里点"现在计算"画出道路路线，再保存	Some legs are drive or walk: open the map editor and click "Calculate now" to draw the road route, then save
+正在联网搜索…	Searching the web…
+思考中…	Thinking…
+来源	Sources
+· 约 $	· about $
+（输入	(input
+/ 输出	/ output
+· 搜索	· searches
+可以问我行程安排、交通方式、季节，或者让我帮你改	Ask about itineraries, transport or seasons, or let me edit
+这个计划	this plan
+计划（先打开那个计划）	a plan (open that plan first)
+：加站点、日程、待办、行李……改动会先给你预览。	: add stops, itinerary items, to-dos, packing… You'll see a preview of every change first.
+发给 AI 的内容不含消费和订单号。	Spending and booking refs are not sent to the AI.
+发给 AI 的内容包括消费和订单号。	Spending and booking refs are sent to the AI.
+本月用了约 $	About $
+/ 上限 $	used this month / cap $
+从订单生成交通住宿（Haiku）	Bookings from an order (Haiku)
+当前计划：	Current plan:
+所有计划（简表）	All plans (summary)
+把订单确认邮件或 PDF 里的文字粘贴到这里，按 Ctrl+Enter 发送	Paste the text of an order confirmation email or PDF here, then press Ctrl+Enter
+问点什么，Ctrl+Enter 发送	Ask something, Ctrl+Enter to send
+AI 助手	AI assistant
+模型	Model
+新对话	New chat
+粘贴订单确认邮件 / PDF 的文字，生成交通住宿条目	Paste the text of an order confirmation email or PDF to create bookings
+从订单生成	From an order
+发送	Send
+API 密钥	API key
+已设置（…	Set (…
+），加密保存在这台电脑上，不会写进数据文件、也不会随分享版发出去	), stored encrypted on this computer. It is never written to the data file or included in a shareable copy
+在 Claude Console（platform.claude.com）创建。API 按用量另外收费，和 Claude 订阅分开	Create one in the Claude Console (platform.claude.com). The API is billed by usage, separately from a Claude subscription
+。⚠ 这台电脑上不能加密保存	. ⚠ Secure storage isn't available on this computer
+换一个密钥	Replace key
+默认模型	Default model
+Sonnet：速度和能力平衡（$2 / $10 每百万输入 / 输出 token）；Opus：更强、更贵（$4 / $20）；Haiku：最便宜（$0.10 / $0.50），"从订单生成"固定用它。价格按 2026-10 官方价格页	Sonnet balances speed and ability ($2 / $10 per million input / output tokens); Opus is stronger and costs more ($4 / $20); Haiku is cheapest ($0.10 / $0.50) and is always used for "From an order". Prices from the official pricing page, October 2026
+发给 AI 时不带消费和订单号	Don't send spending or booking refs to the AI
+去掉消费、预算、订单号和价格	Leaves out spending, budget, booking refs and prices
+联网搜索	Web search
+让 AI 查最新的信息（开放时间、交通班次等），回答下面列出来源。每 1000 次搜索 $10，另加搜索结果的 token 费用；每次提问最多搜 3 次	Lets the AI look up current information (opening hours, timetables…) and list sources under the answer. $10 per 1,000 searches plus tokens for the results; at most 3 searches per question
+每月用量上限	Monthly spending cap
+到了就不再发请求（美元，按每次返回的 token 数估算，0 = 不限）。本月已用约 $	Stops sending requests once reached (US dollars, estimated from returned token counts, 0 = no cap). Used this month: about $
+删除 API 密钥？	Delete the API key?
+删除后 AI 助手就不能用了，要用时再填。	The AI assistant won't work until you enter a key again.
+已保存（…	Saved (…
+保存失败	Could not save
+只带封面	Covers only
+全部可分发的	All shareable photos
+没有来源记录的站点照片也带上（只在"全部可分发的"时有效；确定是自己拍的才勾）	Include stop photos without a source record (only with "All shareable photos"; tick only if you took them yourself)
+日历文件 .ics（导入手机日历：航班、住宿、每天的日程）	Calendar file .ics (import into your phone calendar: flights, stays, daily itinerary)
+紧急信息卡（PDF 或图片）	Emergency card (PDF or image)
+在线底图已关闭（设置 → 联网服务）	Online basemaps are turned off (Settings → Online services)
+道路路线已关闭（设置 → 联网服务）	Road routing is turned off (Settings → Online services)
+地名搜索已关闭（设置 → 联网服务）	Place search is turned off (Settings → Online services)
+山野手记	Field journal
+质感	Textured
+山雾玻璃	Mountain mist glass
+暮色玻璃	Dusk glass
+夜航玻璃（深色）	Night flight glass (dark)
+证件与紧急信息	Documents & emergency info
+护照到期提醒、保险、紧急联系人	Passport expiry reminders, insurance, emergency contacts
+联网服务	Online services
+离线模式（全部关闭）	Offline mode (all off)
+离线模式、每项服务的开关	Offline mode and a switch for each service
+离线模式	Offline mode
+开了以后不连任何网络服务：地图只用"已解锁"，首页地球只用打包的 Blue Marble；地名搜索、道路路线、汇率、天气、AI 助手都暂停。已经存下来的数据照常用	No online services at all: the map uses only "Unlocked" and the home globe only the bundled Blue Marble; place search, road routing, exchange rates, weather and the AI assistant pause. Saved data still works
+每项服务的提供方和署名见"关于"。	Providers and credits for each service are listed under "About".
+Claude API 密钥、模型、隐私、用量	Claude API key, model, privacy, usage
+自动备份	Automatic backup
+打开 app 时，如果离上次备份超过设定的天数，就自动备份一次	When the app opens, back up automatically if the last backup is older than the set number of days
+（打开时会先让你选备份文件夹）	(you'll be asked to choose a backup folder first)
+每	Every
+天一次	days
+没选备份文件夹，自动备份没有打开	No backup folder chosen, so automatic backup is still off
+首页地球、卫星图缩小时	Home globe and zoomed-out satellite map
+NASA Blue Marble（NASA Goddard Space Flight Center / Visible Earth，公有领域），打包在 app 里；放大后用 NASA GIBS 的 Blue Marble 瓦片。We acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science Data and Information System (ESDIS).	NASA Blue Marble (NASA Goddard Space Flight Center / Visible Earth, public domain), bundled with the app; NASA GIBS Blue Marble tiles when zoomed in. We acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science Data and Information System (ESDIS).
+用途和署名（可以在"联网服务"里逐项关掉）	What each is for, and credits (each can be turned off under "Online services")
+MapLibre GL JS 5.24.0（BSD-3-Clause）· Electron · Material Symbols（Apache 2.0，打包在 app 里）· fflate 0.8.2（MIT，打包计划文件用）· suncalc 2.0.2（BSD-2-Clause，Copyright (c) 2026, Volodymyr Agafonkin，日出日落；许可全文见 vendor/LICENSE-suncalc.txt）· Noto Serif SC（OFL）	MapLibre GL JS 5.24.0 (BSD-3-Clause) · Electron · Material Symbols (Apache 2.0, bundled) · fflate 0.8.2 (MIT, for plan files) · suncalc 2.0.2 (BSD-2-Clause, Copyright (c) 2026, Volodymyr Agafonkin, sunrise and sunset; full licence in vendor/LICENSE-suncalc.txt) · Noto Serif SC (OFL)
+付款 · 分摊	Paid by · split
+已关闭（设置 → 联网服务）	Turned off (Settings → Online services)
+自动备份：已备份到	Automatic backup: saved to
+在线底图	Online basemaps
+地图页的街道图 / 浅灰 / 卫星图，首页地球放大后的卫星图	Street / Light gray / Satellite on the map page, and satellite imagery on the zoomed-in home globe
+Esri（Esri 及其数据提供方）；NASA GIBS（Blue Marble）	Esri (Esri and its data providers); NASA GIBS (Blue Marble)
+地名搜索	Place search
+编辑器里搜地名、点地图取地名	Searching for places in the editor, and naming a point picked on the map
+Nominatim · © OpenStreetMap 贡献者（ODbL）	Nominatim · © OpenStreetMap contributors (ODbL)
+道路路线	Road routing
+自驾 / 徒步段按道路画线	Draws drive and walk legs along roads and paths
+OSRM（FOSSGIS 服务器 routing.openstreetmap.de）· © OpenStreetMap 贡献者	OSRM (FOSSGIS server routing.openstreetmap.de) · © OpenStreetMap contributors
+汇率	Exchange rates
+消费折算成主货币，每天最多更新一次	Converts spending to your main currency, updated at most once a day
+Frankfurter（欧洲央行数据），失败时用 open.er-api.com	Frankfurter (European Central Bank data), with open.er-api.com as a fallback
+在线字体	Web font
+只有选了"思源宋体"时才下载	Downloaded only if you choose "Noto Serif SC"
+Google Fonts · Noto Serif SC（SIL OFL）	Google Fonts · Noto Serif SC (SIL OFL)
+天气预报	Weather forecast
+16 天内出发或正在旅行的计划，显示各站点的预报	Forecasts for each stop on plans that start within 16 days or are under way
+Open-Meteo（CC BY 4.0）	Open-Meteo (CC BY 4.0)
+往年同月气候	Past years' climate
+各站点近 10 年同一个月的平均气温和降水	Average temperature and rain at each stop for the same month over the last 10 years
+Open-Meteo 历史天气（ERA5 · Copernicus 气候变化服务）	Open-Meteo historical weather (ERA5 · Copernicus Climate Change Service)
+海拔和时区	Elevation & time zone
+自动补站点的海拔（高反提示用）和时区（日出日落时间用）	Fills in each stop's elevation (for altitude warnings) and time zone (for sunrise and sunset times)
+Open-Meteo（海拔：Copernicus DEM GLO-90）	Open-Meteo (elevation: Copernicus DEM GLO-90)
+右下角的 AI 助手；用你自己的 API 密钥	The AI assistant in the bottom-right corner, using your own API key
+按金额分 ·	By amount ·
+只算	Only
+平摊 ·	Split evenly ·
+改付款人	Change who paid
+付款人：	Paid by:
+改分摊	Change the split
+为谁付	Paid for
+极昼：太阳整天不落	Midnight sun: the sun doesn't set
+极夜：太阳整天不升起	Polar night: the sun doesn't rise
+还没有这个站点的时区，按经度估算，不含夏令时，可能差 1 小时以上。联网时会自动补上（设置 → 联网服务 → 海拔和时区）	This stop has no time zone yet, so times are estimated from longitude without daylight saving and may be off by an hour or more. It's filled in automatically when online (Settings → Online services → Elevation & time zone)
+日出	Sunrise
+· 日落	· Sunset
+· 白天	· Daylight
+（按经度估算）	(estimated from longitude)
+这个计划还没有带日期的内容（计划日期、交通住宿、日程），没东西可以导出	This plan has nothing with a date yet (plan dates, bookings, itinerary), so there's nothing to export
+日历文件	Calendar file
+项）。发到手机上打开，或在日历 app 里导入	items). Open it on your phone, or import it in your calendar app
+护照	Passport
+签证	Visa
+其他证件	Other document
+已经过期，出发前要换新护照	has expired. Renew it before you leave
+到期，离回程（	expires, less than 6 months after the return date (
+）不足 6 个月；很多国家要求护照有效期在 6 个月以上	). Many countries require at least 6 months' validity
+到期，早于回程（	expires, before the return date (
+管理证件 →	Manage documents →
+添加证件	Add document
+修改证件	Edit document
+谁的（可不填）	Whose (optional)
+如 我、妈妈	e.g. me, Mum
+名称（可不填）	Name (optional)
+如 中国护照、日本单次签证	e.g. Chinese passport, Japan single-entry visa
+到期日期	Expiry date
+关联的计划（签证用）	Linked plan (for visas)
+备注（不要写证件号码）	Notes (don't enter document numbers)
+删除这个证件	Delete this document
+保险公司	Insurer
+保单号	Policy number
+保险公司 24 小时救援电话	Insurer's 24-hour assistance number
+紧急联系人	Emergency contact
+关系	Relationship
+电话（带国家代码，如 +86 …）	Phone (with country code, e.g. +86 …)
+其他（血型、过敏、常用药等，自己决定写不写）	Other (blood type, allergies, regular medication… only if you want)
+紧急信息	Emergency info
+报警	Police
+急救	Ambulance
+消防	Fire
+使领馆 / 领事保护	Embassy / consular help
+· 当地紧急电话	· Local emergency numbers
+号码和名称，如 +81 3 xxxx（驻日使馆）	Number and name, e.g. +81 3 xxxx (embassy in Japan)
+改当地电话	Edit local numbers
+改保险和联系人	Edit insurance and contacts
+导出信息卡	Export card
+当地紧急电话	Local emergency numbers
+还没填。出发前查一下当地的报警、急救电话和中国使领馆电话（外交部"中国领事"、当地政府网站）。	Not filled in yet. Before you leave, look up the local police and ambulance numbers and your embassy's number (your foreign ministry's consular service, or the local government website).
+保险和联系人	Insurance and contacts
+保险	Insurance
+救援电话	Assistance number
+在"设置 → 证件与紧急信息"里填一次，所有计划共用。	Fill this in once under "Settings → Documents & emergency info"; all plans share it.
+这些只存在你自己的电脑上；导出分享版时一律去掉。	This is stored only on your computer and is always removed from shareable copies.
+还没有填紧急信息	No emergency info yet
+导出紧急信息卡	Export emergency card
+PDF（打印出来放钱包）	PDF (print it for your wallet)
+图片（存在手机相册里）	Image (keep it in your phone's photos)
+紧急信息卡	Emergency card
+证件	Documents
+填护照、签证的到期日期，计划页会在有效期不够时提醒。不要填证件号码	Enter passport and visa expiry dates; plan pages will warn you when validity is too short. Don't enter document numbers
+没填到期日期	No expiry date
+保单	Policy
+位紧急联系人	emergency contacts
+保险、紧急联系人，所有计划共用。当地紧急电话在每个计划的"行李与待办"里填	Insurance and emergency contacts, shared by all plans. Local emergency numbers go in each plan's "Packing & to-dos"
+晴	Clear
+少云	Mostly clear
+阴	Overcast
+雾	Fog
+毛毛雨	Drizzle
+雨	Rain
+阵雨	Showers
+阵雪	Snow showers
+雷暴	Thunderstorm
+预报：	forecast:
+· 降水概率	· chance of rain
+往年	Past years,
+月：平均最高	: average high
+/ 最低	/ low
+，平均每月	, on average
+天下雨（	rainy days a month (
+站：睡觉的海拔从	: sleeping elevation rises from
+m 升到	m to
+），超过每天 500 m	), more than 500 m a day
+上升太快	Ascending too fast
+到第	By stop
+站时已经连续	, you will have climbed for
+晚在 3000 m 以上往上走，中间没有休整日（建议每 3–4 天一天不往上）	nights in a row above 3,000 m with no rest day (take a day without ascending every 3–4 days)
+3000 m 以上	Above 3,000 m
+高反提示	Altitude warning
+（参照 Wilderness Medical Society 2019 年指南：3000 m 以上，睡觉的海拔每天升高不超过 500 m，每 3–4 天休整一天	(based on the Wilderness Medical Society 2019 guidelines: above 3,000 m, raise your sleeping elevation by no more than 500 m a day, with a rest day every 3–4 days
+；有的站点没有日期，按每站住一晚估算	; some stops have no dates, so one night per stop is assumed
+只是提醒，不是医疗建议。海拔数据来自 90 m 网格的地形数据，可以点站点里的海拔手动改。	This is a reminder, not medical advice. Elevations come from 90 m terrain data; click a stop's elevation to correct it.
+点一下修改海拔	Click to edit the elevation
+海拔	Elevation
+· 海拔	· Elevation
+海拔（米）。清空后联网时会重新自动取	Elevation (m). Clear it to fetch it again automatically when online
+（没定日期：按这个月算）	(no dates yet: uses this month)
+往年同月气候已关闭（设置 → 联网服务）	Past years' climate is turned off (Settings → Online services)
+取数据中…	Loading…
+往年气候没取到：	Couldn't load past years' climate:
+请求失败	Request failed
+欢迎使用「旅行计划」	Welcome to Travel Planner
+到期	expires
+次）	times)

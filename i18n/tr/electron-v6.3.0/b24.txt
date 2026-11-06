@@ -1,0 +1,51 @@
+自动读取的轮数到上限了，停在这里。可以接着说"继续"。	Reached the limit of automatic steps. Say "continue" to go on.
+新计划还没有这一项	The new plan doesn't have this yet
+找不到这个站点	Stop not found
+找不到这条日程	Schedule item not found
+找不到要挪去的站点	Target stop not found
+找不到要放在后面的那个站点	The stop to place it after was not found
+找不到这条交通住宿	Booking not found
+找不到这条待办	To-do not found
+找不到这条行李	Packing item not found
+找不到这个计划	Plan not found
+新建计划	New plan
+删除计划	Delete plan
+删站点	Remove stop
+挪站点	Move stop
+改日程	Edit schedule
+删日程	Remove schedule
+改交通住宿	Edit booking
+删交通住宿	Remove booking
+改待办	Edit to-do
+删待办	Remove to-do
+改行李	Edit packing
+删行李	Remove packing
+坐标 →	Coordinates →
+出发日期 →	Start date →
+回来日期 →	End date →
+状态 →	Status →
+攻略 →	Guide →
+· 附攻略	· with guide
+，放在最前面	, at the start
+（找不到的计划）	(plan not found)
+还缺 / 没查	Still missing / not checked
+已请它补充	Asked to fill in
+先这样	Leave it
+要联网查	Needs a web search
+联网	Web
+补充选中的	Fill in selected
+正在读取计划…	Reading plans…
+正在整理修改…	Preparing changes…
+全选	Select all
+全不选	Select none
+问点什么（Enter 发送，Shift+Enter 换行）	Ask something (Enter to send, Shift+Enter for a new line)
+用的是 Windows 自带的语音输入；中文要先装中文语言包（Windows 设置 → 时间和语言 → 语言和区域）	This uses Windows voice typing; for Chinese, install the Chinese language pack first (Windows Settings → Time & language → Language & region)
+直接按 Win+H 用 Windows 的语音输入	Press Win+H to use Windows voice typing
+没能自动打开语音输入，直接按 Win+H 也可以	Couldn't open voice typing automatically; press Win+H instead
+联网搜索：让 AI 查路线、景点、订票网站等最新信息（每次搜索另收一点费用）	Web search: lets the AI look up routes, sights and booking sites (each search costs a little extra)
+语音输入（Windows 自带，也可以直接按 Win+H）	Voice typing (Windows built-in; you can also press Win+H)
+语音输入	Voice typing
+让 AI 查路线、必去点和订票网站等最新信息，回答下面列出来源。第一次回答最多搜 3 次，点"补充选中的"时最多 8 次。每 1000 次搜索 $10，另加搜索结果的 token 费用。面板底部也能开关	Lets the AI look up routes, must-see places and booking sites; sources are listed under the answer. Up to 3 searches for the first answer, up to 8 when you click "Fill in selected". $10 per 1,000 searches plus the tokens of the results. Can also be toggled at the bottom of the panel
+去下一站：	to next stop: 
+），备注里标"坐标待核实"	), noted as "coordinates to check"
+用 AI 给的坐标（	Use the AI coordinates (

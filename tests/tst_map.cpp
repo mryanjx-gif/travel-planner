@@ -1,0 +1,1936 @@
+// 地图的计算（0.8.0）：投影和相机、按范围缩放、最小缩放、飞行、昼夜阴影、"已解锁"上色、路线几何。
+// 0.8.2：标记样式、合并（和 Electron 对照：tests/golden/marker-clusters.json，tools/claude-kit/marker-golden/gen.js 生成）、
+// 合并圆圈的颜色、错开。
+// 0.8.7：计划的排序、筛选、"此刻"和 Electron 对照（tests/golden/plans.json，tools/claude-kit/plans-golden/gen.js 生成）、改数据的几个操作。
+// "已解锁"和 Electron 对照：tests/golden/unlock-colors.json 由 tools/claude-kit/unlock-golden/gen.js
+// 用 Electron v6.3.0 map-app.js 里原样的代码算 testdata/data.js 得到；这里用 testdata/travel.json（同一份数据的原生格式）比较。
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QTimeZone>
+#include <QtTest>
+
+#include "geo.h"
+#include "globegeom.h"
+#include "globeroutes.h"
+#include "jsonio.h"
+#include "markers.h"
+#include "night.h"
+#include "plans.h"
+#include "planedit.h"
+#include "roads.h"
+#include "tripdata.h"
+#include "unlock.h"
+
+using namespace tp::map;
+using namespace tp::map::geo;
+
+namespace {
+QByteArray readFile(const QString &p)
+{
+    QFile f(p);
+    return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+}
+
+tp::json::Value parseJson(const QByteArray &bytes)
+{
+    const QString text = QString::fromUtf8(bytes);
+    return tp::json::parse(text);
+}
+
+// 经度连续展开的环：试 lng、lng±360，任何一个在里面就算在里面
+bool inUnwrappedRing(const std::vector<LatLng> &ring, double lat, double lng)
+{
+    for (double off : { 0.0, 360.0, -360.0, 720.0, -720.0 }) {
+        const double x = lng + off;
+        bool in = false;
+        for (size_t i = 0, j = ring.size() - 1; i < ring.size(); j = i++) {
+            const double xi = ring[i].lng, yi = ring[i].lat, xj = ring[j].lng, yj = ring[j].lat;
+            if (((yi > lat) != (yj > lat)) && x < (xj - xi) * (lat - yi) / (yj - yi) + xi) in = !in;
+        }
+        if (in) return true;
+    }
+    return false;
+}
+} // namespace
+
+class TestMap : public QObject
+{
+    Q_OBJECT
+private slots:
+    // 0.9.0 地球
+    void globeProjectPick();
+    void globeZoomMapping();
+    void globeSelectBasics();
+    void globeSelectCullsBackside();
+    void globeSelectBudget();
+    void skySeededRand();
+    // 0.9.5 地球上的内容
+    void globePoleZoomSmooth();
+    void globeLimbFadeAndScale();
+    void globeOccludedLifted();
+    void globeRoutesLiftAndModes();
+    void globeScreenRunsCutAtLimb();
+    void globeVehiclePlan();
+    void globeSlerpAndLerp();
+    void globeMorphMatchesFlat();   // 0.9.7
+    void projectRoundTrip();
+    void pixelForBasics();
+    void pixelForWrapsToNearestCopy();
+    void zoomAroundKeepsAnchor();
+    void panByMovesContent();
+    void constrainHeight();
+    void minZoomForScale();
+    void fitBoundsTight();
+    void fitBoundsSinglePoint();
+    void fitPaddingShrinks();
+    void flyEndpoints();
+    void flyZoomsOutOnLongTrips();
+    void flySameCenterOnlyZooms();
+    void greatCircleSampling();
+    void nightStackMatchesElectron();
+    void nightPolygonsCoverNight_data();
+    void nightPolygonsCoverNight();
+    void subsolarSanity();
+    void nightGeoJsonShape();
+    void nightStripesNoGapsNoSteps();
+    void unlockMatchesElectron();
+    void unlockIsDeterministic();
+    void unlockManualHelpers();
+    void prefetchMatchesElectron();
+    // 0.8.6：卫星瓦片大小（固定 128）、任意瓦片大小的预取、省界输出的 geometry 由坐标重新拼（和原文一样）
+    void satTileSizeByDpr();
+    void prefetchAnyTileSize();
+    void unlockGeometryRoundTrip();
+    void tripDataStopsAndRoutes();
+    void tripDataCache();
+    void tripDataJsNumbers();
+    void markerStyles();
+    void markerGeometry();
+    void clusterColors();
+    void clusterTiers();
+    void clustersMatchElectron();
+    void clusterSeedNotCentroid();
+    void spreadCircle();
+    void spreadOnlyWhenZoomedIn();
+    // 0.8.4：道路路线、路线分三份
+    void roadsMatchElectron();
+    void roadsPendingAndApply();
+    void roadsParseOsrm();
+    void tripRoutesSplit();
+    void plansSortMatchesElectron();
+    void plansNameOrder();
+    void plansFilterMatchesElectron();
+    void plansFilterVariantRoundTrip();
+    void plansNowMatchesElectron();
+    void plansSheetInfo();
+    void plansEdits();
+    void tripDataVisibleFilter();
+    void plansListInfo();
+    void plansCommandItems();
+    // 0.8.9 站点编辑器
+    void planEditRegions();
+    void planEditValidate();
+    void planEditEdits();
+    void planEditKeepsUnknown();
+    void planEditLegsAndStats();
+    void planEditTodayStop();
+};
+
+void TestMap::projectRoundTrip()
+{
+    for (double lat : { -80.0, -33.9, 0.0, 22.3, 51.5, 84.9 })
+        for (double lng : { -179.9, -73.9, 0.0, 114.17, 179.9 }) {
+            const Pt p = project(lat, lng);
+            const LatLng b = unproject(p.x, p.y);
+            QVERIFY(std::abs(b.lat - lat) < 1e-9);
+            QVERIFY(std::abs(b.lng - lng) < 1e-9);
+        }
+    // 赤道 / 本初子午线在世界正中；±85.0511° 在上下边
+    QCOMPARE(project(0, 0).x, 0.5);
+    QVERIFY(std::abs(project(0, 0).y - 0.5) < 1e-12);
+    QVERIFY(std::abs(project(kMaxLat, 0).y) < 1e-9);
+    QVERIFY(std::abs(project(-kMaxLat, 0).y - 1) < 1e-9);
+}
+
+void TestMap::pixelForBasics()
+{
+    Camera c;
+    c.lat = 0; c.lng = 0; c.zoom = 1; c.width = 1000; c.height = 600;
+    // 缩放 1：世界 1024 像素；经度 90° = 256 像素
+    const Pt p = c.pixelFor(0, 90);
+    QVERIFY(std::abs(p.x - (500 + 256)) < 1e-9);
+    QVERIFY(std::abs(p.y - 300) < 1e-9);
+    const LatLng back = c.coordinateFor(p.x, p.y);
+    QVERIFY(std::abs(back.lng - 90) < 1e-9 && std::abs(back.lat) < 1e-9);
+    // 北半球在上面
+    QVERIFY(c.pixelFor(45, 0).y < 300);
+}
+
+void TestMap::pixelForWrapsToNearestCopy()
+{
+    Camera c;
+    c.lat = 0; c.lng = 178; c.zoom = 3; c.width = 1400; c.height = 900;
+    const double ws = c.worldSize();
+    // -171 离 178 只有 11°（往东），应该画在中心右边
+    const Pt p = c.pixelFor(0, -171);
+    QVERIFY(std::abs(p.x - (700 + 11.0 / 360 * ws)) < 1e-6);
+    // 不挪副本的版本在左边很远
+    QVERIFY(c.pixelForRaw(0, -171).x < 0);
+}
+
+void TestMap::zoomAroundKeepsAnchor()
+{
+    Camera c;
+    c.lat = 35; c.lng = 139; c.zoom = 4; c.width = 1200; c.height = 800;
+    const LatLng anchor = c.coordinateFor(900, 200);
+    c.zoomAround(7.3, 900, 200);
+    const Pt p = c.pixelFor(anchor.lat, anchor.lng);
+    QVERIFY2(std::abs(p.x - 900) < 1e-6 && std::abs(p.y - 200) < 1e-6, qPrintable(QStringLiteral("%1,%2").arg(p.x).arg(p.y)));
+    QCOMPARE(c.zoom, 7.3);
+}
+
+void TestMap::panByMovesContent()
+{
+    Camera c;
+    c.lat = 10; c.lng = 20; c.zoom = 5; c.width = 800; c.height = 600;
+    const Pt before = c.pixelFor(12, 22);
+    c.panBy(37, -21);
+    const Pt after = c.pixelFor(12, 22);
+    QVERIFY(std::abs(after.x - before.x - 37) < 1e-6);
+    QVERIFY(std::abs(after.y - before.y + 21) < 1e-6);
+}
+
+void TestMap::constrainHeight()
+{
+    Camera c;
+    c.width = 1400; c.height = 1100; c.zoom = 0.5; c.lat = 80; c.lng = 190;
+    const Camera k = constrain(c, 0, 18);
+    // 世界的高度至少等于窗口高度
+    QVERIFY(k.worldSize() >= 1100 - 1e-6);
+    // 上边不露出来：窗口顶边的纬度不超过 85.05°
+    QVERIFY(k.coordinateFor(700, 0).lat <= kMaxLat + 1e-9);
+    QVERIFY(std::abs(k.coordinateFor(700, 0).lat - kMaxLat) < 1e-6);
+    QVERIFY(k.lng >= -180 && k.lng < 180);
+    // 最大缩放
+    c.zoom = 25;
+    QCOMPARE(constrain(c, 0, 18).zoom, 18.0);
+}
+
+void TestMap::minZoomForScale()
+{
+    // Electron updateMinZoom：在最小缩放时，窗口正中 100 像素 = 1000 km × 2 × .97
+    for (double lat : { 0.0, 35.0, 60.0 }) {
+        Camera c;
+        c.lat = lat; c.lng = 100; c.zoom = 4; c.width = 1400; c.height = 900;
+        const double z = geo::minZoomForScale(c);
+        c.zoom = z;
+        const double mpp100 = c.metersPerPixelAtCenter() * 100;
+        if (z > 0 && z < 6) QVERIFY2(std::abs(mpp100 - 1940000) / 1940000 < 0.002, qPrintable(QString::number(mpp100)));
+    }
+    // 高纬度时同样的比例尺需要的缩放更小（每像素米数小）
+    Camera a, b;
+    a.lat = 0; b.lat = 60;
+    QVERIFY(geo::minZoomForScale(b) < geo::minZoomForScale(a));
+}
+
+void TestMap::fitBoundsTight()
+{
+    Camera c;
+    c.width = 1400; c.height = 900;
+    const Padding pad = fitPadding(1400, 900, 40, 40);
+    // 欧洲：-10..30 经度、36..60 纬度
+    const FitResult r = fitBounds(c, -10, 36, 30, 60, pad, 18);
+    QVERIFY(r.ok);
+    Camera k = c;
+    k.lat = r.lat; k.lng = r.lng; k.zoom = r.zoom;
+    const Pt nw = k.pixelFor(60, -10), se = k.pixelFor(36, 30);
+    // 四个角都在留白以内，而且至少一个方向贴边
+    QVERIFY(nw.x >= pad.left - 1e-6 && nw.y >= pad.top - 1e-6);
+    QVERIFY(se.x <= 1400 - pad.right + 1e-6 && se.y <= 900 - pad.bottom + 1e-6);
+    const bool tightX = std::abs(nw.x - pad.left) < 1e-6 && std::abs(se.x - (1400 - pad.right)) < 1e-6;
+    const bool tightY = std::abs(nw.y - pad.top) < 1e-6 && std::abs(se.y - (900 - pad.bottom)) < 1e-6;
+    QVERIFY(tightX || tightY);
+    // maxZoom 生效
+    QCOMPARE(fitBounds(c, 2.29, 48.85, 2.30, 48.86, pad, 5).zoom, 5.0);
+    // 跨 180° 经线（east > 180）：中心在太平洋上
+    const FitResult p = fitBounds(c, 170, -20, 200, 0, pad, 18);
+    QVERIFY(std::abs(p.lng - (-175)) < 1e-6 || std::abs(p.lng - 185) < 1e-6);
+}
+
+void TestMap::fitBoundsSinglePoint()
+{
+    Camera c;
+    c.width = 800; c.height = 600;
+    const FitResult r = fitBounds(c, 116.4, 39.9, 116.4, 39.9, fitPadding(800, 600, 40, 40), 5);
+    QVERIFY(r.ok);
+    QCOMPARE(r.zoom, 5.0);
+    QVERIFY(std::abs(r.lat - 39.9) < 1e-9 && std::abs(r.lng - 116.4) < 1e-9);
+}
+
+void TestMap::fitPaddingShrinks()
+{
+    const Padding a = fitPadding(1400, 900, 40, 40);
+    QCOMPARE(a.left, 40.0); QCOMPARE(a.right, 40.0); QCOMPARE(a.top, 40.0); QCOMPARE(a.bottom, 40.0);
+    // 窄窗口：左右按比例缩小；矮窗口：上下 (H-80)/2
+    const Padding b = fitPadding(200, 100, 400, 200);
+    QVERIFY(std::abs(b.left + b.right - 120) < 1e-9 && std::abs(b.left - 2 * b.right) < 1e-9);
+    QCOMPARE(b.top, 10.0);
+}
+
+void TestMap::flyEndpoints()
+{
+    Camera c;
+    c.lat = 31.2; c.lng = 121.5; c.zoom = 6; c.width = 1400; c.height = 900;
+    FlyPath f(c, 48.86, 2.35, 9);
+    double la, ln, z;
+    f.at(0, &la, &ln, &z);
+    QVERIFY(std::abs(la - 31.2) < 1e-9 && std::abs(ln - 121.5) < 1e-9 && std::abs(z - 6) < 1e-9);
+    f.at(1, &la, &ln, &z);
+    QVERIFY(std::abs(la - 48.86) < 1e-9 && std::abs(ln - 2.35) < 1e-9 && std::abs(z - 9) < 1e-12);
+    QVERIFY(f.naturalDurationMs() > 500);
+}
+
+void TestMap::flyZoomsOutOnLongTrips()
+{
+    Camera c;
+    c.lat = 31.2; c.lng = 121.5; c.zoom = 8; c.width = 1400; c.height = 900;
+    FlyPath f(c, 40.7, -74.0, 8);   // 上海 → 纽约（跨 180° 经线更近）
+    double minZ = 99, la, ln, z;
+    double prevLng = 121.5;
+    for (int i = 0; i <= 100; ++i) {
+        f.at(i / 100.0, &la, &ln, &z);
+        minZ = std::min(minZ, z);
+        // 每一步经度变化不大（不会绕地球另一边）
+        QVERIFY(std::abs(unwrapTo(ln, prevLng) - prevLng) < 30);
+        prevLng = ln;
+    }
+    QVERIFY2(minZ < 5, qPrintable(QString::number(minZ)));
+}
+
+void TestMap::flySameCenterOnlyZooms()
+{
+    Camera c;
+    c.lat = 10; c.lng = 10; c.zoom = 3; c.width = 800; c.height = 600;
+    FlyPath f(c, 10, 10, 7);
+    double la, ln, z, prev = 3;
+    for (int i = 1; i <= 20; ++i) {
+        f.at(i / 20.0, &la, &ln, &z);
+        QVERIFY(std::abs(la - 10) < 1e-9 && std::abs(ln - 10) < 1e-9);
+        QVERIFY(z >= prev - 1e-9);
+        prev = z;
+    }
+    QCOMPARE(z, 7.0);
+}
+
+void TestMap::greatCircleSampling()
+{
+    // 近的两点直接连；远的每 1.5° 一个点
+    QCOMPARE(int(greatCircle({ 39.9, 116.4 }, { 40.0, 116.5 }).size()), 2);
+    const auto pts = greatCircle({ 31.2, 121.5 }, { 37.6, -122.4 });
+    QVERIFY(pts.size() > 50);
+    QVERIFY(std::abs(pts.front().lat - 31.2) < 1e-9 && std::abs(pts.back().lng - (-122.4)) < 1e-9);
+    // 大圆弧往北拱
+    double maxLat = 0;
+    for (const LatLng &p : pts) maxLat = std::max(maxLat, p.lat);
+    QVERIFY(maxLat > 45);
+}
+
+void TestMap::nightStackMatchesElectron()
+{
+    const auto bands = night::bands({ 10, 30 });
+    QCOMPARE(int(bands.size()), night::kBands + 1);
+    double worst = 0;
+    for (double alt = 5; alt >= -30; alt -= 0.05) {
+        const double want = night::targetAlpha(alt);
+        const double got = night::stackedAlpha(bands, alt);
+        worst = std::max(worst, std::abs(want - got));
+    }
+    // 12 层：每层之间最多差半层的变化（smoothstep 最陡处 1.5 × .62 / 12 / 2 ≈ .039）
+    QVERIFY2(worst < 0.04, qPrintable(QString::number(worst)));
+    QCOMPARE(night::stackedAlpha(bands, 1.0), 0.0);
+    QVERIFY(std::abs(night::stackedAlpha(bands, -20) - night::kAlpha) < 1e-9);
+}
+
+void TestMap::nightPolygonsCoverNight_data()
+{
+    QTest::addColumn<double>("sunLat");
+    QTest::addColumn<double>("sunLng");
+    QTest::newRow("春分，反太阳点在 180° 经线") << 0.0 << 0.0;
+    QTest::newRow("夏至（南极在夜里）") << 23.44 << 75.0;
+    QTest::newRow("冬至（北极在夜里）") << -23.44 << -120.0;
+    QTest::newRow("一般") << 8.0 << 170.0;
+}
+
+void TestMap::nightPolygonsCoverNight()
+{
+    QFETCH(double, sunLat);
+    QFETCH(double, sunLng);
+    const LatLng sun{ sunLat, sunLng };
+    const auto bands = night::bands(sun, night::kBands, 360);
+    int checked = 0, wrong = 0;
+    for (const night::Band &b : bands) {
+        for (double lat = -84; lat <= 84; lat += 3)
+            for (double lng = -180; lng < 180; lng += 3) {
+                const double alt = night::sunAltitude(sun, lat, lng);
+                if (std::abs(alt - b.alt) < 1.2) continue;   // 边界附近（采样误差）不算
+                const bool want = alt < b.alt;
+                const bool got = inUnwrappedRing(b.ring, lat, lng);
+                ++checked;
+                if (want != got) ++wrong;
+            }
+    }
+    QVERIFY2(wrong == 0, qPrintable(QStringLiteral("%1 / %2 个点判断不对").arg(wrong).arg(checked)));
+}
+
+void TestMap::subsolarSanity()
+{
+    // 2026-06-21 12:00 UTC：太阳直射点纬度约 23.4°，经度约 0°（误差几度：时差）
+    const QDateTime t(QDate(2026, 6, 21), QTime(12, 0), QTimeZone::UTC);
+    const LatLng s = night::subsolarPoint(double(t.toMSecsSinceEpoch()));
+    QVERIFY2(std::abs(s.lat - 23.44) < 0.3, qPrintable(QString::number(s.lat)));
+    QVERIFY2(std::abs(s.lng) < 3, qPrintable(QString::number(s.lng)));
+}
+
+void TestMap::nightGeoJsonShape()
+{
+    // 0.8.0：Windows（MSVC）上 QJsonArray{ ring } 被当成复制，多边形少套一层，maplibre 拒收。检查结构：
+    // features[i].geometry.coordinates = [ 外环 ]，外环 = [[lng, lat], …]（≥ 4 个点、首尾相同）
+    const auto bands = night::bands({ 0, 0 });
+    const QJsonObject fc = QJsonDocument::fromJson(night::toGeoJson(bands).toUtf8()).object();
+    const QJsonArray feats = fc.value("features").toArray();
+    QCOMPARE(int(feats.size()), int(bands.size()));
+    for (const QJsonValue &fv : feats) {
+        const QJsonObject g = fv.toObject().value("geometry").toObject();
+        QCOMPARE(g.value("type").toString(), QStringLiteral("Polygon"));
+        const QJsonArray rings = g.value("coordinates").toArray();
+        QCOMPARE(int(rings.size()), 1);
+        const QJsonArray ring = rings.at(0).toArray();
+        QVERIFY(ring.size() >= 4);
+        QVERIFY(ring.at(0).isArray() && ring.at(0).toArray().size() == 2);
+        QCOMPARE(ring.first().toArray(), ring.last().toArray());
+        QVERIFY(fv.toObject().value("properties").toObject().value("a").toDouble() > 0);
+    }
+}
+
+void TestMap::unlockMatchesElectron()
+{
+    const QByteArray adm1 = readFile(QStringLiteral(TP_SOURCE_DIR "/assets/admin/adm1.geojson"));
+    const QByteArray golden = readFile(QStringLiteral(TP_SOURCE_DIR "/tests/golden/unlock-colors.json"));
+    const QByteArray travel = readFile(QStringLiteral(TP_SOURCE_DIR "/testdata/travel.json"));
+    if (adm1.isEmpty() || golden.isEmpty() || travel.isEmpty()) QSKIP("缺 assets/admin/adm1.geojson、tests/golden/unlock-colors.json 或 testdata/travel.json");
+    UnlockModel m;
+    QVERIFY(m.load(adm1));
+    TripData t;
+    t.build(parseJson(travel));
+    const UnlockModel::Result r = m.compute(t.completedStops(), t.manualRegions());
+    const QJsonObject g = QJsonDocument::fromJson(golden).object();
+    QCOMPARE(r.provinces, g.value("provinces").toInt());
+    QCOMPARE(r.countries, g.value("countries").toInt());
+    QStringList order;
+    for (const QJsonValue &v : g.value("countryOrder").toArray()) order << v.toString();
+    QCOMPARE(r.countryNames, order);
+    QCOMPARE(int(r.dots.value("features").toArray().size()), g.value("dots").toInt());
+    const QJsonObject colors = g.value("colors").toObject();
+    QCOMPARE(int(r.colorById.size()), int(colors.size()));
+    for (auto it = colors.begin(); it != colors.end(); ++it)
+        QVERIFY2(r.colorById.value(it.key()) == it.value().toString(),
+                 qPrintable(QStringLiteral("%1：原生 %2，Electron %3").arg(it.key(), r.colorById.value(it.key()), it.value().toString())));
+}
+
+void TestMap::unlockIsDeterministic()
+{
+    const QByteArray adm1 = readFile(QStringLiteral(TP_SOURCE_DIR "/assets/admin/adm1.geojson"));
+    if (adm1.isEmpty()) QSKIP("缺 assets/admin/adm1.geojson");
+    UnlockModel m;
+    QVERIFY(m.load(adm1));
+    // 两个计划同一天去了不同国家：颜色按数据里的先后分，每次一样
+    QVector<UnlockModel::PlanStops> plans{ { "A", "2024-05-01", { { 35.68, 139.76 } } }, { "B", "2024-05-01", { { 1.29, 103.85 } } },
+                                           { "C", "", { { 39.9, 116.4 } } } };
+    QVector<UnlockModel::Manual> manual{ { QStringLiteral("NZL-3400"), 2019 } };
+    const auto a = m.compute(plans, manual);
+    for (int i = 0; i < 5; ++i) QVERIFY(m.compute(plans, manual).colorById == a.colorById);
+    // 新西兰（手动标记 2019）最早 → 第一个色相 8；日本 / 新加坡同一天，日本在前 → 205、145；中国没日期（9999）最后
+    QCOMPARE(a.countryNames.first(), QStringLiteral("新西兰"));
+    QVERIFY(a.colorById.value(QStringLiteral("NZL-3400")).startsWith(QStringLiteral("hsl(8,")));
+    // 新加坡是"很小的国家"：整块点亮，有圆点
+    QVERIFY(a.dots.value("features").toArray().size() >= 1);
+}
+
+void TestMap::unlockManualHelpers()
+{
+    // 0.8.5 手动标记用到的：搜索、同一单位、副标题种类、外框中心（Electron unitKey / unitName / unitSub / renderUnlockList）
+    const QByteArray adm1 = readFile(QStringLiteral(TP_SOURCE_DIR "/assets/admin/adm1.geojson"));
+    if (adm1.isEmpty()) QSKIP("缺 assets/admin/adm1.geojson");
+    UnlockModel m;
+    QVERIFY(m.load(adm1));
+    // 搜"四川"：有四川省，副标题是国家（中国）
+    const QVector<int> sc = m.search(QStringLiteral("四川"));
+    QVERIFY(!sc.isEmpty());
+    QVERIFY(m.unitName(sc.first()).contains(QStringLiteral("四川")));
+    QCOMPARE(m.unitSub(sc.first()), UnlockModel::Sub::Country);
+    QCOMPARE(m.country(sc.first()), QStringLiteral("中国"));
+    // 空的、只有空格的：什么都不返回
+    QVERIFY(m.search(QStringLiteral("  ")).isEmpty());
+    // 最多 120 个
+    QCOMPARE(m.search(QStringLiteral("中国")).size(), 35);   // 省界数据里中国 32 个省级 + 港澳台各一行（整组只列一行）
+    QCOMPARE(m.search(QStringLiteral("a")).size(), 120);     // 国家代码里带 a 的很多：最多 120 个
+    QVERIFY(m.search(QStringLiteral("中国"), 7).size() == 7);
+    // 香港：港澳台归中国，整块一个单位、副标题"中国"；整组只列一行
+    const QVector<int> hk = m.search(QStringLiteral("香港"));
+    QCOMPARE(hk.size(), 1);
+    QCOMPARE(m.unitName(hk.first()), QStringLiteral("香港"));
+    QCOMPARE(m.unitSub(hk.first()), UnlockModel::Sub::China);
+    const QVector<int> hkAll = m.unitMembers(hk.first());
+    QVERIFY(hkAll.size() >= 1);
+    for (int i : hkAll) QVERIFY(m.sameUnit(i, hk.first()));
+    QCOMPARE(int(m.unitFeatures(hk.first()).value("features").toArray().size()), int(hkAll.size()));
+    // 新加坡：很小的国家，整块点亮，副标题"整个国家 / 地区"
+    const QVector<int> sg = m.search(QStringLiteral("SGP"));
+    QCOMPARE(sg.size(), 1);
+    QCOMPARE(m.unitSub(sg.first()), UnlockModel::Sub::WholeCountry);
+    // 不同省不是同一单位；外框中心落在中国范围里
+    QVERIFY(!m.sameUnit(sc.first(), hk.first()));
+    QVERIFY(!m.sameUnit(-1, hk.first()));
+    const geo::LatLng c = m.unitCenter(sc.first());
+    QVERIFY(c.lat > 26 && c.lat < 35 && c.lng > 97 && c.lng < 109);
+    QCOMPARE(m.indexOf(m.unitId(sc.first())), sc.first());
+    QCOMPARE(m.indexOf(QStringLiteral("没有这个")), -1);
+}
+
+void TestMap::satTileSizeByDpr()
+{
+    // PO 2026-11-05：卫星图要清楚，不管屏幕缩放比例都用 128（和 Electron 一样）
+    for (double dpr : { 0.0, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0 }) QCOMPARE(geo::satTileSize(dpr), 128);
+}
+
+void TestMap::prefetchAnyTileSize()
+{
+    // 128 / 256 和 Electron 一样（prefetchMatchesElectron）；中间的大小：级数在两者之间，且 128 ≥ 它 ≥ 256
+    const double w = 100, n = 30.5, e = 100.5, s = 30;   // 视野小，两级都不会因为超过 200 张被跳过
+    for (double zoom : { 4.2, 5.5, 6.9, 8.3 }) {
+        const auto t128 = geo::prefetchTiles(w, n, e, s, zoom, 128, 18);
+        const auto t256 = geo::prefetchTiles(w, n, e, s, zoom, 256, 18);
+        for (int ts : { 146, 171, 205 }) {
+            const auto t = geo::prefetchTiles(w, n, e, s, zoom, ts, 18);
+            QVERIFY(!t.empty());
+            const int z = t.front().z, z128 = t128.empty() ? 99 : t128.front().z, z256 = t256.empty() ? -1 : t256.front().z;
+            QVERIFY2(z >= z256 && z <= z128, qPrintable(QStringLiteral("缩放 %1，瓦片 %2：%3 级（256：%4，128：%5）").arg(zoom).arg(ts).arg(z).arg(z256).arg(z128)));
+        }
+    }
+}
+
+void TestMap::unlockGeometryRoundTrip()
+{
+    // 0.8.6 起不再留着原样的 geometry：输出（去过的省、悬停描边）由坐标重新拼，要和原文的 geometry 一模一样
+    const QByteArray adm1 = readFile(QStringLiteral(TP_SOURCE_DIR "/assets/admin/adm1.geojson"));
+    if (adm1.isEmpty()) QSKIP("缺 assets/admin/adm1.geojson");
+    UnlockModel m;
+    QVERIFY(m.load(adm1));
+    const QJsonArray feats = QJsonDocument::fromJson(adm1).object().value("features").toArray();
+    QCOMPARE(int(feats.size()), m.featureCount());
+    int multi = 0, checked = 0;
+    for (int i = 0; i < feats.size(); ++i) {
+        const QJsonObject want = feats[i].toObject().value("geometry").toObject();
+        const QString id = feats[i].toObject().value("properties").toObject().value("id").toString();
+        const int k = m.indexOf(id);
+        QVERIFY(k >= 0);
+        // unitFeatures 给的是整组；按 id 找到这一块
+        QJsonObject got;
+        for (const QJsonValue &fv : m.unitFeatures(k).value("features").toArray())
+            if (fv.toObject().value("properties").toObject().value("id").toString() == id) got = fv.toObject().value("geometry").toObject();
+        if (want.value("type").toString() == QLatin1String("MultiPolygon")) ++multi;
+        QVERIFY2(QJsonDocument(got).toJson(QJsonDocument::Compact) == QJsonDocument(want).toJson(QJsonDocument::Compact), qPrintable(id));
+        ++checked;
+    }
+    QVERIFY(multi > 0);
+    QCOMPARE(checked, int(feats.size()));
+}
+
+void TestMap::prefetchMatchesElectron()
+{
+    // tests/golden/prefetch.json 由 tools/claude-kit/tile-golden/gen.js 用 Electron 原样的 tileXY / prefetchTiles 生成
+    const QByteArray golden = readFile(QStringLiteral(TP_SOURCE_DIR "/tests/golden/prefetch.json"));
+    if (golden.isEmpty()) QSKIP("缺 tests/golden/prefetch.json");
+    const QJsonArray cases = QJsonDocument::fromJson(golden).array();
+    QVERIFY(cases.size() >= 10);
+    for (const QJsonValue &cv : cases) {
+        const QJsonObject c = cv.toObject(), v = c.value("view").toObject();
+        const auto tiles = geo::prefetchTiles(v.value("w").toDouble(), v.value("n").toDouble(), v.value("e").toDouble(), v.value("s").toDouble(),
+                                              v.value("zoom").toDouble(), v.value("tileSize").toInt(), v.value("tileMaxZoom").toInt());
+        QStringList got;
+        for (const geo::TileXY &t : tiles) got << QStringLiteral("%1/%2/%3").arg(t.z).arg(t.x).arg(t.y);
+        QStringList want;
+        for (const QJsonValue &t : c.value("tiles").toArray()) want << t.toString();
+        QCOMPARE(got, want);
+        // tileXY 本身（7 级，视野的两个角）
+        const QJsonArray xy = c.value("xy").toArray();
+        const geo::TileXY a = geo::tileXY(v.value("w").toDouble(), v.value("n").toDouble(), 7);
+        const geo::TileXY b = geo::tileXY(v.value("e").toDouble(), v.value("s").toDouble(), 7);
+        QCOMPARE(a.x, xy[0].toArray()[0].toInt()); QCOMPARE(a.y, xy[0].toArray()[1].toInt());
+        QCOMPARE(b.x, xy[1].toArray()[0].toInt()); QCOMPARE(b.y, xy[1].toArray()[1].toInt());
+    }
+}
+
+void TestMap::tripDataStopsAndRoutes()
+{
+    const QByteArray travel = readFile(QStringLiteral(TP_SOURCE_DIR "/testdata/travel.json"));
+    if (travel.isEmpty()) QSKIP("缺 testdata/travel.json");
+    TripData t;
+    t.build(parseJson(travel));
+    QVERIFY(t.plans().size() > 10);
+    QVERIFY(t.stopCount() > 100);
+    QVERIFY(t.routeCount() > 0 && t.legCount() > t.routeCount());
+    // 每条路线：一条白边 + 每段一条彩线
+    const QJsonArray f = t.routesGeoJson().value("features").toArray();
+    int edges = 0, segs = 0;
+    for (const QJsonValue &v : f) (v.toObject().value("properties").toObject().value("k").toString() == "c" ? edges : segs)++;
+    QCOMPARE(edges, t.routeCount());
+    QCOMPARE(segs, t.legCount());
+    QCOMPARE(int(t.stopsGeoJson().value("features").toArray().size()), t.stopCount());
+}
+
+// 0.9.2：按计划缓存。第二次 build 不重算；改了一个计划只重算它；结果和一个新的 TripData 现算完全一样；
+// "已解锁"的输入只在已完成的计划 / 手动标记变了时算变了；筛选只换要画的、不重算
+void TestMap::tripDataCache()
+{
+    const QByteArray travel = readFile(QStringLiteral(TP_SOURCE_DIR "/testdata/travel.json"));
+    if (travel.isEmpty()) QSKIP("缺 testdata/travel.json");
+    tp::json::Value root = parseJson(travel);
+    const auto same = [](const TripData &a, const TripData &b) {
+        if (a.routesGeoJson() != b.routesGeoJson() || a.stopsGeoJson() != b.stopsGeoJson()) return false;
+        if (a.plans().size() != b.plans().size() || a.legCount() != b.legCount() || a.roadLegCount() != b.roadLegCount()) return false;
+        if (a.routesJsonExcept(QString()) != b.routesJsonExcept(QString())) return false;
+        for (int i = 0; i < a.plans().size(); ++i) {
+            const TripPlan &x = a.plans()[i], &y = b.plans()[i];
+            if (x.id != y.id || x.markerPos.size() != y.markerPos.size() || x.segments.size() != y.segments.size() || x.west != y.west || x.north != y.north)
+                return false;
+        }
+        return true;
+    };
+    TripData t;
+    t.build(root);
+    const int n = int(t.plans().size());
+    QCOMPARE(t.recomputed(), n);
+    QVERIFY(t.unlockInputsChanged());
+    t.build(root);
+    QCOMPARE(t.recomputed(), 0);
+    QVERIFY(!t.unlockInputsChanged());
+    // 深比较相等但不是同一份（像撤销回来的数据）也命中
+    t.build(parseJson(travel));
+    QCOMPARE(t.recomputed(), 0);
+
+    // 找一个想去的计划、一个已完成的计划
+    int wishIdx = -1, doneIdx = -1;
+    const tp::json::Array &arr = root[QStringLiteral("plans")].asArray();
+    for (int i = 0; i < int(arr.size()); ++i) {
+        const QString st = arr[size_t(i)][QStringLiteral("status")].toString();
+        if (st == QLatin1String("wish") && wishIdx < 0) wishIdx = i;
+        if (st == QLatin1String("completed") && doneIdx < 0 && !arr[size_t(i)][QStringLiteral("stops")].asArray().empty()) doneIdx = i;
+    }
+    QVERIFY(wishIdx >= 0 && doneIdx >= 0);
+    // 改想去计划的名字：只重算 1 个，"已解锁"不变；结果和现算一样
+    tp::json::Value r2 = root;
+    r2.mutObject().find(QStringLiteral("plans"))->mutArray()[size_t(wishIdx)].mutObject().set(QStringLiteral("name"), tp::json::Value(QStringLiteral("改过的名字")));
+    t.build(r2);
+    QCOMPARE(t.recomputed(), 1);
+    QVERIFY(!t.unlockInputsChanged());
+    TripData fresh;
+    fresh.build(r2);
+    QVERIFY(same(t, fresh));
+    // 挪已完成计划的第一个站点：重算 1 个，"已解锁"变了
+    tp::json::Value r3 = r2;
+    tp::json::Value &st0 = r3.mutObject().find(QStringLiteral("plans"))->mutArray()[size_t(doneIdx)].mutObject().find(QStringLiteral("stops"))->mutArray()[0];
+    st0.mutObject().set(QStringLiteral("lat"), tp::json::Value(st0[QStringLiteral("lat")].toNumber() + 0.5));
+    t.build(r3);
+    QCOMPARE(t.recomputed(), 1);
+    QVERIFY(t.unlockInputsChanged());
+    TripData fresh3;
+    fresh3.build(r3);
+    QVERIFY(same(t, fresh3));
+    // 筛选（只画已完成的）：不重算，结果和现算一样
+    const auto onlyDone = [](const tp::json::Value &p) { return p[QStringLiteral("status")].toString() == QLatin1String("completed"); };
+    t.build(r3, onlyDone);
+    QCOMPARE(t.recomputed(), 0);
+    QVERIFY(!t.unlockInputsChanged());
+    TripData fresh4;
+    fresh4.build(r3, onlyDone);
+    QVERIFY(same(t, fresh4));
+    QVERIFY(int(t.plans().size()) < n);
+    // 删掉已完成的计划："已解锁"变了
+    tp::json::Value r5 = r3;
+    auto &plansArr = r5.mutObject().find(QStringLiteral("plans"))->mutArray();
+    plansArr.erase(plansArr.begin() + doneIdx);
+    t.build(r5);
+    QCOMPARE(t.recomputed(), 0);
+    QVERIFY(t.unlockInputsChanged());
+}
+
+void TestMap::tripDataJsNumbers()
+{
+    // Electron validStops：Number.isFinite(+v)。null → 0 算有效；没有这个键 / "abc" → 无效；"12.5" → 12.5
+    const char *doc = R"({"plans":[{"id":"p","name":"x","type":"route","status":"planning","stops":[
+        {"name":"a","lat":"12.5","lng":100},
+        {"name":"b","lat":null,"lng":0},
+        {"name":"c","lng":5},
+        {"name":"d","lat":"abc","lng":5},
+        {"name":"e","lat":13,"lng":101}]}],
+      "visitedRegions":[{"id":"CHN-1810","year":2020},{"id":"X"},{"year":1}]})";
+    TripData t;
+    t.build(parseJson(QByteArray(doc)));
+    QCOMPARE(t.plans().size(), 1);
+    const auto &s = t.plans().first().stops;
+    QCOMPARE(s.size(), 3);
+    QCOMPARE(s[0].name, QStringLiteral("a"));
+    QCOMPARE(s[0].lat, 12.5);
+    QCOMPARE(s[1].name, QStringLiteral("b"));
+    QCOMPARE(s[1].lat, 0.0);
+    QCOMPARE(s[2].name, QStringLiteral("e"));
+    QCOMPARE(t.manualRegions().size(), 2);
+    QCOMPARE(t.manualRegions()[0].year, 2020);
+    QCOMPARE(t.manualRegions()[1].year, 0);
+}
+
+void TestMap::markerStyles()
+{
+    TripPlan route;
+    route.type = "route"; route.status = "planning";
+    for (int i = 0; i < 3; ++i) route.stops.push_back(TripStop{});
+    // 数字顺序（默认）：圆形，终点方块；文字是序号
+    auto st = markers::stopStyle(route, 0, 3);
+    QCOMPARE(st.shape, QStringLiteral("circle"));
+    QCOMPARE(st.text, QStringLiteral("1"));
+    QCOMPARE(st.color, QStringLiteral("#e8590c"));
+    QCOMPARE(markers::stopStyle(route, 2, 3).shape, QStringLiteral("square"));
+    // 指定了外形：终点不再变方块
+    route.shape = "diamond";
+    QCOMPARE(markers::stopStyle(route, 2, 3).shape, QStringLiteral("diamond"));
+    // 圆点模式
+    route.markerMode = "dot";
+    st = markers::stopStyle(route, 1, 3);
+    QVERIFY(st.dot);
+    QVERIFY(st.text.isEmpty() && st.icon.isEmpty());
+    // 图标模式：站点图标优先，其次计划图标
+    route.markerMode = "icon";
+    route.icon = "hiking";
+    route.stops[1].icon = "hotel";
+    QCOMPARE(markers::stopStyle(route, 0, 3).icon, QStringLiteral("hiking"));
+    QCOMPARE(markers::stopStyle(route, 1, 3).icon, QStringLiteral("hotel"));
+    // 单一目的地：默认水滴，没有文字；站点颜色覆盖计划颜色
+    TripPlan single;
+    single.type = "single"; single.status = "wish"; single.color = "#2a78d6";
+    single.stops.push_back(TripStop{});
+    single.stops[0].color = "#c2255c";
+    st = markers::stopStyle(single, 0, 1);
+    QCOMPARE(st.shape, QStringLiteral("pin"));
+    QVERIFY(st.text.isEmpty());
+    QCOMPARE(st.color, QStringLiteral("#c2255c"));
+    // 只有一个站点的"路线"按单一目的地画（plan.type === 'route' && n > 1）
+    TripPlan one = route;
+    one.stops.resize(1);
+    QCOMPARE(markers::stopStyle(one, 0, 1).shape, QStringLiteral("diamond"));
+    QVERIFY(markers::stopStyle(one, 0, 1).text.isEmpty());
+}
+
+void TestMap::markerGeometry()
+{
+    markers::Style st;
+    st.shape = "pin";
+    auto g = markers::geomFor(st, true);
+    QCOMPARE(g.w, 28.0); QCOMPARE(g.h, 38.0); QCOMPARE(g.ax, 14.0); QCOMPARE(g.ay, 37.0);
+    st.shape = "circle"; st.text = "3";
+    g = markers::geomFor(st, true);
+    QCOMPARE(g.w, 22.0); QCOMPARE(g.ax, 11.0);
+    st.icon = "hiking"; st.text.clear();
+    QCOMPARE(markers::geomFor(st, true).w, 26.0);    // 有图标 26
+    QCOMPARE(markers::geomFor(st, false).w, 22.0);   // 图标字体不能用时退回 22
+    st.icon.clear(); st.dot = true;
+    QCOMPARE(markers::geomFor(st, true).w, 14.0);
+    QCOMPARE(markers::clusterSize(2), 26);
+    QCOMPARE(markers::clusterSize(10), 28);
+    QCOMPARE(markers::clusterSize(50), 32);
+}
+
+void TestMap::clusterColors()
+{
+    // 和 Electron 的几个固定样例一样（marker-clusters.json 的 colorSamples）
+    const QByteArray golden = readFile(QStringLiteral(TP_SOURCE_DIR "/tests/golden/marker-clusters.json"));
+    if (golden.isEmpty()) QSKIP("缺 tests/golden/marker-clusters.json");
+    const QJsonArray samples = QJsonDocument::fromJson(golden).object().value("colorSamples").toArray();
+    QVERIFY(samples.size() >= 5);
+    for (const QJsonValue &v : samples) {
+        QStringList in;
+        for (const QJsonValue &c : v.toObject().value("in").toArray()) in << c.toString();
+        QCOMPARE(markers::averageColor(in), v.toObject().value("avg").toString());
+        QCOMPARE(markers::isLightColor(markers::averageColor(in)), v.toObject().value("light").toBool());
+    }
+    QVERIFY(markers::isLightColor("#ffffff"));
+    QVERIFY(!markers::isLightColor("#364152"));
+    QVERIFY(!markers::isLightColor("bad"));
+    double rgb[3];
+    QVERIFY(markers::hexToRgb(" #ABC ", rgb));
+    QVERIFY(!markers::hexToRgb("##abc", rgb));   // JS replace('#', '') 只去掉第一个
+}
+
+void TestMap::clusterTiers()
+{
+    QCOMPARE(markers::clusterTier(-0.5), 0);
+    QCOMPARE(markers::clusterTier(0.99), 0);
+    QCOMPARE(markers::clusterTier(1.0), 1);
+    QCOMPARE(markers::clusterTier(5.999), 5);
+    QCOMPARE(markers::clusterTier(5.9999999), -1);   // 加 1e-6 后算 6 级（Electron 一样）
+    QCOMPARE(markers::clusterTier(6), -1);
+    QCOMPARE(markers::clusterKm(0), 1400.0);
+    QCOMPARE(markers::clusterKm(1), 1400.0);
+    QCOMPARE(markers::clusterKm(2), 700.0);
+    QCOMPARE(markers::clusterKm(3), 350.0);
+    QCOMPARE(markers::clusterKm(4), 180.0);
+    QCOMPARE(markers::clusterKm(5), 90.0);
+}
+
+void TestMap::clustersMatchElectron()
+{
+    const QByteArray golden = readFile(QStringLiteral(TP_SOURCE_DIR "/tests/golden/marker-clusters.json"));
+    const QByteArray travel = readFile(QStringLiteral(TP_SOURCE_DIR "/testdata/travel.json"));
+    if (golden.isEmpty() || travel.isEmpty()) QSKIP("缺 tests/golden/marker-clusters.json 或 testdata/travel.json");
+    TripData t;
+    t.build(parseJson(travel));
+    struct M { QString plan; int stop; LatLng base; QString color; markers::Style st; };
+    QVector<M> all;
+    for (const TripPlan &p : t.plans())
+        for (int i = 0; i < p.stops.size(); ++i)
+            all.push_back({ p.id, i, p.markerPos[i], TripData::stopColor(p, p.stops[i]), markers::stopStyle(p, i, int(p.stops.size())) });
+    const QJsonObject g = QJsonDocument::fromJson(golden).object();
+    // 样式：每个标记的外形、文字、圆点、图标、颜色
+    const QJsonArray styles = g.value("styles").toArray();
+    QCOMPARE(int(styles.size()), int(all.size()));
+    for (int i = 0; i < all.size(); ++i) {
+        const QJsonArray e = styles[i].toArray();
+        QCOMPARE(all[i].plan, e[0].toString());
+        QCOMPARE(all[i].stop, e[1].toInt());
+        QCOMPARE(all[i].st.shape, e[2].toString());
+        QCOMPARE(all[i].st.text, e[3].toString());
+        QCOMPARE(all[i].st.dot, e[4].toBool());
+        QCOMPARE(all[i].st.icon, e[5].toString());
+        QCOMPARE(all[i].st.color, e[6].toString());
+    }
+    // 合并：0–6 级每一层的圆圈（成员、颜色、字色、中心）
+    QVector<LatLng> pts;
+    for (const M &m : all) pts.push_back(m.base);
+    int checked = 0;
+    for (const QJsonValue &tv : g.value("tiers").toArray()) {
+        const QJsonObject to = tv.toObject();
+        const int tier = markers::clusterTier(to.value("zoom").toDouble());
+        QCOMPARE(tier, to.value("tier").isNull() ? -1 : to.value("tier").toInt());
+        QVector<QVector<int>> mine;
+        if (tier >= 0)
+            for (const QVector<int> &mem : markers::cluster(pts, markers::clusterKm(tier)).members)
+                if (mem.size() > 1) mine.push_back(mem);
+        const QJsonArray theirs = to.value("clusters").toArray();
+        QCOMPARE(int(mine.size()), int(theirs.size()));
+        for (int k = 0; k < mine.size(); ++k) {
+            const QJsonObject c = theirs[k].toObject();
+            const QJsonArray mem = c.value("members").toArray();
+            QCOMPARE(int(mine[k].size()), int(mem.size()));
+            QStringList colors;
+            std::vector<LatLng> cpts;
+            for (int j = 0; j < mine[k].size(); ++j) {
+                const M &m = all[mine[k][j]];
+                QCOMPARE(m.plan, mem[j].toArray()[0].toString());
+                QCOMPARE(m.stop, mem[j].toArray()[1].toInt());
+                colors << m.color;
+                cpts.push_back(m.base);
+            }
+            const QString avg = markers::averageColor(colors);
+            QCOMPARE(avg, c.value("color").toString());
+            QCOMPARE(markers::isLightColor(avg), c.value("light").toBool());
+            const LatLng ctr = centerOf(cpts);
+            QVERIFY(std::abs(ctr.lat - c.value("center").toObject().value("lat").toDouble()) < 1e-9);
+            QVERIFY(std::abs(ctr.lng - c.value("center").toObject().value("lng").toDouble()) < 1e-9);
+            ++checked;
+        }
+    }
+    QVERIFY(checked > 100);
+}
+
+void TestMap::clusterSeedNotCentroid()
+{
+    // 和组的"种子"（第一个点）比距离，不是和中心比：A(0,0)、B(0,6°≈667 km)、C(0,12°)，700 km 时 A+B 一组，C 自己一组
+    const QVector<LatLng> pts{ { 0, 0 }, { 0, 6 }, { 0, 12 } };
+    const auto g = markers::cluster(pts, 700);
+    QCOMPARE(g.members.size(), 2);
+    QCOMPARE(g.members[0], (QVector<int>{ 0, 1 }));
+    QCOMPARE(g.members[1], (QVector<int>{ 2 }));
+    // 离两个种子都在范围内：并进最近的那个
+    const QVector<LatLng> q{ { 0, 0 }, { 0, 10 }, { 0, 6 } };
+    const auto h = markers::cluster(q, 700);
+    QCOMPARE(h.members.size(), 2);
+    QCOMPARE(h.groupOf[2], 1);
+}
+
+void TestMap::spreadCircle()
+{
+    Camera c;
+    c.lat = 35.0; c.lng = 139.0; c.zoom = 15; c.width = 800; c.height = 600;
+    // 同一地点 3 个标记（两个计划）+ 15 m 外 1 个 + 远处 1 个
+    const LatLng p{ 35.0, 139.0 };
+    const QVector<markers::SpreadItem> items{ { p, "b", 0 }, { p, "a", 1 }, { p, "a", 0 }, { { 35.0001, 139.0001 }, "c", 0 }, { { 35.01, 139.01 }, "d", 0 } };
+    const auto r = markers::spread(items, c);
+    QCOMPARE(r.dots.size(), 1);
+    QCOMPARE(r.offset[4].x, 0.0);
+    QCOMPARE(r.offset[4].y, 0.0);
+    // 4 个一组：半径 max(22, 4·30/2π) = 22；顺序 a0、a1、b0、c0，从正上方顺时针
+    const auto at = [&](int i) { const Pt b = c.pixelFor(items[i].base.lat, items[i].base.lng); return Pt{ b.x + r.offset[i].x, b.y + r.offset[i].y }; };
+    const Pt ctr = c.pixelFor(p.lat, p.lng);
+    QVERIFY(std::abs(at(2).x - ctr.x) < 1e-6 && std::abs(at(2).y - (ctr.y - 22)) < 1e-6);   // a0 在正上方
+    QVERIFY(std::abs(at(1).x - (ctr.x + 22)) < 1e-6 && std::abs(at(1).y - ctr.y) < 1e-6);   // a1 在右边
+    QVERIFY(std::abs(at(0).x - ctr.x) < 1e-6 && std::abs(at(0).y - (ctr.y + 22)) < 1e-6);   // b0 在下面
+    QVERIFY(std::abs(at(3).x - (ctr.x - 22)) < 1e-6 && std::abs(at(3).y - ctr.y) < 1e-6);   // c0 在左边
+    // 个数多了半径变大：20 个 → 20·30/2π ≈ 95.5
+    QVector<markers::SpreadItem> many;
+    for (int i = 0; i < 20; ++i) many.push_back({ p, "x", i });
+    const auto r2 = markers::spread(many, c);
+    QVERIFY(std::abs(std::hypot(r2.offset[0].x, r2.offset[0].y) - 20 * 30 / (2 * kPi)) < 1e-6);
+}
+
+void TestMap::spreadOnlyWhenZoomedIn()
+{
+    Camera c;
+    c.lat = 35.0; c.lng = 139.0; c.zoom = 13.9; c.width = 800; c.height = 600;
+    const LatLng p{ 35.0, 139.0 };
+    const QVector<markers::SpreadItem> items{ { p, "a", 0 }, { p, "a", 1 } };
+    auto r = markers::spread(items, c);
+    QVERIFY(r.dots.isEmpty());
+    QCOMPARE(r.offset[0].x, 0.0);
+    c.zoom = 14;
+    r = markers::spread(items, c);
+    QCOMPARE(r.dots.size(), 1);
+    // 视野外（再扩一半以外）的不错开
+    c.lng = 140.0;
+    r = markers::spread(items, c);
+    QVERIFY(r.dots.isEmpty());
+    // 跨 180° 经线：相机在 179.999，点在 -179.9995（在另一份世界副本上，但在视野里）
+    c.lat = 0; c.lng = 179.999; c.zoom = 15;
+    const QVector<markers::SpreadItem> w{ { { 0, -179.9995 }, "a", 0 }, { { 0, -179.9995 }, "b", 0 } };
+    r = markers::spread(w, c);
+    QCOMPARE(r.dots.size(), 1);
+}
+
+// ---------- 0.8.4：道路路线 ----------
+
+void TestMap::roadsMatchElectron()
+{
+    // tests/golden/roads.json：Electron map-app.js 的原样代码跑出来的（tools/claude-kit/road-golden/gen.js）
+    const QJsonObject g = QJsonDocument::fromJson(readFile(QStringLiteral(TP_SOURCE_DIR "/tests/golden/roads.json"))).object();
+    QVERIFY(!g.isEmpty());
+    for (const QJsonValue &v : g.value("toFixed").toArray()) {
+        const QJsonObject o = v.toObject();
+        const double x = o.value("v").toDouble();
+        QCOMPARE(roads::jsToFixed(x, 5), o.value("f5").toString());
+        QCOMPARE(roads::jsToFixed(x, 6), o.value("f6").toString());
+    }
+    QCOMPARE(roads::jsToFixed(-0.0, 5), QStringLiteral("0.00000"));
+    for (const QJsonValue &v : g.value("keys").toArray()) {
+        const QJsonArray in = v.toObject().value("in").toArray();
+        QCOMPARE(roads::legKeyOf("drive", in[0].toDouble(), in[1].toDouble(), in[2].toDouble(), in[3].toDouble()), v.toObject().value("drive").toString());
+    }
+    for (const QJsonValue &v : g.value("encEdge").toArray()) {
+        QVector<LatLng> pts;
+        for (const QJsonValue &p : v.toObject().value("pts").toArray()) pts.push_back({ p.toArray()[0].toDouble(), p.toArray()[1].toDouble() });
+        QCOMPARE(roads::encodePolyline(pts), v.toObject().value("enc").toString());
+    }
+    int n = 0;
+    for (const QJsonValue &v : g.value("cases").toArray()) {
+        const QJsonObject o = v.toObject();
+        const QVector<LatLng> pts = roads::decodePolyline(o.value("path").toString());
+        QCOMPARE(int(pts.size()), o.value("n").toInt());
+        QCOMPARE(pts.first().lat, o.value("first").toArray()[0].toDouble());
+        QCOMPARE(pts.last().lng, o.value("last").toArray()[1].toDouble());
+        QCOMPARE(roads::encodePolyline(pts), o.value("reencoded").toString());
+        const QVector<LatLng> simp = roads::simplify(pts, 0.003);
+        QCOMPARE(int(simp.size()), o.value("simplifiedN").toInt());
+        QCOMPARE(roads::encodePolyline(simp), o.value("simplified").toString());
+        ++n;
+    }
+    QVERIFY(n >= 20);
+}
+
+void TestMap::roadsPendingAndApply()
+{
+    tp::json::Value root = parseJson(readFile(QStringLiteral(TP_SOURCE_DIR "/testdata/travel.json")));
+    // 真实数据（从 Electron 导入）里的道路折线全部和坐标对得上（key 的写法和 Electron 一样）
+    QCOMPARE(roads::pendingLegs(root, {}).size(), 0);
+    // 去掉一段的折线 → 还没算 1 段；坐标挪了一点 → key 对不上，也算还没算
+    QString planId; int stopIdx = -1; QString oldPath;
+    for (tp::json::Value &pv : root.mutObject().find("plans")->mutArray()) {
+        if (pv["type"].toString() != "route") continue;
+        auto &arr = pv.mutObject().find("stops")->mutArray();
+        for (int i = 0; i + 1 < int(arr.size()); ++i) {
+            tp::json::Value *lv = arr[i].mutObject().find("leg");
+            if (!lv || (*lv)["mode"].toString() != "drive" || (*lv)["path"].toString().isEmpty()) continue;
+            oldPath = (*lv)["path"].toString();
+            lv->mutObject().remove("path");
+            planId = pv["id"].toString();
+            stopIdx = i;
+            break;
+        }
+        if (stopIdx >= 0) break;
+    }
+    QVERIFY(stopIdx >= 0);
+    QVector<roads::Pending> pend = roads::pendingLegs(root, {});
+    QCOMPARE(pend.size(), 1);
+    QCOMPARE(pend[0].planId, planId);
+    QCOMPARE(pend[0].stopIndex, stopIdx);
+    QCOMPARE(pend[0].mode, QStringLiteral("drive"));
+    // 记住算不出来的不再算进去
+    QCOMPARE(roads::pendingLegs(root, { pend[0].key }).size(), 0);
+    // 写回：leg 里其他的键（mode）保留，key 写上，之后不再是"还没算"
+    QVERIFY(roads::applyLeg(root, pend[0], oldPath, 1234, 567));
+    QCOMPARE(roads::pendingLegs(root, {}).size(), 0);
+    // 写回时站点已经挪了：不写
+    for (tp::json::Value &pv : root.mutObject().find("plans")->mutArray())
+        if (pv["id"].toString() == planId) {
+            tp::json::Value &st = pv.mutObject().find("stops")->mutArray()[stopIdx];
+            QCOMPARE(st["leg"]["dist"].toNumber(), 1234.0);
+            QCOMPARE(st["leg"]["mode"].toString(), QStringLiteral("drive"));
+            st.mutObject().set("lat", tp::json::Value(st["lat"].toNumber() + 0.01));
+        }
+    const QVector<roads::Pending> moved = roads::pendingLegs(root, {});
+    QCOMPARE(moved.size(), 1);   // 挪过的站点：折线和坐标对不上，又算"还没算"
+    QVERIFY(!roads::applyLeg(root, pend[0], oldPath, 1, 1));   // 旧的 key 写不进去
+    // 单一目的地、飞机 / 火车的段不算
+    tp::json::Value tiny = parseJson(R"({"plans":[{"id":"a","type":"single","stops":[{"lat":1,"lng":2,"leg":{"mode":"drive"}},{"lat":3,"lng":4}]},
+        {"id":"b","type":"route","stops":[{"lat":1,"lng":2,"leg":{"mode":"train"}},{"lat":3,"lng":4,"leg":{"mode":"walk"}},{"lat":"x","lng":4},{"lat":5,"lng":6}]}]})");
+    pend = roads::pendingLegs(tiny, {});
+    QCOMPARE(pend.size(), 1);   // 坐标无效的站点跳过：第 2 站 → 第 4 站
+    QCOMPARE(pend[0].stopIndex, 1);
+    QCOMPARE(pend[0].key, QStringLiteral("walk:3.00000,4.00000,5.00000,6.00000"));
+    QCOMPARE(roads::osrmUrl("walk", 3, 4, 5, 6).toString(),
+             QStringLiteral("https://routing.openstreetmap.de/routed-foot/route/v1/foot/4.000000,3.000000;6.000000,5.000000?overview=full&geometries=polyline&steps=false"));
+    QVERIFY(roads::osrmUrl("drive", 3, 4, 5, 6).toString().startsWith("https://routing.openstreetmap.de/routed-car/route/v1/driving/"));
+}
+
+void TestMap::roadsParseOsrm()
+{
+    // 正常：抽稀、重新编码、距离和时间取整（Math.round）
+    QVector<LatLng> line;
+    for (int i = 0; i <= 100; ++i) line.push_back({ 35 + i * 0.001, 139 + i * 0.001 + (i % 2 ? 0.00001 : 0) });
+    const QByteArray ok = QJsonDocument(QJsonObject{ { "code", "Ok" }, { "routes", QJsonArray{ QJsonObject{
+        { "geometry", roads::encodePolyline(line) }, { "distance", 15234.5 }, { "duration", 1200.4 } } } } }).toJson();
+    roads::OsrmResult r = roads::parseOsrm(ok, 200);
+    QCOMPARE(r.kind, roads::OsrmResult::Ok);
+    QCOMPARE(r.dist, 15235.0);
+    QCOMPARE(r.time, 1200.0);
+    QCOMPARE(roads::decodePolyline(r.path).size(), 2);   // 几乎是直线：只剩两头
+    // 找不到路 / 太远：记住（permanent）；其他错误不记
+    r = roads::parseOsrm(R"({"code":"NoRoute","message":"Impossible route"})", 400);
+    QCOMPARE(r.kind, roads::OsrmResult::NoRoute);
+    QVERIFY(r.permanent());
+    r = roads::parseOsrm(R"({"code":"TooBig"})", 400);
+    QVERIFY(r.permanent());
+    r = roads::parseOsrm(R"({"code":"InvalidQuery","message":"Query string malformed"})", 400);
+    QCOMPARE(r.kind, roads::OsrmResult::ServiceError);
+    QCOMPARE(r.detail, QStringLiteral("Query string malformed"));
+    QVERIFY(!r.permanent());
+    r = roads::parseOsrm("<html>502 Bad Gateway</html>", 502);
+    QCOMPARE(r.kind, roads::OsrmResult::BadReply);
+    QCOMPARE(r.detail, QStringLiteral("502"));
+}
+
+void TestMap::tripRoutesSplit()
+{
+    TripData t;
+    t.build(parseJson(readFile(QStringLiteral(TP_SOURCE_DIR "/testdata/travel.json"))));
+    QString route;
+    for (const TripPlan &p : t.plans())
+        if (p.isRoute()) { route = p.id; QVERIFY(!p.segments.isEmpty()); QVERIFY(p.west <= p.east); break; }
+    QVERIFY(!route.isEmpty());
+    const auto count = [](const QString &json) { return QJsonDocument::fromJson(json.toUtf8()).object().value("features").toArray().size(); };
+    const int all = int(t.routesGeoJson().value("features").toArray().size());
+    const int except = count(t.routesJsonExcept(route)), only = count(t.routesJsonOnly(route));
+    QVERIFY(only >= 2);   // 白边 + 至少一段
+    QCOMPARE(except + only, all);
+    QCOMPARE(count(t.routesJsonExcept(QString())), all);
+    QCOMPARE(count(t.routesJsonOnly(QString())), 0);
+    QVERIFY(!t.routesJsonExcept(route).contains(route));
+}
+
+namespace {
+QJsonObject plansGolden()
+{
+    return QJsonDocument::fromJson(readFile(QStringLiteral(TP_SOURCE_DIR "/tests/golden/plans.json"))).object();
+}
+tp::json::Value plansInput(const QJsonObject &g)
+{
+    return parseJson(QJsonDocument(g.value("input").toObject()).toJson(QJsonDocument::Compact));
+}
+QSet<QString> setOf(const QJsonValue &v)
+{
+    QSet<QString> s;
+    for (const QJsonValue &x : v.toArray()) s.insert(x.toString());
+    return s;
+}
+} // namespace
+
+void TestMap::plansSortMatchesElectron()
+{
+    const QJsonObject g = plansGolden();
+    if (g.isEmpty()) QSKIP("缺 tests/golden/plans.json");
+    const tp::json::Value root = plansInput(g);
+    const tp::json::Array &arr = root[QStringLiteral("plans")].asArray();
+    for (bool pin : { true, false }) {
+        const QVector<int> idx = plans::sortedIndexes(root, pin);
+        const QJsonArray want = g.value(pin ? "sortPin" : "sortNoPin").toArray();
+        QCOMPARE(idx.size(), want.size());
+        for (int i = 0; i < idx.size(); ++i)
+            QVERIFY2(arr[idx[i]][QStringLiteral("id")].toString() == want[i].toString(),
+                     qPrintable(QStringLiteral("%1 第 %2 个：%3 ≠ %4").arg(pin ? "置顶" : "不看置顶").arg(i).arg(arr[idx[i]][QStringLiteral("id")].toString(), want[i].toString())));
+    }
+}
+
+void TestMap::nightStripesNoGapsNoSteps()
+{
+    // 0.8.7：互不重叠的细带。每个点只落在一条带里，带的序号和太阳高度对得上（边界上允许差一条），白天的点不在任何带里；
+    // 相邻带的不透明度差 < 2%（看不出台阶）。几种太阳位置：赤道、北半球夏天、南半球夏天、经线 180° 附近
+    for (const LatLng sun : { LatLng{ 0, 0 }, LatLng{ 23.4, 100 }, LatLng{ -23.4, -170 }, LatLng{ -16, 179.5 } }) {
+        const auto st = night::stripes(sun);
+        QCOMPARE(int(st.size()), night::kStripes + 1);
+        for (size_t i = 1; i + 1 < st.size(); ++i) QVERIFY(std::abs(st[i].opacity - st[i - 1].opacity) < 0.02);
+        int far = 0, total = 0;
+        for (double lat = -83.7; lat <= 84; lat += 6)   // 不正好落在边上（边上的点射线法算不准）
+            for (double lng = -179.3; lng < 180; lng += 6) {
+                const double alt = night::sunAltitude(sun, lat, lng);
+                const int got = night::stripeAt(st, lat, lng);
+                if (alt > night::kDayAlt + 0.3) { QVERIFY2(got < 0, qPrintable(QStringLiteral("白天的点 %1,%2 落在带 %3").arg(lat).arg(lng).arg(got))); continue; }
+                if (alt > night::kDayAlt - 0.3) continue;   // 昼夜分界线附近不算
+                ++total;
+                const int want = std::min(night::kStripes, int((night::kDayAlt - alt) / (night::kTwilight / night::kStripes)));
+                QVERIFY2(got >= 0, qPrintable(QStringLiteral("夜里的点 %1,%2（太阳高度 %3）没被盖住").arg(lat).arg(lng).arg(alt)));
+                if (std::abs(got - want) > 1) ++far;
+            }
+        QVERIFY2(far == 0, qPrintable(QStringLiteral("%1 / %2 个点差了不止一条带").arg(far).arg(total)));
+    }
+    const QJsonObject fc = QJsonDocument::fromJson(night::toGeoJson(night::stripes({ 0, 0 })).toUtf8()).object();
+    QVERIFY(fc.value("features").toArray().size() > 40);
+    QCOMPARE(fc.value("features").toArray().first().toObject().value("geometry").toObject().value("type").toString(), QStringLiteral("MultiPolygon"));
+}
+
+void TestMap::plansNameOrder()
+{
+    // Node（ICU）的 ['Zurich', '北京', …].sort((a, b) => a.localeCompare(b, 'zh')) 的结果；Windows 的系统排序规则会把拉丁字母排在汉字前面（0.8.7 验证）
+    const QStringList want = { "", "!标点", "2号线", "阿坝", "北京", "弁天島", "東京", "乔戈里峰（K2）", "Acropolis", "Zurich", "Ак-Суу" };
+    QStringList l = { "Zurich", "北京", "阿坝", "2号线", "!标点", "", "Acropolis", "弁天島", "乔戈里峰（K2）", "東京", "Ак-Суу" };
+    std::stable_sort(l.begin(), l.end(), [](const QString &a, const QString &b) { return plans::compareNames(a, b) < 0; });
+    QCOMPARE(l, want);
+}
+
+void TestMap::plansFilterMatchesElectron()
+{
+    const QJsonObject g = plansGolden();
+    if (g.isEmpty()) QSKIP("缺 tests/golden/plans.json");
+    const tp::json::Value root = plansInput(g);
+    const tp::json::Array &arr = root[QStringLiteral("plans")].asArray();
+    auto findPlan = [&arr](const QString &id) -> const tp::json::Value & {
+        for (const tp::json::Value &p : arr) if (p[QStringLiteral("id")].toString() == id) return p;
+        static tp::json::Value none; return none;
+    };
+    for (const QJsonValue &cv : g.value("filters").toArray()) {
+        const QJsonObject c = cv.toObject(), fo = c.value("filter").toObject();
+        plans::Filter f;
+        f.status = setOf(fo.value("status")); f.type = setOf(fo.value("type")); f.region = setOf(fo.value("region")); f.hidden = setOf(fo.value("hidden"));
+        QStringList onMap;
+        for (const tp::json::Value &p : arr) if (f.onMap(p)) onMap << p[QStringLiteral("id")].toString();
+        QStringList want;
+        for (const QJsonValue &x : c.value("onMap").toArray()) want << x.toString();
+        QCOMPARE(onMap, want);
+        QCOMPARE(f.excludedCount(), c.value("excluded").toInt());
+        for (const QJsonValue &rv : c.value("reveals").toArray()) {
+            const QJsonObject r = rv.toObject();
+            plans::Filter f2 = f;
+            bool unhid = false;
+            const QStringList opened = f2.reveal(findPlan(r.value("id").toString()), &unhid);
+            QStringList wantOpened;
+            for (const QJsonValue &x : r.value("opened").toArray()) wantOpened << x.toString();
+            QCOMPARE(opened, wantOpened);
+            QCOMPARE(unhid, r.value("unhid").toBool());
+        }
+    }
+}
+
+void TestMap::plansFilterVariantRoundTrip()
+{
+    plans::Filter f = plans::Filter::all();
+    QCOMPARE(f.excludedCount(), 0);
+    f.status.remove(QStringLiteral("completed"));
+    f.region = { QStringLiteral("欧洲"), QStringLiteral("未分类") };
+    f.hidden = { QStringLiteral("a"), QStringLiteral("gone") };
+    const QVariantMap v = f.toVariant();
+    const plans::Filter back = plans::Filter::fromVariant(v, { QStringLiteral("a"), QStringLiteral("b") });
+    QCOMPARE(back.status, f.status);
+    QCOMPARE(back.region, f.region);
+    QCOMPARE(back.type, f.type);
+    QCOMPARE(back.hidden, QSet<QString>{ QStringLiteral("a") });   // 已删除的计划丢掉
+    // 没存过 = 全选；认不出来的取值丢掉；旧区域名换成新名
+    QVERIFY(plans::Filter::fromVariant({}, {}) == plans::Filter::all());
+    const plans::Filter odd = plans::Filter::fromVariant({ { "status", QVariantList{ "wish", "bogus" } }, { "region", QVariantList{ "西亚" } } }, {});
+    QCOMPARE(odd.status, QSet<QString>{ QStringLiteral("wish") });
+    QCOMPARE(odd.region, QSet<QString>{ QStringLiteral("西亚/中亚") });
+}
+
+void TestMap::plansNowMatchesElectron()
+{
+    const QJsonObject g = plansGolden();
+    if (g.isEmpty()) QSKIP("缺 tests/golden/plans.json");
+    tp::json::Value root = plansInput(g);
+    for (const QJsonValue &cv : g.value("now").toArray()) {
+        const QJsonObject c = cv.toObject();
+        if (c.value("next").isNull()) root.mutObject().remove(QStringLiteral("nextTripId"));
+        else root.mutObject().set(QStringLiteral("nextTripId"), tp::json::Value(c.value("next").toString()));
+        const QString today = c.value("today").toString();
+        const QVariantMap m = plans::nowInfo(root, today);
+        const QString tag = today + u' ' + c.value("next").toString();
+        QVERIFY2(m.value("kind").toString() == c.value("kind").toString(), qPrintable(tag + " kind " + m.value("kind").toString()));
+        if (c.value("kind").toString() == QLatin1String("none")) continue;
+        QCOMPARE(m.value("planId").toString(), c.value("planId").toString());
+        if (c.contains("dayN")) {
+            QCOMPARE(m.value("dayN").toInt(), c.value("dayN").toInt());
+            QCOMPARE(m.value("dayTotal").toInt(), c.value("dayTotal").toInt());
+            QCOMPARE(m.value("here").toString(), c.value("here").toString());
+            QCOMPARE(m.value("todayItems").toList().size(), c.value("todayCount").toInt());
+            const QVariantMap nx = m.value("next").toMap();
+            if (c.contains("nextStop")) {
+                const QJsonObject w = c.value("nextStop").toObject();
+                QCOMPARE(nx.value("name").toString(), w.value("name").toString());
+                QCOMPARE(nx.value("arriveDate").toString(), w.value("arriveDate").toString());
+                QCOMPARE(nx.value("tomorrow").toBool(), w.value("tomorrow").toBool());
+            } else QVERIFY2(nx.isEmpty(), qPrintable(tag));
+        }
+        if (c.contains("daysUntil")) QCOMPARE(m.value("daysUntil").toInt(), c.value("daysUntil").toInt());
+        if (c.contains("daysAgo")) QCOMPARE(m.value("daysAgo").toInt(), c.value("daysAgo").toInt());
+        QStringList todos, want;
+        for (const QVariant &t : m.value("todos").toList()) todos << t.toMap().value("id").toString();
+        for (const QJsonValue &x : c.value("todos").toArray()) want << x.toString();
+        QVERIFY2(todos == want, qPrintable(tag + " todos " + todos.join(',')));
+        QCOMPARE(m.value("todoOpen").toInt(), c.value("todoOpen").toInt());
+        const QVariantList nt = m.value("notices").toList();
+        const QJsonArray wn = c.value("notices").toArray();
+        QCOMPARE(nt.size(), wn.size());
+        for (int i = 0; i < nt.size(); ++i) {
+            const QVariantMap a = nt[i].toMap();
+            const QJsonObject b = wn[i].toObject();
+            QCOMPARE(a.value("kind").toString(), b.value("kind").toString());
+            if (b.contains("planId")) QCOMPARE(a.value("planId").toString(), b.value("planId").toString());
+            if (b.contains("n")) QCOMPARE(a.value("n").toInt(), b.value("n").toInt());
+            if (b.contains("label")) QCOMPARE(a.value("label").toString(), b.value("label").toString());
+        }
+    }
+}
+
+void TestMap::plansSheetInfo()
+{
+    const tp::json::Value root = parseJson(R"({"nextTripId":"r","plans":[{"id":"r","name":"关西","type":"route","status":"planning","regions":["东亚","西亚"],
+        "cover":"ph1","pinnedAt":5,
+        "stops":[{"id":"s1","name":"东京","lat":35.6,"lng":139.7,"leg":{"mode":"train","dist":513000,"time":8100}},
+                 {"id":"s0","name":"坏的","lat":"x","lng":1},
+                 {"id":"s2","name":"京都","lat":35.0,"lng":135.7,"schedule":[{"date":"2026-11-05","time":"09:30","text":"东福寺"}]},
+                 {"id":"s3","name":"大阪","lat":34.7,"lng":135.5,"schedule":"老格式的文字"}]}],
+        "photos":[{"id":"ph1","file":"photos/a.jpg","plan":"r"},{"id":"ph2","file":"photos/b.jpg","plan":"r","stop":"s2"},{"id":"ph3","file":"photos/c.jpg","plan":"x","stop":"s2"}]})");
+    const QVariantMap m = plans::sheetInfo(root, QStringLiteral("r"));
+    QCOMPARE(m.value("stopCount").toInt(), 3);   // 坐标无效的站点不算（和地图标记的下标一致）
+    QCOMPARE(m.value("regions").toStringList(), (QStringList{ "东亚", "西亚/中亚" }));
+    QVERIFY(m.value("pinned").toBool());
+    QVERIFY(m.value("isNext").toBool());
+    QCOMPARE(m.value("coverFile").toString(), QStringLiteral("photos/a.jpg"));
+    const QVariantList st = m.value("stops").toList();
+    QCOMPARE(st[0].toMap().value("leg").toMap().value("mode").toString(), QStringLiteral("train"));
+    QCOMPARE(st[0].toMap().value("leg").toMap().value("time").toDouble(), 8100.0);
+    QCOMPARE(st[1].toMap().value("name").toString(), QStringLiteral("京都"));
+    QCOMPARE(st[1].toMap().value("photos").toStringList(), QStringList{ "photos/b.jpg" });
+    QCOMPARE(st[1].toMap().value("leg").toMap().value("set").toBool(), false);   // 没设交通方式 = 默认飞机
+    QVERIFY(!st[2].toMap().contains("leg"));                                       // 最后一站没有"去下一站"
+    QCOMPARE(st[2].toMap().value("schedule").toList().first().toMap().value("text").toString(), QStringLiteral("老格式的文字"));
+    QVERIFY(plans::sheetInfo(root, QStringLiteral("nope")).isEmpty());
+}
+
+void TestMap::plansEdits()
+{
+    tp::json::Value root = parseJson(R"({"plans":[{"id":"a","status":"planning","todos":[{"id":"t1","text":"x","done":false}],"zz":1},{"id":"b","pinnedAt":3}],"keep":true})");
+    QVERIFY(plans::setNextTrip(root, "a", true));
+    QCOMPARE(root[QStringLiteral("nextTripId")].toString(), QStringLiteral("a"));
+    QVERIFY(!plans::setNextTrip(root, "a", true));         // 没变化
+    QVERIFY(!plans::setNextTrip(root, "nope", true));      // 没有这个计划
+    QVERIFY(plans::setNextTrip(root, "a", false));
+    QVERIFY(!root.asObject().contains(QStringLiteral("nextTripId")));
+    QVERIFY(plans::setTodoDone(root, "a", "t1", true));
+    QVERIFY(!plans::setTodoDone(root, "a", "t1", true));
+    QVERIFY(!plans::setTodoDone(root, "a", "t9", true));
+    QVERIFY(root[QStringLiteral("plans")].asArray()[0][QStringLiteral("todos")].asArray()[0][QStringLiteral("done")].toBool());
+    QVERIFY(plans::togglePin(root, "a", 1234));
+    QCOMPARE(root[QStringLiteral("plans")].asArray()[0][QStringLiteral("pinnedAt")].toNumber(), 1234.0);
+    QVERIFY(plans::togglePin(root, "b", 99));
+    QVERIFY(!root[QStringLiteral("plans")].asArray()[1].asObject().contains(QStringLiteral("pinnedAt")));
+    QVERIFY(plans::markCompleted(root, "a"));
+    QVERIFY(!plans::markCompleted(root, "a"));
+    QCOMPARE(root[QStringLiteral("plans")].asArray()[0][QStringLiteral("zz")].toNumber(), 1.0);   // 不认识的字段原样保留
+    QVERIFY(plans::deletePlan(root, "b"));
+    QVERIFY(!plans::deletePlan(root, "b"));
+    QCOMPARE(int(root[QStringLiteral("plans")].asArray().size()), 1);
+    QVERIFY(root[QStringLiteral("keep")].toBool());
+}
+
+void TestMap::tripDataVisibleFilter()
+{
+    const tp::json::Value root = parseJson(R"({"plans":[
+        {"id":"a","type":"route","status":"completed","stops":[{"lat":1,"lng":1},{"lat":2,"lng":2}]},
+        {"id":"b","type":"single","status":"planning","stops":[{"lat":3,"lng":3}]}]})");
+    TripData t;
+    t.build(root, [](const tp::json::Value &p) { return p[QStringLiteral("id")].toString() == QLatin1String("b"); });
+    QCOMPARE(t.plans().size(), 1);
+    QCOMPARE(t.plans().first().id, QStringLiteral("b"));
+    QCOMPARE(t.completedStops().size(), 1);   // "已解锁"不看筛选：被筛掉的已完成计划照样点亮
+    QCOMPARE(t.allStops().size(), 1);
+}
+
+// 0.8.8 我的旅程：只看筛选（眼睛隐藏的照样列出、标为 hidden），顺序 = comparePlans；分组、每组数目、底部计数、天数
+void TestMap::plansListInfo()
+{
+    tp::json::Value root = parseJson(R"({"nextTripId":"r1","plans":[
+        {"id":"w1","name":"想去一","status":"wish","type":"single","stops":[{"lat":1,"lng":2}]},
+        {"id":"c1","name":"完成一","status":"completed","type":"route","startDate":"2024-04-02","endDate":"2024-04-06","stops":[{"lat":1,"lng":2},{"lat":3,"lng":4},{"name":"无坐标"}]},
+        {"id":"r1","name":"计划一","status":"planning","type":"route","startDate":"2026-11-20","endDate":"2026-11-27","stops":[{"lat":1,"lng":2}]},
+        {"id":"p1","name":"置顶的","status":"completed","pinnedAt":5,"stops":[]},
+        {"id":"x1","name":"没日期","status":"weird","startDate":"2026-01-01"}
+    ]})");
+    plans::Filter f = plans::Filter::all();
+    f.hidden.insert(QStringLiteral("w1"));
+    QVariantMap l = plans::listInfo(root, f);
+    QVariantList rows = l.value(QStringLiteral("rows")).toList();
+    QStringList ids;
+    for (const QVariant &v : rows) ids << v.toMap().value(QStringLiteral("id")).toString();
+    // 顺序和 sortedIndexes（地图页的 comparePlans）一样
+    QStringList want;
+    for (int i : plans::sortedIndexes(root, true)) want << root[QStringLiteral("plans")].asArray()[i][QStringLiteral("id")].toString();
+    QCOMPARE(ids, want);
+    QCOMPARE(ids.first(), QStringLiteral("p1"));   // 置顶的在最前
+    const auto row = [&](const QString &id) { for (const QVariant &v : rows) if (v.toMap().value("id").toString() == id) return v.toMap(); return QVariantMap(); };
+    QCOMPARE(row("p1").value("group").toString(), QStringLiteral("pin"));
+    QCOMPARE(row("p1").value("groupCount").toInt(), 1);
+    QCOMPARE(row("x1").value("group").toString(), QStringLiteral("planning"));   // 认不出来的状态算计划中
+    QCOMPARE(row("r1").value("groupCount").toInt(), 2);
+    QCOMPARE(row("w1").value("hidden").toBool(), true);                          // 眼睛隐藏的照样列出
+    QCOMPARE(row("c1").value("stops").toInt(), 2);                               // 只数有坐标的站
+    QCOMPARE(row("c1").value("days").toInt(), 5);                                // dayCount 含首尾
+    QCOMPARE(row("x1").value("days").toInt(), -1);                               // 只有一个日期
+    QCOMPARE(row("r1").value("isNext").toBool(), true);
+    QCOMPARE(row("c1").value("isNext").toBool(), false);
+    QCOMPARE(row("c1").value("type").toString(), QStringLiteral("route"));
+    QCOMPARE(row("w1").value("type").toString(), QStringLiteral("single"));
+    // 分组是连续的
+    QStringList groups;
+    for (const QVariant &v : rows) { const QString g = v.toMap().value("group").toString(); if (groups.isEmpty() || groups.last() != g) groups << g; }
+    QCOMPARE(groups.size(), QSet<QString>(groups.begin(), groups.end()).size());
+    QCOMPARE(l.value("total").toInt(), 5);
+    QCOMPARE(l.value("planning").toInt(), 2);
+    QCOMPARE(l.value("wish").toInt(), 1);
+    QCOMPARE(l.value("completed").toInt(), 2);
+    // 筛掉已完成：列表少了，底部计数不变（Electron sbFoot 用全部计划）
+    f.status.remove(QStringLiteral("completed"));
+    l = plans::listInfo(root, f);
+    QCOMPARE(l.value("rows").toList().size(), 3);
+    QCOMPARE(l.value("total").toInt(), 5);
+
+    // 0.8.10 足迹（byYear）：按年份分组，日期新的在前，没有日期的放最后；置顶不单列
+    tp::json::Value done = parseJson(R"({"plans":[
+        {"id":"a","name":"甲","status":"completed","startDate":"2024-04-02","endDate":"2024-04-06"},
+        {"id":"b","name":"乙","status":"completed","pinnedAt":9},
+        {"id":"c","name":"丙","status":"completed","startDate":"2025-09-01"},
+        {"id":"d","name":"丁","status":"completed","endDate":"2024-10-03"},
+        {"id":"e","name":"戊","status":"completed","startDate":"坏日期"}
+    ]})");
+    l = plans::listInfo(done, plans::Filter::all(), true);
+    QStringList order, grp;
+    for (const QVariant &v : l.value("rows").toList()) { order << v.toMap().value("id").toString(); grp << v.toMap().value("group").toString(); }
+    QCOMPARE(order.mid(0, 3), (QStringList{ "c", "d", "a" }));
+    QCOMPARE(grp, (QStringList{ "y2025", "y2024", "y2024", "undated", "undated" }));
+    QCOMPARE(l.value("rows").toList().at(1).toMap().value("groupCount").toInt(), 2);
+    QVERIFY(order.mid(3).contains("b") && order.mid(3).contains("e"));
+}
+
+// 0.8.8 Ctrl K 的条目：按原顺序，每个计划后面跟着它有名字的有效站点；站点下标是有效站点里的下标（和地图选中用的一样）
+void TestMap::plansCommandItems()
+{
+    tp::json::Value root = parseJson(R"({"plans":[
+        {"id":"a","name":"关西","status":"planning","startDate":"2026-11-20","endDate":"2026-11-27","stops":[{"name":"无坐标"},{"name":"京都","lat":35,"lng":135},{"lat":34,"lng":135.5},{"name":"奈良","lat":34.6,"lng":135.8}]},
+        {"id":"b","name":"","status":"wish","color":"#123456"}
+    ]})");
+    const QVariantList it = plans::commandItems(root);
+    QCOMPARE(it.size(), 4);
+    QCOMPARE(it[0].toMap().value("kind").toString(), QStringLiteral("plan"));
+    QCOMPARE(it[1].toMap().value("label").toString(), QStringLiteral("京都"));
+    QCOMPARE(it[1].toMap().value("stop").toInt(), 0);
+    QCOMPARE(it[2].toMap().value("label").toString(), QStringLiteral("奈良"));
+    QCOMPARE(it[2].toMap().value("stop").toInt(), 2);        // 没名字的那一站不列，但下标照数
+    QCOMPARE(it[2].toMap().value("planName").toString(), QStringLiteral("关西"));
+    QCOMPARE(it[3].toMap().value("id").toString(), QStringLiteral("b"));
+    QCOMPARE(it[3].toMap().value("color").toString(), QStringLiteral("#123456"));
+    QCOMPARE(it[0].toMap().value("startDate").toString(), QStringLiteral("2026-11-20"));
+}
+
+// ---------------- 0.8.9 站点编辑器（planedit.*） ----------------
+
+void TestMap::planEditRegions()
+{
+    // 和 Electron suggestRegion 逐点对照（tools/claude-kit/region-golden/gen.js 生成）
+    const QJsonArray g = QJsonDocument::fromJson(readFile(QStringLiteral(TP_SOURCE_DIR "/tests/golden/regions.json"))).array();
+    QVERIFY(g.size() > 4000);
+    int bad = 0;
+    for (const QJsonValue &v : g) {
+        const QJsonArray r = v.toArray();
+        const QString want = r[2].isNull() ? QString() : r[2].toString();
+        const QString got = planedit::suggestRegion(r[0].toDouble(), r[1].toDouble());
+        if (got != want && ++bad <= 5) qWarning("区域不一致：%f,%f 期望 %s 实际 %s", r[0].toDouble(), r[1].toDouble(), qUtf8Printable(want), qUtf8Printable(got));
+    }
+    QCOMPARE(bad, 0);
+    // 计划的建议 = 各站区域的并集，按 REGIONS 顺序
+    tp::json::Value p = planedit::blankPlan(QStringLiteral("p_x"), 1);
+    planedit::appendStop(p, planedit::newStop(QStringLiteral("s1"), QStringLiteral("Kyoto"), 35.01, 135.76));
+    planedit::appendStop(p, planedit::newStop(QStringLiteral("s2"), QStringLiteral("Hong Kong"), 22.32, 114.17));
+    QCOMPARE(planedit::suggestPlanRegions(p), QStringList({ QStringLiteral("中国"), QStringLiteral("东亚") }));
+}
+
+void TestMap::planEditValidate()
+{
+    tp::json::Value p = planedit::blankPlan(QStringLiteral("p_x"), 1);
+    planedit::Problems pr = planedit::validate(p);
+    QVERIFY(pr.nameEmpty && pr.noStops && !pr.dateOrder && pr.badCoords.isEmpty());
+    planedit::setField(p, QStringLiteral("name"), QStringLiteral("  "));
+    QVERIFY(planedit::validate(p).nameEmpty);   // 只有空白也算空（Electron p.name.trim()）
+    planedit::setField(p, QStringLiteral("name"), QStringLiteral("关西"));
+    planedit::setField(p, QStringLiteral("startDate"), QStringLiteral("2026-11-27"));
+    planedit::setField(p, QStringLiteral("endDate"), QStringLiteral("2026-11-20"));
+    QVERIFY(planedit::validate(p).dateOrder);
+    planedit::setField(p, QStringLiteral("endDate"), QStringLiteral("2026-11-28"));
+    planedit::appendStop(p, planedit::newStop(QStringLiteral("s1"), QStringLiteral("A"), 10, 20));
+    QVERIFY(planedit::validate(p).ok());
+    planedit::setStopLatLng(p, 0, 91, 20);   // 纬度超出范围
+    pr = planedit::validate(p);
+    QCOMPARE(pr.badCoords, QStringList({ QStringLiteral("s1") }));
+    // 坐标不是数字（手动输入的文字）也算无效
+    p.mutObject().find(QStringLiteral("stops"))->mutArray()[0].mutObject().set(QStringLiteral("lat"), tp::json::Value(QStringLiteral("abc")));
+    QCOMPARE(planedit::validate(p).badCoords.size(), 1);
+}
+
+void TestMap::planEditEdits()
+{
+    tp::json::Value p = planedit::blankPlan(QStringLiteral("p_x"), 1);
+    // newStop：6 位小数、经度归一（Electron addStop：+(+lat).toFixed(6)、normLng）
+    const tp::json::Value s = planedit::newStop(QStringLiteral("s1"), QString(), 35.12345678, 190.0000004);
+    QCOMPARE(s[QStringLiteral("lat")].toNumber(), 35.123457);
+    QCOMPARE(s[QStringLiteral("lng")].toNumber(), -170.0);
+    QVERIFY(!s.asObject().contains(QStringLiteral("order")) && !s.asObject().contains(QStringLiteral("photos")));
+    planedit::appendStop(p, s);
+    planedit::appendStop(p, planedit::newStop(QStringLiteral("s2"), QStringLiteral("B"), 1, 2));
+    planedit::appendStop(p, planedit::newStop(QStringLiteral("s3"), QStringLiteral("C"), 3, 4));
+    // 改进 g：第二站时自动改成路线
+    QVERIFY(planedit::autoRouteOnSecondStop(p));
+    QCOMPARE(p[QStringLiteral("type")].toString(), QStringLiteral("route"));
+    QVERIFY(!planedit::autoRouteOnSecondStop(p));
+    // 挪站点（拖动排序：任意位置）
+    QVERIFY(planedit::moveStop(p, 2, 0));
+    QCOMPARE(p[QStringLiteral("stops")].asArray()[0][QStringLiteral("id")].toString(), QStringLiteral("s3"));
+    QVERIFY(!planedit::moveStop(p, 0, 0));
+    QVERIFY(planedit::removeStop(p, 1));
+    QCOMPARE(int(p[QStringLiteral("stops")].asArray().size()), 2);
+    // 样式：空 = 删掉键（站点）；计划的 color 空字符串照写（Electron p.color = v.color || ''）
+    QVERIFY(planedit::setStyle(p, 0, QStringLiteral("#123456"), QStringLiteral("square"), QStringLiteral("hotel")));
+    QVERIFY(planedit::setStyle(p, 0, {}, {}, {}));
+    QVERIFY(!p[QStringLiteral("stops")].asArray()[0].asObject().contains(QStringLiteral("color")));
+    planedit::setStyle(p, -1, {}, QStringLiteral("pin"), {});
+    QVERIFY(p.asObject().contains(QStringLiteral("color")) && p[QStringLiteral("shape")].toString() == QStringLiteral("pin"));
+    // markerMode：number 删掉
+    QVERIFY(planedit::setField(p, QStringLiteral("markerMode"), QStringLiteral("icon")));
+    QVERIFY(planedit::setField(p, QStringLiteral("markerMode"), QStringLiteral("number")));
+    QVERIFY(!p.asObject().contains(QStringLiteral("markerMode")));
+    // 备注空 = 删掉（站点）
+    planedit::setStopField(p, 0, QStringLiteral("notes"), QStringLiteral("x"));
+    planedit::setStopField(p, 0, QStringLiteral("notes"), QString());
+    QVERIFY(!p[QStringLiteral("stops")].asArray()[0].asObject().contains(QStringLiteral("notes")));
+    QVERIFY(!planedit::setStopField(p, 0, QStringLiteral("schedule"), QStringLiteral("x")));   // 编辑器不管的键不许改
+    // 区域按 REGIONS 顺序、去掉"未分类"
+    planedit::setRegions(p, { QStringLiteral("欧洲"), QStringLiteral("未分类"), QStringLiteral("中国") });
+    QCOMPARE(tp::map::plans::regionsOf(p), QStringList({ QStringLiteral("中国"), QStringLiteral("欧洲") }));
+}
+
+void TestMap::planEditKeepsUnknown()
+{
+    // 真实数据里每个计划：复制 → 改名字 / 挪站点 → 写回，除了改的那几处，别的（交通住宿、消费、行程安排、未知键）都不变
+    tp::json::Value root = parseJson(readFile(QStringLiteral(TP_SOURCE_DIR "/testdata/travel.json")));
+    const tp::json::Array &ps = root[QStringLiteral("plans")].asArray();
+    QVERIFY(ps.size() > 10);
+    int checked = 0;
+    for (int i = 0; i < int(ps.size()); ++i) {
+        tp::json::Value r2 = root;
+        tp::json::Value plan = ps[i];
+        planedit::setField(plan, QStringLiteral("name"), QStringLiteral("改名测试"));
+        const int n = int(plan[QStringLiteral("stops")].asArray().size());
+        if (n > 1) planedit::moveStop(plan, 0, n - 1);
+        QVERIFY(planedit::putPlan(r2, plan));
+        int idx = -1;
+        QVERIFY(planedit::findPlan(r2, plan[QStringLiteral("id")].toString(), &idx));
+        QCOMPARE(idx, i);   // 位置不变
+        // 把改的改回来，整份数据应该和原来一模一样
+        tp::json::Value back = r2[QStringLiteral("plans")].asArray()[i];
+        planedit::setField(back, QStringLiteral("name"), ps[i][QStringLiteral("name")].toString());
+        if (n > 1) planedit::moveStop(back, n - 1, 0);
+        planedit::putPlan(r2, back);
+        QVERIFY2(r2 == root, qPrintable(ps[i][QStringLiteral("name")].toString()));
+        ++checked;
+    }
+    QVERIFY(checked > 10);
+    // 新计划加在最后；删掉
+    tp::json::Value r3 = root;
+    QVERIFY(planedit::putPlan(r3, planedit::blankPlan(QStringLiteral("p_new"), 1)));
+    QCOMPARE(r3[QStringLiteral("plans")].asArray().back()[QStringLiteral("id")].toString(), QStringLiteral("p_new"));
+    QVERIFY(planedit::removePlan(r3, QStringLiteral("p_new")));
+    QVERIFY(r3 == root);
+}
+
+void TestMap::planEditLegsAndStats()
+{
+    tp::json::Value p = planedit::blankPlan(QStringLiteral("p_x"), 1);
+    planedit::setField(p, QStringLiteral("type"), QStringLiteral("route"));
+    planedit::appendStop(p, planedit::newStop(QStringLiteral("a"), QStringLiteral("A"), 35.0, 135.7));
+    planedit::appendStop(p, planedit::newStop(QStringLiteral("b"), QStringLiteral("B"), 34.7, 135.5));
+    planedit::appendStop(p, planedit::newStop(QStringLiteral("c"), QStringLiteral("C"), 34.68, 135.8));
+    // 飞机：没有 leg；改成自驾 → leg.mode = drive
+    QVERIFY(!p[QStringLiteral("stops")].asArray()[0].asObject().contains(QStringLiteral("leg")));
+    QVERIFY(planedit::setLegMode(p, 0, QStringLiteral("drive")));
+    QCOMPARE(p[QStringLiteral("stops")].asArray()[0][QStringLiteral("leg")][QStringLiteral("mode")].toString(), QStringLiteral("drive"));
+    // 算好一段（写 path / dist / time / key），再改成火车：折线清掉
+    QVector<planedit::LegRow> rows = planedit::legRows(p);
+    QCOMPARE(rows.size(), 2);
+    QVERIFY(rows[0].road && !rows[0].computed && !rows[0].key.isEmpty());
+    {
+        tp::json::Object &lo = p.mutObject().find(QStringLiteral("stops"))->mutArray()[0].mutObject().find(QStringLiteral("leg"))->mutObject();
+        lo.set(QStringLiteral("path"), tp::json::Value(QStringLiteral("_p~iF~ps|U_ulLnnqC")));
+        lo.set(QStringLiteral("dist"), tp::json::Value(50000.0));
+        lo.set(QStringLiteral("time"), tp::json::Value(3600.0));
+        lo.set(QStringLiteral("key"), tp::json::Value(rows[0].key));
+    }
+    rows = planedit::legRows(p);
+    QVERIFY(rows[0].computed);
+    planedit::Stats st = planedit::stats(p);
+    QVERIFY(st.hasDrive && !st.approx && st.driveSec == 3600);
+    QVERIFY(std::abs(st.km - (50 + rows[1].straightKm)) < 1e-9);
+    // 挪了站点：key 对不上 → 没算好、算"约"
+    planedit::setStopLatLng(p, 1, 34.6, 135.5);
+    QVERIFY(!planedit::legRows(p)[0].computed);
+    QVERIFY(planedit::stats(p).approx);
+    // 改成飞机：mode 和折线都去掉，leg 空了就删掉
+    QVERIFY(planedit::setLegMode(p, 0, QStringLiteral("flight")));
+    QVERIFY(!p[QStringLiteral("stops")].asArray()[0].asObject().contains(QStringLiteral("leg")));
+    QVERIFY(!planedit::setLegMode(p, 0, QStringLiteral("flight")));
+    // leg 里别的键保留（以后 Electron / 原生加的）
+    planedit::setLegMode(p, 0, QStringLiteral("train"));
+    p.mutObject().find(QStringLiteral("stops"))->mutArray()[0].mutObject().find(QStringLiteral("leg"))->mutObject().set(QStringLiteral("note"), tp::json::Value(QStringLiteral("x")));
+    planedit::setLegMode(p, 0, QStringLiteral("flight"));
+    QCOMPARE(p[QStringLiteral("stops")].asArray()[0][QStringLiteral("leg")][QStringLiteral("note")].toString(), QStringLiteral("x"));
+    // 大圆距离（Electron distKm）
+    QVERIFY(std::abs(planedit::haversineKm(0, 0, 0, 1) - 111.195) < 0.01);
+}
+
+void TestMap::planEditTodayStop()
+{
+    tp::json::Value root = tp::json::Value::object();
+    root.mutObject().set(QStringLiteral("nextTripId"), tp::json::Value(QStringLiteral("p1")));   // "此刻"看的是指定的下次出发
+    tp::json::Value p = planedit::blankPlan(QStringLiteral("p1"), 1);
+    planedit::setField(p, QStringLiteral("name"), QStringLiteral("在路上"));
+    planedit::setField(p, QStringLiteral("type"), QStringLiteral("route"));
+    planedit::setField(p, QStringLiteral("startDate"), QStringLiteral("2026-11-01"));
+    planedit::setField(p, QStringLiteral("endDate"), QStringLiteral("2026-11-10"));
+    planedit::appendStop(p, planedit::newStop(QStringLiteral("a"), QStringLiteral("A"), 1, 1));
+    planedit::appendStop(p, planedit::newStop(QStringLiteral("b"), QStringLiteral("B"), 2, 2));
+    planedit::setStopField(p, 0, QStringLiteral("arriveDate"), QStringLiteral("2026-11-01"));
+    planedit::setStopField(p, 1, QStringLiteral("arriveDate"), QStringLiteral("2026-11-05"));
+    planedit::putPlan(root, p);
+    QCOMPARE(planedit::todayStop(root, QStringLiteral("2026-11-03")).value("name").toString(), QStringLiteral("A"));
+    QCOMPARE(planedit::todayStop(root, QStringLiteral("2026-11-06")).value("name").toString(), QStringLiteral("B"));
+    QVERIFY(planedit::todayStop(root, QStringLiteral("2026-12-01")).isEmpty());   // 不在路上
+}
+
+// ---------------- 0.9.0 地球（globegeom） ----------------
+
+void TestMap::globeProjectPick()
+{
+    using namespace tp::map::globe;
+    View v; v.lat = 35; v.lng = 139; v.dist = 2.5; v.width = 1200; v.height = 800;
+    const tp::map::globe::Camera cam(v);
+    // 相机正下方的点在屏幕正中
+    double sx, sy;
+    QVERIFY(cam.project(toVec(35, 139), &sx, &sy));
+    QVERIFY(std::abs(sx - 600) < 1e-6 && std::abs(sy - 400) < 1e-6);
+    // 北边的点在屏幕上方，东边的在右边（上方向是地轴）
+    QVERIFY(cam.project(toVec(40, 139), &sx, &sy)); QVERIFY(sy < 400);
+    QVERIFY(cam.project(toVec(35, 145), &sx, &sy)); QVERIFY(sx > 600);
+    // 投影 → 拾取 来回一致
+    for (double lat : { 20.0, 35.0, 50.0 })
+        for (double lng : { 125.0, 139.0, 155.0 }) {
+            QVERIFY(cam.project(toVec(lat, lng), &sx, &sy));
+            Vec3 p;
+            QVERIFY(cam.pick(sx, sy, &p));
+            double la, ln;
+            toLatLng(p, &la, &ln);
+            QVERIFY2(std::abs(la - lat) < 1e-6 && std::abs(ln - lng) < 1e-6, qPrintable(QStringLiteral("%1,%2 → %3,%4").arg(lat).arg(lng).arg(la).arg(ln)));
+        }
+    // 屏幕角上（球外）拾取不到；背面的点看不见
+    Vec3 p;
+    QVERIFY(!cam.pick(0, 0, &p));
+    QVERIFY(!cam.facing(toVec(-35, -41)));
+    QVERIFY(cam.facing(toVec(35, 139)));
+    // 墨卡托换算来回一致
+    for (double lat : { -80.0, -10.0, 0.0, 45.0, 85.0 }) QVERIFY(std::abs(latOfMercY(mercY(lat)) - lat) < 1e-9);
+    QCOMPARE(mercX(-180), 0.0);
+    QCOMPARE(lngOfMercX(0.5), 0.0);
+}
+
+void TestMap::globeZoomMapping()
+{
+    using namespace tp::map::globe;
+    View v; v.height = 800;
+    const double f = v.focal();
+    // 来回一致
+    for (double lat : { 0.0, 30.0, 60.0 })
+        for (double z : { 1.0, 3.5, 6.0 }) QVERIFY(std::abs(zoomForDist(distForZoom(z, f, lat), f, lat) - z) < 1e-9);
+    // 屏幕中心比例尺一致：地球上每像素的地面距离 = 平面同级别、同纬度的
+    const double lat = 30, z = 4;
+    const double d = distForZoom(z, f, lat);
+    const double globeMpp = kEarthRadiusM * (d - 1) / f;
+    const double flatMpp = 2 * M_PI * kEarthRadiusM * std::cos(lat * M_PI / 180) / (tp::map::geo::kTile * std::exp2(z));
+    QVERIFY2(std::abs(globeMpp / flatMpp - 1) < 1e-9, qPrintable(QStringLiteral("%1 vs %2").arg(globeMpp).arg(flatMpp)));
+    // 和 Electron 实测（MapLibre GL JS 5.24：球的半径 ≈ 146 × 1.82^(z-1) ÷ cos(纬度)）同一个量级：整个地球看起来的大小差不到 15%
+    const double dz = distForZoom(2.0, f, 0);
+    const double radiusPx = f * std::tan(std::asin(1.0 / dz));
+    const double electron = 146 * std::pow(1.82, 1.0);
+    QVERIFY2(std::abs(radiusPx / electron - 1) < 0.15, qPrintable(QStringLiteral("半径 %1 像素，Electron %2").arg(radiusPx).arg(electron)));
+    // 最远：屏幕中心 100 像素最多约 2000 km（×0.97）；窗口越高越远，有上下限
+    const double dmax = maxDistFor(f);
+    QVERIFY(std::abs(kEarthRadiusM * (dmax - 1) / f * 100 - 1940000) < 1);
+    QVERIFY(maxDistFor(10) == 1.6);
+    QVERIFY(maxDistFor(1e6) == kMaxDistCap);
+}
+
+void TestMap::globeSelectBasics()
+{
+    using namespace tp::map::globe;
+    View v; v.lat = 30; v.lng = 110; v.width = 1600; v.height = 1000;
+    v.dist = distForZoom(2, v.focal(), v.lat);
+    const Selection farS = selectTiles(v);
+    QVERIFY(!farS.tiles.empty());
+    QVERIFY(farS.maxZ <= 4);
+    // 选出来的块互不重叠（没有一块是另一块的祖先）
+    for (const TileId &a : farS.tiles)
+        for (const TileId &b : farS.tiles) {
+            if (a == b || a.z >= b.z) continue;
+            const int d = b.z - a.z;
+            QVERIFY(!((b.x >> d) == a.x && (b.y >> d) == a.y));
+        }
+    // 相机正下方那块一定在
+    auto holds = [](const Selection &s, double lat, double lng) {
+        for (const TileId &t : s.tiles) {
+            const double n = std::exp2(t.z), mx = mercX(lng) * n - t.x, my = mercY(lat) * n - t.y;
+            if (mx >= 0 && mx <= 1 && my >= 0 && my <= 1) return true;
+        }
+        return false;
+    };
+    QVERIFY(holds(farS, 30, 110));
+    // 拉近到 6 级：最细的级别跟着升，正下方的块是最细的那一级附近
+    v.dist = distForZoom(6, v.focal(), v.lat);
+    const Selection nearS = selectTiles(v);
+    QVERIFY2(nearS.maxZ >= 6, qPrintable(QString::number(nearS.maxZ)));
+    QVERIFY(holds(nearS, 30, 110));
+    // 每块在屏幕上不超过阈值（细分到最细一级的除外）：取正下方那块看边长
+    const tp::map::globe::Camera cam(v);
+    for (const TileId &t : nearS.tiles) {
+        if (t.z == 12) continue;
+        const double n = std::exp2(t.z);
+        double ax, ay, bx, by;
+        const Vec3 a = toVec(latOfMercY((t.y + 0.5) / n), lngOfMercX(t.x / n)), b = toVec(latOfMercY((t.y + 0.5) / n), lngOfMercX((t.x + 1) / n));
+        if (!cam.facing(a) || !cam.facing(b) || !cam.project(a, &ax, &ay) || !cam.project(b, &bx, &by)) continue;
+        QVERIFY2(std::hypot(bx - ax, by - ay) <= nearS.usedTilePx * 1.05, qPrintable(QStringLiteral("z%1 %2,%3：%4 像素").arg(t.z).arg(t.x).arg(t.y).arg(std::hypot(bx - ax, by - ay))));
+    }
+}
+
+void TestMap::globeSelectCullsBackside()
+{
+    using namespace tp::map::globe;
+    View v; v.lat = 0; v.lng = 0; v.width = 1600; v.height = 1000; v.dist = 3;
+    const Selection s = selectTiles(v);
+    // 背面（经度 180° 附近、赤道）那几块不选
+    for (const TileId &t : s.tiles) {
+        const double n = std::exp2(t.z);
+        const double west = lngOfMercX(t.x / n), east = lngOfMercX((t.x + 1) / n);
+        QVERIFY2(!(west >= 120 && east <= 180) && !(west >= -180 && east <= -120), qPrintable(QStringLiteral("z%1 %2,%3").arg(t.z).arg(t.x).arg(t.y)));
+    }
+    // 拉得很近时，屏幕外的块不选：块数远小于"整个半球都细分"
+    v.dist = 1.08;
+    const Selection nearS = selectTiles(v);
+    QVERIFY(!nearS.tiles.empty());
+    QVERIFY2(nearS.tiles.size() < 120, qPrintable(QString::number(nearS.tiles.size())));
+}
+
+void TestMap::globeSelectBudget()
+{
+    using namespace tp::map::globe;
+    // 很大的屏幕（4K，设备像素）+ 拉近：超过预算时整体放粗，块数回到预算以内
+    View v; v.lat = 45; v.lng = 10; v.width = 3840; v.height = 2160;
+    v.dist = distForZoom(5, v.focal() / 2, v.lat);
+    SelectOptions o; o.budget = 60;
+    const Selection s = selectTiles(v, o);
+    QVERIFY2(int(s.tiles.size()) <= 60, qPrintable(QString::number(s.tiles.size())));
+    QVERIFY(s.usedTilePx > o.maxTilePx);
+}
+
+// ---- 0.9.5 地球上的内容 ----
+
+void TestMap::globePoleZoomSmooth()
+{
+    // PO 11:02 报的抽搐：中心在 85°、鼠标在中心上方（往极点那边）滚轮放大。照 GlobeItem 的做法一帧帧走（按相机距离插值 +
+    // zoomAnchorCenter），距离要一路变小、中心不乱跳；中心一直不超过 ±85°
+    using namespace tp::map::globe;
+    struct Case { double lat, ax, ay; };
+    for (const Case &c : { Case{ 85, 1000, 150 }, Case{ 85, 800, 450 }, Case{ 85, 300, 700 }, Case{ 84, 1400, 100 }, Case{ -85, 600, 800 }, Case{ 30, 1300, 200 } }) {
+        View v; v.lat = c.lat; v.lng = 10; v.dist = 2.2; v.width = 1600; v.height = 900;
+        const double from = v.dist, to = 1.0 + (from - 1.0) * std::exp2(-0.5);
+        double prevD = v.dist, prevLat = v.lat, prevLng = v.lng;
+        std::vector<std::pair<double, double>> path{ { v.lat, v.lng } };
+        for (int f = 1; f <= 12; ++f) {
+            const double t = 1 - std::pow(1 - f / 12.0, 3);
+            const double d = lerpDist(from, to, t);
+            double lat = v.lat, lng = v.lng;
+            zoomAnchorCenter(v, d, c.ax, c.ay, 85.0, &lat, &lng);
+            v.dist = d; v.lat = lat; v.lng = lng;
+            QVERIFY2(v.dist <= prevD + 1e-12, qPrintable(QStringLiteral("距离回头了：%1 → %2（%3°）").arg(prevD).arg(v.dist).arg(c.lat)));
+            QVERIFY(std::abs(v.lat) <= 85.0 + 1e-9);
+            QVERIFY2(std::abs(v.lat - prevLat) < 15.0, qPrintable(QStringLiteral("纬度跳了 %1°").arg(v.lat - prevLat)));
+            // 中心在球面上每帧挪动的角度（极点附近经度本来就变得快，所以看球心角）
+            const double moved = angleBetween(prevLat, prevLng, v.lat, v.lng) * 180 / M_PI;
+            QVERIFY2(moved < 15.0, qPrintable(QStringLiteral("中心一帧挪了 %1°（%2, %3, %4）").arg(moved).arg(c.lat).arg(c.ax).arg(c.ay)));
+            prevD = v.dist; prevLat = v.lat; prevLng = v.lng;
+            path.push_back({ v.lat, v.lng });
+        }
+        // 中心一路朝终点走、不回头（0.9.4 以前在 85° 来回甩）
+        for (size_t k = 1; k < path.size(); ++k)
+            QVERIFY(angleBetween(path[k].first, path[k].second, v.lat, v.lng) <= angleBetween(path[k - 1].first, path[k - 1].second, v.lat, v.lng) + 1e-9);
+        QVERIFY(std::abs(v.dist - to) < 1e-9);
+    }
+    // 不在极点：以鼠标处为中心，鼠标下的点换距离以后还在原处（误差 < 0.5 像素）
+    View v; v.lat = 30; v.lng = 110; v.dist = 2.0; v.width = 1600; v.height = 900;
+    Vec3 p0;
+    QVERIFY(tp::map::globe::Camera(v).pick(1100, 300, &p0));
+    double lat, lng;
+    QVERIFY(zoomAnchorCenter(v, 1.6, 1100, 300, 85.0, &lat, &lng));
+    View w = v; w.dist = 1.6; w.lat = lat; w.lng = lng;
+    double sx, sy;
+    QVERIFY(tp::map::globe::Camera(w).project(p0, &sx, &sy));
+    QVERIFY2(std::hypot(sx - 1100, sy - 300) < 0.5, qPrintable(QStringLiteral("%1,%2").arg(sx).arg(sy)));
+}
+
+void TestMap::globeLimbFadeAndScale()
+{
+    using namespace tp::map::globe;
+    View v; v.lat = 0; v.lng = 0; v.dist = 3.0; v.width = 1200; v.height = 800;
+    const double hz = horizonAngle(3.0) * 180 / M_PI;   // 约 70.5°
+    QVERIFY(std::abs(hz - 70.528779) < 1e-4);
+    const Limb c = limbOf(v, 0, 0);
+    QCOMPARE(c.fade, 1.0); QCOMPARE(c.scale, 1.0);
+    const Limb edge = limbOf(v, 0, hz - 4);      // 离地平线 4°：一半透明、缩小
+    QVERIFY(edge.fade > 0.3 && edge.fade < 0.7);
+    QVERIFY(edge.scale > kLimbMinScale && edge.scale < 0.8);
+    const Limb back = limbOf(v, 0, hz + 1);
+    QCOMPARE(back.fade, 0.0); QCOMPARE(back.scale, kLimbMinScale);
+    QVERIFY(limbOf(v, 0, hz - 8.01).fade > 0.999);
+    QVERIFY(std::abs(degreesInside(v, 0, 30) - (hz - 30)) < 1e-6);
+}
+
+void TestMap::globeOccludedLifted()
+{
+    using namespace tp::map::globe;
+    View v; v.lat = 0; v.lng = 0; v.dist = 3.0; v.width = 1200; v.height = 800;
+    const tp::map::globe::Camera cam(v);
+    QVERIFY(!cam.occluded(toVec(0, 0)));
+    QVERIFY(cam.occluded(toVec(0, 120)));               // 背面
+    QVERIFY(cam.occluded(toVec(0, 75)));                // 地平线 70.5° 以外的球面点：被挡住
+    QVERIFY(!cam.occluded(toVec(0, 75) * 1.2));         // 抬到 1.2 倍半径：露出来（飞行弧线会探出边缘）
+    QVERIFY(cam.occluded(toVec(0, 100) * 1.05));
+}
+
+void TestMap::globeRoutesLiftAndModes()
+{
+    using namespace tp::map::globe;
+    QCOMPARE(liftHeight(0.0), 0.0);
+    // 上海—东京约 1770 km：弧高 12% ≈ 212 km；很长的段最高 1500 km
+    const double a = 1770.0 / (kEarthRadiusM / 1000.0);
+    QVERIFY(std::abs(liftHeight(a) * kEarthRadiusM / 1000.0 - 212.4) < 0.5);
+    QVERIFY(std::abs(liftHeight(2.0) * kEarthRadiusM / 1000.0 - 1500.0) < 1e-6);
+    const QByteArray json = R"({"version":1,"plans":[
+        {"id":"p1","status":"planning","type":"route","stops":[
+            {"name":"上海","lat":31.23,"lng":121.47,"leg":{"mode":"flight"}},
+            {"name":"东京","lat":35.68,"lng":139.69,"leg":{"mode":"train"}},
+            {"name":"大阪","lat":34.69,"lng":135.50},
+            {"name":"京都","lat":35.01,"lng":135.77}]},
+        {"id":"p2","status":"completed","type":"single","stops":[{"name":"冰岛","lat":64.1,"lng":-21.9}]}]})";
+    TripData t;
+    t.build(parseJson(json));
+    const auto r = buildRoutes(t);
+    QCOMPARE(int(r->plans.size()), 1);   // 单一目的地没有线
+    const RoutePlan &p = r->plans[0];
+    QCOMPARE(p.id, QStringLiteral("p1"));
+    QCOMPARE(p.dash, 1);
+    QCOMPARE(int(p.legs.size()), 3);
+    QCOMPARE(p.legs[0].mode, QStringLiteral("flight"));
+    QVERIFY(p.legs[0].lifted);
+    QCOMPARE(p.legs[1].mode, QStringLiteral("train"));
+    QVERIFY(!p.legs[1].lifted);
+    QCOMPARE(p.legs[2].mode, QStringLiteral("flight"));   // 没填交通方式 = 飞行（和 Electron 一样），也抬起，但很短抬得很低
+    QVERIFY(p.legs[2].lifted);
+    double maxR = 0;
+    for (const Vec3 &v : p.legs[0].pts) maxR = std::max(maxR, v.length());
+    QVERIFY(std::abs((maxR - 1) - liftHeight(p.legs[0].angle)) < 1e-3);
+    for (const Vec3 &v : p.legs[1].pts) QVERIFY(std::abs(v.length() - 1) < 1e-9);   // 火车贴地
+    // 两头在球面上；相邻两点不超过 1°
+    QVERIFY(std::abs(p.legs[0].pts.front().length() - 1) < 1e-9 && std::abs(p.legs[0].pts.back().length() - 1) < 1e-9);
+    for (size_t j = 1; j < p.legs[0].pts.size(); ++j)
+        QVERIFY(std::acos(std::clamp(p.legs[0].pts[j - 1].normalized().dot(p.legs[0].pts[j].normalized()), -1.0, 1.0)) <= 1.0 * M_PI / 180 + 1e-9);
+    QVERIFY(p.legs[0].t.front() == 0.0 && std::abs(p.legs[0].t.back() - 1.0) < 1e-12);
+}
+
+void TestMap::globeScreenRunsCutAtLimb()
+{
+    using namespace tp::map::globe;
+    View v; v.lat = 0; v.lng = 0; v.dist = 3.0; v.width = 1200; v.height = 800;
+    const tp::map::globe::Camera cam(v);
+    // 赤道上从 0° 到 150°：只有地平线（70.5°）以内的那段看得见，最后一点正好在球的边上
+    std::vector<Vec3> pts;
+    for (int i = 0; i <= 150; ++i) pts.push_back(toVec(0, i));
+    std::vector<std::vector<double>> ts;
+    const auto runs = screenRuns(cam, pts, &ts);
+    QCOMPARE(int(runs.size()), 1);
+    QVERIFY(std::abs(ts[0].back() - 70.53) < 0.05);
+    // 边上那一点到屏幕中心的距离 = 球在屏幕上的半径 f / √(d² − 1)
+    const double R = v.focal() / std::sqrt(v.dist * v.dist - 1);
+    QVERIFY(std::abs(std::hypot(runs[0].back().x - 600, runs[0].back().y - 400) - R) < 0.5);
+    // 中间转到背面又转回来的线：分成两段
+    std::vector<Vec3> loop;
+    for (int i = -60; i <= 300; ++i) loop.push_back(toVec(0, i));
+    QCOMPARE(int(screenRuns(cam, loop).size()), 2);
+    // 碰线：线上一点距离 0，离开 10 像素距离 10
+    double sx, sy;
+    QVERIFY(cam.project(toVec(0, 20), &sx, &sy));
+    QVERIFY(distToRuns(runs, sx, sy) < 1e-6);
+    QVERIFY(std::abs(distToRuns(runs, sx, sy + 10) - 10) < 0.2);
+}
+
+void TestMap::globeVehiclePlan()
+{
+    using namespace tp::map::globe;
+    // 屏幕长度：30 px（跳过）、80 px（最短 1.5 秒）、400 px（2.5 秒）、2000 px（最长 5 秒）
+    const VehiclePlan vp = planVehicle({ 30, 80, 400, 2000 });
+    QCOMPARE(int(vp.legs.size()), 3);
+    QCOMPARE(vp.legs[0].leg, 1);
+    QCOMPARE(vp.legs[0].ms, 1500.0);
+    QCOMPARE(vp.legs[1].ms, 2500.0);
+    QCOMPARE(vp.legs[2].ms, 5000.0);
+    QCOMPARE(vp.totalMs, 1500.0 + 300 + 2500 + 300 + 5000 + 1000);
+    int leg; double frac;
+    QVERIFY(vehicleAt(vp, 750, &leg, &frac) && leg == 1 && std::abs(frac - 0.5) < 1e-9);
+    QVERIFY(!vehicleAt(vp, 1600, &leg, &frac) && leg == 1 && frac == 1.0);   // 到站停 0.3 秒
+    QVERIFY(vehicleAt(vp, 1800 + 100, &leg, &frac) && leg == 2 && frac > 0 && frac < 0.1);
+    QVERIFY(!vehicleAt(vp, vp.totalMs - 10, &leg, &frac) && leg == 3);       // 最后停 1 秒
+    QVERIFY(planVehicle({ 10, 20 }).legs.empty());
+    // pointAlong：两头 / 中间
+    RouteLeg l;
+    l.pts = { toVec(0, 0), toVec(0, 10) * 1.1, toVec(0, 20) };
+    l.t = { 0, 0.5, 1 };
+    Vec3 ahead;
+    const Vec3 mid = pointAlong(l, 0.5, &ahead);
+    QVERIFY(std::abs(mid.length() - 1.1) < 1e-9);
+    QVERIFY(ahead.y > mid.y);   // 往东走
+}
+
+// 0.9.7 变形过渡（C1）：变形到 1 时地球的投影和同一级的平面（geo::Camera，和 maplibre 一样的墨卡托）逐像素一样；
+// 瓦片着色器里"切平面上的点 → 透视投影"的算法（这里照着用 CPU 算一遍）也落在同一个位置
+void TestMap::globeMorphMatchesFlat()
+{
+    using namespace tp::map;
+    const double W = 1600, H = 1000;
+    for (const auto &c : { std::array<double, 3>{ 31.2, 121.5, 5.5 }, std::array<double, 3>{ -33.9, 151.2, 6.3 }, std::array<double, 3>{ 64.1, -21.9, 5.5 },
+                           std::array<double, 3>{ 10.0, 179.6, 5.8 }, std::array<double, 3>{ 35.0, 120.0, 2.2 } }) {
+        globe::View v;
+        v.lat = c[0]; v.lng = c[1]; v.width = W; v.height = H;
+        v.dist = globe::distForZoom(c[2], v.focal(), v.lat);
+        v.morph = 1;
+        const globe::Camera cam(v);
+        geo::Camera fc;
+        fc.lat = c[0]; fc.lng = c[1]; fc.zoom = globe::zoomForDist(v.dist, v.focal(), v.lat); fc.width = W; fc.height = H;
+        // 着色器的平面：C + E·dx·w − N·dy·w（w = 2π·cos φ0），透视投影（morph = 0 的相机）
+        globe::View v0 = v; v0.morph = 0;
+        const globe::Camera cam0(v0);
+        const double la = c[0] * M_PI / 180, lo = c[1] * M_PI / 180, w = 2 * M_PI * std::cos(la);
+        const globe::Vec3 C = globe::toVec(c[0], c[1]), E{ -std::sin(lo), std::cos(lo), 0 }, N{ -std::sin(la) * std::cos(lo), -std::sin(la) * std::sin(lo), std::cos(la) };
+        double worst = 0, worstShader = 0;
+        for (int i = -4; i <= 4; ++i)
+            for (int j = -4; j <= 4; ++j) {
+                const double span = 40.0 / std::exp2(c[2] - 1);   // 大约一屏的范围（度）
+                const double lat = std::clamp(c[0] + j * span / 8, -84.0, 84.0), lng = c[1] + i * span / 8;
+                double gx, gy;
+                QVERIFY(cam.project(globe::toVec(lat, lng), &gx, &gy));
+                const geo::Pt fp = fc.pixelFor(lat, lng);
+                worst = std::max(worst, std::hypot(gx - fp.x, gy - fp.y));
+                double dx = globe::mercX(lng) - globe::mercX(c[1]);
+                dx -= std::floor(dx + 0.5);
+                const double dy = globe::mercY(lat) - globe::mercY(c[0]);
+                const globe::Vec3 q = C + E * (dx * w) - N * (dy * w);
+                double sx, sy;
+                QVERIFY(cam0.project(q, &sx, &sy));
+                worstShader = std::max(worstShader, std::hypot(sx - fp.x, sy - fp.y));
+            }
+        QVERIFY2(worst < 0.01, qPrintable(QStringLiteral("%1,%2 z%3：变形终点和平面差 %4 像素").arg(c[0]).arg(c[1]).arg(c[2]).arg(worst)));
+        QVERIFY2(worstShader < 0.05, qPrintable(QStringLiteral("%1,%2 z%3：着色器的平面和平面差 %4 像素").arg(c[0]).arg(c[1]).arg(c[2]).arg(worstShader)));
+        // 变形到一半：在球面和平面之间
+        v.morph = 0.5;
+        const globe::Camera ch(v);
+        double hx, hy, gx0, gy0;
+        QVERIFY(ch.project(globe::toVec(c[0] + 1, c[1] + 1), &hx, &hy));
+        QVERIFY(cam0.project(globe::toVec(c[0] + 1, c[1] + 1), &gx0, &gy0));
+        const geo::Pt fp = fc.pixelFor(c[0] + 1, c[1] + 1);
+        QVERIFY(std::abs(hx - (gx0 + fp.x) / 2) < 1e-6 && std::abs(hy - (gy0 + fp.y) / 2) < 1e-6);
+    }
+}
+
+void TestMap::globeSlerpAndLerp()
+{
+    using namespace tp::map::globe;
+    QVERIFY(std::abs(lerpDist(3.0, 1.5, 0.0) - 3.0) < 1e-12 && std::abs(lerpDist(3.0, 1.5, 1.0) - 1.5) < 1e-12);
+    QVERIFY(std::abs(lerpDist(5.0, 1.25, 0.5) - 2.0) < 1e-12);   // 高度 4 → 0.25 的对数中点 = 1
+    double lat, lng;
+    slerpCenter(0, 170, 0, -170, 0.5, &lat, &lng);           // 跨 180° 走近的那边
+    QVERIFY(std::abs(lat) < 1e-9 && std::abs(std::abs(lng) - 180) < 1e-9);
+    slerpCenter(10, 20, 10, 20, 0.3, &lat, &lng);
+    QVERIFY(std::abs(lat - 10) < 1e-12 && std::abs(lng - 20) < 1e-12);
+    QVERIFY(std::abs(angleBetween(0, 0, 0, 90) - M_PI / 2) < 1e-12);
+}
+
+QTEST_GUILESS_MAIN(TestMap)
+// ---------------- 0.9.3 星空 ----------------
+
+// 固定种子的随机数和 Electron map-app.js seededRand(20261016) 的前 5 个一样（Node 跑出来的）
+void TestMap::skySeededRand()
+{
+    const std::vector<double> got = tp::map::globe::mulberry32(20261016u, 5);
+    const double want[5] = { 0.18689791089855134, 0.5267679621465504, 0.036956520518288016, 0.19033258804120123, 0.27266927040182054 };
+    QCOMPARE(int(got.size()), 5);
+    for (int i = 0; i < 5; ++i) QVERIFY2(got[size_t(i)] == want[i], qPrintable(QStringLiteral("#%1：%2 vs %3").arg(i).arg(got[size_t(i)], 0, 'g', 17).arg(want[i], 0, 'g', 17)));
+}
+
+#include "tst_map.moc"

@@ -1,0 +1,37 @@
+取消选择	Cancel selection
+选择多个计划，一起删除、导出、改状态或隐藏	Select several plans to delete, export, change status or hide them together
+批量操作	Bulk actions
+已选	Selected:
+全不选	Select none
+改状态…	Change status…
+隐藏	Hide
+只在计划库里隐藏（排到最后、变灰），不影响地图和日历	Hide in the library only (moved to the end and greyed out); the map and calendar are not affected
+已改成	changed to
+先保存或取消地图编辑器里的改动	Save or cancel the changes in the map editor first
+计划文件 .trip（对方点"导入计划"）	Plan file .trip (the other person clicks "Import plan")
+分享版文件夹（对方用"打开数据文件夹"查看）	Shareable folder (the other person opens it with "Open data folder")
+方式	How
+合并成一个	Combine into one
+每个计划单独一个	One per plan
+选择把计划文件存到哪个文件夹	Choose a folder for the plan files
+正在打包	Packing
+已导出	Exported
+个计划文件到	plan files to
+个分享版文件夹到	shareable folders to
+失败：	failed:
+找不到文件没带	missing files skipped
+选择…	Choose…
+先保存改动	Save changes first
+换数据文件夹之前，要先把现在没保存的改动存好。	Before switching data folders, unsaved changes need to be saved.
+保存并继续	Save and continue
+没有换成：	Could not switch:
+系统要求	System requirements
+Windows 10 或 Windows 11（64 位），显卡要支持 WebGL。Windows 7 / 8 和 32 位系统不能运行，安装时会提示	Windows 10 or Windows 11 (64-bit) with a graphics card that supports WebGL. Windows 7 / 8 and 32-bit systems can't run it; the installer tells you
+选一个文件夹作为数据文件夹：里面有 data.js 就直接用，没有可以在那里新建空数据	Choose a folder as your data folder: if it has data.js it is used as is; otherwise you can start empty data there
+看过的地图会存在这台电脑上，断网时这些地方还能显示（没看过的退回"已解锁"底图）。只能整个清空，不能按地区删；清空后再看要重新联网下载	Maps you have viewed are kept on this computer, so those places still show when you are offline (places you have not viewed fall back to the "Unlocked" map). It can only be cleared all at once, not by area; after clearing, maps are downloaded again when you view them
+已用：	Used: 
+已用	Used
+上限	limit
+计算中…	calculating…
+读不到	unavailable
+桌面 app 里才能看	only available in the desktop app

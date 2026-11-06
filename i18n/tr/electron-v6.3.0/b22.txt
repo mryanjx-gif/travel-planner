@@ -1,0 +1,6 @@
+路线高亮	Route highlight
+鼠标碰到或选中一条路线时，其他路线要不要变淡	Fade other routes while one is hovered or selected
+以前的样子	As before
+其他路线变淡	Fade other routes
+其他路线变淡，这条更亮	Fade others, brighten this one
+打开时的底图、球形 / 平面、路线高亮、星空动画	Start-up basemap, globe / flat, route highlight, stars

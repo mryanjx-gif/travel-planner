@@ -1,0 +1,60 @@
+回到地图	Back to map
+首页概览	Overview
+首页概览（以前的首页）	Overview (the old home page)
+换回经典侧栏布局	Switch back to the classic sidebar layout
+搜地点、计划，或者去日历、相册…	Search places and plans, or jump to the calendar, album…
+搜索或跳转（Ctrl K）	Search or jump (Ctrl K)
+搜索或跳转	Search or jump
+搜计划、站点、页面，或者输入要做的事	Search plans, stops and pages, or type what you want to do
+没有找到。可以换个词，或者在地图上找。	Nothing found. Try another word, or look on the map.
+菜单：设置、首页概览	Menu: settings, overview
+计划列表 (Ctrl B)	Plan list (Ctrl B)
+计划列表	Plan list
+地图上显示	Show on map
+时间条：点一段看那趟旅行，滚轮或左右箭头看别的时间	Timeline: click a bar to see that trip; scroll or use the arrows to see other dates
+此刻	Now
+展开此刻卡片	Expand the Now card
+收起此刻卡片	Collapse the Now card
+在路上	On the road
+下一次出发	Next trip
+刚回来	Just back
+明天出发	Leaves tomorrow
+今天还没有安排	Nothing planned for today
+今天有	Today:
+项安排	item(s) planned
+今天的行程	Today's plan
+接下来去哪儿？	Where to next?
+还没有排上日期的旅行	No trips with dates yet
+看看想去的地方	Browse your wishlist
+写游记	Write a journal entry
+要做的事	To-dos
+截止	due
+日期已经过了	has ended
+的日期已经过了。标记为"已完成"吗？	has ended. Mark it as "Completed"?
+标记为已完成	Mark as completed
+已经过期	has expired
+今天到期	expires today
+看证件	View documents
+进行中	In progress
+北方向	North
+东北方向	Northeast
+东方向	East
+东南方向	Southeast
+南方向	South
+西南方向	Southwest
+西方向	West
+西北方向	Northwest
+撤销	Undo
+重做	Redo
+页面	Page
+操作	Action
+选择	select
+打开	open
+明天	Tomorrow
+界面布局	Layout
+地图优先	Map first
+经典侧栏	Classic sidebar
+地图优先：没有侧栏，各页面盖在地图上（预览版）；经典：左边侧栏。换了以后界面自动重新加载	Map first: no sidebar, pages open on top of the map (preview). Classic: sidebar on the left. The interface reloads after you switch.
+到期日	expires
+个计划日期已经过了	plans have ended
+去计划库	Open the library

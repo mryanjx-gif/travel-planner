@@ -1,0 +1,38 @@
+改计划	Edit plan
+（没有内容）	(nothing)
+日期 →	Dates →
+没找到要改的计划。先在地图上点开那个计划，再说一次。	Couldn't find the plan to change. Open that plan on the map and ask again.
+先关掉地图上的计划编辑器，再应用（不然编辑器保存时会把这些修改盖掉）	Close the plan editor on the map first, then apply (otherwise saving the editor would overwrite these changes)
+检查这个计划	Check this plan
+补全交通方式	Fill in transport modes
+出发前还差什么	What's left before departure
+从订单生成交通住宿	Bookings from a confirmation
+下一趟还差什么	What's left for my next trip
+最近适合去哪	Where to go soon
+我的计划一览	My plans at a glance
+」，可以直接问，或者让我改。	" — ask anything, or ask me to change it.
+可以问行程、交通、季节，或者让我改某个计划。	Ask about itineraries, transport or seasons, or ask me to change a plan.
+改动会先给你预览，勾选后才写入。	Changes are previewed first and only saved after you tick them.
+本月约 $	This month about $
+所有计划	All plans
+当前计划（地图上选中的计划，或正在进行的旅行）	Current plan (selected on the map, or the trip in progress)
+没有选中计划：AI 看到的是所有计划的简表	No plan selected: the AI sees a summary of all plans
+把订单确认邮件或 PDF 里的文字粘贴到这里	Paste the text of the confirmation email or PDF here
+问点什么	Ask something
+本次约 $	This chat about $
+从订单生成固定用 Haiku	Bookings from a confirmation always use Haiku
+AI 设置	AI settings
+输入	Input
+发送（Enter；Shift+Enter 换行）	Send (Enter; Shift+Enter for a new line)
+Enter 发送 · Shift+Enter 换行	Enter to send · Shift+Enter for a new line
+先在地图上点开要加交通住宿的那个计划，再粘贴订单文字。	Open the plan on the map first, then paste the confirmation text.
+，先显示今天所在的站点：	; showing today's stop instead: 
+，先显示所在地国家（设置 → 我 里可以改）	; showing your home country instead (change it in Settings → Me)
+。可以在 Windows 设置 → 隐私和安全性 → 位置 里打开定位	. You can turn on location in Windows Settings → Privacy & security → Location
+拿不到系统定位	System location unavailable
+没有定位权限（代码 1）	No location permission (code 1)
+系统定位超时（代码 3）	System location timed out (code 3)
+拿不到系统定位（代码	System location unavailable (code
+名字、所在地	Name, home country
+所在地国家	Home country
+地图上"我的位置"拿不到系统定位、又不在旅行中时，先显示这个国家	Shown by "My location" on the map when system location is unavailable and you're not travelling

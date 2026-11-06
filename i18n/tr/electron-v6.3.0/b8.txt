@@ -1,0 +1,64 @@
+自己拍的	Taken by me
+Google 地图	Google Maps
+这个功能要在桌面 app 里用	This only works in the desktop app
+导出分享版	Export a shareable copy
+去掉消费和预算	Remove expenses and budgets
+去掉交通住宿里的订单号、价格和备注	Remove booking numbers, prices and notes from bookings
+去掉待办和行李清单	Remove to-dos and packing lists
+去掉游记	Remove journal entries
+去掉"已解锁"里手动标记的省 / 州	Remove regions marked by hand in "Unlocked"
+没有来源记录的封面也带上（只在确定是自己拍的时候勾）	Also include covers with no source record (only tick this if you took them yourself)
+选文件夹并导出	Choose folder and export
+旅行计划 · 分享版 · 照片署名	Travel Planner · shareable copy · photo credits
+导出时间：	Exported at:
+下面这些照片来自网上，按各自的授权使用，转发时请保留署名。	The photos below come from the web and are used under their own licences. Keep the credits when you pass them on.
+作者：	Author:
+未署名	not credited
+· 授权：	· Licence:
+未知	unknown
+· 来源：	· Source:
+地图数据：省界、国界来自 Natural Earth（公有领域）。街道图 / 浅灰 / 卫星图来自 Esri 在线瓦片，授权条款没有核实，分发前请先确认。	Map data: province and country borders from Natural Earth (public domain). Street / Light grey / Satellite come from Esri online tiles; their licence terms have not been checked, so confirm them before sharing.
+选择导出到哪个文件夹	Choose a folder to export to
+导出失败：	Export failed:
+已导出到	Exported to
+：照片	: photos
+张不能分发的没带	not shareable, left out
+张找不到文件	files not found
+由「旅行计划」生成	Made with Travel Planner
+导出行程单	Export itinerary
+格式	Format
+PDF（A4，适合打印）	PDF (A4, for printing)
+图片（PNG，长图，适合发微信）	Image (PNG, one long picture, for messaging apps)
+包含订单号	Include booking numbers
+导出	Export
+正在生成行程单…	Creating the itinerary…
+行程单	Itinerary
+已保存：	Saved:
+先保存或取消地图编辑器里的改动，再撤销	Save or cancel the changes in the map editor before undoing
+没有可以撤销的了	Nothing left to undo
+没有可以重做的了	Nothing left to redo
+已撤销上一步（已保存）	Undid the last step (saved)
+已重做（已保存）	Redone (saved)
+历史版本	Version history
+每天第一次保存前，自动把当时的数据存一份（在数据文件夹的 .history 里），保留最近 14 天。改坏了可以从这里恢复	Before the first save each day, a copy of the data is kept automatically (in .history in the data folder) for the last 14 days. If something goes wrong, restore it from here
+打算把 app 连数据发给别人时用：可以去掉消费、订单号等私人内容，只带能分发的照片，并附上照片署名	Use this when you give the app and its data to someone else: it can remove private content such as expenses and booking numbers, includes only photos that can be shared, and adds the photo credits
+导出…	Export…
+首页地球	Home globe
+NASA Blue Marble（NASA Goddard Space Flight Center / Visible Earth，公有领域），打包在 app 里	NASA Blue Marble (NASA Goddard Space Flight Center / Visible Earth, public domain), included in the app
+照片署名	Photo credits
+张照片的作者和授权	photos: authors and licences
+展开列表	Show list
+恢复到这一版？	Restore this version?
+数据会换回	The data will go back to
+当天第一次保存之前的样子，之后的改动都会丢掉（现在这一版会先存成 data.backup.js）。恢复后窗口会重新加载。	as it was before the first save that day. Later changes will be lost (the current version is saved as data.backup.js first). The window reloads after the restore.
+恢复	Restore
+恢复失败：	Restore failed:
+还没有历史版本。从这一版起，每天第一次保存时会自动存一份。	No history yet. From this version on, a copy is kept at the first save each day.
+读取失败：	Could not read:
+还没定日期时，日历里拖进来按这个天数算	When there are no dates yet, dragging the plan into the calendar uses this many days
+预计	Est.
+设预计天数	Set estimated days
+把行程存成 PDF 或图片，方便打印、发给同行的人	Save the itinerary as a PDF or an image to print or send to travel companions
+预计天数	Estimated days
+大约几天（不确定可以留空）	About how many days (leave empty if unsure)
+路线简图	Route sketch

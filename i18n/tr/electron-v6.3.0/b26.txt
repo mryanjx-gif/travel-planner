@@ -1,0 +1,8 @@
+在日历里看	Show in calendar
+取消下次出发	Unset next trip
+去看	Go to
+这个计划	This plan
+更多	More
+返回（Esc）	Back (Esc)
+打开愿望清单	Open the wishlist
+打开计划库	Open the library

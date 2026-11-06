@@ -1,0 +1,399 @@
+万	0k
+个	
+中	Medium
+云	Cloud
+共	Total
+分	min
+周	Week
+大	Large
+天	days
+好	Good
+字	chars
+家	Home
+小	Small
+年	Year
+开	On
+张	photos
+把	Move
+按	By
+新	New
+无	None
+月	Month
+有	have
+条	items
+树	Tree
+段	legs
+站	stops
+笔	entries
+第	No.
+等	etc.
+篇	entries
+约	about
+船	Boat
+花	Flower
+蛋	Egg
+计	total
+路	Road
+雪	Snow
+项	items
+鸟	Bird
+…等	… etc.
+上移	Move up
+下移	Move down
+不错	Good
+东亚	East Asia
+个）	)
+中国	China
+书签	Bookmark
+交通	Transport
+今天	Today
+今年	This year
+位置	Location
+住宅	House
+住宿	Stay
+佛寺	Buddhist temple
+保存	Save
+信息	Info
+修改	Edit
+停止	Stop
+停车	Parking
+健走	Nordic walking
+健身	Fitness
+兔子	Rabbit
+入住	Check-in
+全天	All day
+全屏	Full screen
+全选	Select all
+全部	All
+公园	Park
+公寓	Apartment
+关于	About
+关闭	Close
+其他	Other
+内容	Content
+冥想	Meditation
+冰岛	Iceland
+冲浪	Surfing
+出发	Departure
+分类	Category
+分钟	min
+划船	Rowing
+列表	List
+删除	Delete
+别墅	Villa
+到达	Arrival
+前进	Forward
+剧院	Theatre
+加了	Added
+加元	Canadian dollar
+加油	Gas station
+加粗	Bold
+动物	Animals
+区域	Region
+医院	Hospital
+单板	Snowboarding
+南极	Antarctica
+南非	South Africa
+卢布	Russian ruble
+印尼	Indonesia
+印度	India
+厕所	Toilet
+去过	Visited
+取消	Cancel
+只看	Only
+台湾	Taiwan
+合计	Total
+名称	Name
+后退	Back
+周一	Mon
+周日	Sun
+咖啡	Coffee
+商场	Mall
+商店	Shop
+喜欢	Favorite
+回来	Back
+回正	Reset
+回顾	Look back
+图标	Icon
+图钉	Pin
+圆形	Circle
+圆点	Dot
+地图	Map
+地形	Terrain
+地铁	Subway
+坐标	Coordinates
+埃及	Egypt
+城堡	Castle
+城市	City
+备份	Backup
+备注	Notes
+外形	Shape
+外观	Appearance
+大巴	Bus
+天前	days ago
+天数	Days
+天）	days)
+套用	Apply
+套餐	Set meal
+字体	Font
+季节	Season
+学校	School
+完成	Done
+导入	Import
+封面	Cover
+小吃	Snacks
+小时	h
+山峰	Peak
+山景	Mountain view
+峡谷	Canyon
+工作	Work
+已把	Moved
+已花	Spent
+巴士	Bus
+巴西	Brazil
+币种	Currency
+帆船	Sailing
+希腊	Greece
+平面	Flat
+年份	Year
+底图	Basemap
+开始	Start
+引用	Quote
+张，	photos,
+张：	photos:
+归类	Sort
+往前	Earlier
+往后	Later
+待办	To-do
+待定	TBD
+徒步	Walk
+德国	Germany
+想去	Wishlist
+披萨	Pizza
+拉面	Ramen
+拍照	Photo spot
+换汇	Currency exchange
+排序	Sort
+探索	Explore
+插入	Insert
+搜索	Search
+摩托	Motorbike
+攻略	Guide
+放弃	Discard
+教堂	Church
+数据	Data
+斋月	Ramadan
+斐济	Fiji
+方形	Square
+旅程	Trips
+旗帜	Flag
+日元	Japanese yen
+日历	Calendar
+日期	Dates
+日本	Japan
+日程	Schedule
+时间	Time
+昆虫	Insects
+星标	Star
+显示	Show
+晚霞	Sunset
+智利	Chile
+月：	:
+未定	Not set
+本月	This month
+机场	Airport
+机票	Flight
+查找	Find
+查看	View
+标记	Marker
+标题	Title
+森林	Forest
+楷体	KaiTi
+模板	Template
+欧元	Euro
+欧洲	Europe
+正餐	Dining
+步行	Walking
+民宿	Guesthouse
+水杯	Water bottle
+水滴	Pin
+水疗	Spa
+汉堡	Burger
+泉水	Spring
+法国	France
+注意	Note
+泰国	Thailand
+泰铢	Thai baht
+泳池	Pool
+浅灰	Light gray
+浅色	Light
+海浪	Waves
+海滩	Beach
+消费	Spending
+深海	Ocean
+深色	Dark
+添加	Add
+清空	Clear
+温泉	Hot spring
+港口	Port
+港币	Hong Kong dollar
+游记	Journal
+滑冰	Skating
+滑板	Skateboarding
+滑雪	Skiing
+潜水	Diving
+澳元	Australian dollar
+澳门	Macau
+火山	Volcano
+火车	Train
+烈酒	Spirits
+照片	Photos
+状态	Status
+球形	Globe
+瑞士	Switzerland
+生态	Eco
+电车	Tram
+电驴	Scooter
+画廊	Gallery
+目录	Contents
+直线	Straight line
+相册	Album
+相机	Camera
+确定	OK
+离开	Leave
+秘鲁	Peru
+租车	Car rental
+移了	Moved
+移除	Remove
+站点	Stops
+等线	DengXian
+筛选	Filter
+篮球	Basketball
+米饭	Rice
+类型	Type
+精选	Featured
+素色	Plain
+约旦	Jordan
+纸张	Paper
+结束	End
+给「	Set dates for “
+缆车	Cable car
+编辑	Edit
+网址	URL
+置顶	Pin
+美元	US dollar
+美国	United States
+老挝	Laos
+自转	Spin
+自驾	Drive
+船屋	Houseboat
+船票	Ferry ticket
+艺术	Art
+节庆	Festival
+英国	United Kingdom
+英镑	British pound
+药店	Pharmacy
+菱形	Diamond
+蒙古	Mongolia
+虫子	Bugs
+行李	Packing
+行程	Itinerary
+表格	Table
+西亚	West Asia
+西葡	Spain & Portugal
+观景	Viewpoint
+视图	View
+警告	Warning
+计划	Plan
+设置	Settings
+详细	Details
+说明	Description
+购物	Shopping
+赛车	Racing
+超出	Over by
+超大	Extra large
+超市	Supermarket
+越南	Vietnam
+足球	Football
+跑步	Running
+跟随	Follow
+路线	Route
+还剩	Remaining
+还有	more
+退出	Quit
+退房	Check-out
+选中	Selected
+道路	Roads
+酒吧	Bar
+酒店	Hotel
+里有	has
+重试	Retry
+钓鱼	Fishing
+链接	Link
+门票	Ticket
+问题	Problem
+防晒	Sunscreen
+陶土	Clay
+雨具	Rain gear
+雨雪	Rain & snow
+雪橇	Sledding
+雷雨	Thunderstorm
+雾蓝	Mist
+非洲	Africa
+面包	Bakery
+韩元	Korean won
+韩国	South Korea
+音乐	Music
+预算	Budget
+预览	Preview
+颜色	Color
+飞机	Flight
+餐厅	Restaurant
+餐饮	Food
+饮品	Drinks
+首页	Home
+香港	Hong Kong
+骑行	Cycling
+· 约	· about
+…（约	…(about
+」吗？	”?
+」已在	” ended on
+」底图	” basemap
+一周从	Week starts on
+上一年	Previous year
+上一张	Previous
+上一站	Previous stop
+下一年	Next year
+下一张	Next
+下一步	Next
+下一站	Next stop
+下午好	Good afternoon
+不推荐	Not recommended
+东南亚	Southeast Asia
+个区域	regions
+个地点	places
+个旅程	trips
+个计划	plans
+个）。	).
+中午好	Good afternoon
+主导航	Main navigation
+主货币	Main currency
+人民币	Chinese yuan
+今天：	Today:
+体育场	Stadium
+俄罗斯	Russia
+倒计时	Countdown
+先不算	Not now
+先不管	Not now
+写一篇	Write one
+写说明	Add caption
+冰淇淋	Ice cream
+出发地	From
+出租车	Taxi
+分钟）	min)
+加拿大	Canada
+勾选项	Checklist item
+北美洲	North America
+南美洲	South America
+博物馆	Museum
+卫星图	Satellite

@@ -1,0 +1,24 @@
+选择计划	Choose a plan
+原来选的计划已经删除了	The plan you picked has been deleted
+（还没选计划）	(no plan chosen)
+拖到日历上的某一天：从那天开始	Drag onto a day in the calendar to start it on that day
+拖到日历上的某一天	Drag onto a day
+结束：	Ends: 
+移除日期	Remove dates
+清空开始和结束日期，退回右边的「还没定日期」	Clear the start and end dates and move it back to “No dates yet” on the right
+天数要在 1 到 999 之间	Days must be between 1 and 999
+」移除了日期，放回右边的「还没定日期」	” no longer has dates — moved back to “No dates yet”
+」定在	” set for
+，状态改成了「计划中」	, status changed to “Planning”
+」挪到了	” moved to
+交通住宿里的预订日期没有跟着改	Booking dates in Transport & stays were not moved
+条）	)
+（已保存）	 (saved)
+全部展开	Expand all
+全部收起	Collapse all
+展开	Expand
+收起	Collapse
+（正在计算…）	 (calculating…)
+有已完成的计划去过、或在「已解锁」地图里手动标记过	A completed plan went there, or it is marked by hand on the “Unlocked” map
+☆ 精选	☆ Feature
+★ 已精选	★ Featured

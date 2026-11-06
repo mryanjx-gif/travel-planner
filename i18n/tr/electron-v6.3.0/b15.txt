@@ -1,0 +1,15 @@
+动效	Motion
+跟随系统	Follow system
+减少动效	Reduce motion
+玻璃卡片的光斑和倾斜、胶囊的液态分裂、数字滚动、侧栏图标放大这些。"跟随系统"按 Windows 的"动画效果"设置；电脑慢或用电池时可以关	The glow and tilt on glass cards, the liquid split of the capsules, rolling numbers, sidebar icon zoom. "Follow system" uses the Windows animation setting; turn it off on a slow computer or on battery
+搜索或跳转（命令面板）	Search or jump (command palette)
+页面、计划、站点、新建、撤销 / 重做、换布局	Pages, plans, stops, new plan, undo / redo, switch layout
+地图优先布局里是计划列表	The plan list in the map-first layout
+退出 app	Quit the app
+不受"关闭按钮"设置影响，总是真的退出	Always really exits, whatever the close-button setting
+↑ ↓ 选择	↑ ↓ select
+Enter 打开	Enter open
+Esc 关闭	Esc close
+换成经典侧栏布局	Switch to the classic sidebar layout
+换成手账布局	Switch to the journal layout
+只看某一年的旅行	Only trips from one year

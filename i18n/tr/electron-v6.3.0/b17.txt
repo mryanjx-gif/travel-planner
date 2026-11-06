@@ -1,0 +1,12 @@
+关闭设置（Esc）	Close settings (Esc)
+关闭设置	Close settings
+语言、字体、动效、透明效果	Language, font, motion, transparency
+全 app 统一用这一种；思源宋体打包在 app 里，断网也能用	One font for the whole app; Source Han Serif is bundled and works offline
+打包在 app 里（vendor/fonts/noto-serif-sc），断网也能用	Bundled with the app (vendor/fonts/noto-serif-sc), works offline
+思源宋体 = Noto Serif SC（Google / Adobe，SIL Open Font License 1.1，可变字重版，经 Fontsource 5.3.1 切分打包在 app 里，vendor/fonts/noto-serif-sc/；许可全文见同目录 LICENSE）· 微软雅黑、等线、楷体是 Windows 自带字体，不随 app 分发	Source Han Serif = Noto Serif SC (Google / Adobe, SIL Open Font License 1.1, variable-weight build sliced by Fontsource 5.3.1 and bundled in vendor/fonts/noto-serif-sc/; full license in LICENSE there) · Microsoft YaHei, DengXian and KaiTi are Windows system fonts and are not shipped with the app
+界面素材	Interface artwork
+图标、主题背景和装饰都是程序生成或手写 SVG 的原创素材，无第三方授权问题	Icons, backgrounds and decorations are original, generated or hand-written SVG assets with no third-party licensing
+底图：已解锁	Basemap: Unlocked
+底图：街道图	Basemap: Streets
+底图：浅灰	Basemap: Light gray
+底图：卫星图	Basemap: Satellite

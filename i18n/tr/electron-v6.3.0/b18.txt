@@ -1,0 +1,12 @@
+我的位置	My location
+这台电脑不支持定位	This computer does not support location
+定位失败：没有定位权限（Windows 设置 → 隐私和安全性 → 位置，打开"定位服务"和"让桌面应用访问你的位置"）	Location failed: no permission (Windows Settings → Privacy & security → Location: turn on "Location services" and "Let desktop apps access your location")
+定位失败：定位超时	Location failed: timed out
+定位失败：拿不到位置（Windows 的定位服务可能关着，或者这台电脑没有定位来源）	Location failed: no position available (Windows location services may be off, or this computer has no location source)
+计划库 · 回到地图	Plans · Back to map
+日历 · 回到地图	Calendar · Back to map
+相册 · 回到地图	Album · Back to map
+游记 · 回到地图	Journal · Back to map
+愿望清单 · 回到地图	Wishlist · Back to map
+设置 · 回到地图	Settings · Back to map
+计划 · 回到地图	Plan · Back to map

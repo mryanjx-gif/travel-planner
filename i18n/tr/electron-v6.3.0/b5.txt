@@ -1,0 +1,14 @@
+咖啡杯	Coffee cup
+和样式	& style
+正文里插入的照片不会被删除。	Photos inserted in the text won't be deleted.
+，	, 
+。	. 
+：	: 
+（	 (
+）	) 
+、	, 
+「	 “
+」	” 
+；	; 
+？	? 
+！	! 

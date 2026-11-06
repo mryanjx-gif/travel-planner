@@ -1,0 +1,78 @@
+导出成	Export as
+行程单 PDF（A4，适合打印）	Itinerary PDF (A4, for printing)
+行程单图片（PNG 长图，适合发微信）	Itinerary image (one long PNG, for messaging apps)
+计划文件 .trip（对方也装了这个 app，导入后能看、能改）	Plan file .trip (for someone who also has this app; they can view and edit it after importing)
+行程单里包含订单号（计划文件总是包含全部内容，包括消费和订单号）	Include booking numbers in the itinerary (a plan file always includes everything, including spending and booking numbers)
+正在打包…	Packing…
+已导出：	Exported:
+（照片	(photos:
+张找不到文件没带	missing, left out
+不知道	unknown
+最后修改	Last changed
+这个计划已经有了	You already have this plan
+你现在的	Yours now
+导入的	Imported
+覆盖	Replace
+用导入的替换现在的（现在的游记也换成导入的）	Replace yours with the imported one (your journal entries for it are replaced too)
+另存一份	Keep both
+两个都留，导入的名字后面加"（导入）"	Keep both; the imported one gets "(imported)" after its name
+只合并消费和照片	Merge spending and photos only
+各记各的账时用：把对方的消费、同行人、照片和游记加进来，不会重复，也不会丢掉你记的	For when each person keeps their own record: adds their spending, companions, photos and journal entries without duplicates, and keeps everything you recorded
+先保存或取消地图编辑器里的改动，再导入	Save or cancel the changes in the map editor before importing
+导入失败：	Import failed:
+已用导入的计划覆盖	Replaced with the imported plan
+已导入新计划	Imported a new plan
+（导入）	(imported)
+已另存一份	Saved as a separate copy
+已合并：新加	Merged: added
+笔消费	expenses
+当前底图加载失败（可能没联网，或服务方限流、改了政策）。可以换成不用联网的「已解锁」底图。	The base map could not load (maybe you are offline, or the service is limiting requests or changed its policy). You can switch to the offline "Unlocked" map.
+切到已解锁	Switch to Unlocked
+把日历上的计划拖到这里，可以去掉日期	Drag a plan from the calendar here to remove its dates
+松手：去掉日期，放回「还没定日期」	Release to remove the dates and move it to "No dates yet"
+」去掉了日期，放回「还没定日期」（预计	" dates removed, moved to "No dates yet" (est.
+导入别人发来的计划文件（.trip）	Import a plan file (.trip) someone sent you
+导入计划	Import plan
+。打开 app 时自动更新，一天最多一次；没联网时继续用这一版。	. Updated when the app opens, at most once a day; when offline, this version keeps being used.
+地球底图	Globe base map
+NASA Blue Marble 打包在 app 里，断网也能看；其他在线底图要联网。昼夜阴影只在 Blue Marble 和卫星图上显示	NASA Blue Marble is included in the app and works offline; the other maps need the internet. Day and night shading shows only on Blue Marble and Satellite
+NASA Blue Marble（默认）	NASA Blue Marble (default)
+退款	refund
+付款：	Paid by:
+结算（按	Settle up (in
+同行人	Companions
+付了	Paid
+该出	Share
+差额	Balance
+账已经平了，不用转账。	All settled, no transfers needed.
+缺少	Missing
+的汇率，这些消费没算进结算。请到"设置 → 货币与汇率"手动填。	exchange rate; these expenses are left out of the settlement. Enter the rate in "Settings → Currency and rates".
+用到的汇率：	Rates used:
+的汇率，这些消费没算进合计。	exchange rate; these expenses are left out of the total.
+· 同行人：	· Companions:
+改名或删除	Rename or remove
+内容 · 日期	Item · date
+付款人	Paid by
++ 绿色	+ green
+：别人欠他的；	: others owe this person;
+− 红色	− red
+：他欠别人的。每人那一列加起来，就是结算里的差额（换算前）。	: this person owes others. Each person's column adds up to their balance in the settlement (before conversion).
+还没有记账。旅途中随手记，回来就知道钱花在哪了。和别人一起出去时，在"记一笔"里添加同行人，就能分账。	No spending recorded yet. Note it down as you go and you will know where the money went. Travelling with others? Add companions in "Add expense" to split costs.
+名字	Name
+删除这个人	Remove this person
+存成 PDF / 图片，或者导出成计划文件发给也装了这个 app 的人	Save as a PDF or image, or export a plan file for someone who also has this app
+预算不能是负数	The budget cannot be negative
+关联季节表里的一行，就能看到哪几个月适合去	Link it to a row in the season guide to see which months are good
+未关联	Not linked
+分摊加起来是	The shares add up to
+，和金额	, which does not match the amount
+对不上	 
+还没有同行人，只记账不分账	No companions yet: spending is recorded but not split
+已分	Assigned
+每人	each
+金额（退款填负数）	Amount (negative for a refund)
+添加同行人的名字，回车	Add a companion's name, press Enter
+谁付的	Who paid
+为谁付（分摊的人）	Paid for whom (who shares it)
+不平摊，按金额分	Not equal: split by amount
+MapLibre GL JS 5.24.0（BSD-3-Clause）· Electron · Material Symbols（Apache 2.0，打包在 app 里）· fflate 0.8.2（MIT，打包计划文件用）· Noto Serif SC（OFL）	MapLibre GL JS 5.24.0 (BSD-3-Clause) · Electron · Material Symbols (Apache 2.0, included in the app) · fflate 0.8.2 (MIT, for plan files) · Noto Serif SC (OFL)

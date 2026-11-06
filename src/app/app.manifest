@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- 0.8.0：进程的 ANSI 代码页设成 UTF-8（Windows 10 1903 起有效，更早的系统忽略这一项）。
+     maplibre-native 用窄字符（char*）的路径读本地文件（样式文件），中文路径在默认的 GBK 代码页下可能读不到；
+     设成 UTF-8 后窄字符 API 也按 UTF-8 解释路径。Qt 自己用宽字符 API，不受影响。
+     这个文件和 Qt 自动生成的 manifest（asInvoker、longPathAware）由链接器合并。 -->
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings">UTF-8</activeCodePage>
+    </windowsSettings>
+  </application>
+</assembly>

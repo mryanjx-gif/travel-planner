@@ -1,0 +1,24 @@
+今天的安排	Today's schedule
+今天还没有安排，写下第一件事	Nothing planned today. Write the first thing
+你在这里	You are here
+另有	Plus
+个计划还没定日期	plans without dates yet
+回来已经	Back for
+花销还没记	expenses not logged yet
+现在记一笔	Log it now
+打开这趟的照片	Open this trip's photos
+贴一张照片	Add a photo
+贴在本子上的	Pinned in the notebook
+接下来	Up next
+接下来的旅行	Upcoming trips
+还没有排上日期的下一趟	No upcoming trip with dates
+这趟的路线	Route of this trip
+章节	Chapters
+翻到新一页	Turn to a new page
+翻目录	Contents
+翻目录：搜索或跳转（Ctrl K）	Contents: search or jump (Ctrl K)
+换成地图优先布局	Switch to the map-first layout
+手账	Notebook
+手账：各页面放在一本活页手账里，右边是章节标签；地图优先：各页面盖在地图上；经典：左边侧栏。手账和地图优先是预览版，换了以后界面自动重新加载	Notebook: every page sits in a ring-bound notebook with chapter tabs on the right. Map first: pages open on top of the map. Classic: sidebar on the left. Notebook and map first are previews; the interface reloads after you switch.
+天后出发	days to go
+件待办	more to-dos

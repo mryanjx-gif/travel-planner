@@ -1,0 +1,8 @@
+晴白	Clear White
+卫星图（默认）	Satellite (default)
+卫星图和地图页用同一套 Esri 瓦片，要联网；断网或关了在线底图时自动用"已解锁"。昼夜阴影只在卫星图上显示	Satellite uses the same Esri tiles as the map page and needs the internet; when offline or with online maps turned off, "Unlocked" is used. Day/night shading only shows on Satellite
+下次打开 app 时生效	Takes effect next time the app opens
+上面两项只决定打开 app 时用什么；现在就想换，用地图页右上角的图层按钮和"球形 / 平面"。设置里的其他项都是改了马上生效。	These two only decide what the map uses when the app opens; to change it now, use the layer button and "Globe / Flat" on the map page. Every other setting takes effect immediately.
+开了以后不连任何网络服务：地图和首页地球只用"已解锁"；地名搜索、道路路线、汇率、天气、AI 助手都暂停。已经存下来的数据照常用	No online services at all: the map and the home globe use "Unlocked" only; place search, road routes, exchange rates, weather and the AI assistant are paused. Saved data works as usual
+地图页和首页地球的卫星图 / 街道图 / 浅灰	Satellite / Street / Light gray on the map page and the home globe
+Esri（Esri 及其数据提供方）	Esri (Esri and its data providers)

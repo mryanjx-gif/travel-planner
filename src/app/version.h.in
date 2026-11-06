@@ -1,0 +1,4 @@
+// 由 CMake 根据 TP_VERSION 生成，不要手改。
+#pragma once
+
+#define TP_VERSION_STRING "@TP_VERSION@"

@@ -1,0 +1,147 @@
+修改这一条（日期、时间、内容）	Edit this item (date, time, content)
+如 Hilton Darwin	e.g. Hilton Darwin
+张照片都用到了，没有要清理的。	photos are all in use; nothing to clean up.
+手动填的（清空 = 用联网的）	Entered manually (clear = use online)
+把清单模板里还没有的物品加进来	Add items from the template that aren't on the list yet
+最近要出发的几个计划，还剩几天	Upcoming trips and days left
+没有定了日期、还没出发的计划。	No dated trips coming up.
+点右上角「＋ 添加计划」开始。	Click “＋ Add plan” at the top right to start.
+点开填写日期、行程、备注、照片	Open to fill in dates, itinerary, notes, photos
+（照片文件留在原位置，不用挪）	(photo files stay where they are)
+Windows 自带，断网也能用	Built into Windows, works offline
+（计划已删除）	(plan deleted)
+可以在「筛选」里点「全选」恢复。	Click “Select all” in “Filter” to restore.
+在计划库里隐藏（排到最后、变灰）	Hide in library (moved to the end, greyed out)
+地图上不再显示署名，统一列在这里	Credits are listed here instead of on the map
+备注（浏览时点「📝」在左边展开）	Notes (click “📝” while browsing to open on the left)
+已取消保存，改动还在窗口里没丢。	Save cancelled; your changes are still in the window.
+已按站点位置自动选择，可手动调整	Selected automatically from stop locations; adjust as needed
+座位、行李额、地址、取票方式……	Seat, baggage, address, ticket pickup…
+整个界面按比例一起放大 / 缩小	Scales the whole interface
+旅行计划 Travel 0123	Travel Planner 0123
+显示一个计划的路线，或者整个地球	Show one plan's route, or the whole globe
+未保存的改动会丢失，确定关闭吗？	Unsaved changes will be lost. Close anyway?
+比如：办签证、换汇、订租车，回车	e.g. visa, exchange money, book car; press Enter
+签证、保险单（电子版 + 打印）	Visa, insurance (digital + printed)
+请先保存或关闭编辑器，再批量计算	Save or close the editor before batch calculating
+顺时针转 90°，保存到本地文件	Rotate 90° clockwise and save to the file
+；鼠标放在彩色区域上看是哪次去的	; hover a colored area to see which trip
+Windows 自带，比雅黑细一些	Built into Windows, a bit lighter than YaHei
+地图页小面板、计划详情页的行程标签	Map page panel, plan page itinerary tab
+张按拍摄日期 / 位置自动归了类，	photos sorted by date / location,
+按季节表，这个月正合适的计划和愿望	Plans and wishes that fit this month, by season guide
+设置 → 货币与汇率 里可以手动填	You can enter rates in Settings → Currency & exchange rates
+上次用的" = 记住上次在地图页选的	Last used” = what you last picked on the map page
+搜索省 / 州或国家，如：四川、中国	Search a province/state or country, e.g. Sichuan, China
+没有照片。可以用"从电脑添加照片"。	No photos. Use “Add photos from computer”.
+花在哪些地方：分类比例、每次旅行对比	Where the money goes: categories and per-trip comparison
+首页"消费"把所有花费折算成这种货币	Home “Spending” converts everything into this currency
+首页显示的框（点一下添加 / 移除）	Boxes on Home (click to add / remove)
+改动还在窗口里没丢，可以再试一次。	Your changes are still in the window; try again.
+一个指定的计划：封面、倒计时、行程入口	A chosen plan: cover, countdown, itinerary
+你的计划和愿望里，没有这个月正合适的。	None of your plans or wishes fit this month.
+保存失败：没有运行在桌面 app 里。	Save failed: not running in the desktop app.
+如 QF 840 / 动车 D2655	e.g. QF 840 / train D2655
+打开时的底图、球形 / 平面、星空动画	Basemap, globe / flat and stars at startup
+打开这个计划的完整页面（行程、照片等）	Open this plan's full page (itinerary, photos…)
+找不到 vendor/admin.js	vendor/admin.js not found
+"消费"里对应的那一笔也会一起删掉。	The matching “Spending” entry will be deleted too.
+卡片	Cards
+全部照片	All photos
+这个旅程	This trip
+按季节	By season
+搜索图标，例如 徒步、火车、hiking	Search icons, e.g. hiking, train
+还没存过，"从模板添加"会用一份默认清单	Not saved yet; “Add from template” uses a default list
+还没有记账。在计划页的"消费"标签里记。	No expenses yet. Add them in the plan's “Spending” tab.
+连不上路线服务（可能断网或被浏览器拦截）	Can't reach the routing service (offline or blocked)
+。打开 app 时自动更新，一天最多一次。	. Updated automatically when the app opens, at most once a day.
+会转的地球（昼夜阴影），或者一个计划的路线	A spinning globe (day/night), or one plan's route
+区域（可多选；跨区域的计划把涉及的都选上）	Regions (multiple; pick all that apply)
+在菜单"文件"里（按 Alt 显示菜单栏）	In the “File” menu (press Alt to show the menu bar)
+底图、形状的设置下次打开 app 时生效。	Basemap and shape settings take effect next time the app opens.
+把这份清单存成模板，下次其他计划可以直接用	Save this list as a template for other plans
+段没算出来（按直线显示，可在编辑器里重试）	legs failed (shown as straight lines; retry in the editor)
+还没有计划。点右上角「＋ 添加计划」开始。	No plans yet. Click “＋ Add plan” at the top right to start.
+这个计划还没有照片，先在"照片"标签里添加	This plan has no photos yet; add some in the “Photos” tab
+（按乌姆库拉历推算，各国实际可能差一两天）	(Umm al-Qura calendar; may differ by a day or two by country)
+* 由「旅行计划」桌面 app 读取和保存。	* Read and saved by the Travel Planner desktop app.
+修改这一条	Edit this item
+还没有精选。鼠标放在照片上，点右上角的星星。	No featured photos. Hover a photo and click the star.
+首页是空的。点右上角的"＋"选择要显示的框。	Home is empty. Click “＋” at the top right to choose boxes.
+已有的计划也可以在编辑器里把状态改成"想去"。	Existing plans can be set to “Wishlist” in the editor.
+首页显示"晚上好，名字"；空着就只显示"晚上好	Home shows “Good evening, name”; leave empty for just “Good evening
+张（照片自己没有 GPS 时，用所在站点的位置）	(uses the stop's location when a photo has no GPS)
+正在批量计算道路路线，算完再编辑（顶部可以停止）	Calculating road routes; edit when done (stop at the top)
+球形时星星闪烁、偶尔有流星。电脑比较慢时可以关掉	Twinkling stars and meteors on the globe. Turn off on slow computers
+还没有记账。旅途中随手记，回来就知道钱花在哪了。	No expenses yet. Jot them down on the go to see where the money went.
+吗？	?
+此操作无法撤销。照片文件不会被删除。	This can't be undone. Photo files won't be deleted.
+」在日历里隐藏了，右边"在日历里隐藏的"里可以恢复	” is hidden in the calendar; restore it from “Hidden in calendar” on the right
+显示 / 收起右边的「还没定日期」，收起后日历更宽	Show / hide “No dates yet” on the right for a wider calendar
+段自驾/徒步还没按道路算路线，现在地图上先画直线。	drive/walk legs have no road route yet; shown as straight lines.
+网址要以 http:// 或 https:// 开头	URLs must start with http:// or https://
+还没有手动标记。搜索省份或国家，或者直接在地图上点。	No manual marks yet. Search a province or country, or click on the map.
+还没有站点。用上面的搜索、地图点选或手动输入来添加。	No stops yet. Add them with search, map picking or coordinates above.
+还没选备份文件夹（建议选另一块硬盘或网盘同步文件夹）	No backup folder yet (another drive or a cloud-synced folder is best)
+项）替换原来的模板，以后别的计划可以"从模板添加"。	items) replaces the template; other plans can “Add from template”.
+data.js 被别处改过，重新加载可以看到最新数据。	data.js was changed elsewhere; reload to see the latest data.
+坐标无效（纬度 -90~90，经度 -180~180）：	Invalid coordinates (lat -90~90, lng -180~180):
+搜索地名添加，例如 Kyoto、Eiffel Tower	Search a place to add, e.g. Kyoto, Eiffel Tower
+点"想去"新建一个：在地图上选位置，状态默认是"想去"。	Click “Wishlist” to add one: pick a place on the map; status defaults to “Wishlist”.
+点右上角"导入照片"，会按拍摄日期和位置自动归到计划里。	Click “Import photos” at the top right; photos are sorted into plans by date and location.
+计划中的旅行都还没有清单。在计划页的"行李与待办"里加。	No checklists yet. Add them in the plan's “Packing & to-dos”.
+* 不要写成 旅行计划数据/photos/xxx.jpg。	* Don't write 旅行计划数据/photos/xxx.jpg.
+data.js 里还没有季节表（seasonGuide）。	There's no season guide (seasonGuide) in data.js yet.
+已设置的图标要把「路线标记」切到「图标」才会在地图上显示。	Icons only show on the map when “Route markers” is set to “Icon”.
+拖动的位置还没保存：请先修正表单里标红的地方，再点「保存」	The dragged position isn't saved: fix the fields marked in red, then click “Save”
+这个 data.js 是更新版本的 app 写的（数据版本	This data.js was written by a newer app (data version
+打开 app 时，如果离上次备份超过 7 天，就自动备份一次	When the app opens, back up automatically if the last backup is over 7 days old
+样式（颜色也决定从这一站出发那段线的颜色；不设置就跟随计划）	Style (the color also sets the line leaving this stop; empty = same as plan)
+没有未归类的照片。导入时认不出属于哪个计划的照片会放在这里。	No unsorted photos. Photos that can't be matched to a plan on import go here.
+这 12 个月里没有定了日期的计划。可以把右边的计划拖进来。	No dated plans in these 12 months. Drag a plan in from the right.
+* 旅行计划数据文件 —— 由网页自动生成，一般不需要手动改。	* Travel Planner data file — generated automatically, usually no need to edit by hand.
+段自驾/徒步没算出道路路线，暂按直线显示；可以再打开编辑器重试	drive/walk legs have no road route and show as straight lines; reopen the editor to retry
+还没有照片。在相册里点"导入照片"，会按拍摄日期自动归到计划。	No photos yet. Click “Import photos” in the album to sort them into plans by date.
+）。app 需要显卡加速（WebGL）；可以试试更新显卡驱动。	). The app needs graphics acceleration (WebGL); try updating your graphics driver.
+* 位置：数据文件夹（默认 D:/旅行计划数据）/data.js	* Location: data folder (default D:/旅行计划数据)/data.js
+只改界面配色，地图底图不变（底图在地图页右上角的图层按钮里换）。	Only changes the interface colors; switch the basemap with the layers button on the map page.
+张照片会移到 Windows 回收站，需要的话可以从回收站还原。	photos will be moved to the Windows Recycle Bin and can be restored from there.
+），当前 app 可能读不全，保存可能丢字段。请先升级 app。	); this app may not read everything and saving may lose fields. Please update the app.
+data.js 被别处改过。重新加载会丢掉当前窗口里没保存的改动。	data.js was changed elsewhere. Reloading will lose unsaved changes in this window.
+路线标记选了「图标」，但计划和站点都还没设图标，现在会显示成空白标记。	Route markers are set to “Icon” but no icons are set, so markers will be blank.
+在地图上点省份：去过 ↔ 没去过。也可以在这里搜索后打勾。改了自动保存。	Click provinces on the map to toggle visited. You can also search and tick here. Saved automatically.
+地图标记（颜色、外形、图标；路线的站点可在站点的「坐标和样式」里单独改）	Map markers (color, shape, icon; route stops can override under “Coordinates & style”)
+地图库 MapLibre 加载失败（app 安装可能不完整），请重新安装。	The MapLibre map library failed to load (the install may be incomplete). Please reinstall.
+图标字体没加载到（可能断网），现在选了也会先显示成圆点，联网后自动显示图标。	The icon font didn't load (offline?); icons show as dots until you're online.
+点"写一篇"，或者在计划页的"游记"标签里写。正文里可以插入那个计划的照片。	Click “Write one”, or write in a plan's “Journal” tab. You can insert that plan's photos.
+只是从计划里去掉，照片文件还留在数据文件夹的 photos 里（不会删文件）。	Only removed from the plan; the file stays in the data folder's photos (not deleted).
+显示在"旅行计划 vX.Y.Z"后面，留空就只显示"旅行计划 vX.Y.Z"。	Shown after “Travel Planner vX.Y.Z”; leave empty to show only that.
+每次在里面新建"旅行计划备份-日期-时间"，复制 data.js 和全部照片。	Each backup creates a dated folder with data.js and all photos.
+还没有游记。可以按天写，也可以一篇写完整个旅程；正文里可以插入这个计划的照片。	No journal yet. Write by day or one entry for the whole trip; you can insert this plan's photos.
+* 照片路径写成 photos/xxx.jpg（相对于本文件所在的资源文件夹），	* Write photo paths as photos/xxx.jpg (relative to this file's folder),
+结束日期按站点数先估了一个，改成实际的就行。站点各自的到达/离开日期不会改。	The end date is estimated from the number of stops; adjust it. Stop dates won't change.
+张没认出来（没有拍摄信息，或日期、位置对不上任何计划），先放"未归类"。可以逐张改。	photos weren't matched (no metadata, or date/location matches no plan) and went to “Unsorted”. You can fix them one by one.
+手动填了就一直用手动的，清空后恢复用联网的。计划自己的币种在计划页"消费"标签里改。	Manual rates always win; clear to use online rates. A plan's own currency is set in its “Spending” tab.
+「取消」：先不保存。可以按 F5 重新加载看最新数据，但当前窗口里没保存的改动会丢失。	“Cancel”: don't save now. You can reload to see the latest data, but unsaved changes in this window will be lost.
+自转：整个地球慢慢转；所在地：放大到你所在的国家。都有按当前时间的昼夜阴影，可以拖着转	Spin: the whole globe turns slowly; Home country: zooms to your country. Both show day/night shading and can be dragged
+还没有记录。订好机票、酒店后点上面的按钮记一下：时间、订单号、费用都放在这里，出发前一页看全。	No records yet. After booking flights or hotels, add them above: times, booking refs and costs, all on one page.
+这个计划有多个站点，但类型是「单一目的地」，地图上会画成多个独立标记而不是路线。要改成「路线」吗？	This plan has several stops but its type is “Single destination”, so they show as separate markers. Change it to “Route”?
+回到正北朝上	North up
+。可能是没联网，或浏览器拦截了本地文件发出的跨域请求。你可以改用「在地图上点选」或「手动输入坐标」。	. You may be offline. Try “Pick on map” or “Enter coordinates” instead.
+这个计划还没有照片。点"添加照片"：会读照片的拍摄时间和位置，自动放进对应的站点，导入前可以逐张改。	No photos in this plan yet. “Add photos” reads date and location and puts each photo at the right stop; you can adjust before importing.
+此操作无法撤销。计划里引用的照片文件不会被删除，需要你自己到 photos 文件夹里清理。	This can't be undone. Photo files used by the plan won't be deleted; clean them up in the photos folder yourself.
+app 打开之后，数据文件夹里的 data.js 被其他程序改过（比如另一个 Claude 会话）。	After the app opened, data.js in the data folder was changed by another program (e.g. another Claude session).
+还没定日期	No dates yet
+当前底图加载失败（可能是服务方限流、改了政策，或不允许本地网页跨域读取瓦片）。点右上角图层按钮换一个底图试试。	The basemap failed to load (rate limits or policy changes). Try another basemap from the layers button.
+年份	Year
+主题 ·	Theme ·
+「仍然保存」：用当前窗口里的数据覆盖，别处的改动会丢失（被覆盖的那一版会存成 data.backup.js）。	“Save anyway”: overwrite with this window's data; the other changes are lost (the overwritten version is kept as data.backup.js).
+标题	Title
+纬度	Lat
+经度	Lng
+删掉计划以后，照片文件还留在 photos 文件夹里。这里找出 data.js 里已经没用到的照片，确认后移到回收站（可以恢复）	Deleted plans leave photo files in the photos folder. Find photos data.js no longer uses and move them to the Recycle Bin (restorable)
+未能读取数据文件夹里的 data.js（文件缺失或格式错误），已按空数据启动。此时保存会覆盖原文件，请先确认（菜单：文件 → 打开数据文件夹）。	Couldn't read data.js in the data folder (missing or invalid); started with empty data. Saving now would overwrite it — check first (File → Open data folder).
+写攻略：注意事项、想吃的店、交通、门票、链接……	Write a guide: tips, places to eat, transport, tickets, links…
+# 大标题、## 小标题、- 列表、- [ ] 勾选项、**加粗**，网址会自动变成链接。	# heading, ## subheading, - list, - [ ] checkbox, **bold**; URLs become links.
+开始写……	Start writing…
+空一行 = 新段落。插入的照片单独占一行。	Blank line = new paragraph. Inserted photos sit on their own line.
