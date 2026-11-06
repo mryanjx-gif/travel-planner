@@ -125,6 +125,7 @@ void runPages(Report &r, AppController *app, map::MapController *mapc, QQuickWin
                 QStringLiteral("左下胶囊只有\"筛选\"（没有\"也显示\"、图例）"));
         QQuickItem *fb = item(win, "filterButton");
         QQuickItem *menu = item(win, "filterMenu");
+        waitStill(pill, 1500);   // 上面关了列表 / 此刻卡片，胶囊正往左滑（0.25 秒）；滑到位再点，不然点空
         click(win, fb);
         waitFor([menu] { return menu && menu->property("open").toBool() && menu->opacity() > 0.95; }, 1500);
         QQuickItem *ov = item(win, "overlayCheck");

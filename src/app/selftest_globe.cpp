@@ -138,14 +138,23 @@ void runSky(Report &r, AppController *app, QQuickWindow *win, GlobeItem *globe)
         const QRectF box(mid.x() - 60, mid.y() - 60, 120, 120);
         globe->setNightLights(true);
         waitFrames(win, 3);
-        const QColor on = avgColor(win->grabWindow(), box, dpr);
+        const QImage imgOn = win->grabWindow();
         globe->setNightLights(false);
         waitFrames(win, 3);
-        const QColor off = avgColor(win->grabWindow(), box, dpr);
+        const QImage imgOff = win->grabWindow();
         globe->setNightLights(true);
-        r.check(on.red() - off.red() >= 3 && on.red() - off.red() > on.blue() - off.blue(),
+        // 比最亮那个像素，不比平均：平均值看这一块里城市占多大（哪个城市最黑随时间变），墨西哥城只亮 2 级，开罗、上海亮得多
+        const QRect pr = QRectF(box.x() * dpr, box.y() * dpr, box.width() * dpr, box.height() * dpr).toAlignedRect().intersected(imgOn.rect());
+        QColor on, off;
+        int peak = -999;
+        for (int y = pr.top(); y <= pr.bottom(); ++y)
+            for (int x = pr.left(); x <= pr.right(); ++x) {
+                const QColor a = imgOn.pixelColor(x, y), b = imgOff.pixelColor(x, y);
+                if (a.red() - b.red() > peak) { peak = a.red() - b.red(); on = a; off = b; }
+            }
+        r.check(peak >= 10 && peak > on.blue() - off.blue(),
                 QStringLiteral("夜里的城市有灯光（暖黄）"),
-                QStringLiteral("%1（太阳高度 %2°），中间 120×120：开 %3，关 %4").arg(c.value(2).toString()).arg(c.value(3).toDouble(), 0, 'f', 0)
+                QStringLiteral("%1（太阳高度 %2°），中间 120×120 里变化最大的像素：开 %3，关 %4").arg(c.value(2).toString()).arg(c.value(3).toDouble(), 0, 'f', 0)
                     .arg(rgbText(on), rgbText(off)));
     }
     // 6. 大气光晕跟着太阳（PO 选 Q1 B）：晨昏线竖在中间、白天在右边，右边球外的光晕比左边（夜里）蓝得多
@@ -237,11 +246,13 @@ void runSwitch(Report &r, map::MapController *mapc, QQuickWindow *win, GlobeItem
         mapc->wheel(-120, win->width() / 2.0, win->height() / 2.0);   // 5.6 → 5.1
         waitMapIdle(win, mapc, 1500);
         const bool stillFlat = !win->property("globeMode").toBool();
+        const bool kept = globe->property("active").toBool() && globe->lightsReady() && globe->morph() == 0;   // 0.9.8：摊平后留着，不用重建
         mapc->wheel(-120, win->width() / 2.0, win->height() / 2.0);   // 5.1 → 4.6：卷回
         const bool back = waitFor(onGlobe, 5000);
         QObject::disconnect(c);
         const double gz = globe->zoomLevelEquivalent();
         r.check(mapc->autoGlobe() || back, QStringLiteral("自动摊平后平面知道\"图层是地球\"（autoGlobe）"));
+        r.check(kept, QStringLiteral("摊平后地球的显存留着（城市灯光还在、回到球），卷回不用重建（0.9.8）"));
         r.check(stillFlat && back && std::abs(gz - 4.6) < 0.1 && std::abs(globe->centerLat() - 31.2) < 0.1,
                 QStringLiteral("平面上缩到 5 级以下卷回地球（5.0–5.5 之间不来回切）"),
                 QStringLiteral("5.1 级时%1；卷回 %2，地球 %3 级（应 4.6），中心 %4, %5%6").arg(stillFlat ? QStringLiteral("还是平面") : QStringLiteral("已经卷回"))

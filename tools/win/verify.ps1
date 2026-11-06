@@ -21,7 +21,7 @@ $Log = Join-Path $Root '验证-结果.txt'
 $Pages = @(
     'street|zh',
     'globe|zh', 'morph-half|zh', 'morph-flat|zh', 'morph-ref|zh',
-    'filter|zh', 'filter-overlay|zh', 'filter-overlay|en',
+    'filter|zh', 'filter-overlay|zh', 'filter-overlay-sat|zh', 'filter-overlay|en',
     'street|zh|hide'
 )
 $Logs = Join-Path $env:LOCALAPPDATA 'TravelPlannerNative\logs'

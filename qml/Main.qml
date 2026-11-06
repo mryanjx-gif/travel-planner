@@ -25,6 +25,8 @@ Window {
     Binding { target: Fmt; property: "en"; value: app.lang === "en" }
 
     property bool globeMode: false
+    onGlobeModeChanged: globeMode ? globeHold.stop() : globeHold.restart()
+    Timer { id: globeHold; interval: 60000 }   // 离开地球后留多久（见 GlobeItem 的 active）
     // ---- 0.8.9 窄窗口（S-15，Electron mapfirst.css / shell.css / base.css 的断点）----
     // > 1100 完整；≤ 1100 ⋯ 不显示页名、头像菜单加页面入口；≤ 900 边距 10、"新建计划"只剩 ＋、设置面板占满宽度；
     // ≤ 768 简易面板 / 编辑器变成底部抽屉（PO 选方案 B，上半截留给地图）；≤ 640 ↩ 只剩图标（原生版本来就是图标）
@@ -463,7 +465,9 @@ Window {
             opacity: win.globeFade
             // 0.8.6：离开地球后多留一帧（看不见），让它把显卡上的大纹理换掉；active 只看透明度，不看 visible
             visible: opacity > 0.001 || releasePending
-            active: win.globeMode || opacity > 0.001
+            // 0.9.8：图层还是地球时（自动摊平、编辑器）留 60 秒不放显存，卷回不用重建（重建一次主线程卡约 0.5 秒）；换了别的图层马上放
+            active: win.globeMode || opacity > 0.001 || (mapc.globeLayer && globeHold.running && (!testRun || win.morphTest))
+            onOpacityChanged: if (opacity <= 0.001 && !win.globeMode && morph !== 0) setMorph(0)   // 留着时也回到球（平面的 autoGlobe 要看）
             mapController: mapc
             // 0.9.3 空闲自转（C7）：动效开着、在地图页、地球、没在编辑、窗口没最小化；截图 / 自检时不自己转（自检里单独测）
             // 0.9.5：选中了计划、鼠标停在标记上时也不转（免得把正在看的计划转走）
@@ -2073,7 +2077,7 @@ Window {
         else if (shotPage === "layers" || shotPage === "layers-sat") { mapc.base = shotPage === "layers" ? "street" : "sat"; layersShot.start() }
         else if (shotPage === "tilefail") { mapc.base = "street"; mapc.demoTileBanner() }
         else if (shotPage === "unlock-edit" || shotPage === "unlock-search") { mapc.base = "unlock"; unlockShot.start() }
-        else if (shotPage === "now" || shotPage === "sheet" || shotPage === "filter" || shotPage === "filter-overlay") planShot.start()
+        else if (shotPage === "now" || shotPage === "sheet" || shotPage === "filter" || shotPage.startsWith("filter-overlay")) planShot.start()
         else if (shotPage === "bubbles" || shotPage === "list" || shotPage === "palette" || shotPage === "menu") shellShot.start()
         else if (shotPage.startsWith("editor") || shotPage.startsWith("narrow") || shotPage === "locate" || shotPage === "controls") editShot.start()
         else if (shotPage.startsWith("mode-") || shotPage === "modes" || shotPage === "modes-narrow" || shotPage === "ledger") modeShot.start()
@@ -2086,7 +2090,7 @@ Window {
         id: planShot
         interval: 2000
         onTriggered: {
-            mapc.base = "street"
+            mapc.base = shotPage === "filter-overlay-sat" ? "sat" : "street"
             if (shotPage === "now") {
                 const d = plans.demo()
                 if (d.planId === undefined) { console.warn("截图 now：数据里没有带日期的路线"); return }
@@ -2101,7 +2105,7 @@ Window {
             } else {
                 // 0.9.7：filter = 计划模式只画计划中的、打开筛选下拉（最下面是"叠上其他旅程"）；filter-overlay = 再把它打开
                 plans.setTestAllStatuses(false)
-                if (shotPage === "filter-overlay") plans.setOverlay(true)
+                if (shotPage.startsWith("filter-overlay")) plans.setOverlay(true)
                 filterMenu.open = true
             }
         }
