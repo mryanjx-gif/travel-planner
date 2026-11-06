@@ -49,6 +49,42 @@ Window {
     readonly property var fullPageKeys: ["calendar", "journal", "ledger"]
     readonly property bool onMapPage: modeKeys.indexOf(nav.page) >= 0
     readonly property bool fullPageOpen: fullPageKeys.indexOf(nav.page) >= 0
+    // 0.10.0 完整计划页（S-02）：nav 的页面 "trip"，参数 { id }。地图还在后面露着、照常能拖；mapLive = 地图正显示着（模式页或计划页）
+    readonly property bool tripOpen: nav.page === "trip"
+    readonly property bool mapLive: win.onMapPage || win.tripOpen
+    property string tripId: ""
+    property int tripStop: -1
+    // 窗口太窄、计划页盖满时地图不让位，± 和图层也藏起来
+    readonly property bool tripRoom: win.width - planPanel.width - 2 * win.gap >= Theme.px(260)
+    function openTrip(id, stop) {
+        if (editor.open) { toast.show(qsTr("请先完成或放弃当前编辑"), false); return }
+        win.nowOpen = false
+        win.tripStop = stop === undefined ? -1 : stop
+        nav.go("trip", { id: id })
+    }
+    // Electron mapfirst.js onPage / follow：打开时地图只画这一条、框住它；关掉回到地图时打开它的简易面板
+    function syncTrip() {
+        const id = win.tripOpen ? (nav.params.id || "") : ""
+        if (id === win.tripId) return
+        const old = win.tripId
+        win.tripId = id
+        planPage.show(id)
+        plans.setSolo(id)
+        win.updateInsets()
+        if (id !== "") {
+            planPanel.resetView()
+            if (!planPage.info.id) return
+            plans.noteRecent(id)
+            const stop = win.tripStop
+            win.tripStop = -1
+            mapc.markers.selectPlan(id, stop, false)
+            mapc.flyToPlan(id)
+            if (stop >= 0) planPanel.jumpTo(stop)
+        } else if (old !== "") {
+            if (win.onMapPage && !editor.open) win.revealToast(plans.openPlan(old, false))
+            else mapc.markers.clearSelection()
+        }
+    }
     function goPage(p) {
         if (p === "map") p = plans.mode
         // 编辑器开着时不换模式（换过去这条计划可能不在地图上）
@@ -83,7 +119,7 @@ Window {
     }
 
     // 出错报告里的"页面"（0.5.1）：以后各页面做出来后在这里补
-    Binding { target: errors; property: "page"; value: win.photoTestOpen ? "photo-test" : win.settingsOpen ? "settings" : win.fullPageOpen ? nav.page : (win.globeMode ? "globe" : "map-" + plans.mode) }
+    Binding { target: errors; property: "page"; value: win.photoTestOpen ? "photo-test" : win.settingsOpen ? "settings" : win.tripOpen ? "trip" : win.fullPageOpen ? nav.page : (win.globeMode ? "globe" : "map-" + plans.mode) }
 
     // 开发版：故意制造一个 QML 里的 JS 错误（TypeError），实测出错小框
     function devThrow() {
@@ -120,7 +156,7 @@ Window {
     property string lastEditId: ""
     property string finishedId: ""
     // 变形要平面地图在（交接给它）、动效开着；不然直接淡入淡出
-    function morphAllowed() { return Theme.motion && win.onMapPage && win.map !== null }
+    function morphAllowed() { return Theme.motion && win.mapLive && win.map !== null }
     function normLng(l) { return ((l + 540) % 360 + 360) % 360 - 180 }
     // 地球 → 平面：终点 (lat, lng, zoom)；then = 平面接手后接着做的事
     function flatten(lat, lng, zoom, then) {
@@ -218,7 +254,7 @@ Window {
     Binding {
         target: mapc
         property: "autoGlobe"
-        value: mapc.globeLayer && !win.globeMode && win.onMapPage && !editor.open && !globe.morphing && globe.morph === 0
+        value: mapc.globeLayer && !win.globeMode && win.mapLive && !editor.open && !globe.morphing && globe.morph === 0
                && win.map !== null && (!testRun || win.morphTest)
     }
     // 编辑器关掉后回到地球（B4，PO 选 B）：卷回地球、对着刚编辑的计划（最近 5 级、让开面板）；没有这个计划（新建后放弃）时回到打开前的视角
@@ -327,7 +363,7 @@ Window {
         const t0 = perf.now()
         plans.setMode(m)
         perf.mark("换模式（直接换）", perf.now() - t0)
-        if (!win.globeMode && win.onMapPage && win.map) win.map.fadeInMarkers()
+        if (!win.globeMode && win.mapLive && win.map) win.map.fadeInMarkers()
     }
     // 图层泡泡、Ctrl K 选底图（0.9.2 图层合并）：地球 = 进地球（地球只有卫星图，平面底图也换成卫星图）；
     // 另外三种 = 平面上的这种底图（在地球上时回到平面）。选了什么记进设置，下次打开还是它
@@ -351,6 +387,7 @@ Window {
     Connections {
         target: nav
         function onChanged() {
+            win.syncTrip()
             if (!win.onMapPage || nav.page === plans.mode) return
             if (editor.open) { toast.show(qsTr("请先完成或放弃当前编辑"), false); nav.go(plans.mode); return }
             win.applyMode(nav.page)
@@ -428,7 +465,7 @@ Window {
             objectName: "flatVehicle"
             mapController: mapc
             dpr: win.screen ? win.screen.devicePixelRatio : 1
-            allowed: Theme.motion && !win.globeMode && win.onMapPage && win.map !== null && !win.map.unlock && win.visibility !== Window.Minimized
+            allowed: Theme.motion && !win.globeMode && win.mapLive && win.map !== null && !win.map.unlock && win.visibility !== Window.Minimized
         }
         Image {
             id: flatVehicleImg
@@ -456,7 +493,7 @@ Window {
             centerLng: globe.centerLng
             distance: globe.distance
             // 星星闪、流星（Electron noAnim：系统减少动态效果 / 设置里关了星空动画）；窗口最小化、不在地图页时停下
-            animate: Theme.motion && app.spaceAnim && win.globeMode && win.onMapPage && win.visibility !== Window.Minimized
+            animate: Theme.motion && app.spaceAnim && win.globeMode && win.mapLive && win.visibility !== Window.Minimized
         }
         GlobeItem {
             id: globe
@@ -476,7 +513,7 @@ Window {
             // 0.9.7 自动摊平：放大越过 5.5 级发 flattenRequested（截图 / 自检时不自动，除非自检要测）
             autoFlatten: win.globeMode && !editor.open && (!testRun || win.morphTest)
             // 0.9.5 交通小图标（G1）：动效开着、在地球上、在地图页
-            vehicleAllowed: Theme.motion && win.globeMode && win.onMapPage && win.visibility !== Window.Minimized
+            vehicleAllowed: Theme.motion && win.globeMode && win.mapLive && win.visibility !== Window.Minimized
 
             // 拖动：抓住的地方跟着鼠标走，松手有惯性（和平面一样）
             DragHandler {
@@ -663,6 +700,7 @@ Window {
     // 单独的地球 / 平面按钮去掉，PO 2026-11-06）、± ----
     // 设置面板、简易面板开着时往左让开
     readonly property real rightColX: win.width - win.gap - (win.settingsOpen ? settings.width + win.gap
+                                                        : win.tripOpen ? planPanel.width + win.gap
                                                         : win.drawerMode ? 0
                                                         : win.editorShown ? planEditor.width + win.gap
                                                         : win.sheetOpen ? planSheet.targetW + win.gap : 0)
@@ -672,7 +710,7 @@ Window {
         x: win.rightColX - width
         y: win.topH + 2
         z: 15
-        visible: !win.photoTestOpen
+        visible: !win.photoTestOpen && (!win.tripOpen || win.tripRoom)
         backdrop: scene
         bases: win.bases
         current: win.layerKey
@@ -689,7 +727,7 @@ Window {
         x: win.rightColX - width
         y: layers.y + layers.btnSize + 10
         z: 15
-        visible: win.mapShown   // 0.9.0：地球上也有 ±（Electron 球形时也有）；0.9.5 起 mapShown 含地球
+        visible: win.mapShown || (win.tripOpen && win.tripRoom)   // 0.9.0：地球上也有 ±（Electron 球形时也有）；0.9.5 起 mapShown 含地球
         Behavior on x { NumberAnimation { duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
         GlassPanel {
             anchors.fill: parent
@@ -875,6 +913,7 @@ Window {
         info: plans.now
         onCloseRequested: win.nowOpen = false
         onShowOnMap: (id) => win.showPlanOnMap(id)
+        onOpenTrip: (id, stop) => win.openTrip(id, stop)
         onUnsetNext: { win.nowOpen = false; plans.setNextTrip(plans.now.planId, false) }
         onMarkDone: (id, name) => { planConfirm.ask("done", id, name) }
     }
@@ -962,6 +1001,7 @@ Window {
         onToggleNext: (id, on) => { if (plans.setNextTrip(id, on)) toast.show(on ? qsTr("已设为下次出发") : qsTr("已取消下次出发"), false) }
         onDeleteRequested: (id, name) => planConfirm.ask("delete", id, name)
         onEditRequested: (id) => win.editPlan(id)
+        onFullRequested: (id) => win.openTrip(id, mapc.markers.focusStop)
     }
     // 抽屉的把手（简易面板；编辑器自己带）：拖动改高矮，双击在一半 / 大半之间切换
     DrawerGrip {
@@ -1096,6 +1136,10 @@ Window {
 
     // 浮在地图上的东西挡住的边距（S-05）：飞过去、框住、平移站点时让开
     function updateInsets() {
+        if (win.tripOpen) {
+            mapc.setInsets(0, win.topH, win.tripRoom ? planPanel.width + win.gap : 0, 0)
+            return
+        }
         const side = !win.drawerMode && (win.sheetOpen || win.editorShown)
         const drawer = win.drawerMode && (win.sheetOpen || win.editorShown)
         mapc.setInsets(Math.max(nowCard.visible && win.width > 1100 ? nowCard.x + nowCard.width : 0,
@@ -1380,6 +1424,79 @@ Window {
     Connections {
         target: errors
         function onPopup(code, message, report) { errModel.insert(0, { code: code, message: message, report: report }) }
+    }
+
+    // ---- 0.10.0 完整计划页（右侧，宽 ≤ 820）----
+    // 面板开着时地图压暗一点，分清前后（S-03；Electron 亮度 / 饱和度 .9，这里用一层半透明，便宜）
+    Rectangle {
+        anchors.fill: parent
+        z: 13
+        color: Qt.rgba(22 / 255, 32 / 255, 42 / 255, 0.1)
+        opacity: win.tripOpen || win.settingsOpen ? 1 : 0
+        visible: opacity > 0.01
+        Behavior on opacity { enabled: Theme.motion; NumberAnimation { duration: Theme.durPanel } }
+    }
+    PlanPage {
+        id: planPanel
+        objectName: "planPage"
+        z: 14
+        backdrop: scene
+        width: Math.min(Theme.px(820), win.width - 2 * win.gap)
+        y: win.topH + 4
+        height: win.height - y - win.gap
+        x: win.tripOpen ? win.width - width - win.gap : win.width + 20
+        visible: x < win.width
+        Behavior on x { enabled: Theme.motion; NumberAnimation { duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
+        shown: win.tripOpen
+        source: planPage.info
+        focusIndex: mapc.markers.focusStop
+        onCloseRequested: { if (nav.canBack) nav.back(); else win.goPage("map") }
+        onSimpleRequested: win.goPage("map")
+        onListRequested: { win.goPage("map"); win.listOpen = true }
+        onEditRequested: (id) => win.editPlan(id)
+        onDaysRequested: (cur) => { daysDialog.text = cur; daysDialog.open = true }
+        onStartRequested: { startDialog.start = planPage.info.startDate || ""; startDialog.end = planPage.info.endDate || ""; startDialog.open = true }
+        onTogglePin: (id) => { if (plans.togglePin(id)) toast.show(planPage.info.pinned ? qsTr("已置顶") : qsTr("已取消置顶"), false) }
+        onToggleNext: (id, on) => { if (plans.setNextTrip(id, on)) toast.show(on ? qsTr("已设为下次出发") : qsTr("已取消下次出发"), false) }
+        onPickStop: (i) => mapc.markers.selectPlan(win.tripId, i, true)
+    }
+    TextInputDialog {
+        id: daysDialog
+        backdrop: scene
+        maxLength: 6
+        title: qsTr("预计天数")
+        hint: qsTr("大约几天（不确定可以留空）")
+        onAccepted: (t) => {
+            open = false
+            if (planPage.setDays(t) === "badDays") toast.show(qsTr("天数要在 1 到 999 之间"), true)
+        }
+        onCanceled: open = false
+    }
+    ModalLayer {
+        id: startDialog
+        backdrop: scene
+        cardWidth: 420
+        property string start: ""
+        property string end: ""
+        onDismissed: open = false
+        Text { width: parent.width; text: qsTr("开始计划"); font.family: serifFamily; font.pixelSize: Theme.px(19); font.bold: true; color: Theme.text }
+        Row {
+            width: parent.width
+            spacing: Theme.px(10)
+            DateField { width: (parent.width - parent.spacing) / 2; placeholder: qsTr("出发"); value: startDialog.start; onEdited: (v) => { startDialog.start = v } }
+            DateField { width: (parent.width - parent.spacing) / 2; placeholder: qsTr("回来"); value: startDialog.end; minDate: startDialog.start; onEdited: (v) => { startDialog.end = v } }
+        }
+        Row {
+            anchors.right: parent.right
+            spacing: Theme.px(8)
+            TpButton { text: qsTr("取消"); onClicked: startDialog.open = false }
+            TpButton {
+                objectName: "startOk"
+                kind: "primary"
+                text: qsTr("改成“计划中”")
+                onClicked: { startDialog.open = false; planPage.startPlanning(startDialog.start, startDialog.end) }
+            }
+        }
     }
 
     // ---- 设置面板（右侧） ----
@@ -1816,6 +1933,9 @@ Window {
         { name: "layers", on: () => layers.open, close: () => layers.setOpen(false) },
         { name: "filter", on: () => filterMenu.open, close: () => { filterMenu.open = false } },
         { name: "now", on: () => nowCard.visible, close: () => { win.nowOpen = false } },
+        // 0.10.0：就地改日程 → 计划页的 ⋯（计划页本身由最后的 page 关）
+        { name: "sched", on: () => (win.tripOpen && planPanel.scheduleEditing) || (editor.open && planEditor.scheduleEditing), close: () => { if (win.tripOpen) planPanel.cancelSchedule(); else planEditor.cancelSchedule() } },
+        { name: "tripMenu", on: () => win.tripOpen && planPanel.menuOpen, close: () => { planPanel.menuOpen = false } },
         // 0.8.9：样式选择器 → 点选模式 → 搜索结果 → 编辑器（Electron：编辑器在简易面板前面，按 Esc = 关闭编辑器）
         { name: "style", on: () => stylePop.visible, close: () => stylePop.close() },
         { name: "pick", on: () => editor.open && editor.pickMode, close: () => { editor.pickMode = false } },
@@ -1880,6 +2000,10 @@ Window {
         enabled: win.mapKeys && mapc.markers.canStep
         onActivated: mapc.markers.stepStop(1)
     }
+    // 0.10.0：计划页里 ← → 切站（Electron：输入框里打字、弹框开着时不触发）
+    readonly property bool tripKeys: win.tripOpen && planPanel.stepping && !win.modalOpen && !win.textFocused && !palette.open
+    Shortcut { sequence: "Left"; enabled: win.tripKeys; onActivated: planPanel.step(-1) }
+    Shortcut { sequence: "Right"; enabled: win.tripKeys; onActivated: planPanel.step(1) }
     Connections {
         target: mapc
         function onLeftUnlock(base) {
@@ -1893,6 +2017,7 @@ Window {
                                       || restoreDialog.open || titleDialog.open || crashDialog.open || electronFolderDialog.open
                                       || importDialog.open || importProgressDialog.open || importReportDialog.open || takeOverDialog.open
                                       || photoReview.open || cleanupDialog.open || planConfirm.open || editorDialog.open
+                                      || daysDialog.open || startDialog.open
     readonly property bool textFocused: activeFocusItem !== null && activeFocusItem.cursorPosition !== undefined
     Shortcut {
         sequence: "Ctrl+Z"
@@ -2079,6 +2204,7 @@ Window {
         else if (shotPage === "unlock-edit" || shotPage === "unlock-search") { mapc.base = "unlock"; unlockShot.start() }
         else if (shotPage === "now" || shotPage === "sheet" || shotPage === "filter" || shotPage.startsWith("filter-overlay")) planShot.start()
         else if (shotPage === "bubbles" || shotPage === "list" || shotPage === "palette" || shotPage === "menu") shellShot.start()
+        else if (shotPage.startsWith("trip")) tripShot.start()
         else if (shotPage.startsWith("editor") || shotPage.startsWith("narrow") || shotPage === "locate" || shotPage === "controls") editShot.start()
         else if (shotPage.startsWith("mode-") || shotPage === "modes" || shotPage === "modes-narrow" || shotPage === "ledger") modeShot.start()
         else if (shotPage !== "" && !shotPage.startsWith("ui-") && shotPage !== "selftest") mapc.base = shotPage
@@ -2111,6 +2237,38 @@ Window {
         }
     }
 
+    // 截图（0.10.0）：trip = 计划页（今天在这趟里、有季节条的话用有季节条的）；trip-today = 此刻卡进来（滚到今天）；trip-scroll = 往下滚（页头收起）；
+    // trip-edit = 就地改一条日程；trip-narrow = 500 宽；trip-single = 单一目的地；trip-sketch = 没有封面
+    Timer {
+        id: tripShot
+        interval: 2000
+        onTriggered: {
+            mapc.base = "street"
+            plans.setTestAllStatuses(false)
+            const d = plans.demo()
+            if (d.planId === undefined) { console.warn("截图 trip：数据里没有带日期的路线"); return }
+            plans.setTodayOverride(d.today)
+            if (shotPage === "trip-today") plans.setNextTrip(d.planId, true)
+            if (shotPage === "trip-narrow") win.width = 500
+            let id = d.planId
+            if (shotPage === "trip-sketch") id = mapc.markers.demo("route").planId || id   // 没有照片、没有日期：路线简图、预计天数
+            if (shotPage === "trip-single") {
+                plans.setTestAllStatuses(true)
+                for (const x of plans.list.rows || []) if (x.type === "single" && x.stops > 0) { id = x.id; break }
+            }
+            win.openTrip(id, shotPage === "trip-today" ? plans.now.hereIndex || 0 : -1)
+            if (shotPage === "trip-scroll") tripShot2.start()
+            if (shotPage === "trip-edit") tripShot2.start()
+        }
+    }
+    Timer {
+        id: tripShot2
+        interval: 600
+        onTriggered: {
+            if (shotPage === "trip-scroll") { planPanel.pickStop(2); planPanel.reveal(2, true); return }
+            planPanel.beginFirstEdit()
+        }
+    }
     // 截图（0.8.8）：bubbles = 指定下次出发后打开 ⋯ 泡泡；list = 打开我的旅程、选中一条路线、隐藏一个计划；
     // palette = 两个计划算"最近打开过"，打开 Ctrl K（没输入）；menu = 打开头像菜单
     Timer {

@@ -534,6 +534,10 @@ Value *plansArrayPlan(Value &root, const QString &planId)
 }
 } // namespace
 
+QVector<int> validStops(const Value &plan) { return validStopIndexes(plan); }
+const Value *planById(const Value &root, const QString &id) { return findPlan(root, id); }
+Value *mutPlan(Value &root, const QString &id) { return plansArrayPlan(root, id); }
+
 bool setTodoDone(Value &root, const QString &planId, const QString &todoId, bool done)
 {
     if (!findPlan(root, planId)) return false;

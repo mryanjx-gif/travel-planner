@@ -52,6 +52,11 @@ struct Filter
     bool operator==(const Filter &o) const { return status == o.status && type == o.type && region == o.region && hidden == o.hidden; }
 };
 
+// 有效站点（validStops）在 stops 数组里的下标；按 id 找计划（没有返回 nullptr）
+QVector<int> validStops(const json::Value &plan);
+const json::Value *planById(const json::Value &root, const QString &id);
+json::Value *mutPlan(json::Value &root, const QString &id);
+
 // ---- 日期（mapfirst.js 的小工具） ----
 bool okDate(const QString &s);
 int days(const QString &a, const QString &b);       // b - a 的天数

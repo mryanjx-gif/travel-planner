@@ -3,7 +3,7 @@
 # 规则（PO 2026-11-02）：大更新改第一位，中等更新改第二位，小修改改第三位；正式版之前是 0.x.y，正式版 1.0.0。
 cmake_minimum_required(VERSION 3.24)
 
-set(TP_VERSION "0.9.8")
+set(TP_VERSION "0.10.0")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TP_VERSION_NUMERIC "${TP_VERSION}")
 
 project(TravelPlannerNative
@@ -79,6 +79,8 @@ add_library(tp_map STATIC
     src/map/markers.cpp src/map/markers.h
     src/map/roads.cpp src/map/roads.h
     src/map/plans.cpp src/map/plans.h
+    src/map/planpage.cpp src/map/planpage.h
+    src/map/suncalc.cpp src/map/suncalc.h
     src/map/planedit.cpp src/map/planedit.h
     src/map/globegeom.cpp src/map/globegeom.h
     src/map/globeroutes.cpp src/map/globeroutes.h
@@ -126,12 +128,13 @@ qt_add_executable(TravelPlanner WIN32
     src/app/tpapplication.cpp src/app/tpapplication.h
     src/app/photocontroller.cpp src/app/photocontroller.h
     src/app/plancontroller.cpp src/app/plancontroller.h
+    src/app/planpagecontroller.cpp src/app/planpagecontroller.h
     src/app/planeditor.cpp src/app/planeditor.h
     src/app/locator.cpp src/app/locator.h
     src/app/thumbprovider.cpp src/app/thumbprovider.h
     src/app/framestats.cpp src/app/framestats.h
     src/app/selftest.cpp src/app/selftest.h src/app/selftest_util.cpp src/app/selftest_util.h
-    src/app/selftest_map.cpp src/app/selftest_routes.cpp src/app/selftest_unlock.cpp src/app/selftest_plans.cpp src/app/selftest_shell.cpp src/app/selftest_pages.cpp src/app/selftest_editor.cpp src/app/selftest_globe.cpp src/app/selftest_perf.cpp
+    src/app/selftest_map.cpp src/app/selftest_routes.cpp src/app/selftest_unlock.cpp src/app/selftest_plans.cpp src/app/selftest_shell.cpp src/app/selftest_pages.cpp src/app/selftest_planpage.cpp src/app/selftest_editor.cpp src/app/selftest_globe.cpp src/app/selftest_perf.cpp
     src/platform/crashhandler.cpp src/platform/crashhandler.h
     src/platform/nativedialog.cpp src/platform/nativedialog.h
     src/platform/watchdog.cpp src/platform/watchdog.h
@@ -166,10 +169,11 @@ foreach(f GlassPanel TpButton ModalLayer ChoiceCard ChoiceDialog MessageDialog T
           TpSelect TpCheck PhotoImportReview PhotoCleanupDialog MapMarkers MapTip RoadBar LayerBubbles UnlockPanel
           LinkText StatusFilterPill FilterMenu NowCard PlanSheet
           SplitBud TopBar AvatarMenu PlanListPanel CommandPalette RoundButton TpIcon
-          PlanEditor DateField TpField StylePopover MarkerShape ColorWheel EditOverlay DrawerGrip)
+          PlanEditor DateField TpField StylePopover MarkerShape ColorWheel EditOverlay DrawerGrip
+          SchedList RouteSketch RoundIcon MenuRow)
     set_source_files_properties(qml/components/${f}.qml PROPERTIES QT_RESOURCE_ALIAS ${f}.qml)
 endforeach()
-foreach(f SettingsPanel SettingsCard SettingsRow BackupSection PhotoTestPage PlaceholderPage)
+foreach(f SettingsPanel SettingsCard SettingsRow BackupSection PhotoTestPage PlaceholderPage PlanPage)
     set_source_files_properties(qml/pages/${f}.qml PROPERTIES QT_RESOURCE_ALIAS ${f}.qml)
 endforeach()
 qt_add_qml_module(TravelPlanner
@@ -207,6 +211,10 @@ qt_add_qml_module(TravelPlanner
         qml/components/FilterMenu.qml
         qml/components/NowCard.qml
         qml/components/PlanSheet.qml
+        qml/components/SchedList.qml
+        qml/components/RouteSketch.qml
+        qml/components/RoundIcon.qml
+        qml/components/MenuRow.qml
         qml/components/SplitBud.qml
         qml/components/TopBar.qml
         qml/components/AvatarMenu.qml
@@ -228,6 +236,7 @@ qt_add_qml_module(TravelPlanner
         qml/pages/BackupSection.qml
         qml/pages/PhotoTestPage.qml
         qml/pages/PlaceholderPage.qml
+        qml/pages/PlanPage.qml
 )
 
 # 界面翻译词典（0.4.0）：i18n/tr/*.txt 原样打包进资源 :/i18n/tr/…，运行时由 DictTranslator 读取（不生成 .ts / .qm）

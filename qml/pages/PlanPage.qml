@@ -1,0 +1,671 @@
+// 完整计划页（0.10.0，S-02、P-01–P-06）：右边的面板，连续圆角 30；主地图跟着站点走（PO 选小地图 A：不做小地图）。
+// 照 Electron pages-plan.js render / itineraryHtml / bindItinerary / setFocus，PO 选的改进：
+//   I1 交通画成站点之间的连接线、I2 日程按天分组（SchedList）、I3 在路上时高亮今天、I4 往下滚时页头收成一行。
+// 站点列表按需加载（最长的路线 48 站）：ListView，模型只是站点个数，数据变了不重建卡片、滚动位置不动（P-04）。
+// 标签现在只有"行程"（PO：没做的不显示），后面每批加上去。
+// source = planPage.info（plans::pageInfo）。
+import QtQuick
+import TPApp
+
+Item {
+    id: root
+    property Item backdrop: null
+    property var source: ({})
+    property var info: ({})                 // 关掉（变空）时面板滑出去，内容留着
+    onSourceChanged: if (source && source.id) info = source
+    property bool shown: false
+    property int focusIndex: -1             // 聚焦的站点（mapc.markers.focusStop）
+    signal closeRequested()
+    signal simpleRequested()                // 简易版
+    signal listRequested()                  // ☰ 我的旅程
+    signal editRequested(string planId)
+    signal daysRequested(string current)
+    signal startRequested()                 // 开始计划（想去）
+    signal togglePin(string planId)
+    signal toggleNext(string planId, bool on)
+    signal pickStop(int index)
+
+    readonly property bool missing: shown && !(source && source.id)
+    readonly property var stops: info.stops || []
+    readonly property bool route: info.type === "route"
+    readonly property bool stepping: route && stops.length > 1
+    readonly property bool readOnly: info.readOnly === true
+    readonly property real compactH: Theme.px(52)
+    readonly property real navH: Theme.px(44)
+    readonly property real margin: Theme.px(24)
+    // 页头收成一行（I4）：标题滚出去以后
+    readonly property Item hdr: list.headerItem
+    readonly property real navNatural: hdr ? list.y + hdr.y + hdr.navY - list.contentY : 0
+    readonly property bool collapsed: hdr ? hdr.y + hdr.titleBottom - list.contentY < 0 : false
+    readonly property bool scheduleEditing: edit.j !== -2
+    property bool menuOpen: false
+    property real menuY: 0
+    property var openNotes: ({})
+    property bool cardClick: false
+    QtObject { id: edit; property int stop: -1; property int j: -2; property var draft: ({}); property string err: "" }
+    function cancelSchedule() { edit.j = -2 }
+    // 截图 trip-edit：改第一条日程
+    function beginFirstEdit() {
+        for (let k = 0; k < stops.length; ++k) {
+            const d = stops[k].days || []
+            if (!d.length) continue
+            const it = d[0].items[0]
+            edit.draft = { date: it.date, time: it.time, end: it.end, text: it.text }
+            edit.err = ""; edit.stop = k; edit.j = it.j
+            reveal(k, true)
+            return
+        }
+    }
+
+    function statusLabel(s) { return s === "completed" ? qsTr("已完成") : s === "wish" ? qsTr("想去") : qsTr("计划中") }
+    function statusColor(s) { return s === "completed" ? "#2b8a3e" : s === "wish" ? "#7b61b5" : "#e8590c" }
+    function legLabel(m) { return m === "train" ? qsTr("火车") : m === "ferry" ? qsTr("船") : m === "drive" ? qsTr("自驾") : m === "walk" ? qsTr("徒步") : qsTr("飞机") }
+    function legText(leg) {
+        if (!leg || !leg.set) return ""
+        const bits = [legLabel(leg.mode)]
+        if (leg.dist > 0) bits.push(Fmt.dist(leg.dist))
+        if (leg.time > 0) bits.push(qsTr("约 %1").arg(Fmt.dur(leg.time)))
+        return bits.join(" · ")
+    }
+    function sunText(x) {
+        if (!x) return ""
+        const d = Fmt.md(x.date)
+        if (x.polar === "day") return qsTr("%1 极昼：太阳整天不落").arg(d)
+        if (x.polar === "night") return qsTr("%1 极夜：太阳整天不升起").arg(d)
+        return qsTr("%1 日出 <b>%2</b> · 日落 <b>%3</b> · 白天 %4 小时 %5 分").arg(d).arg(x.rise).arg(x.set).arg(Math.floor(x.dayMin / 60)).arg(x.dayMin % 60)
+             + (x.approx ? qsTr("（按经度估算）") : "")
+    }
+    function warnText(w) {
+        const kind = w.docKind === "passport" ? qsTr("护照") : w.docKind === "visa" ? qsTr("签证") : qsTr("其他证件")
+        const name = [w.owner, kind, w.label].filter(x => x).join(" · ")
+        if (w.kind === "passportExpired") return qsTr("%1 在 %2 已经过期，出发前要换新护照").arg(name).arg(w.expires)
+        if (w.kind === "passport6m") return qsTr("%1 在 %2 到期，离回程（%3）不足 6 个月；很多国家要求护照有效期在 6 个月以上").arg(name).arg(w.expires).arg(w.end)
+        return qsTr("%1 在 %2 到期，早于回程（%3）").arg(name).arg(w.expires).arg(w.end)
+    }
+    function seasonLabel(k) { return k === "best" ? qsTr("最适合") : k === "nice" ? qsTr("不错") : k === "meh" ? qsTr("有点热/人多") : k === "bad" ? qsTr("不推荐") : "" }
+    function seasonColor(k) { return k === "best" ? "#3f9a5a" : k === "nice" ? "#5b93c9" : k === "meh" ? "#e0b23f" : k === "bad" ? "#b9b2a7" : Theme.line }
+    function seasonNote(m) {
+        const c = (info.season.cells || [])[m - 1] || {}
+        const place = Fmt.en && info.season.nameEn ? info.season.nameEn : info.season.name
+        const txt = Fmt.en && c.textEn ? c.textEn : (c.text || "")
+        const what = c.kind ? seasonLabel(c.kind) + (txt ? " · " + txt : "") : qsTr("表里没写")
+        return place + " · " + (Fmt.en ? Fmt.monEn[m - 1] : qsTr("%1 月").arg(m)) + (Fmt.en ? ": " : "：") + what
+    }
+
+    // ---- 站点切换 ----
+    function step(d) {
+        const n = stops.length
+        if (n === 0) return
+        const i = focusIndex < 0 ? 0 : Math.max(0, Math.min(n - 1, focusIndex + d))
+        root.pickStop(i)
+    }
+    // 把这一站滚进可见区域（force = 一定滚到顶上，看今天的行程用）。上面让开收起的页头和切换条
+    function reveal(i, force) {
+        const top = compactH + (stepping ? navH : 0) + Theme.px(6)
+        const it = list.itemAtIndex(i)
+        if (it && !force) {
+            const a = it.y - list.contentY + list.y, b = a + it.height
+            if (a >= top && b <= root.height) return
+        }
+        scrollAnim.stop()
+        const from = list.contentY
+        list.positionViewAtIndex(i, ListView.Beginning)
+        const to = Math.max(list.originY, Math.min(list.contentY - top + list.y, list.originY + list.contentHeight - list.height))
+        if (!Theme.motion) { list.contentY = to; return }
+        list.contentY = from
+        scrollAnim.to = to
+        scrollAnim.start()
+    }
+    onFocusIndexChanged: if (focusIndex >= 0 && !cardClick && shown) reveal(focusIndex, false)
+    function jumpTo(i) { Qt.callLater(() => reveal(i, true)) }
+    function clickCard(i) { cardClick = true; root.pickStop(i); cardClick = false }
+    function resetView() {
+        edit.j = -2
+        menuOpen = false
+        openNotes = ({})
+        scrollAnim.stop()
+        Qt.callLater(list.positionViewAtBeginning)
+    }
+    function openMenu(btn) { menuY = btn.mapToItem(root, 0, btn.height).y + Theme.px(6); menuOpen = !menuOpen }
+    function containsGlobal(gx, gy) {
+        const p = root.mapFromItem(null, gx, gy)
+        return visible && p.x >= 0 && p.y >= 0 && p.x <= width && p.y <= height
+    }
+
+    GlassPanel {
+        anchors.fill: parent
+        backdrop: root.backdrop
+        radius: Theme.radiusLarge
+        tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.95 : 0.99)
+    }
+    MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; onClicked: root.menuOpen = false; onWheel: (w) => w.accepted = true }
+
+    NumberAnimation { id: scrollAnim; target: list; property: "contentY"; duration: 260; easing.type: Easing.OutCubic }
+
+    ListView {
+        id: list
+        objectName: "tripList"
+        anchors.fill: parent
+        anchors.topMargin: Theme.px(6)
+        anchors.bottomMargin: Theme.px(6)
+        clip: true
+        visible: !root.missing
+        boundsBehavior: Flickable.StopAtBounds
+        cacheBuffer: 1200
+        model: root.stops.length
+        onMovementStarted: { scrollAnim.stop(); root.menuOpen = false }
+
+        header: Column {
+            id: head
+            readonly property real titleBottom: titleRow.y + titleRow.height
+            readonly property real navY: navSpace.y
+            x: root.margin
+            width: list.width - 2 * root.margin
+            topPadding: Theme.px(14)
+            spacing: Theme.px(12)
+
+            // ---- 封面 + 标题 + chip（右边给 × 让位）----
+            Row {
+                id: titleRow
+                width: parent.width - Theme.px(40)
+                spacing: Theme.px(14)
+                Rectangle {
+                    id: coverBox
+                    width: Theme.px(64); height: width
+                    radius: Theme.px(12)
+                    color: Theme.panel2
+                    clip: true
+                    RouteSketch {
+                        visible: cover.status !== Image.Ready
+                        anchors.fill: parent
+                        stops: root.stops
+                        route: root.route
+                        tone: root.info.color || Theme.accent
+                    }
+                    Image {
+                        id: cover
+                        objectName: "tripCover"
+                        anchors.fill: parent
+                        source: root.info.coverThumb || ""
+                        fillMode: Image.PreserveAspectCrop
+                        asynchronous: true
+                        sourceSize.width: 320
+                    }
+                }
+                Column {
+                    width: parent.width - coverBox.width - parent.spacing
+                    spacing: Theme.px(6)
+                    Text {
+                        objectName: "tripTitle"
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        text: root.info.name || qsTr("未命名计划")
+                        font.family: serifFamily; font.pixelSize: Theme.px(23); font.bold: true; color: Theme.text
+                    }
+                    Flow {
+                        width: parent.width
+                        spacing: Theme.px(5)
+                        Chip { text: root.statusLabel(root.info.status); tone: root.statusColor(root.info.status) }
+                        Chip { text: root.route ? qsTr("路线") + " · " + qsTr("%1 站").arg(root.stops.length) : qsTr("单一目的地") }
+                        Repeater { model: root.info.regions || []; delegate: Chip { required property string modelData; text: qsTr(modelData) } }
+                        Chip { visible: text !== ""; plain: true; text: Fmt.range(root.info.startDate, root.info.endDate) }
+                        Chip {
+                            objectName: "tripDays"
+                            visible: !root.info.startDate && !root.info.endDate
+                            clickable: !root.readOnly
+                            text: root.info.days >= 1 ? qsTr("预计 %1 天").arg(root.info.days) : qsTr("设预计天数")
+                            onClicked: root.daysRequested(root.info.days >= 1 ? String(root.info.days) : "")
+                        }
+                    }
+                }
+            }
+            // ---- 按钮 ----
+            Flow {
+                width: parent.width
+                spacing: Theme.px(8)
+                TpButton { objectName: "tripEdit"; compact: true; kind: "primary"; text: qsTr("编辑"); onClicked: root.editRequested(root.info.id) }
+                TpButton { objectName: "tripSimple"; compact: true; text: qsTr("简易版"); onClicked: root.simpleRequested() }
+                TpButton { objectName: "tripPlans"; compact: true; text: root.info.status === "wish" ? qsTr("愿望清单") : qsTr("计划库"); onClicked: root.listRequested() }
+                TpButton {
+                    id: bigMore
+                    objectName: "tripMore"
+                    compact: true
+                    implicitWidth: Theme.px(40)
+                    text: "⋯"
+                    Accessible.name: qsTr("更多")
+                    onClicked: root.openMenu(bigMore)
+                }
+            }
+            // ---- 季节条 ----
+            Column {
+                objectName: "tripSeason"
+                visible: !!(root.info.season && root.info.season.cells)
+                width: parent.width
+                spacing: Theme.px(4)
+                readonly property int curMonth: new Date().getMonth() + 1
+                property int hoverMonth: 0
+                Row {
+                    id: seasonRow
+                    width: parent.width
+                    spacing: Theme.px(2)
+                    Repeater {
+                        model: 12
+                        delegate: Rectangle {
+                            required property int index
+                            readonly property var cell: ((root.info.season || {}).cells || [])[index] || {}
+                            width: (seasonRow.width - 11 * seasonRow.spacing) / 12
+                            height: Theme.px(10)
+                            radius: Theme.px(3)
+                            color: root.seasonColor(cell.kind)
+                            border.width: index + 1 === seasonRow.parent.curMonth ? 2 : 0
+                            border.color: Theme.text
+                            HoverHandler { onHoveredChanged: seasonRow.parent.hoverMonth = hovered ? index + 1 : 0 }
+                        }
+                    }
+                }
+                Text {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    text: parent.visible ? root.seasonNote(parent.hoverMonth || parent.curMonth) : ""
+                    font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
+                }
+            }
+            // ---- 证件警告（"管理证件"在阶段 ⑥ 有证件设置以后再加）----
+            Rectangle {
+                objectName: "tripWarn"
+                visible: (root.info.warnings || []).length > 0
+                width: parent.width
+                height: visible ? warnCol.implicitHeight + Theme.px(16) : 0
+                radius: Theme.radiusControl
+                color: "#fbf1dc"
+                Column {
+                    id: warnCol
+                    x: Theme.px(12); y: Theme.px(8)
+                    width: parent.width - Theme.px(24)
+                    spacing: Theme.px(4)
+                    Repeater {
+                        model: root.info.warnings || []
+                        delegate: Text {
+                            required property var modelData
+                            width: warnCol.width
+                            wrapMode: Text.Wrap
+                            text: root.warnText(modelData)
+                            font.family: serifFamily; font.pixelSize: Theme.px(13); color: "#7a5a1c"
+                        }
+                    }
+                }
+            }
+            // ---- 标签 ----
+            Item {
+                width: parent.width
+                height: Theme.px(34)
+                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.line }
+                Text {
+                    id: tabText
+                    objectName: "tripTab"
+                    x: Theme.px(2)
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: qsTr("行程")
+                    font.family: serifFamily; font.pixelSize: Theme.px(14); font.bold: true; color: Theme.text
+                }
+                Rectangle { anchors.bottom: parent.bottom; x: tabText.x; width: tabText.implicitWidth; height: 2; color: Theme.accent }
+            }
+            // ---- 备注 ----
+            Column {
+                visible: (root.info.notes || "") !== ""
+                width: parent.width
+                spacing: Theme.px(4)
+                Text { text: qsTr("备注"); font.family: serifFamily; font.pixelSize: Theme.px(14); font.bold: true; color: Theme.text }
+                Text {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    lineHeight: 1.3
+                    text: root.info.notes || ""
+                    font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.textSoft
+                }
+            }
+            // 切换条停在这里，往下滚时贴在页头下面（画在列表外面）
+            Item { id: navSpace; width: parent.width; height: root.stepping ? root.navH : 0 }
+            Text {
+                bottomPadding: Theme.px(2)
+                text: root.stops.length === 0 ? qsTr("没有有效的站点坐标。") : root.route ? qsTr("站点安排") : qsTr("行程安排")
+                font.family: serifFamily; font.pixelSize: Theme.px(14); font.bold: true; color: root.stops.length === 0 ? Theme.muted : Theme.text
+            }
+        }
+        footer: Item { width: 1; height: Theme.px(24) }
+
+        delegate: Item {
+            id: wrap
+            required property int index
+            readonly property var s: root.stops[index] || ({})
+            readonly property bool focused: root.focusIndex === index
+            readonly property bool today: root.info.todayStop === index
+            readonly property string legLine: root.legText(s.leg)
+            readonly property bool hasLeg: root.route && index < root.stops.length - 1
+            width: list.width
+            height: card.height + (hasLeg ? Theme.px(38) : Theme.px(12))
+
+            Rectangle {
+                id: card
+                objectName: "tripCard" + wrap.index
+                x: root.margin - Theme.px(6)
+                width: parent.width - 2 * x
+                height: col.implicitHeight + Theme.px(24)
+                radius: Theme.px(16)
+                color: "#ffffff"
+                border.width: wrap.focused ? 2 : 1
+                border.color: wrap.focused ? Theme.accent : Theme.line
+                MouseArea {
+                    anchors.fill: parent
+                    enabled: root.route
+                    cursorShape: root.route ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    onClicked: root.clickCard(wrap.index)
+                }
+                Column {
+                    id: col
+                    x: Theme.px(14); y: Theme.px(12)
+                    width: parent.width - Theme.px(28)
+                    spacing: Theme.px(6)
+                    Row {
+                        width: parent.width
+                        spacing: Theme.px(8)
+                        Rectangle {
+                            width: Theme.px(22); height: width; radius: width / 2
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: wrap.s.color || root.info.color || Theme.accent
+                            Text { visible: root.route; anchors.centerIn: parent; text: wrap.index + 1; font.family: serifFamily; font.pixelSize: Theme.px(12); font.bold: true; color: "#ffffff" }
+                        }
+                        Text {
+                            objectName: "tripStopName"
+                            width: Math.min(implicitWidth, parent.width - Theme.px(30) - (todayChip.visible ? todayChip.width + Theme.px(8) : 0))
+                            elide: Text.ElideRight
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: wrap.s.name || qsTr("未命名地点")
+                            font.family: serifFamily; font.pixelSize: Theme.px(16.5); font.bold: true; color: Theme.text
+                        }
+                        Rectangle {   // I3
+                            id: todayChip
+                            objectName: "tripToday"
+                            visible: wrap.today
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: todayText.implicitWidth + Theme.px(14); height: Theme.px(20); radius: height / 2
+                            color: "#fbf1dc"
+                            Text { id: todayText; anchors.centerIn: parent; text: qsTr("今天"); font.family: serifFamily; font.pixelSize: Theme.px(11.5); font.bold: true; color: "#7a5a1c" }
+                        }
+                    }
+                    Text {
+                        visible: text !== ""
+                        text: {
+                            const d = Fmt.range(wrap.s.arriveDate, wrap.s.departDate)
+                            const n = Fmt.nights(wrap.s.arriveDate, wrap.s.departDate)
+                            return d + (n > 0 ? " · " + (n === 1 && Fmt.en ? "1 night" : qsTr("住 %1 晚").arg(n)) : "")
+                        }
+                        font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.muted
+                    }
+                    Row {
+                        visible: !!wrap.s.sun
+                        width: parent.width
+                        spacing: Theme.px(5)
+                        TpIcon {
+                            width: Theme.px(15); height: width
+                            name: wrap.s.sun && wrap.s.sun.polar === "night" ? "moon" : "sun"
+                            color: Theme.muted
+                        }
+                        Text {
+                            objectName: "tripSun"
+                            width: parent.width - Theme.px(20)
+                            wrapMode: Text.Wrap
+                            textFormat: Text.StyledText
+                            text: root.sunText(wrap.s.sun)
+                            font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.textSoft
+                        }
+                    }
+                    SchedList {
+                        objectName: "tripSched" + wrap.index
+                        width: parent.width
+                        ctl: edit
+                        stopIndex: wrap.index
+                        days: wrap.s.days || []
+                        canEdit: !root.readOnly
+                        defaultDate: wrap.s.arriveDate || ""
+                        saver: (j, d) => planPage.saveSched(wrap.index, j, d.date, d.time, d.end, d.text)
+                        deleter: (j) => planPage.deleteSched(wrap.index, j)
+                    }
+                    Column {
+                        visible: (wrap.s.notes || "") !== ""
+                        width: parent.width
+                        spacing: Theme.px(3)
+                        readonly property bool open: root.openNotes[wrap.index] === true
+                        LinkText {
+                            text: (parent.open ? "▾ " : "▸ ") + qsTr("详细")
+                            muted: true
+                            small: true
+                            onClicked: { const o = Object.assign({}, root.openNotes); o[wrap.index] = !parent.open; root.openNotes = o }
+                        }
+                        Text {
+                            visible: parent.open
+                            width: parent.width
+                            wrapMode: Text.Wrap
+                            lineHeight: 1.3
+                            text: wrap.s.notes || ""
+                            font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft
+                        }
+                    }
+                    // 照片条（最多 12 张；滚轮上下滚改成左右翻，到头了才还给页面。点开看大图在 0.10.4）
+                    ListView {
+                        id: strip
+                        objectName: "tripPhotos"
+                        readonly property var all: wrap.s.thumbs || []
+                        visible: all.length > 0
+                        width: parent.width
+                        height: visible ? Theme.px(84) : 0
+                        orientation: ListView.Horizontal
+                        spacing: Theme.px(6)
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        model: all.slice(0, 12)
+                        delegate: Rectangle {
+                            required property string modelData
+                            width: Theme.px(112); height: strip.height
+                            radius: Theme.px(10)
+                            color: Theme.panel2
+                            clip: true
+                            Image { anchors.fill: parent; source: modelData; fillMode: Image.PreserveAspectCrop; asynchronous: true; sourceSize.width: 320 }
+                        }
+                        footer: Item {
+                            width: strip.all.length > 12 ? Theme.px(52) : 0
+                            height: strip.height
+                            Text { anchors.centerIn: parent; visible: parent.width > 0; text: "+" + (strip.all.length - 12); font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted }
+                        }
+                        WheelHandler {
+                            orientation: Qt.Vertical
+                            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                            onWheel: (e) => {
+                                const max = strip.contentWidth - strip.width + strip.originX
+                                const atEnd = e.angleDelta.y < 0 ? strip.contentX >= max - 1 : strip.contentX <= strip.originX
+                                if (strip.contentWidth <= strip.width || atEnd) { e.accepted = false; return }
+                                strip.contentX = Math.max(strip.originX, Math.min(max, strip.contentX - e.angleDelta.y / 2))
+                            }
+                        }
+                    }
+                }
+            }
+            // 到下一站（I1）：卡片之间的连接线
+            Item {
+                visible: wrap.hasLeg
+                y: card.height
+                width: parent.width
+                height: Theme.px(38)
+                Rectangle { x: card.x + Theme.px(24); y: 0; width: 2; height: parent.height; color: Theme.lineStrong }
+                Text {
+                    objectName: "tripLeg"
+                    x: card.x + Theme.px(36)
+                    width: parent.width - x - root.margin
+                    anchors.verticalCenter: parent.verticalCenter
+                    elide: Text.ElideRight
+                    text: wrap.legLine
+                    font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.muted
+                }
+            }
+        }
+    }
+
+    // 切换条贴住时垫一层底，滚上去的内容不从它四周露出来
+    Rectangle {
+        visible: navBar.visible && root.navNatural < navBar.y - 0.5
+        width: parent.width
+        y: navBar.y - Theme.px(4)
+        height: navBar.height + Theme.px(10)
+        color: Qt.rgba(250 / 255, 252 / 255, 253 / 255, 0.99)
+        z: 2
+    }
+    // ---- 站点切换条：贴在页头下面（Electron .stop-nav 吸顶）----
+    Rectangle {
+        id: navBar
+        objectName: "tripNav"
+        visible: root.stepping && !root.missing
+        x: root.margin - Theme.px(6)
+        width: parent.width - 2 * x
+        y: Math.max(root.collapsed ? root.compactH : Theme.px(6), root.navNatural)
+        height: root.navH - Theme.px(6)
+        radius: Theme.radiusControl
+        color: "#f2f5f8"
+        border.width: 1; border.color: Theme.line
+        z: 3
+        MouseArea { anchors.fill: parent }
+        RoundIcon {
+            objectName: "tripPrev"
+            x: Theme.px(5); anchors.verticalCenter: parent.verticalCenter
+            kind: "prev"; small: true; label: qsTr("上一站（←）")
+            enabled: root.focusIndex > 0
+            onClicked: root.step(-1)
+        }
+        Column {
+            anchors.centerIn: parent
+            width: parent.width - Theme.px(80)
+            Text {
+                objectName: "tripNavLabel"
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                elide: Text.ElideRight
+                textFormat: Text.StyledText
+                text: root.focusIndex < 0
+                      ? "<b>" + qsTr("共 %1 站").arg(root.stops.length) + "</b>　" + qsTr("点 › 从第 1 站开始")
+                      : "<b>" + ((root.stops[root.focusIndex] || {}).name || qsTr("未命名地点")).replace(/&/g, "&amp;").replace(/</g, "&lt;") + "</b>　" + qsTr("第 %1 / %2 站").arg(root.focusIndex + 1).arg(root.stops.length)
+                font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.text
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (root.focusIndex >= 0) root.reveal(root.focusIndex, true) }
+            }
+        }
+        RoundIcon {
+            objectName: "tripNext"
+            anchors.right: parent.right; anchors.rightMargin: Theme.px(5); anchors.verticalCenter: parent.verticalCenter
+            kind: "next"; small: true; label: qsTr("下一站（→）")
+            enabled: root.focusIndex < root.stops.length - 1
+            onClicked: root.step(1)
+        }
+    }
+
+    // ---- 收起后的页头（I4）----
+    Rectangle {
+        id: compact
+        objectName: "tripCompact"
+        width: parent.width
+        height: root.compactH
+        topLeftRadius: Theme.radiusLarge; topRightRadius: Theme.radiusLarge
+        color: Qt.rgba(250 / 255, 252 / 255, 253 / 255, 0.99)
+        opacity: root.collapsed && !root.missing ? 1 : 0
+        visible: opacity > 0.01
+        z: 4
+        Behavior on opacity { enabled: Theme.motion; NumberAnimation { duration: 160 } }
+        MouseArea { anchors.fill: parent }
+        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.line }
+        Text {
+            x: root.margin
+            width: compactBtns.x - x - Theme.px(10)
+            anchors.verticalCenter: parent.verticalCenter
+            elide: Text.ElideRight
+            text: root.info.name || qsTr("未命名计划")
+            font.family: serifFamily; font.pixelSize: Theme.px(16); font.bold: true; color: Theme.text
+        }
+        Row {
+            id: compactBtns
+            anchors.right: parent.right
+            anchors.rightMargin: Theme.px(56)
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Theme.px(6)
+            TpButton { compact: true; kind: "primary"; text: qsTr("编辑"); onClicked: root.editRequested(root.info.id) }
+            TpButton { id: smallMore; compact: true; implicitWidth: Theme.px(40); text: "⋯"; Accessible.name: qsTr("更多"); onClicked: root.openMenu(smallMore) }
+        }
+    }
+    RoundIcon {
+        objectName: "tripClose"
+        anchors.right: parent.right
+        anchors.rightMargin: Theme.px(12)
+        y: Theme.px(8)
+        z: 5
+        kind: "close"
+        plain: true
+        label: qsTr("返回（Esc）")
+        onClicked: root.closeRequested()
+    }
+
+    // ---- ⋯ 菜单（"在日历里看"在阶段 ⑤、"导出"在阶段 ⑧）----
+    Rectangle {
+        objectName: "tripMenu"
+        visible: root.menuOpen
+        anchors.right: parent.right
+        anchors.rightMargin: root.margin
+        y: root.menuY
+        width: menuCol.implicitWidth + Theme.px(12)
+        height: menuCol.implicitHeight + Theme.px(12)
+        radius: Theme.radiusSmall
+        color: "#fbfcfd"
+        border.width: 1; border.color: Theme.line
+        z: 6
+        Column {
+            id: menuCol
+            x: Theme.px(6); y: Theme.px(6)
+            MenuRow {
+                objectName: "tripStart"
+                visible: root.info.status === "wish"
+                text: qsTr("开始计划")
+                onClicked: { root.menuOpen = false; root.startRequested() }
+            }
+            MenuRow {
+                objectName: "tripPin"
+                text: root.info.pinned ? qsTr("取消置顶") : qsTr("置顶")
+                onClicked: { root.menuOpen = false; root.togglePin(root.info.id) }
+            }
+            MenuRow {
+                objectName: "tripNextTrip"
+                visible: root.info.status !== "wish"
+                text: root.info.isNext ? qsTr("取消下次出发") : qsTr("设为下次出发")
+                onClicked: { root.menuOpen = false; root.toggleNext(root.info.id, !root.info.isNext) }
+            }
+        }
+    }
+
+    // ---- 计划被删掉（比如撤销了新建、前进 / 后退回到这里）----
+    Column {
+        visible: root.missing
+        anchors.centerIn: parent
+        spacing: Theme.px(14)
+        Text { anchors.horizontalCenter: parent.horizontalCenter; text: qsTr("找不到这个计划"); font.family: serifFamily; font.pixelSize: Theme.px(20); font.bold: true; color: Theme.text }
+        Text { anchors.horizontalCenter: parent.horizontalCenter; text: qsTr("可能已经被删除了。"); font.family: serifFamily; font.pixelSize: Theme.px(14); color: Theme.muted }
+    }
+
+    component Chip: Rectangle {
+        id: chip
+        property string text: ""
+        property color tone: Theme.textSoft
+        property bool plain: false
+        property bool clickable: false
+        signal clicked()
+        width: chipText.implicitWidth + Theme.px(plain ? 4 : 16)
+        height: Theme.px(22)
+        radius: height / 2
+        color: plain ? "transparent" : chipMa.containsMouse ? Theme.accentSoft : Theme.panel2
+        Text { id: chipText; anchors.centerIn: parent; text: chip.text; font.family: serifFamily; font.pixelSize: Theme.px(12); color: chip.plain ? Theme.muted : chip.tone }
+        MouseArea { id: chipMa; anchors.fill: parent; enabled: chip.clickable; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: chip.clicked() }
+    }
+}

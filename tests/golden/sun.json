@@ -1,0 +1,305 @@
+[
+ {
+  "lat": 39.47,
+  "lng": 75.99,
+  "date": "2026-11-22",
+  "tz": "Asia/Shanghai",
+  "want": {
+   "rise": "09:47",
+   "set": "19:36",
+   "dayMin": 589,
+   "approx": false
+  }
+ },
+ {
+  "lat": 39.47,
+  "lng": 75.99,
+  "date": "2026-11-22",
+  "tz": "",
+  "want": {
+   "rise": "06:47",
+   "set": "16:36",
+   "dayMin": 589,
+   "approx": true
+  }
+ },
+ {
+  "lat": 31.23,
+  "lng": 121.47,
+  "date": "2026-06-21",
+  "tz": "Asia/Shanghai",
+  "want": {
+   "rise": "04:50",
+   "set": "19:01",
+   "dayMin": 851,
+   "approx": false
+  }
+ },
+ {
+  "lat": 35.01,
+  "lng": 135.77,
+  "date": "2026-11-22",
+  "tz": "Asia/Tokyo",
+  "want": {
+   "rise": "06:37",
+   "set": "16:47",
+   "dayMin": 610,
+   "approx": false
+  }
+ },
+ {
+  "lat": -37.81,
+  "lng": 144.96,
+  "date": "2026-01-15",
+  "tz": "Australia/Melbourne",
+  "want": {
+   "rise": "06:14",
+   "set": "20:43",
+   "dayMin": 869,
+   "approx": false
+  }
+ },
+ {
+  "lat": -37.81,
+  "lng": 144.96,
+  "date": "2026-07-15",
+  "tz": "Australia/Melbourne",
+  "want": {
+   "rise": "07:32",
+   "set": "17:19",
+   "dayMin": 587,
+   "approx": false
+  }
+ },
+ {
+  "lat": -12.46,
+  "lng": 130.84,
+  "date": "2026-03-01",
+  "tz": "Australia/Darwin",
+  "want": {
+   "rise": "06:48",
+   "set": "19:09",
+   "dayMin": 740,
+   "approx": false
+  }
+ },
+ {
+  "lat": -34.93,
+  "lng": 138.6,
+  "date": "2026-12-01",
+  "tz": "Australia/Adelaide",
+  "want": {
+   "rise": "05:55",
+   "set": "20:14",
+   "dayMin": 859,
+   "approx": false
+  }
+ },
+ {
+  "lat": -31.95,
+  "lng": 115.86,
+  "date": "2026-05-01",
+  "tz": "Australia/Perth",
+  "want": {
+   "rise": "06:48",
+   "set": "17:38",
+   "dayMin": 651,
+   "approx": false
+  }
+ },
+ {
+  "lat": -42.88,
+  "lng": 147.33,
+  "date": "2026-10-10",
+  "tz": "Australia/Hobart",
+  "want": {
+   "rise": "06:28",
+   "set": "19:27",
+   "dayMin": 778,
+   "approx": false
+  }
+ },
+ {
+  "lat": -31.95,
+  "lng": 141.45,
+  "date": "2026-02-01",
+  "tz": "Australia/Broken_Hill",
+  "want": {
+   "rise": "06:28",
+   "set": "20:06",
+   "dayMin": 817,
+   "approx": false
+  }
+ },
+ {
+  "lat": 27.71,
+  "lng": 85.32,
+  "date": "2026-04-01",
+  "tz": "Asia/Kathmandu",
+  "want": {
+   "rise": "05:54",
+   "set": "18:21",
+   "dayMin": 747,
+   "approx": false
+  }
+ },
+ {
+  "lat": 42.87,
+  "lng": 74.59,
+  "date": "2026-08-01",
+  "tz": "Asia/Bishkek",
+  "want": {
+   "rise": "05:52",
+   "set": "20:22",
+   "dayMin": 870,
+   "approx": false
+  }
+ },
+ {
+  "lat": 48.21,
+  "lng": 16.37,
+  "date": "2026-03-29",
+  "tz": "Europe/Vienna",
+  "want": {
+   "rise": "06:39",
+   "set": "19:20",
+   "dayMin": 761,
+   "approx": false
+  }
+ },
+ {
+  "lat": 41.01,
+  "lng": 28.98,
+  "date": "2026-09-01",
+  "tz": "Europe/Istanbul",
+  "want": {
+   "rise": "06:30",
+   "set": "19:36",
+   "dayMin": 786,
+   "approx": false
+  }
+ },
+ {
+  "lat": 41.72,
+  "lng": 44.79,
+  "date": "2026-09-01",
+  "tz": "Asia/Tbilisi",
+  "want": {
+   "rise": "06:26",
+   "set": "19:34",
+   "dayMin": 788,
+   "approx": false
+  }
+ },
+ {
+  "lat": 39.65,
+  "lng": 66.96,
+  "date": "2026-05-05",
+  "tz": "Asia/Samarkand",
+  "want": {
+   "rise": "05:28",
+   "set": "19:29",
+   "dayMin": 841,
+   "approx": false
+  }
+ },
+ {
+  "lat": 13.75,
+  "lng": 100.5,
+  "date": "2026-12-25",
+  "tz": "Asia/Bangkok",
+  "want": {
+   "rise": "06:38",
+   "set": "17:57",
+   "dayMin": 679,
+   "approx": false
+  }
+ },
+ {
+  "lat": 30.04,
+  "lng": 31.24,
+  "date": "2026-07-01",
+  "tz": "Africa/Cairo",
+  "want": {
+   "rise": "05:57",
+   "set": "20:00",
+   "dayMin": 843,
+   "approx": false
+  }
+ },
+ {
+  "lat": 55.75,
+  "lng": 37.62,
+  "date": "2026-06-01",
+  "tz": "Europe/Moscow",
+  "want": {
+   "rise": "03:53",
+   "set": "21:02",
+   "dayMin": 1029,
+   "approx": false
+  }
+ },
+ {
+  "lat": 40.71,
+  "lng": -74,
+  "date": "2026-11-01",
+  "tz": "America/New_York",
+  "want": {
+   "rise": "06:26",
+   "set": "16:52",
+   "dayMin": 626,
+   "approx": false
+  }
+ },
+ {
+  "lat": 64.15,
+  "lng": -21.94,
+  "date": "2026-12-21",
+  "tz": "Atlantic/Reykjavik",
+  "want": {
+   "rise": "11:22",
+   "set": "15:29",
+   "dayMin": 247,
+   "approx": false
+  }
+ },
+ {
+  "lat": 69.65,
+  "lng": 18.96,
+  "date": "2026-06-21",
+  "tz": "Europe/Oslo",
+  "want": {
+   "polar": "day"
+  }
+ },
+ {
+  "lat": 69.65,
+  "lng": 18.96,
+  "date": "2026-12-21",
+  "tz": "Europe/Oslo",
+  "want": {
+   "polar": "night"
+  }
+ },
+ {
+  "lat": -77.85,
+  "lng": 166.67,
+  "date": "2026-12-21",
+  "tz": "Antarctica/McMurdo",
+  "want": {
+   "polar": "day"
+  }
+ },
+ {
+  "lat": 51.5,
+  "lng": -179,
+  "date": "2026-03-20",
+  "tz": "",
+  "want": {
+   "rise": "05:57",
+   "set": "18:09",
+   "dayMin": 732,
+   "approx": true
+  }
+ }
+]

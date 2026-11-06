@@ -20,6 +20,8 @@ namespace tp::app {
 class AppController;
 class PlanController;
 class PlanEditor;
+class PlanPageController;
+class NavHistory;
 class Locator;
 class FrameStats;
 class Settings;
@@ -83,6 +85,10 @@ PlanEditor *editorCtl();
 Locator *locatorCtl();
 services::Geocoder *geocoderCtl();
 void runEditor(Report &r, AppController *app, map::MapController *mapc, QQuickWindow *win, services::RoadRouter *roads);
+// 0.10.0：完整计划页（selftest_planpage.cpp）
+PlanPageController *planPageCtl();
+NavHistory *navCtl();
+void runPlanPage(Report &r, AppController *app, map::MapController *mapc, QQuickWindow *win, PlanPageController *page, NavHistory *nav);
 // 0.9.1：性能——启动各步、拖地图每帧、换模式、数据重建、写设置、玻璃和标记各占多少（selftest_perf.cpp）
 FrameStats *frameStats();
 Settings *settingsObj();

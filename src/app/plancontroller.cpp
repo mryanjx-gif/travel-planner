@@ -54,8 +54,8 @@ QStringList ordered(const QSet<QString> &s, const QStringList &order)
 PlanController::PlanController(AppController *app, Settings *settings, data::DataStore *store, map::MapController *mapc, QObject *parent)
     : QObject(parent), m_app(app), m_settings(settings), m_store(store), m_mapc(mapc)
 {
-    m_mapc->setPlanFilter([this](const Value &p) { return m_filter.onMap(p); });
-    m_mapc->setOverlayFilter([this](const Value &p) { return overlayPlan(p); });   // 0.9.7
+    m_mapc->setPlanFilter([this](const Value &p) { return m_solo.isEmpty() ? m_filter.onMap(p) : p[QStringLiteral("id")].toString() == m_solo; });
+    m_mapc->setOverlayFilter([this](const Value &p) { return m_solo.isEmpty() && overlayPlan(p); });   // 0.9.7
     connect(m_store, &data::DataStore::contentChanged, this, [this] { refreshNow(); refreshSheet(); refreshList(); });
     // 换数据文件夹 / 重新读取：隐藏列表里已经没有的计划去掉（Electron 刷新页面时 hiddenIds 过滤掉已删除的 id）
     connect(m_app, &AppController::dataChanged, this, [this] { loadFilter(); loadRecent(); refreshNow(); refreshSheet(); });
@@ -352,24 +352,38 @@ void PlanController::refreshSheet()
     const QString id = m_mapc->markers()->selectedPlan();
     QVariantMap s = id.isEmpty() ? QVariantMap() : plans::sheetInfo(m_store->data(), id);
     if (!s.isEmpty()) {
-        // 照片缩略图的地址（缩略图服务按数据文件夹里的相对路径找文件）
-        QVariantList stops = s.value(QStringLiteral("stops")).toList();
-        for (QVariant &sv : stops) {
-            QVariantMap sm = sv.toMap();
-            QStringList thumbs;
-            for (const QString &f : sm.value(QStringLiteral("photos")).toStringList())
-                if (f.startsWith(QLatin1String("photos/"))) thumbs << ThumbProvider::urlFor(f, 320, 0);
-            sm.insert(QStringLiteral("thumbs"), thumbs);
-            sv = sm;
-        }
-        s.insert(QStringLiteral("stops"), stops);
-        const QString cover = s.value(QStringLiteral("coverFile")).toString();
-        s.insert(QStringLiteral("coverThumb"), cover.startsWith(QLatin1String("photos/")) ? ThumbProvider::urlFor(cover, 640, 0) : QString());
+        s = withThumbs(s);
         s.insert(QStringLiteral("readOnly"), m_store->isReadOnly());
     }
     if (s == m_sheet) return;
     m_sheet = s;
     emit sheetChanged();
+}
+
+QVariantMap PlanController::withThumbs(QVariantMap s)
+{
+    if (s.isEmpty()) return s;
+    // 照片缩略图的地址（缩略图服务按数据文件夹里的相对路径找文件）
+    QVariantList stops = s.value(QStringLiteral("stops")).toList();
+    for (QVariant &sv : stops) {
+        QVariantMap sm = sv.toMap();
+        QStringList thumbs;
+        for (const QString &f : sm.value(QStringLiteral("photos")).toStringList())
+            if (f.startsWith(QLatin1String("photos/"))) thumbs << ThumbProvider::urlFor(f, 320, 0);
+        sm.insert(QStringLiteral("thumbs"), thumbs);
+        sv = sm;
+    }
+    s.insert(QStringLiteral("stops"), stops);
+    const QString cover = s.value(QStringLiteral("coverFile")).toString();
+    s.insert(QStringLiteral("coverThumb"), cover.startsWith(QLatin1String("photos/")) ? ThumbProvider::urlFor(cover, 640, 0) : QString());
+    return s;
+}
+
+void PlanController::setSolo(const QString &planId)
+{
+    if (planId == m_solo) return;
+    m_solo = planId;
+    m_mapc->refilter();
 }
 
 // ---------------- 0.8.8：我的旅程、Ctrl K、最近打开 ----------------

@@ -125,6 +125,7 @@ void runAll(Report &r, AppController *app, PhotoController *photos, map::MapCont
     if (want("shell")) runShell(r, app, mapc, win);
     if (want("pages")) runPages(r, app, mapc, win);
     if (want("editor")) runEditor(r, app, mapc, win, roads);
+    if (want("planpage")) runPlanPage(r, app, mapc, win, planPageCtl(), navCtl());
     mapc->fitAll(false);
     if (!want("photos")) return;
 
@@ -344,6 +345,14 @@ PlanEditor *editorCtl() { return g_editor; }
 Locator *locatorCtl() { return g_locator; }
 services::Geocoder *geocoderCtl() { return g_geo; }
 } // namespace selftest
+
+namespace selftest {
+static PlanPageController *g_planPage = nullptr;
+static NavHistory *g_nav = nullptr;
+PlanPageController *planPageCtl() { return g_planPage; }
+NavHistory *navCtl() { return g_nav; }
+} // namespace selftest
+void SelfTest::setPlanPage(PlanPageController *p, NavHistory *n) { selftest::g_planPage = p; selftest::g_nav = n; }
 
 void SelfTest::setEditor(PlanEditor *e, Locator *l, services::Geocoder *g) { selftest::g_editor = e; selftest::g_locator = l; selftest::g_geo = g; }
 

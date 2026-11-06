@@ -19,6 +19,8 @@
 #include "night.h"
 #include "plans.h"
 #include "planedit.h"
+#include "planpage.h"
+#include "suncalc.h"
 #include "roads.h"
 #include "tripdata.h"
 #include "unlock.h"
@@ -136,6 +138,12 @@ private slots:
     void planEditKeepsUnknown();
     void planEditLegsAndStats();
     void planEditTodayStop();
+    void sunAgainstElectron();
+    void schedGrouping();
+    void schedEdit();
+    void pageDocWarnings();
+    void pageSeasonAndDays();
+    void tzFill();
 };
 
 void TestMap::projectRoundTrip()
@@ -1931,6 +1939,179 @@ void TestMap::skySeededRand()
     const double want[5] = { 0.18689791089855134, 0.5267679621465504, 0.036956520518288016, 0.19033258804120123, 0.27266927040182054 };
     QCOMPARE(int(got.size()), 5);
     for (int i = 0; i < 5; ++i) QVERIFY2(got[size_t(i)] == want[i], qPrintable(QStringLiteral("#%1：%2 vs %3").arg(i).arg(got[size_t(i)], 0, 'g', 17).arg(want[i], 0, 'g', 17)));
+}
+
+// ---------------- 0.10.0 完整计划页 ----------------
+
+void TestMap::sunAgainstElectron()
+{
+    const QJsonArray rows = QJsonDocument::fromJson(readFile(QStringLiteral(TP_SOURCE_DIR "/tests/golden/sun.json"))).array();
+    QVERIFY(rows.size() >= 20);
+    for (const QJsonValue &v : rows) {
+        const QJsonObject c = v.toObject(), w = c[QStringLiteral("want")].toObject();
+        const QString tz = c[QStringLiteral("tz")].toString(), name = tz + QLatin1Char(' ') + c[QStringLiteral("date")].toString();
+        const sun::Times t = sun::info(c[QStringLiteral("lat")].toDouble(), c[QStringLiteral("lng")].toDouble(), c[QStringLiteral("date")].toString(), tz);
+        QVERIFY2(t.ok, qPrintable(name));
+        QCOMPARE(t.polar, w[QStringLiteral("polar")].toString());
+        if (!t.polar.isEmpty()) continue;
+        QVERIFY2(t.rise == w[QStringLiteral("rise")].toString(), qPrintable(name + QStringLiteral("：日出 %1 vs %2").arg(t.rise, w[QStringLiteral("rise")].toString())));
+        QVERIFY2(t.set == w[QStringLiteral("set")].toString(), qPrintable(name + QStringLiteral("：日落 %1 vs %2").arg(t.set, w[QStringLiteral("set")].toString())));
+        QCOMPARE(t.dayMin, w[QStringLiteral("dayMin")].toInt());
+        QCOMPARE(t.approx, w[QStringLiteral("approx")].toBool());   // 这台电脑的时区库认得开发数据里用到的时区
+    }
+    QVERIFY(!sun::info(10, 20, QStringLiteral("2026-13-40"), QString()).ok);
+    QVERIFY(!sun::info(10, 20, QString(), QString()).ok);
+    QVERIFY2(sun::info(35, 135, QStringLiteral("2026-06-01"), QStringLiteral("Not/AZone")).approx, "认不出的时区退回按经度估算");
+}
+
+namespace {
+tp::json::Value parseJson(const char *s)
+{
+    return tp::json::parse(QString::fromUtf8(s));
+}
+}
+
+void TestMap::schedGrouping()
+{
+    const tp::json::Value stop = parseJson(R"({"schedule":[
+        {"date":"","text":"随便"},
+        {"date":"2026-11-23","time":"10:00","text":"岚山"},
+        {"date":"2026-11-22","time":"14:00","end":"16:00","text":"稻荷"},
+        {"date":"2026-11-22","time":"09:00","text":"清水寺"},
+        {"date":"2026-11-22","text":"全天"}]})");
+    const QVariantList d = plans::schedDays(stop, QStringLiteral("2026-11-22"));
+    QCOMPARE(d.size(), 3);
+    QCOMPARE(d[0].toMap().value("date").toString(), QStringLiteral("2026-11-22"));
+    const QVariantList a = d[0].toMap().value("items").toList();
+    QCOMPARE(a.size(), 3);
+    QCOMPARE(a[0].toMap().value("text").toString(), QStringLiteral("全天"));   // 没写时间的在前
+    QCOMPARE(a[1].toMap().value("text").toString(), QStringLiteral("清水寺"));
+    QCOMPARE(a[1].toMap().value("j").toInt(), 3);                              // 记着数组里的下标
+    QVERIFY(a[1].toMap().value("today").toBool());
+    QVERIFY(!d[1].toMap().value("items").toList()[0].toMap().value("today").toBool());
+    QCOMPARE(d[2].toMap().value("date").toString(), QString());                // 没写日期的放最后
+    // 旧格式的字符串
+    const QVariantList s = plans::schedDays(parseJson(R"({"schedule":"老文字"})"), QString());
+    QCOMPARE(s.size(), 1);
+    QCOMPARE(s[0].toMap().value("items").toList()[0].toMap().value("text").toString(), QStringLiteral("老文字"));
+    QVERIFY(plans::schedDays(parseJson("{}"), QString()).isEmpty());
+}
+
+void TestMap::schedEdit()
+{
+    tp::json::Value stop = parseJson(R"({"id":"s","schedule":[{"date":"2026-11-22","time":"09:00","text":"a","mine":1}]})");
+    const tp::json::Value orig = stop;
+    QCOMPARE(plans::putSchedule(stop, -1, "", "", "", "  "), QStringLiteral("empty"));
+    QCOMPARE(plans::putSchedule(stop, -1, "", "", "10:00", "x"), QStringLiteral("endNoStart"));
+    QCOMPARE(plans::putSchedule(stop, -1, "", "25:00", "", "x"), QStringLiteral("badTime"));
+    QCOMPARE(plans::putSchedule(stop, -1, "", "abc", "", "x"), QStringLiteral("badTime"));
+    QCOMPARE(plans::putSchedule(stop, -1, "2026-13-01", "", "", "x"), QStringLiteral("badDate"));
+    QVERIFY(stop == orig);   // 有问题时什么都不改
+    QCOMPARE(plans::putSchedule(stop, -1, "2026-11-23", "9:5", "", "x"), QStringLiteral("badTime"));
+    QVERIFY(plans::putSchedule(stop, -1, "2026-11-23", "0930", "18:00", " 新 ").isEmpty());
+    const tp::json::Array &arr = stop[QStringLiteral("schedule")].asArray();
+    QCOMPARE(int(arr.size()), 2);
+    QCOMPARE(arr[1][QStringLiteral("time")].toString(), QStringLiteral("09:30"));
+    QCOMPARE(arr[1][QStringLiteral("text")].toString(), QStringLiteral("新"));
+    // 修改：去掉时间、保留不认识的键
+    QVERIFY(plans::putSchedule(stop, 0, "2026-11-22", "", "", "b").isEmpty());
+    const tp::json::Value &it = stop[QStringLiteral("schedule")].asArray()[0];
+    QVERIFY(!it.asObject().contains(QStringLiteral("time")));
+    QCOMPARE(it[QStringLiteral("mine")].jsToNumber(), 1.0);
+    QVERIFY(plans::removeSchedule(stop, 0));
+    QVERIFY(!plans::removeSchedule(stop, 5));
+    QCOMPARE(int(stop[QStringLiteral("schedule")].asArray().size()), 1);
+    // 旧格式的字符串转成数组
+    tp::json::Value old = parseJson(R"({"schedule":"老文字"})");
+    QVERIFY(plans::putSchedule(old, -1, "", "", "", "新").isEmpty());
+    QCOMPARE(int(old[QStringLiteral("schedule")].asArray().size()), 2);
+}
+
+void TestMap::pageDocWarnings()
+{
+    tp::json::Value root = parseJson(R"({"plans":[{"id":"p","status":"planning","startDate":"2026-08-31","endDate":"2026-08-31","stops":[]},
+        {"id":"done","status":"completed","startDate":"2026-08-31","stops":[]}],
+      "documents":[{"kind":"passport","expires":"2026-08-01","owner":"我"},
+                   {"kind":"passport","expires":"2027-03-02"},
+                   {"kind":"passport","expires":"2027-03-03"},
+                   {"kind":"visa","expires":"2026-08-30","planId":"p"},
+                   {"kind":"visa","expires":"2026-08-30","planId":"other"},
+                   {"kind":"visa","expires":"不是日期","planId":"p"}]})");
+    const QVariantList w = plans::docWarnings(root, *plans::planById(root, "p"));
+    QCOMPARE(w.size(), 3);
+    QCOMPARE(w[0].toMap().value("kind").toString(), QStringLiteral("passportExpired"));
+    QCOMPARE(w[1].toMap().value("kind").toString(), QStringLiteral("passport6m"));   // 8 月 31 日 + 6 个月 = 3 月 3 日（和 JS 一样顺延），3 月 2 日不够
+    QCOMPARE(w[2].toMap().value("kind").toString(), QStringLiteral("doc"));
+    QVERIFY(plans::docWarnings(root, *plans::planById(root, "done")).isEmpty());
+}
+
+void TestMap::pageSeasonAndDays()
+{
+    tp::json::Value root = parseJson(R"({"seasonGuide":{"rows":[{"country":"日本","countryEn":"Japan","spans":[
+        {"from":11,"to":2,"kind":"nice","text":"雪","textEn":"Snow"},{"from":3,"to":5,"kind":"best","text":"樱花"}]}]},
+      "plans":[{"id":"p","status":"wish","name":"n","type":"route","seasonRef":"日本","startDate":"","endDate":"",
+        "stops":[{"id":"a","name":"A","lat":35,"lng":135,"arriveDate":"2026-06-01","departDate":"2026-06-03","tz":"Asia/Tokyo","schedule":[]},
+                 {"id":"bad","name":"坏","lat":"x","lng":0},
+                 {"id":"b","name":"B","lat":36,"lng":136,"arriveDate":"2026-06-03","schedule":[{"date":"2026-06-03","text":"t"}]}]}]})");
+    const QVariantMap s = plans::seasonInfo(root, "日本");
+    QCOMPARE(s.value("nameEn").toString(), QStringLiteral("Japan"));
+    const QVariantList c = s.value("cells").toList();
+    QCOMPARE(c.size(), 12);
+    QCOMPARE(c[0].toMap().value("kind").toString(), QStringLiteral("nice"));    // 跨年的一段
+    QCOMPARE(c[3].toMap().value("kind").toString(), QStringLiteral("best"));
+    QVERIFY(c[7].toMap().isEmpty());
+    QVERIFY(plans::seasonInfo(root, "火星").isEmpty());
+
+    const QVariantMap m = plans::pageInfo(root, "p", "2026-06-02");
+    QVERIFY(m.value("season").toMap().contains("cells"));
+    QCOMPARE(m.value("todayStop").toInt(), -1);   // 想去、没有日期：不算在路上
+    const QVariantList st = m.value("stops").toList();
+    QCOMPARE(st.size(), 2);                       // 坐标无效的不算
+    QCOMPARE(st[0].toMap().value("sun").toMap().value("approx").toBool(), false);
+    QCOMPARE(st[1].toMap().value("sun").toMap().value("approx").toBool(), true);
+    QVERIFY(plans::pageInfo(root, "没有", "2026-06-02").isEmpty());
+
+    // 预计天数
+    QCOMPARE(plans::setDays(root, "p", "0"), QStringLiteral("badDays"));
+    QCOMPARE(plans::setDays(root, "p", "1000"), QStringLiteral("badDays"));
+    QCOMPARE(plans::setDays(root, "p", "abc"), QStringLiteral("badDays"));
+    QVERIFY(plans::setDays(root, "p", "6.4").isEmpty());
+    QCOMPARE(plans::pageInfo(root, "p", "2026-06-02").value("days").toInt(), 6);
+    QVERIFY(plans::setDays(root, "p", " ").isEmpty());
+    QCOMPARE(plans::pageInfo(root, "p", "2026-06-02").value("days").toInt(), 0);
+
+    // 开始计划：只填出发时回来 = 出发
+    QVERIFY(plans::startPlanning(root, "p", "2026-06-01", ""));
+    const tp::json::Value *p = plans::planById(root, "p");
+    QCOMPARE((*p)[QStringLiteral("status")].toString(), QStringLiteral("planning"));
+    QCOMPARE((*p)[QStringLiteral("endDate")].toString(), QStringLiteral("2026-06-01"));
+    // 这下在路上了：今天 = 最后一个到达日期 ≤ 今天的站
+    QVERIFY(plans::startPlanning(root, "p", "2026-06-01", "2026-06-05"));
+    const QVariantMap live = plans::pageInfo(root, "p", "2026-06-03");
+    QVERIFY(live.value("live").toBool());
+    QCOMPARE(live.value("todayStop").toInt(), 1);
+    QVERIFY(live.value("stops").toList()[1].toMap().value("days").toList()[0].toMap().value("items").toList()[0].toMap().value("today").toBool());
+    QVERIFY(!plans::pageInfo(root, "p", "2026-07-01").value("live").toBool());
+}
+
+void TestMap::tzFill()
+{
+    tp::json::Value root = parseJson(R"({"plans":[{"id":"p","stops":[
+        {"id":"a","lat":39.47,"lng":75.99},{"id":"b","lat":43.8,"lng":87.6,"tz":"Asia/Urumqi"},{"id":"bad","lat":"x","lng":0},{"id":"c","lat":1,"lng":2,"tz":""}]}]})");
+    const QVector<plans::TzStop> need = plans::stopsWithoutTz(*plans::planById(root, "p"));
+    QCOMPARE(need.size(), 2);
+    const QString url = plans::tzUrl(need).toString();
+    QVERIFY2(url.startsWith("https://api.open-meteo.com/v1/forecast?") && url.contains("timezone=auto") && url.contains("39.470") && url.contains("forecast_days=1"), qPrintable(url));
+    // 回复：数组、单个对象（只问一个地点时）、认不出的、坏 JSON
+    QCOMPARE(plans::parseTz(R"([{"timezone":"Asia/Shanghai"},{"timezone":"<b>"}])", 2), QStringList({ "Asia/Shanghai", "" }));
+    QCOMPARE(plans::parseTz(R"({"timezone":"UTC"})", 1), QStringList({ "UTC" }));
+    QCOMPARE(plans::parseTz("坏的", 2), QStringList({ "", "" }));
+    // 只写空的（手动填的、已经有的不动）
+    QCOMPARE(plans::applyTz(root, "p", { "a", "b", "c", "没有" }, { "Asia/Shanghai", "Asia/Shanghai", "", "X/Y" }), 1);
+    const tp::json::Array &st = (*plans::planById(root, "p"))[QStringLiteral("stops")].asArray();
+    QCOMPARE(st[0][QStringLiteral("tz")].toString(), QStringLiteral("Asia/Shanghai"));
+    QCOMPARE(st[1][QStringLiteral("tz")].toString(), QStringLiteral("Asia/Urumqi"));
+    QCOMPARE(plans::applyTz(root, "没有", { "a" }, { "X/Y" }), 0);
 }
 
 #include "tst_map.moc"

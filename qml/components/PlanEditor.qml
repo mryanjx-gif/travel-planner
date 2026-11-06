@@ -3,7 +3,7 @@
 //   计划：名称、类型、状态、区域（自动建议）、开始 / 结束日期、地图标记样式（+ 路线标记：数字 / 图标 / 圆点）、备注；
 //   站点：名称、到达 / 离开、备注、坐标、样式（路线）、去下一站的交通方式（自驾 / 徒步自动按道路算）；
 //   加站点：搜地名（结果同时标在地图上，方案 B）、在地图上点选（改进 a 的预览在 FlatMap）、手动输入坐标。
-// PO 0.8.9 选的范围 B：行程安排、照片、封面这一版不在这里改（只显示条数），数据原样保留。
+// PO 0.8.9 选的范围 B：照片、封面这一版不在这里改（只显示条数），数据原样保留。0.10.0 起可以改行程安排（SchedList，和计划页同一个组件）。
 // 改进 e：顶上一行总里程；改进 d：站点可以拖住把手排序（保留 ↑ ↓）；改进 g：新建时加到第二站自动改成路线（提示一句）。
 // drawer = 窄窗口（≤ 768）时变成底部抽屉（PO 选方案 B）：顶上多一个把手，Main.qml 管高度。
 import QtQuick
@@ -11,6 +11,9 @@ import TPApp
 
 Item {
     id: root
+    QtObject { id: schedEdit; property int stop: -1; property int j: -2; property var draft: ({}); property string err: "" }
+    readonly property bool scheduleEditing: schedEdit.j !== -2
+    function cancelSchedule() { schedEdit.j = -2 }
     property Item backdrop: null
     property bool drawer: false
     property bool infoOpen: false
@@ -556,11 +559,22 @@ Item {
                                         }
                                         Label { text: qsTr("备注") }
                                         TpField { width: parent.width; multiline: true; value: stopItem.modelData.notes; placeholder: qsTr("交通、门票、注意事项……"); onEdited: (t) => editor.setStopField(stopItem.index, "notes", t) }
+                                        Label { text: qsTr("行程安排") }
+                                        SchedList {
+                                            objectName: "editorSched" + stopItem.index
+                                            width: parent.width
+                                            ctl: schedEdit
+                                            stopIndex: stopItem.index
+                                            days: stopItem.modelData.days || []
+                                            defaultDate: stopItem.modelData.arriveDate || ""
+                                            saver: (j, d) => editor.saveSched(stopItem.index, j, d.date, d.time, d.end, d.text)
+                                            deleter: (j) => editor.deleteSched(stopItem.index, j)
+                                        }
                                         Text {
                                             readonly property var c: stopItem.modelData.counts || {}
-                                            visible: c.schedule > 0 || c.photos > 0
+                                            visible: c.photos > 0
                                             width: parent.width; wrapMode: Text.Wrap
-                                            text: qsTr("行程 %1 条 · 照片 %2 张（这一版在这里还不能改）").arg(c.schedule || 0).arg(c.photos || 0)
+                                            text: qsTr("照片 %1 张（这一版在这里还不能改）").arg(c.photos || 0)
                                             font.family: serifFamily; font.pixelSize: Theme.px(11.5); color: Theme.muted
                                         }
                                         // 坐标和样式（Electron details.ed-more）

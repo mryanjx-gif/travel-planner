@@ -20,8 +20,8 @@ $Log = Join-Path $Root '验证-结果.txt'
 # |hide：截完先把窗口藏起来再退出（等于从托盘退出；0.8.0 检查退出时地图释放得对不对）
 $Pages = @(
     'street|zh',
-    'globe|zh', 'morph-half|zh', 'morph-flat|zh', 'morph-ref|zh',
-    'filter|zh', 'filter-overlay|zh', 'filter-overlay-sat|zh', 'filter-overlay|en',
+    'trip|zh', 'trip|en', 'trip-today|zh', 'trip-scroll|zh', 'trip-edit|zh', 'trip-edit|en', 'trip-single|zh', 'trip-sketch|zh', 'trip-narrow|zh',
+    'sheet|zh', 'now|zh', 'now|en', 'editor|zh',
     'street|zh|hide'
 )
 $Logs = Join-Path $env:LOCALAPPDATA 'TravelPlannerNative\logs'

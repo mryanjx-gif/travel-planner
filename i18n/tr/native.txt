@@ -514,7 +514,6 @@ WiFi	Wi-Fi
 编辑器开着时不能撤销：先点「完成」，或者点「放弃这次的修改」	Can't undo while the editor is open. Click “Done”, or “Discard changes”
 至少需要一个站点，先不保存	Needs at least one stop, not saved
 行程 %1 条	Schedule: %1
-行程 %1 条 · 照片 %2 张（这一版在这里还不能改）	Schedule: %1 · Photos: %2 (can't be edited here in this version)
 计划名称，例如：京都赏枫	Plan name, e.g. Kyoto autumn leaves
 请先完成或放弃当前编辑	Finish or discard the current edit first
 请先完成或放弃编辑器里的改动，再批量计算	Finish or discard the changes in the editor before calculating
@@ -539,3 +538,61 @@ WiFi	Wi-Fi
 叠上其他旅程	Overlay other trips
 不叠其他旅程	Stop overlaying other trips
 其他状态的旅程画成淡灰细线，垫在下面	Trips with other statuses are drawn as thin grey lines underneath
+# 0.10.0 完整计划页
+打开完整计划	Open full plan
+今天的行程	Today's itinerary
+打开计划	Open plan
+简易版	Simple view
+计划库	Plan library
+愿望清单	Wishlist
+更多	More
+编辑	Edit
+行程	Itinerary
+备注	Notes
+站点安排	Stops
+行程安排	Schedule
+详细	Details
+今天	Today
+上一站（←）	Previous stop (←)
+下一站（→）	Next stop (→)
+共 %1 站	%1 stops
+点 › 从第 1 站开始	Press › to start from stop 1
+第 %1 / %2 站	Stop %1 of %2
+返回（Esc）	Back (Esc)
+开始计划	Start planning
+改成“计划中”	Change to “Planning”
+预计天数	Estimated days
+大约几天（不确定可以留空）	About how many days (leave empty if unsure)
+天数要在 1 到 999 之间	Days must be between 1 and 999
+预计 %1 天	About %1 days
+设预计天数	Set estimated days
+没有有效的站点坐标。	No stops with valid coordinates.
+找不到这个计划	Plan not found
+可能已经被删除了。	It may have been deleted.
+%1 极昼：太阳整天不落	%1 polar day: the sun doesn't set
+%1 极夜：太阳整天不升起	%1 polar night: the sun doesn't rise
+%1 日出 <b>%2</b> · 日落 <b>%3</b> · 白天 %4 小时 %5 分	%1 sunrise <b>%2</b> · sunset <b>%3</b> · daylight %4 h %5 min
+（按经度估算）	 (estimated from longitude)
+护照	Passport
+签证	Visa
+其他证件	Other document
+%1 在 %2 已经过期，出发前要换新护照	%1 expired on %2. Renew it before you leave
+%1 在 %2 到期，离回程（%3）不足 6 个月；很多国家要求护照有效期在 6 个月以上	%1 expires on %2, less than 6 months after you return (%3). Many countries require at least 6 months of validity
+%1 在 %2 到期，早于回程（%3）	%1 expires on %2, before you return (%3)
+最适合	Best
+不错	Good
+有点热/人多	Hot or crowded
+不推荐	Not recommended
+表里没写	Not in the table
+%1 月	Month %1
+时间要写成 09:30 这样	Write the time like 09:30
+日期不对	Invalid date
+填了结束时间，也要填开始时间	If you enter an end time, enter a start time too
+未定日期	No date
+修改这一条（日期、时间、内容）	Edit this item (date, time, content)
+加一条行程	Add an item
+开始	Start
+结束	End
+内容	Content
+好	OK
+照片 %1 张（这一版在这里还不能改）	%1 photos (can't be edited here in this version)

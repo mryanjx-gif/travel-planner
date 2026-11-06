@@ -2,7 +2,8 @@
 //   标题行（色点 + 在路上 / 下一次出发 / 刚回来）→ 大标题（今天所在的站 / 计划名）+ 右边"第 3 / 6 天"或倒计时
 //   → 在路上时：天数进度条、今天的安排（带时间，最多 3 条）、下一站（交通方式 + 站名）
 //   → 按钮："在地图上看"（主按钮）+ ⋯（取消指定）→ 这趟的待办（最多 3 条，可以勾）→ 提醒（日期已过的计划、60 天内到期的证件）。
-// 指向还没做的页面的按钮（今天的行程、记一笔、打开计划、行李与待办、整理照片、写游记、去计划库、看证件）先不显示，
+// 0.10.0 起主按钮是"今天的行程"（在路上）/"打开计划"，"在地图上看"退到第二个。
+// 指向还没做的页面的按钮（记一笔、行李与待办、整理照片、写游记、去计划库、看证件）先不显示，
 // 页面做好时补上（PO 2026-11-05，记在待办需求记录.md）。
 // info = plans.now（plans.cpp nowInfo）。勾待办后先显示勾上，0.45 秒后才真的改数据（Electron setTimeout(renderNow, 450)）。
 import QtQuick
@@ -14,6 +15,7 @@ Item {
     property var info: ({})
     signal closeRequested()
     signal showOnMap(string planId)
+    signal openTrip(string planId, int stop)    // 0.10.0：今天的行程（stop = 今天所在的站）/ 打开计划（-1）
     signal markDone(string planId, string name)
     signal unsetNext()
     readonly property string kind: info.kind || "none"
@@ -194,15 +196,29 @@ Item {
                 width: parent.width
                 height: Theme.px(34) + Theme.px(14)
                 Rectangle {
-                    id: mapBtn
-                    objectName: "nowShowOnMap"
+                    id: openBtn
+                    objectName: "nowOpenTrip"
                     y: Theme.px(14)
-                    width: mapLbl.implicitWidth + Theme.px(28)
+                    width: openLbl.implicitWidth + Theme.px(28)
                     height: Theme.px(34)
                     radius: height / 2
-                    color: mapMa.pressed ? Theme.accentInk : Theme.accent
-                    Text { id: mapLbl; anchors.centerIn: parent; text: qsTr("在地图上看"); font.family: serifFamily; font.pixelSize: Theme.px(13); font.bold: true; color: "#ffffff" }
-                    MouseArea { id: mapMa; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.showOnMap(root.info.planId) }
+                    color: openMa.pressed ? Theme.accentInk : Theme.accent
+                    Text { id: openLbl; anchors.centerIn: parent; text: root.live ? qsTr("今天的行程") : qsTr("打开计划"); font.family: serifFamily; font.pixelSize: Theme.px(13); font.bold: true; color: "#ffffff" }
+                    MouseArea { id: openMa; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.openTrip(root.info.planId, root.live ? root.info.hereIndex : -1) }
+                    Accessible.role: Accessible.Button; Accessible.name: openLbl.text
+                }
+                Rectangle {
+                    id: mapBtn
+                    objectName: "nowShowOnMap"
+                    x: openBtn.width + Theme.px(8)
+                    y: Theme.px(14)
+                    width: mapLbl.implicitWidth + Theme.px(24)
+                    height: Theme.px(34)
+                    radius: height / 2
+                    color: mapMa.containsMouse ? "#ffffff" : Theme.panel
+                    border.width: 1; border.color: Theme.lineStrong
+                    Text { id: mapLbl; anchors.centerIn: parent; text: qsTr("在地图上看"); font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.text }
+                    MouseArea { id: mapMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.showOnMap(root.info.planId) }
                     Accessible.role: Accessible.Button; Accessible.name: mapLbl.text
                 }
                 Rectangle {

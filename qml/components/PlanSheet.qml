@@ -4,7 +4,7 @@
 //   路线：顶部一排站点条（点一下聚焦那一站，和地图标记、← → 同步）；没有聚焦时显示概览（封面、备注、全部站点的简表）；
 //   聚焦时只显示这一站（日期、住几晚、安排、照片、备注、下一段怎么走）
 //   单一目的地：直接显示那一站。
-// "打开完整计划"、⋯ 里的计划库 / 日历 / 导出在对应页面做好以前不显示；0.8.9 起头部有"编辑"（铅笔，打开站点编辑器）。
+// ⋯ 里的计划库 / 日历 / 导出在对应页面做好以前不显示；0.10.0 起底部有"打开完整计划"；0.8.9 起头部有"编辑"（铅笔，打开站点编辑器）。
 // source = plans.sheet（plans.cpp sheetInfo + 缩略图地址）。
 import QtQuick
 import TPApp
@@ -24,6 +24,7 @@ Item {
     signal toggleNext(string planId, bool on)
     signal deleteRequested(string planId, string name)
     signal editRequested(string planId)         // 0.8.9：打开站点编辑器（Electron dtEdit）
+    signal fullRequested(string planId)         // 0.10.0：打开完整计划
     readonly property var stops: sheet.stops || []
     readonly property bool route: sheet.type === "route" && stops.length > 1
     readonly property int shown: route ? focusIndex : (stops.length ? 0 : -1)   // 现在显示哪一站（-1 = 概览）
@@ -191,7 +192,7 @@ Item {
         x: Theme.px(22)
         y: (root.route ? strip.y + strip.height : head.y + head.height) + Theme.px(14)
         width: parent.width - Theme.px(44)
-        height: parent.height - y - Theme.px(18)
+        height: fullBtn.y - y - Theme.px(8)
         contentHeight: content.implicitHeight + Theme.px(8)
         clip: true
         boundsBehavior: Flickable.StopAtBounds
@@ -275,7 +276,7 @@ Item {
                             if (!root.stop) return ""
                             const d = Fmt.range(root.stop.arriveDate, root.stop.departDate)
                             const n = Fmt.nights(root.stop.arriveDate, root.stop.departDate)
-                            return d + (n > 0 ? " · " + qsTr("住 %1 晚").arg(n) : "")
+                            return d + (n > 0 ? " · " + (n === 1 && Fmt.en ? "1 night" : qsTr("住 %1 晚").arg(n)) : "")
                         }
                     }
                 }
@@ -365,6 +366,18 @@ Item {
         }
     }
 
+    TpButton {
+        id: fullBtn
+        objectName: "sheetFull"
+        x: Theme.px(22)
+        y: parent.height - height - Theme.px(14)
+        width: parent.width - Theme.px(44)
+        compact: true
+        kind: "primary"
+        text: qsTr("打开完整计划")
+        onClicked: root.fullRequested(root.sheet.id)
+    }
+
     // ---- ⋯ 菜单 ----
     Rectangle {
         id: moreMenu
@@ -393,21 +406,6 @@ Item {
         }
     }
 
-    component MenuRow: Rectangle {
-        id: mr
-        property string text: ""
-        property bool danger: false
-        signal clicked()
-        width: Math.max(Theme.px(150), mrText.implicitWidth + Theme.px(24))
-        height: visible ? Theme.px(34) : 0
-        radius: Theme.radiusControl
-        color: mrMa.containsMouse ? Theme.accentSoft : "transparent"
-        Accessible.role: Accessible.MenuItem
-        Accessible.name: text
-        Text { id: mrText; x: Theme.px(12); anchors.verticalCenter: parent.verticalCenter; text: mr.text; font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: mr.danger ? Theme.dangerInk : Theme.text }
-        MouseArea { id: mrMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: mr.clicked() }
-    }
-
     component NotesBlock: Column {
         id: nb
         property string text: ""
@@ -424,62 +422,5 @@ Item {
             lineHeight: 1.3
             text: nb.text
         }
-    }
-
-    component RoundIcon: Rectangle {
-        id: ri
-        property string kind: ""
-        property string label: ""
-        property bool active: false
-        property bool plain: false
-        property bool small: false
-        signal clicked()
-        width: Theme.px(small ? 28 : 36)
-        height: width
-        radius: width / 2
-        opacity: enabled ? 1 : 0.35
-        color: plain ? (riMa.containsMouse ? Qt.rgba(22 / 255, 32 / 255, 42 / 255, 0.06) : "transparent")
-                     : (active || riMa.containsMouse ? "#ffffff" : Qt.rgba(1, 1, 1, 0.7))
-        border.width: plain ? 0 : 1
-        border.color: Qt.rgba(196 / 255, 208 / 255, 217 / 255, 0.9)
-        Accessible.role: Accessible.Button
-        Accessible.name: label
-        Canvas {
-            anchors.centerIn: parent
-            width: Theme.px(ri.small ? 14 : 18)
-            height: width
-            property string k: ri.kind
-            onKChanged: requestPaint()
-            onPaint: {
-                const c = getContext("2d"), s = width / 24
-                c.reset()
-                c.strokeStyle = Theme.text
-                c.fillStyle = Theme.text
-                c.lineWidth = 2 * s
-                c.lineCap = "round"
-                c.lineJoin = "round"
-                c.beginPath()
-                if (k === "locate") {
-                    c.arc(12 * s, 12 * s, 7 * s, 0, Math.PI * 2)
-                    c.moveTo(12 * s, 2 * s); c.lineTo(12 * s, 5 * s); c.moveTo(12 * s, 19 * s); c.lineTo(12 * s, 22 * s)
-                    c.moveTo(2 * s, 12 * s); c.lineTo(5 * s, 12 * s); c.moveTo(19 * s, 12 * s); c.lineTo(22 * s, 12 * s)
-                    c.stroke()
-                    c.beginPath(); c.arc(12 * s, 12 * s, 2 * s, 0, Math.PI * 2); c.fill()
-                } else if (k === "more") {
-                    for (const x of [5, 12, 19]) { c.moveTo((x + 1.6) * s, 12 * s); c.arc(x * s, 12 * s, 1.6 * s, 0, Math.PI * 2) }
-                    c.fill()
-                } else if (k === "edit") {   // 铅笔（0.8.9）
-                    c.moveTo(4 * s, 20 * s); c.lineTo(4 * s, 16 * s); c.lineTo(15 * s, 5 * s); c.lineTo(19 * s, 9 * s); c.lineTo(8 * s, 20 * s); c.closePath()
-                    c.moveTo(13 * s, 7 * s); c.lineTo(17 * s, 11 * s); c.stroke()
-                } else if (k === "close") {
-                    c.moveTo(6 * s, 6 * s); c.lineTo(18 * s, 18 * s); c.moveTo(18 * s, 6 * s); c.lineTo(6 * s, 18 * s); c.stroke()
-                } else if (k === "prev") {
-                    c.moveTo(15 * s, 5 * s); c.lineTo(8 * s, 12 * s); c.lineTo(15 * s, 19 * s); c.stroke()
-                } else if (k === "next") {
-                    c.moveTo(9 * s, 5 * s); c.lineTo(16 * s, 12 * s); c.lineTo(9 * s, 19 * s); c.stroke()
-                }
-            }
-        }
-        MouseArea { id: riMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: ri.clicked() }
     }
 }

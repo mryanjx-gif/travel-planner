@@ -1,5 +1,7 @@
 #include "planeditor.h"
 
+#include "planpage.h"
+
 #include "appcontroller.h"
 #include "datastore.h"
 #include "geocoder.h"
@@ -304,6 +306,24 @@ void PlanEditor::setStopField(int i, const QString &key, const QString &value)
     if (m_open && pe::setStopField(m_plan, i, key, value)) changed(key == QLatin1String("name"));
 }
 
+QString PlanEditor::saveSched(int i, int j, const QString &date, const QString &time, const QString &end, const QString &text)
+{
+    Value *sv = m_open ? m_plan.mutObject().find(kStops) : nullptr;
+    if (!sv || !sv->isArray() || i < 0 || i >= int(sv->asArray().size())) return QStringLiteral("empty");
+    const QString err = tp::map::plans::putSchedule(sv->mutArray()[i], j, date, time, end, text);
+    if (err.isEmpty()) changed(false);
+    return err;
+}
+
+bool PlanEditor::deleteSched(int i, int j)
+{
+    Value *sv = m_open ? m_plan.mutObject().find(kStops) : nullptr;
+    if (!sv || !sv->isArray() || i < 0 || i >= int(sv->asArray().size())) return false;
+    if (!tp::map::plans::removeSchedule(sv->mutArray()[i], j)) return false;
+    changed(false);
+    return true;
+}
+
 void PlanEditor::setStopLatLng(int i, double lat, double lng)
 {
     if (m_open && pe::setStopLatLng(m_plan, i, lat, pe::normLng(lng))) changed();
@@ -474,6 +494,7 @@ void PlanEditor::refreshView()
         m.insert(QStringLiteral("own"), !str(s, "color").isEmpty() || !str(s, "shape").isEmpty() || !str(s, "icon").isEmpty());
         m.insert(QStringLiteral("bad"), bad.contains(sid));
         m.insert(QStringLiteral("counts"), pe::stopCounts(m_store->data(), str(p, "id"), s));
+        m.insert(QStringLiteral("days"), tp::map::plans::schedDays(s, QString()));
         if (legs.contains(i)) {
             const pe::LegRow &r = legs.value(i);
             QVariantMap l{ { QStringLiteral("mode"), r.mode }, { QStringLiteral("km"), r.straightKm } };

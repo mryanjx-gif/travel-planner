@@ -110,6 +110,13 @@ public:
     Q_INVOKABLE bool markCompleted(const QString &planId);
     Q_INVOKABLE bool deletePlan(const QString &planId);
 
+    // ---- 0.10.0 ----
+    // 完整计划页开着时地图只画这一条（S-04，Electron setSolo）；空 = 恢复
+    Q_INVOKABLE void setSolo(const QString &planId);
+    QString solo() const { return m_solo; }
+    // 给 sheetInfo / pageInfo 的结果加上照片缩略图的地址
+    static QVariantMap withThumbs(QVariantMap s);
+
     // 截图 / 自检 / 内存测试时不把筛选写进 settings.json（免得影响下一次运行）
     // 0.8.10：同时忘掉 settings.json 里记着的模式、"也显示"和各模式的底图（截图 / 自检每次都从同一个样子开始）
     void setPersist(bool on);
@@ -153,6 +160,7 @@ private:
     QString m_today, m_todayOverride;
     QTimer m_dayTimer;
     bool m_persist = true;
+    QString m_solo;
 };
 
 } // namespace tp::app

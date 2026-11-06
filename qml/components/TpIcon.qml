@@ -59,6 +59,13 @@ Canvas {
             circle(c, 12, 8.5, 3.6)
             c.beginPath(); c.moveTo(5, 20); c.bezierCurveTo(5.8, 16.4, 8.6, 14.4, 12, 14.4); c.bezierCurveTo(15.4, 14.4, 18.2, 16.4, 19, 20); c.stroke()
             break
+        case "sun":
+            circle(c, 12, 12, 4)
+            for (const r of [[12, 2, 12, 5], [12, 19, 12, 22], [2, 12, 5, 12], [19, 12, 22, 12], [5, 5, 7, 7], [17, 17, 19, 19], [5, 19, 7, 17], [17, 7, 19, 5]]) poly(c, r)
+            break
+        case "moon":
+            c.beginPath(); c.arc(12, 12, 8, Math.PI * 0.35, Math.PI * 1.65, false); c.bezierCurveTo(13, 7, 13, 17, 17.4, 17.9); c.stroke()
+            break
         case "close":
             poly(c, [6, 6, 18, 18]); poly(c, [18, 6, 6, 18]); break
         case "search":

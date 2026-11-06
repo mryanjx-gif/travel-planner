@@ -12,6 +12,7 @@ Item {
     property bool bad: false
     property real fontSize: 13.5
     property bool bold: false
+    property bool submitOnEnter: false     // 多行时 Enter 发 accepted()、Shift + Enter 换行（0.10.0 就地改日程）
     readonly property alias text: edit.text
     readonly property bool editing: edit.activeFocus
     signal edited(string text)
@@ -58,8 +59,12 @@ Item {
             selectedTextColor: Theme.text
             onTextChanged: if (activeFocus) root.edited(text)
             onCursorRectangleChanged: flick.ensureVisible(cursorRectangle)
-            Keys.onReturnPressed: (e) => { if (root.multiline) e.accepted = false; else { root.accepted(); e.accepted = true } }
-            Keys.onEnterPressed: (e) => { if (root.multiline) e.accepted = false; else { root.accepted(); e.accepted = true } }
+            function enter(e) {
+                if (root.multiline && (!root.submitOnEnter || (e.modifiers & Qt.ShiftModifier))) e.accepted = false
+                else { root.accepted(); e.accepted = true }
+            }
+            Keys.onReturnPressed: (e) => enter(e)
+            Keys.onEnterPressed: (e) => enter(e)
             Keys.onEscapePressed: (e) => { focus = false; root.escaped(); e.accepted = true }
             onActiveFocusChanged: if (!activeFocus && text !== root.value) text = root.value
             Text {

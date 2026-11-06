@@ -55,6 +55,7 @@
 #include "paths.h"
 #include "photocontroller.h"
 #include "plancontroller.h"
+#include "planpagecontroller.h"
 #include "planeditor.h"
 #include "locator.h"
 #include "geocoder.h"
@@ -315,6 +316,7 @@ int main(int argc, char *argv[])
     geocoder.setTranslate([](const char *s) { return tp::tr(s); });
     geocoder.setBase(settings.value(QStringLiteral("geocodeUrl")).toString());
     geocoder.setCacheFile(Paths::cacheDir() + (testRun ? QStringLiteral("/test-geocode.json") : QStringLiteral("/geocode.json")));
+    tp::app::PlanPageController planPage(&ctl, &plans, &store, &net);   // 0.10.0 完整计划页
     tp::app::PlanEditor editor(&ctl, &store, &mapc);
     editor.setNet(&net);
     editor.setRoads(&roads);
@@ -363,6 +365,7 @@ int main(int argc, char *argv[])
     ctx->setContextProperty("commands", &commands);
     ctx->setContextProperty("roads", &roads);
     ctx->setContextProperty("editor", &editor);
+    ctx->setContextProperty("planPage", &planPage);
     ctx->setContextProperty("locator", &locator);
     // 截图 ui-photo-import / ui-photo-e2e：把 tests/photos.txt 里的测试照片当成"选中的文件"
     QVariantList photoShotFiles;
@@ -546,6 +549,7 @@ int main(int argc, char *argv[])
         tp::app::SelfTest::setPlans(&plans);
         tp::app::SelfTest::setPerf(frameStats, &settings);
         tp::app::SelfTest::setEditor(&editor, &locator, &geocoder);
+        tp::app::SelfTest::setPlanPage(&planPage, &nav);
         tp::app::SelfTest::start(QDir::fromNativeSeparators(selftestReport), &ctl, &photos, &mapc, win,
                                  GraphicsBackend::displayName(backend.api) + (backend.deviceInfo.isEmpty() ? QString() : QStringLiteral(" · ") + backend.deviceInfo),
                                  &roads, &net, &tileServer, &tileCache);

@@ -120,6 +120,9 @@ public:
     Q_INVOKABLE void setLegMode(int i, const QString &mode);
     Q_INVOKABLE void retryLeg(int i);
     Q_INVOKABLE void flyToStop(int i);
+    // 0.10.0 行程安排（和计划页共用 plans::putSchedule）：j < 0 = 新加；返回空 = 改好了，否则是原因的键
+    Q_INVOKABLE QString saveSched(int i, int j, const QString &date, const QString &time, const QString &end, const QString &text);
+    Q_INVOKABLE bool deleteSched(int i, int j);
 
     // ---- 加站点：地名搜索、在地图上点选 ----
     Q_INVOKABLE void search(const QString &q);
