@@ -215,7 +215,21 @@ void runPhotoMode(Report &r, AppController *app, map::MapController *mapc, QQuic
     r.check(waitFor([&] { return win->property("albumOpen").toBool(); }, 1000), QStringLiteral("展开成相册"));
     waitStill(list, 1500);
     r.check(std::abs(list->width() - (win->width() - 2 * win->property("gap").toDouble())) < 2, QStringLiteral("相册铺满窗口"), QStringLiteral("%1 / %2").arg(list->width()).arg(win->width()));
-    r.check(!album->compact() && album->columns() >= 3, QStringLiteral("整页多列"), QStringLiteral("%1 列").arg(album->columns()));
+    r.check(!album->compact() && album->layoutWidth() > 600, QStringLiteral("整页按宽窗口排行"), QString::number(album->layoutWidth()));
+    // 0.12.9 等高行：照片比例对、整行铺满（窗口宽度和 QML 一致）、没裁切
+    {
+        waitFor([&] { return album->rowOfPhoto(album->anchorPhoto(0)) >= 0; }, 2000);
+        waitFor([&] { return std::abs(grid->width() - album->layoutWidth()) < 1; }, 1500);
+        int row = album->firstRowOf(QStringLiteral("photos"));
+        const QVariantList first = album->data(album->index(row), AlbumModel::Items).toList();
+        const double rowH = album->data(album->index(row), AlbumModel::RowH).toDouble();
+        double sum = 0;
+        for (const QVariant &v : first) sum += v.toMap().value(QStringLiteral("w")).toDouble();
+        r.check(rowH > 0 && !first.isEmpty() && sum > 0 && sum <= album->layoutWidth() + 1, QStringLiteral("等高行：有高度，不超出宽度"), QStringLiteral("高 %1，宽合计 %2 / %3，%4 张").arg(rowH).arg(sum).arg(album->layoutWidth()).arg(first.size()));
+        r.check(grid->property("contentItem").value<QQuickItem *>() != nullptr, QStringLiteral("等高行：列表还在"));
+        QQuickItem *imgItem = findItem(grid, QStringLiteral("albumImg"));
+        if (imgItem) r.check(imgItem->property("fillMode").toInt() == 1, QStringLiteral("等高行：照片不裁切（PreserveAspectFit）"), QString::number(imgItem->property("fillMode").toInt()));
+    }
     QQuickItem *aside = item(QStringLiteral("albumAside"));
     r.check(shown(aside), QStringLiteral("整页按旅程有左边一列"));
     {   // 铺满时不飞
@@ -463,6 +477,25 @@ void runPhotoMode(Report &r, AppController *app, map::MapController *mapc, QQuic
             g->setProperty("contentY", 0);
             pause(200);
         };
+        // 0.12.9 再量一次快速滚动（每帧 40 像素，一直在建新行）
+        const auto scrollFast = [&](const QString &label) {
+            QQuickItem *g = item(QStringLiteral("albumGrid"));
+            if (!g) return;
+            const double t0 = perf::nowMs();
+            QElapsedTimer t;
+            t.start();
+            QTimer timer;
+            timer.setTimerType(Qt::PreciseTimer);
+            timer.setInterval(16);
+            double y = 0;
+            QObject::connect(&timer, &QTimer::timeout, &timer, [&] { y += 40; g->setProperty("contentY", y); });
+            timer.start();
+            waitFor([&] { return t.elapsed() >= 2500; }, 5000);
+            timer.stop();
+            r.info(QStringLiteral("快速滚动相册 · %1：%2").arg(label, fs ? fs->summary(t0 + 100, perf::nowMs()).text() : QStringLiteral("（没有每帧计时）")));
+            g->setProperty("contentY", 0);
+            pause(200);
+        };
         drag(QStringLiteral("开发数据 %1 张").arg(total));
         setList(true);
         win->setProperty("albumOpen", true);
@@ -512,6 +545,7 @@ void runPhotoMode(Report &r, AppController *app, map::MapController *mapc, QQuic
         waitFrames(win, 3);
         pause(800);
         scroll(QStringLiteral("合成 10,000 张，按年份"));
+        scrollFast(QStringLiteral("合成 10,000 张，按年份"));
         if (g) {
             int built = 0;
             if (QQuickItem *c = g->property("contentItem").value<QQuickItem *>()) built = int(c->childItems().size());

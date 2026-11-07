@@ -2,6 +2,7 @@
 // 就地表单：Enter 保存（Shift + Enter 换行）、Esc 取消。
 // 编辑状态放在外面的 ctl（{ stop, j, draft, err }；j：-2 没在改，-1 新加），不放这里：
 // 数据一变日程行会重建，计划页滚远了卡片也会销毁，放外面改到一半的内容都不丢。一个面板同一时间只改一条。
+// 0.12.9 时间线：一天内用竖线连起来，有时间的在前（plans::schedDays 排好），未定时间的在后、圆点是空心的。
 // saver(j, draft) 返回空 = 改好了，否则是原因的键（plans::putSchedule）；deleter(j) 删除这一条。
 import QtQuick
 import TPApp
@@ -21,6 +22,7 @@ Column {
         return false
     }
     spacing: Theme.px(3)
+    readonly property real railW: Theme.px(16)
 
     function begin(j, it) {
         ctl.err = ""
@@ -61,6 +63,10 @@ Column {
                 delegate: Item {
                     id: row
                     required property var modelData
+                    required property int index
+                    readonly property bool first: index === 0
+                    readonly property bool last: index === dayCol.modelData.items.length - 1
+                    readonly property real dotY: Theme.px(11)
                     readonly property bool editing: root.editJ === modelData.j
                     width: root.width
                     height: editing ? formL.height : Math.max(rowText.implicitHeight, Theme.px(22)) + Theme.px(3)
@@ -71,19 +77,48 @@ Column {
                         radius: Theme.px(5)
                         color: "#fbf1dc"
                     }
+                    RowAct {
+                        id: schedAct
+                        objectName: "schedAct"
+                        enabled: root.canEdit && !row.editing
+                        editText: qsTr("修改")
+                        onActivated: root.begin(row.modelData.j, row.modelData)
+                        onDeleteRequested: win.deleteWithUndo(() => root.deleter(row.modelData.j))
+                    }
+                    // 时间线：竖线从上一条接到下一条（行距也接上），每条一个圆点
+                    Rectangle {
+                        objectName: "schedRail"
+                        visible: !row.editing && !(row.first && row.last)
+                        x: Theme.px(4) - width / 2 + Theme.px(1)
+                        y: row.first ? row.dotY : 0
+                        width: Math.max(1, Theme.px(1.5))
+                        height: (row.last ? row.dotY : row.height + dayCol.spacing) - y
+                        color: Theme.lineStrong
+                    }
+                    Rectangle {
+                        objectName: "schedDot"
+                        visible: !row.editing
+                        x: Theme.px(1)
+                        y: row.dotY - height / 2
+                        width: Theme.px(8); height: width; radius: width / 2
+                        color: row.modelData.time ? Theme.accent : Theme.card
+                        border.width: row.modelData.time ? 0 : Math.max(1, Theme.px(1.5))
+                        border.color: Theme.lineStrong
+                    }
                     Text {
                         id: when
                         visible: !row.editing && root.anyTime
+                        x: root.railW
                         width: Theme.px(Fmt.en ? 92 : 88)
                         y: Theme.px(2)
-                        text: row.modelData.time + (row.modelData.end ? "–" + row.modelData.end : "")
-                        font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted
+                        text: row.modelData.time ? row.modelData.time + (row.modelData.end ? "–" + row.modelData.end : "") : qsTr("未定时间")
+                        font.family: serifFamily; font.pixelSize: Theme.px(row.modelData.time ? 13 : 12); color: row.modelData.time ? Theme.muted : Theme.faint
                     }
                     Text {
                         id: rowText
                         objectName: "schedText"
                         visible: !row.editing
-                        x: when.visible ? when.width : 0
+                        x: root.railW + (when.visible ? when.width : 0)
                         y: Theme.px(2)
                         width: row.width - x - (root.canEdit ? Theme.px(28) : 0)
                         wrapMode: Text.Wrap

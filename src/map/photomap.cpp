@@ -62,6 +62,8 @@ Library read(const Value &root)
         r.caption = str(ph, "caption");
         r.takenAt = str(ph, "takenAt");
         r.fav = ph[QStringLiteral("fav")].toBool();
+        const double dataW = ph[QStringLiteral("width")].toNumber(), dataH = ph[QStringLiteral("height")].toNumber();
+        if (dataW > 0 && dataH > 0) r.ratio = dataW / dataH;
         const auto pit = plansById.constFind(str(ph, "plan"));
         const StopInfo *stop = nullptr;
         if (pit != plansById.constEnd()) {
@@ -151,18 +153,41 @@ QVector<Group> cluster(const QVector<Rec> &recs, int zoom, double radiusPx)
     return out;
 }
 
-QVector<Row> rows(const Library &lib, const QString &view, const QString &plan, bool compact, int columns)
+QVector<Row> rows(const Library &lib, const QString &view, const QString &plan, bool compact, const RowLayout &layout)
 {
     QVector<Row> out;
     int group = 0;
-    columns = std::max(1, columns);
+    // 不知道比例的先按 4:3；太极端的按边界算（格子里完整显示，留边），不然一行只剩一条缝
+    const auto ratioOf = [&lib](int i) { const double a = lib.recs[i].ratio; return a > 0 ? std::clamp(a, 0.2, 6.0) : 4.0 / 3.0; };
+    const double W = std::max(1.0, layout.width), H = std::max(1.0, layout.targetHeight), gap = layout.gap;
     const auto grid = [&](const QVector<int> &ids) {
-        for (int i = 0; i < ids.size(); i += columns) {
+        for (int i = 0; i < ids.size();) {
+            // 往这一行放照片，直到再放一张反而离目标高度更远
+            double sum = 0, h = 0;
+            int j = i;
+            for (; j < ids.size(); ++j) {
+                const double s = sum + ratioOf(ids[j]);
+                const double next = std::max(1.0, W - gap * (j - i)) / s;
+                if (j > i && std::abs(next - H) > std::abs(h - H)) break;
+                sum = s;
+                h = next;
+            }
+            const bool stretch = j < ids.size() || h <= H;   // 一组的最后一行放不满就保持目标高度
             Row r;
             r.kind = QStringLiteral("photos");
             r.group = group;
-            r.recs = ids.mid(i, columns);
+            r.recs = ids.mid(i, j - i);
+            r.height = std::round(stretch ? h : H);
+            // 宽度取整，整行铺满时最后一张补齐（差不到 1 像素，格子里 PreserveAspectFit 看不出）
+            double used = 0;
+            for (int k = i; k < j; ++k) {
+                const double w = std::max(1.0, std::round(ratioOf(ids[k]) * r.height));
+                r.widths.push_back(w);
+                used += w;
+            }
+            if (stretch) r.widths.last() = std::max(1.0, r.widths.last() + (W - gap * (j - i - 1) - used));
             out.push_back(std::move(r));
+            i = j;
         }
         ++group;
     };

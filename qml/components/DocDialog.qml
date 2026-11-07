@@ -15,7 +15,6 @@ ModalLayer {
     property string notes: ""
     property var planOptions: []
     property string err: ""
-    property bool confirmDel: false
     readonly property bool isNew: index < 0
     cardWidth: 520
     onDismissed: open = false
@@ -32,7 +31,6 @@ ModalLayer {
         planId = d.planId || ""
         notes = d.notes || ""
         err = ""
-        confirmDel = false
         planOptions = [{ key: "", text: qsTr("（不关联）") }].concat(planPage.documentPlanOptions(planId).map(o => ({ key: o.key, text: o.text || qsTr("（已删除的计划）") })))
         open = true
     }
@@ -44,10 +42,12 @@ ModalLayer {
         open = false
     }
     function remove() {
-        if (!confirmDel) { confirmDel = true; return }
-        const e = planPage.deleteDocument(index, docId)
-        if (e) { err = errText(e); return }
-        open = false
+        win.deleteWithUndo(() => {
+            const e = planPage.deleteDocument(index, docId)
+            err = e ? errText(e) : ""
+            if (!e) open = false
+            return !e
+        })
     }
 
     Text {
@@ -150,7 +150,7 @@ ModalLayer {
             objectName: "docDelete"
             visible: !root.isNew
             kind: "dangerOutline"
-            text: root.confirmDel ? qsTr("再点一次确认删除") : qsTr("删除这个证件")
+            text: qsTr("删除这个证件")
             onClicked: root.remove()
         }
         Row {

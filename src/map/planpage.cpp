@@ -98,6 +98,7 @@ QVariantList schedDays(const Value &stop, const QString &today)
     std::stable_sort(rows.begin(), rows.end(), [](const Row &a, const Row &b) {
         if (a.date.isEmpty() != b.date.isEmpty()) return b.date.isEmpty();
         if (a.date != b.date) return a.date < b.date;
+        if (a.time.isEmpty() != b.time.isEmpty()) return b.time.isEmpty();   // 0.12.9 未定时间的放后面
         return a.time < b.time;
     });
     QVariantList out, items;

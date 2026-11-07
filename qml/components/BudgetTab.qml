@@ -21,6 +21,17 @@ Column {
     readonly property var cats: money.cats || []
     readonly property var missing: money.missing || []
     readonly property var mainMissing: money.mainMissing || []
+    // 0.12.9 排序、筛选（记在设置里，所有计划共用）。外币按折算后的金额比
+    property string sortKey: app.listPref("moneySort") || "date"
+    property string filterCat: app.listPref("moneyFilter")
+    readonly property var shownRows: {
+        const list = rows.filter(r => !filterCat || r.cat === filterCat)
+        const order = ["transport", "stay", "food", "ticket", "shop", "other"]
+        if (sortKey === "amount") list.sort((a, b) => Math.abs(b.inPlan) - Math.abs(a.inPlan))
+        else if (sortKey === "cat") list.sort((a, b) => order.indexOf(a.cat) - order.indexOf(b.cat))
+        return list   // 日期：C++ 已经排好，新的在前
+    }
+    readonly property real shownTotal: shownRows.reduce((s, r) => s + r.inPlan, 0)
     readonly property bool hasBoth: (money.bookTotal || 0) !== 0 && (money.expTotal || 0) !== 0
 
     // 一行快记（J3）
@@ -374,13 +385,54 @@ Column {
         font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.muted
     }
 
+    // ---- 排序、筛选 ----
+    Item {
+        objectName: "moneyTools"
+        visible: root.rows.length > 1
+        width: parent.width
+        height: visible ? Theme.px(32) : 0
+        Row {
+            spacing: Theme.px(6)
+            TpSelect {
+                objectName: "moneySort"
+                width: Theme.px(Fmt.en ? 124 : 104)
+                options: [{ key: "date", text: qsTr("按日期") }, { key: "amount", text: qsTr("按金额") }, { key: "cat", text: qsTr("按类别") }]
+                current: root.sortKey
+                onPicked: (k) => { root.sortKey = k; app.setListPref("moneySort", k) }
+            }
+            TpSelect {
+                objectName: "moneyFilter"
+                width: Theme.px(Fmt.en ? 124 : 104)
+                options: [{ key: "", text: qsTr("全部类别") }].concat(root.catOptions())
+                current: root.filterCat
+                onPicked: (k) => { root.filterCat = k; app.setListPref("moneyFilter", k) }
+            }
+        }
+        Text {
+            objectName: "moneyFiltered"
+            visible: root.filterCat !== ""
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            text: Fmt.one(qsTr("%1 笔").arg(root.shownRows.length)) + " · " + Fmt.money(root.shownTotal, root.cur)
+            font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.muted
+        }
+    }
+    Text {
+        objectName: "moneyNoneInCat"
+        visible: root.rows.length > 0 && root.shownRows.length === 0
+        width: parent.width
+        wrapMode: Text.Wrap
+        text: qsTr("这个类别没有消费。")
+        font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted
+    }
+
     // ---- 每笔一行 ----
     Column {
         visible: root.rows.length > 0
         width: parent.width
         spacing: Theme.px(6)
         Repeater {
-            model: root.rows
+            model: root.shownRows
             delegate: TpCard {
                 id: row
                 required property var modelData
@@ -391,6 +443,15 @@ Column {
                 radius: Theme.px(12)
                 color: rowMa.containsMouse ? Theme.panel2 : Theme.card
                 MouseArea { id: rowMa; anchors.fill: parent; enabled: !root.readOnly; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.edit(row.modelData) }
+                RowAct {
+                    id: rowAct
+                    objectName: "moneyAct"
+                    enabled: !root.readOnly
+                    canDelete: !row.modelData.fromBooking
+                    editText: qsTr("修改")
+                    onActivated: root.edit(row.modelData)
+                    onDeleteRequested: root.remove(row.modelData)
+                }
                 Rectangle { x: Theme.px(10); anchors.verticalCenter: parent.verticalCenter; width: Theme.px(4); height: parent.height - Theme.px(20); radius: width / 2; color: Fmt.catColors[row.modelData.cat] || Theme.line }
                 Column {
                     id: rowCol
@@ -424,6 +485,7 @@ Column {
                 Item {
                     objectName: "moneyDel"
                     visible: !root.readOnly && !row.modelData.fromBooking
+                    opacity: rowAct.active ? 1 : 0   // 0.12.9 移上去或 Tab 选中才出现
                     anchors.right: parent.right
                     anchors.rightMargin: Theme.px(10)
                     anchors.verticalCenter: parent.verticalCenter

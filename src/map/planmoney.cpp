@@ -373,7 +373,7 @@ QVariantMap spendInfo(const Value &plan, const QString &main, const Rates &rates
         QVariantMap row{ { QStringLiteral("id"), r.id }, { QStringLiteral("bookingId"), r.bookingId }, { QStringLiteral("fromBooking"), r.fromBooking },
                          { QStringLiteral("linked"), r.linked }, { QStringLiteral("kind"), r.kind }, { QStringLiteral("date"), r.date }, { QStringLiteral("cat"), r.cat },
                          { QStringLiteral("title"), r.title }, { QStringLiteral("cur"), r.cur }, { QStringLiteral("notes"), r.notes },
-                         { QStringLiteral("amount"), r.amount }, { QStringLiteral("foreign"), r.cur != cur } };
+                         { QStringLiteral("amount"), r.amount }, { QStringLiteral("inPlan"), inPlan }, { QStringLiteral("foreign"), r.cur != cur } };
         if (const Value *x = records.value(r.id); x && !ps.isEmpty()) {
             const QString payer = payerOf(ps, *x);
             const auto nameOf = [&](const QString &id) { for (const Person &p : ps) if (p.id == id) return p.name; return QString(); };

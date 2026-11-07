@@ -83,6 +83,7 @@ public:
     Q_INVOKABLE void setHeicTestOff(bool off);                           // 自检：假装没装扩展
     Q_INVOKABLE bool assign(const QStringList &ids, const QString &planId, const QString &stopId);   // 0.11.1 归到计划（A-03）
     Q_INVOKABLE QSize imageSize(const QString &file) const;              // 原图的长宽，按 EXIF 方向摆正（只读文件头）；读不出来给空
+    static QSize readImageSize(const QString &dir, const QString &file);   // 0.12.9 后台线程也能调
     // 计划里的照片（0.10.5，P-14；plans::setPhotoFav 等）。都走撤销和自动保存；只读时返回 false
     Q_INVOKABLE bool setFav(const QString &photoId, bool on);
     Q_INVOKABLE bool setCaption(const QString &photoId, const QString &caption);

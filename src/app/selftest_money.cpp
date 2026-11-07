@@ -249,18 +249,71 @@ void runMoney(Report &r, AppController *app, QQuickWindow *win, PlanPageControll
     r.check(seatKept, QStringLiteral("不认识的键原样保留"));
 
     // ---- 删除连带删消费，有提示 ----
-    QQuickItem *dlgMsg = item(win, QStringLiteral("moneyDialog"));
     QVariantMap flightRow;
     for (const QVariant &dv : page->info().value(QStringLiteral("bookings")).toList())
         for (const QVariant &bv : dv.toMap().value(QStringLiteral("rows")).toList())
             if (bv.toMap().value(QStringLiteral("id")).toString() == flightId) flightRow = bv.toMap();
-    QMetaObject::invokeMethod(dlgMsg, "ask", Q_ARG(QVariant, QStringLiteral("booking")), Q_ARG(QVariant, QVariant(flightRow)));
-    r.check(dlgMsg->property("open").toBool() && dlgMsg->property("paragraphs").toStringList().size() == 2, QStringLiteral("删除时提示消费也会一起删"), dlgMsg->property("paragraphs").toStringList().join(u'|'));
-    QMetaObject::invokeMethod(dlgMsg, "chosen", Q_ARG(QString, QStringLiteral("del")));
+    QMetaObject::invokeMethod(win, "deleteBookingRow", Q_ARG(QVariant, QVariant(flightRow)));
     r.check((*curPlan(store, id))[QStringLiteral("bookings")].asArray().size() == 1 && (*curPlan(store, id))[QStringLiteral("expenses")].asArray().empty(), QStringLiteral("删掉了，连带的消费也没了"));
+    // 0.12.9 不问，提示 + 撤销；撤销一步全回来；删完又改过时按钮不退
+    {
+        QQuickItem *t = item(win, QStringLiteral("toast"));
+        r.check(t && t->property("message").toString().contains(QStringLiteral("消费")) && !t->property("actionText").toString().isEmpty() && t->property("stayMs").toInt() == 6000, QStringLiteral("删除后撤销：提示说连带的那笔，带撤销，停 6 秒"), t ? t->property("message").toString() : QString());
+        const int mark = app->undoMark();
+        QMetaObject::invokeMethod(t, "doAction");
+        r.check(waitFor([&] { return (*curPlan(store, id))[QStringLiteral("bookings")].asArray().size() == 2 && (*curPlan(store, id))[QStringLiteral("expenses")].asArray().size() == 1; }, 1000), QStringLiteral("点撤销：记录和连带的消费都回来了"), QString::number(mark));
+        QMetaObject::invokeMethod(win, "deleteBookingRow", Q_ARG(QVariant, QVariant(flightRow)));
+        page->saveExpense(QString(), QVariantMap{ { QStringLiteral("title"), QStringLiteral("后来记的") }, { QStringLiteral("amount"), QStringLiteral("1") }, { QStringLiteral("cat"), QStringLiteral("food") } });
+        const int before = int((*curPlan(store, id))[QStringLiteral("expenses")].asArray().size());
+        QMetaObject::invokeMethod(t, "doAction");
+        r.check(int((*curPlan(store, id))[QStringLiteral("expenses")].asArray().size()) == before, QStringLiteral("删完又改过：撤销按钮不退后面的改动"), t->property("message").toString());
+        {
+            QStringList later;
+            for (const Value &x : (*curPlan(store, id))[QStringLiteral("expenses")].asArray()) if (x[QStringLiteral("title")].toString() == QStringLiteral("后来记的")) later << x[QStringLiteral("id")].toString();
+            for (const QString &x : later) page->deleteExpense(x);
+        }
+        app->noteChanged(true);
+    }
+    // 0.12.9 排序、筛选：只改显示，记在设置里
+    {
+        for (const auto &e : { std::pair{ "甲", "10" }, std::pair{ "乙", "50" }, std::pair{ "丙", "30" } })
+            page->saveExpense(QString(), QVariantMap{ { QStringLiteral("title"), QString::fromUtf8(e.first) }, { QStringLiteral("amount"), QString::fromLatin1(e.second) }, { QStringLiteral("cat"), e.second == std::string_view("50") ? QStringLiteral("shop") : QStringLiteral("food") }, { QStringLiteral("date"), QStringLiteral("2026-01-02") } });
+        QMetaObject::invokeMethod(panel, "openTab", Q_ARG(QVariant, QStringLiteral("budget")));
+        QQuickItem *tools = nullptr;
+        r.check(waitFor([&] { tools = item(win, QStringLiteral("moneyTools")); return tools && tools->isVisible(); }, 1500), QStringLiteral("消费有排序和筛选"));
+        if (tools) {
+            QQuickItem *tab = tools->parentItem();
+            const auto firstTitle = [&] { const QVariantList l = tab->property("shownRows").toList(); return l.isEmpty() ? QString() : l.first().toMap().value(QStringLiteral("title")).toString(); };
+            tab->setProperty("sortKey", QStringLiteral("amount"));
+            {
+                const QVariantList l = tab->property("shownRows").toList();
+                bool desc = l.size() >= 3;
+                for (int k = 0; k + 1 < l.size(); ++k) desc = desc && std::abs(l[k].toMap().value(QStringLiteral("inPlan")).toDouble()) >= std::abs(l[k + 1].toMap().value(QStringLiteral("inPlan")).toDouble());
+                r.check(desc, QStringLiteral("按金额：大的在前"), firstTitle());
+            }
+            tab->setProperty("filterCat", QStringLiteral("food"));
+            r.check(firstTitle() == QStringLiteral("丙") && tab->property("shownRows").toList().size() >= 2, QStringLiteral("按类别筛选"), firstTitle());
+            QQuickItem *act = findItem(tab, QStringLiteral("moneyAct"));
+            QQuickItem *del = findItem(tab, QStringLiteral("moneyDel"));
+            if (act && del) {
+                pause(100);
+                const double hidden = del->opacity();
+                act->forceActiveFocus(Qt::TabFocusReason);
+                r.check(act->property("active").toBool() && del->opacity() == 1, QStringLiteral("删除按钮：Tab 选中这一行时出现"), QStringLiteral("%1 → %2").arg(hidden).arg(del->opacity()));
+            } else r.check(false, QStringLiteral("消费行有 RowAct 和删除按钮"));
+            tab->setProperty("sortKey", QStringLiteral("date"));
+            tab->setProperty("filterCat", QString());
+        }
+        app->setListPref(QStringLiteral("moneySort"), QStringLiteral("amount"));
+        r.check(app->listPref(QStringLiteral("moneySort")) == QLatin1String("amount"), QStringLiteral("选择记在设置里"));
+        app->setListPref(QStringLiteral("moneySort"), QString());
+        QStringList tmpIds;
+        for (const Value &x : (*curPlan(store, id))[QStringLiteral("expenses")].asArray()) if (x[QStringLiteral("date")].toString() == QLatin1String("2026-01-02")) tmpIds << x[QStringLiteral("id")].toString();
+        for (const QString &x : tmpIds) page->deleteExpense(x);
+        app->noteChanged(true);
+    }
 
     // ---- J2：站点卡片 ----
-    waitGone(dlgMsg);
     click(win, tIt);
     int bookStop = -1;
     const QVariantList stopsNow = page->info().value(QStringLiteral("stops")).toList();
@@ -300,7 +353,7 @@ void runMoney(Report &r, AppController *app, QQuickWindow *win, PlanPageControll
     click(win, item(win, QStringLiteral("quickAdd")));
     const json::Array &ex2 = (*curPlan(store, id))[QStringLiteral("expenses")].asArray();
     r.check(ex2.size() == 1 && ex2[0][QStringLiteral("amount")].toNumber() == 28 && ex2[0][QStringLiteral("date")].toString() == pc->today() && ex2[0][QStringLiteral("cat")].toString() == QLatin1String("food"),
-            QStringLiteral("一行快记记下了，日期是今天，默认餐饮"));
+            QStringLiteral("一行快记记下了，日期是今天，默认餐饮"), QStringLiteral("共 %1 笔：").arg(ex2.size()) + [&] { QStringList t; for (const Value &x : ex2) t << x[QStringLiteral("title")].toString() + u'/' + x[QStringLiteral("date")].toString(); return t.join(u','); }());
     r.check(budget->property("qTitle").toString().isEmpty() && budget->property("qAmount").toString().isEmpty(), QStringLiteral("记完清空，接着记"));
     m = money(page);
     r.check(qFuzzyCompare(m.value(QStringLiteral("expTotal")).toDouble(), 28.0) && qFuzzyCompare(m.value(QStringLiteral("bookTotal")).toDouble(), 1200.0), QStringLiteral("另外记账 28、预订 1200"));

@@ -13,6 +13,7 @@ Rectangle {
     property bool doneMark: false   // 文字前面画一笔对勾
     readonly property int stayMs: timer.interval
     signal errorRaised(string msg)
+    function doAction() { const f = action; showing = false; opacity = 0; actionText = ""; action = null; if (f) f() }
     function show(msg, isError, actText, actFn, done, ms) {
         if (isError) { errorRaised(msg); return }
         doneMark = !!done
@@ -69,7 +70,7 @@ Rectangle {
             anchors.margins: -Theme.px(6)
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: { const f = root.action; root.showing = false; root.opacity = 0; root.actionText = ""; root.action = null; if (f) f() }
+            onClicked: root.doAction()
         }
     }
     Timer { id: timer; onTriggered: { root.showing = false; root.opacity = 0 } }

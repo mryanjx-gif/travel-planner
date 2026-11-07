@@ -20,6 +20,7 @@ struct Rec
     bool route = false, fav = false;
     bool hasPos = false, fromStop = false;
     double lat = 0, lng = 0;
+    double ratio = 0;      // 0.12.9 宽 / 高（数据里记了 width、height 才有；没有时 AlbumModel 从缓存填）
 };
 struct Trip
 {
@@ -57,9 +58,16 @@ struct Row
     int group = -1;        // photos：同一组（看大图翻页的范围）
     QVector<int> recs;     // photos：这一行的照片
     bool open = false;     // trip：展开着
+    double height = 0;     // 0.12.9 photos：这一行多高
+    QVector<double> widths;   // photos：每张多宽（和 recs 一一对应）
+};
+// 0.12.9 等高行：每行铺满 width，高度接近 targetHeight；每组最后一行不拉满
+struct RowLayout
+{
+    double width = 600, targetHeight = 168, gap = 8;
 };
 // view：trip / year / fav / inbox；plan：只看这一趟（""= 全部，kNoPos = 没有位置）；
 // compact：窄列表，按旅程时每趟一行，只展开选中的那趟
-QVector<Row> rows(const Library &lib, const QString &view, const QString &plan, bool compact, int columns);
+QVector<Row> rows(const Library &lib, const QString &view, const QString &plan, bool compact, const RowLayout &layout);
 
 } // namespace tp::map::photomap

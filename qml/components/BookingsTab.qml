@@ -119,6 +119,14 @@ Column {
                     height: col.implicitHeight + Theme.px(20)
                     radius: Theme.px(14)
                     color: Theme.card
+                    RowAct {
+                        id: cardAct
+                        objectName: "bookAct"
+                        enabled: !root.readOnly
+                        editText: qsTr("修改")
+                        onActivated: root.edit(card.modelData)
+                        onDeleteRequested: root.remove(card.modelData)
+                    }
                     Column {
                         id: col
                         x: Theme.px(12); y: Theme.px(10)
@@ -167,7 +175,7 @@ Column {
                         y: Theme.px(8)
                         spacing: Theme.px(4)
                         RowIcon { objectName: "bookEdit"; name: "edit"; label: qsTr("修改"); onClicked: root.edit(card.modelData) }
-                        RowIcon { objectName: "bookDel"; name: "trash"; label: qsTr("删除"); onClicked: root.remove(card.modelData) }
+                        RowIcon { objectName: "bookDel"; opacity: cardAct.active ? 1 : 0; name: "trash"; label: qsTr("删除"); onClicked: root.remove(card.modelData) }
                     }
                 }
             }

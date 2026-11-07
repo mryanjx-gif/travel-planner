@@ -224,6 +224,12 @@ public:
     Q_INVOKABLE void conflictKept();                // 冲突框选了"先不保存"：改动留着，下次改动时再问
     // 撤销 / 重做（D-13）：Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z
     Q_INVOKABLE void undo() { undoRedo(-1); }
+    // 0.12.9 删除后撤销：删之前、删之后各存一步，撤销只退这一下；undoMark 变了说明之后又改过，"撤销"按钮不能再退（会退错）
+    Q_INVOKABLE void commitStep();
+    Q_INVOKABLE int undoMark() const { return m_contentSeq; }
+    // 0.12.9 列表的排序、筛选：记在 settings.json（不是数据文件）
+    Q_INVOKABLE QString listPref(const QString &key) const;
+    Q_INVOKABLE void setListPref(const QString &key, const QString &v) { setPref(QStringLiteral("list.") + key, v); }
     Q_INVOKABLE void redo() { undoRedo(1); }
     // 备份（D-17 / D-18）
     Q_INVOKABLE QVariantMap setBackupFolder(const QVariant &urlOrPath);   // { ok, error }
@@ -314,6 +320,7 @@ private:
 
     data::SaveScheduler m_saver;
     data::UndoStack m_undo;
+    int m_contentSeq = 0;             // 数据变了几次（undoMark）
     bool m_editing = false;           // 站点编辑器开着（0.8.9）
     bool m_conflictPending = false;   // 冲突框开着 / 还没处理：先不自动保存
 

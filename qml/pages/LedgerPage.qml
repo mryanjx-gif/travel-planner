@@ -6,13 +6,30 @@ import TPApp
 Item {
     id: root
     property bool shown: false
-    property string sortBy: "spent"
+    // 0.12.9 按列排序：点表头，再点一下反过来。记在设置里
+    property string sortBy: { const v = app.listPref("ledgerSort").split(":")[0]; return v || "spent" }
+    property bool sortAsc: app.listPref("ledgerSort").split(":")[1] === "asc"
+    function setSort(k, asc) { sortBy = k; sortAsc = asc; app.setListPref("ledgerSort", k + ":" + (asc ? "asc" : "desc")) }
+    function clickHead(k) {
+        if (sortBy === k) setSort(k, !sortAsc)
+        else setSort(k, k === "name")   // 名字默认 A→Z，数字默认大的在前
+    }
     signal openPlan(string id)
     signal openLibrary()
     readonly property var info: planPage.ledger
     readonly property var trips: info.trips || []
-    readonly property var sorted: sortBy === "spent" ? trips
-                                : trips.slice().sort((a, b) => (b.start || b.end || "").localeCompare(a.start || a.end || ""))
+    readonly property var sorted: {
+        const key = sortBy === "name" ? t => t.name || ""
+                  : sortBy === "date" ? t => t.start || t.end || ""
+                  : sortBy === "days" ? t => t.days || 0
+                  : sortBy === "budget" ? t => t.budget > 0 ? (t.budgetMain >= 0 ? t.budgetMain : t.budget) : -1
+                  : t => t.spent || 0
+        const dir = sortAsc ? 1 : -1
+        return trips.slice().sort((a, b) => {
+            const x = key(a), y = key(b)
+            return dir * (typeof x === "string" ? x.localeCompare(y) : x - y)
+        })
+    }
     readonly property var missing: info.missing || []
     readonly property var years: info.years || []
     readonly property bool narrow: width < Theme.px(620)
@@ -195,7 +212,7 @@ Item {
                 visible: root.trips.length > 1
                 options: [{ key: "spent", text: qsTr("按花费") }, { key: "date", text: qsTr("按日期") }]
                 current: root.sortBy
-                onPicked: (k) => { root.sortBy = k }
+                onPicked: (k) => root.setSort(k, false)
             }
             Column {
                 visible: root.trips.length > 0
@@ -276,14 +293,38 @@ Item {
     }
     component TripsHead: Item {
         height: Theme.px(26)
-        Text { x: Theme.px(12); anchors.verticalCenter: parent.verticalCenter; text: qsTr("旅程"); font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted }
+        HeadCell { x: Theme.px(12); key: "name"; label: qsTr("旅程"); alignRight: false; anchors.verticalCenter: parent.verticalCenter }
         Row {
             anchors.right: parent.right
             anchors.rightMargin: Theme.px(12)
             anchors.verticalCenter: parent.verticalCenter
-            Text { visible: !root.narrow; width: root.colDays; horizontalAlignment: Text.AlignRight; text: qsTr("天数"); font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted }
-            Text { visible: !root.narrow; width: root.colBudget; horizontalAlignment: Text.AlignRight; text: qsTr("预算"); font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted }
-            Text { width: root.colSpent; horizontalAlignment: Text.AlignRight; text: qsTr("花费"); font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted }
+            HeadCell { visible: !root.narrow; width: root.colDays; key: "days"; label: qsTr("天数") }
+            HeadCell { visible: !root.narrow; width: root.colBudget; key: "budget"; label: qsTr("预算") }
+            HeadCell { width: root.colSpent; key: "spent"; label: qsTr("花费") }
         }
+    }
+    component HeadCell: Item {
+        id: hc
+        property string key: ""
+        property string label: ""
+        property bool alignRight: true
+        readonly property bool on: root.sortBy === key
+        objectName: "ledgerHead-" + key
+        width: hcText.implicitWidth
+        height: Theme.px(24)
+        activeFocusOnTab: true
+        Accessible.role: Accessible.Button
+        Accessible.name: label
+        Keys.onReturnPressed: root.clickHead(key)
+        Keys.onSpacePressed: root.clickHead(key)
+        Text {
+            id: hcText
+            anchors.right: hc.alignRight ? parent.right : undefined
+            anchors.verticalCenter: parent.verticalCenter
+            text: hc.label + (hc.on ? (root.sortAsc ? " ↑" : " ↓") : "")
+            font.family: serifFamily; font.pixelSize: Theme.px(12); font.bold: hc.on || hc.activeFocus
+            color: hc.on || hcMa.containsMouse ? Theme.text : Theme.muted
+        }
+        MouseArea { id: hcMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.clickHead(hc.key) }
     }
 }

@@ -18,13 +18,20 @@ Item {
     readonly property var album: photos.album
     property var selIds: ({})             // 未归类：勾选的
     property real keepY: 0
+    property string keepPhoto: ""
     readonly property int selCount: Object.keys(selIds).length
     readonly property bool noCodec: album.heic > 0 && photos.revision >= 0 && !photos.heicReady()
     readonly property real asideW: !compact && album.view === "trip" ? Theme.px(210) : 0
     readonly property real gap: Theme.px(8)
-    readonly property real tileTarget: compact ? Theme.px(92) : Theme.px(168)
-    readonly property int columns: Math.max(1, Math.floor((targetWidth - asideW - Theme.px(32) + gap) / (tileTarget + gap)))
-    readonly property real tile: (grid.width - gap * (columns - 1)) / columns
+    // 0.12.9 等高行（PO 选）：行在 C++ 按 layoutW 排好，每行铺满、宽度按比例。窗口正在变大小时按比例缩放（k），
+    // 停下来才重新分行（展开动画途中也不重排）
+    readonly property real rowTarget: compact ? Theme.px(92) : Theme.px(168)
+    readonly property real layoutW: Math.max(1, Math.floor(targetWidth - asideW - Theme.px(28)))
+    readonly property real k: album.layoutWidth > 0 ? grid.width / album.layoutWidth : 1
+    function applyLayout() { album.setLayout(layoutW, rowTarget, gap) }
+    onLayoutWChanged: layoutTimer.restart()
+    onRowTargetChanged: applyLayout()
+    Timer { id: layoutTimer; interval: 150; onTriggered: root.applyLayout() }
 
     // 0.12.8 打开相册和照片库变了时数一次（不是每张格子都查）
     property int lostCount: 0
@@ -36,8 +43,7 @@ Item {
     Timer { interval: 500; repeat: true; running: root.visible; onTriggered: root.thumbLeft = photos.thumbPending() }
 
     onCompactChanged: album.compact = compact
-    onColumnsChanged: album.columns = columns
-    Component.onCompleted: { album.compact = compact; album.columns = columns }
+    Component.onCompleted: { album.compact = compact; applyLayout() }
 
     function setSel(id, on) {
         const s = Object.assign({}, selIds)
@@ -86,8 +92,19 @@ Item {
             const i = root.album.tripRow(root.album.plan)
             if (i >= 0) grid.positionViewAtIndex(i, ListView.Beginning)
         }
-        function onAboutToRebuild() { root.keepY = grid.contentY }
-        function onRebuilt() { const y = root.keepY; Qt.callLater(() => { grid.contentY = Math.max(0, Math.min(y, grid.contentHeight - grid.height)) }) }
+        // 重新分行后留在原处：先认顶上那张照片；上面没有照片（窄列表的一趟趟）才按位置
+        function onAboutToRebuild() {
+            root.keepY = grid.contentY
+            root.keepPhoto = root.album.anchorPhoto(grid.indexAt(Theme.px(4), grid.contentY + Theme.px(4)))
+        }
+        function onRebuilt() {
+            const y = root.keepY, id = root.keepPhoto
+            Qt.callLater(() => {
+                const i = y > 0 && id ? root.album.rowOfPhoto(id) : -1
+                if (i >= 0) grid.positionViewAtIndex(i, ListView.Beginning)
+                else grid.contentY = Math.max(0, Math.min(y, grid.contentHeight - grid.height))
+            })
+        }
     }
 
     // ---- 上面：统计、视图、导入 ----
@@ -254,7 +271,7 @@ Item {
         objectName: "albumGrid"
         x: Theme.px(14) + root.asideW
         y: top.y + top.height + Theme.px(8)
-        width: parent.width - x - Theme.px(14)
+        width: Math.floor(parent.width - x - Theme.px(14))
         height: parent.height - y - Theme.px(8)
         clip: true
         boundsBehavior: Flickable.StopAtBounds
@@ -274,10 +291,11 @@ Item {
             required property var items
             required property bool open
             required property string thumb
+            required property real rowH
             readonly property bool isPhotos: kind === "photos"
             readonly property bool hasLabel: isPhotos && (root.album.view !== "trip" || items.some(p => !!p.caption))
             width: grid.width
-            height: isPhotos ? root.tile + (hasLabel ? Theme.px(20) : 0) + root.gap
+            height: isPhotos ? rowItem.rowH * root.k + (hasLabel ? Theme.px(20) : 0) + root.gap
                   : kind === "trip" ? Theme.px(54)
                   : kind === "plan" ? Theme.px(44)
                   : kind === "year" ? Theme.px(38)
@@ -375,24 +393,36 @@ Item {
                         required property int index
                         readonly property var p: modelData
                         objectName: "albumPhoto-" + p.id
-                        width: root.tile
-                        height: root.tile + (rowItem.hasLabel ? Theme.px(20) : 0)
+                        width: p.w * root.k
+                        height: rowItem.rowH * root.k + (rowItem.hasLabel ? Theme.px(20) : 0)
+                        // 这张要多大的缩略图（按排好的大小算，动画途中不换）
+                        readonly property int wantPx: Math.max(p.w, rowItem.rowH) * Screen.devicePixelRatio
                         readonly property bool sel: root.selIds[p.id] === true
                         Rectangle {
                             id: pic
-                            width: root.tile
-                            height: root.tile
+                            width: cell.width
+                            height: rowItem.rowH * root.k
                             radius: Theme.px(9)
                             color: Theme.panel2
                             Image {
                                 id: img
                                 objectName: "albumImg"
                                 anchors.fill: parent
-                                source: photos.revision >= 0 && String(cell.p.file).startsWith("photos/") ? photos.thumbUrl(cell.p.file, root.tile * Screen.devicePixelRatio > 320 ? 640 : 320) : ""
-                                fillMode: Image.PreserveAspectCrop
+                                source: photos.revision >= 0 && String(cell.p.file).startsWith("photos/") ? photos.thumbUrl(cell.p.file, 320) : ""
+                                fillMode: Image.PreserveAspectFit
                                 asynchronous: true
-                                clip: true
                                 smooth: true
+                            }
+                            // 0.12.9 从糊到清：格子比 320 大（高分屏、全景图）时再叠一张清晰的
+                            Image {
+                                objectName: "albumImgSharp"
+                                anchors.fill: parent
+                                source: cell.wantPx > 320 && img.status === Image.Ready ? photos.thumbUrl(cell.p.file, cell.wantPx) : ""
+                                fillMode: Image.PreserveAspectFit
+                                asynchronous: true
+                                smooth: true
+                                opacity: status === Image.Ready ? 1 : 0
+                                Behavior on opacity { TpMove { ms: 180 } }
                             }
                             // 缺图、HEIC 没装扩展（A-09；mockup "要装扩展"）
                             Text {

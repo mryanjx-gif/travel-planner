@@ -65,6 +65,7 @@ PhotoController::PhotoController(AppController *app, data::ThumbCache *cache, Th
     connect(app, &AppController::docReplaced, this, &PhotoController::onDataChanged);
     m_album.setParent(this);
     m_album.setDocSource([this]() -> const Value & { return m_app->store()->data(); });
+    m_album.setRatioSource([this] { return dataDir(); }, m_cache->root(), &PhotoController::readImageSize);
     connect(this, &PhotoController::libraryChanged, &m_album, &AlbumModel::refresh);
     onDataChanged();
 }
@@ -130,11 +131,16 @@ bool PhotoController::assign(const QStringList &ids, const QString &planId, cons
 QSize PhotoController::imageSize(const QString &file) const
 {
     if (!file.startsWith(QLatin1String("photos/"))) return {};
+    return readImageSize(dataDir(), file);
+}
+
+QSize PhotoController::readImageSize(const QString &dir, const QString &file)
+{
     if (tp::map::photomap::isHeic(file)) {   // Qt 读不了；文件头自己读（irot 已经算进去）
-        const data::exif::Info i = data::exif::readFile(dataDir() + u'/' + file);
+        const data::exif::Info i = data::exif::readFile(dir + u'/' + file);
         return QSize(i.displayWidth(), i.displayHeight());
     }
-    QImageReader r(dataDir() + u'/' + file);
+    QImageReader r(dir + u'/' + file);
     r.setAutoTransform(true);
     QSize s = r.size();
     if (r.transformation() & QImageIOHandler::TransformationRotate90) s.transpose();

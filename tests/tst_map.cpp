@@ -2131,27 +2131,56 @@ void TestMap::photoMapBasics()
     QCOMPARE(sum, 2000);                                      // 一张不多一张不少
 
     // 行：整页按旅程
+    const pm::RowLayout wide{ 100000, 100, 0 };
     auto kinds = [](const QVector<pm::Row> &rows) { QStringList k; for (const pm::Row &r : rows) k << r.kind; return k.join(u' '); };
-    QCOMPARE(kinds(pm::rows(lib, QStringLiteral("trip"), QString(), false, 2)), QStringLiteral("plan stop photos stop photos plan stop photos"));
-    QCOMPARE(kinds(pm::rows(lib, QStringLiteral("trip"), QStringLiteral("b"), false, 2)), QStringLiteral("plan stop photos"));
+    QCOMPARE(kinds(pm::rows(lib, QStringLiteral("trip"), QString(), false, wide)), QStringLiteral("plan stop photos stop photos plan stop photos"));
+    QCOMPARE(kinds(pm::rows(lib, QStringLiteral("trip"), QStringLiteral("b"), false, wide)), QStringLiteral("plan stop photos"));
     // 窄列表：每趟一行 + 没有位置，只展开选中的
-    QCOMPARE(kinds(pm::rows(lib, QStringLiteral("trip"), QString(), true, 3)), QStringLiteral("trip trip trip"));
-    QCOMPARE(kinds(pm::rows(lib, QStringLiteral("trip"), QStringLiteral("a"), true, 3)), QStringLiteral("trip stop photos stop photos trip trip"));
-    const QVector<pm::Row> np = pm::rows(lib, QStringLiteral("trip"), QString::fromLatin1(pm::kNoPos), true, 3);
+    QCOMPARE(kinds(pm::rows(lib, QStringLiteral("trip"), QString(), true, wide)), QStringLiteral("trip trip trip"));
+    QCOMPARE(kinds(pm::rows(lib, QStringLiteral("trip"), QStringLiteral("a"), true, wide)), QStringLiteral("trip stop photos stop photos trip trip"));
+    const QVector<pm::Row> np = pm::rows(lib, QStringLiteral("trip"), QString::fromLatin1(pm::kNoPos), true, wide);
     QCOMPARE(kinds(np), QStringLiteral("trip trip trip photos"));
     QCOMPARE(np.last().recs.size(), 2);
-    // 列数：2 张一行时切两行，同一组
-    const QVector<pm::Row> fav = pm::rows(lib, QStringLiteral("inbox"), QString(), false, 1);
+    // 窄到一行放一张时切两行，同一组
+    const QVector<pm::Row> fav = pm::rows(lib, QStringLiteral("inbox"), QString(), false, pm::RowLayout{ 100, 100, 0 });
     QCOMPARE(fav.size(), 2);
     QCOMPARE(fav[0].group, fav[1].group);
     // 按年份：新的年在前，没有日期的最后
     QStringList titles;
-    for (const pm::Row &r : pm::rows(lib, QStringLiteral("year"), QString(), false, 4)) if (r.kind == QLatin1String("year")) titles << r.title;
+    for (const pm::Row &r : pm::rows(lib, QStringLiteral("year"), QString(), false, wide)) if (r.kind == QLatin1String("year")) titles << r.title;
     QCOMPARE(titles.first(), QStringLiteral("2026"));
     QCOMPARE(titles.last(), QString());
     // 精选
-    QCOMPARE(pm::rows(lib, QStringLiteral("fav"), QString(), false, 4).size(), 1);
-    QCOMPARE(pm::rows(lib, QStringLiteral("fav"), QString(), false, 4).first().recs.first(), 1);
+    QCOMPARE(pm::rows(lib, QStringLiteral("fav"), QString(), false, wide).size(), 1);
+    QCOMPARE(pm::rows(lib, QStringLiteral("fav"), QString(), false, wide).first().recs.first(), 1);
+    // 0.12.9 等高行：整行铺满、比例不变、最后一行不拉满、窄窗口也不出错
+    {
+        pm::Library L;
+        const double as[] = { 1.5, 0.67, 1.0, 1.78, 0.75, 1.33, 2.5, 0.2, 1.5, 1.5 };
+        for (double a : as) { pm::Rec x; x.ratio = a; x.day = QStringLiteral("2026-01-01"); L.recs.push_back(x); }
+        for (const double W : { 1000.0, 300.0, 60.0 }) {
+            const pm::RowLayout lay{ W, 168, 8 };
+            const QVector<pm::Row> rs = pm::rows(L, QStringLiteral("year"), QString(), false, lay);
+            int seen = 0;
+            QVector<const pm::Row *> ph;
+            for (const pm::Row &x : rs) if (x.kind == QLatin1String("photos")) ph << &x;
+            QVERIFY(!ph.isEmpty());
+            for (const pm::Row *x : ph) {
+                QCOMPARE(x->widths.size(), x->recs.size());
+                seen += int(x->recs.size());
+                double sum = 8.0 * (x->widths.size() - 1);
+                for (double w : x->widths) sum += w;
+                if (x != ph.last()) QVERIFY2(std::abs(sum - W) < 0.5, qPrintable(QString::number(sum)));
+                else QVERIFY(sum <= W + 0.5);
+                for (int k = 0; k + 1 < x->recs.size(); ++k) {   // 比例差不到 1 像素
+                    const double a = std::clamp(L.recs[x->recs[k]].ratio, 0.2, 6.0);
+                    QVERIFY(std::abs(x->widths[k] - a * x->height) <= 1.0);
+                }
+            }
+            QCOMPARE(seen, 10);
+            QVERIFY(ph.last()->height <= 168);
+        }
+    }
     // 归到计划
     tp::json::Value doc = root;
     QVERIFY(tp::map::plans::assignPhotos(doc, { QStringLiteral("p5") }, QStringLiteral("b"), QStringLiteral("s3")));
@@ -2214,10 +2243,10 @@ void TestMap::schedGrouping()
     QCOMPARE(d[0].toMap().value("date").toString(), QStringLiteral("2026-11-22"));
     const QVariantList a = d[0].toMap().value("items").toList();
     QCOMPARE(a.size(), 3);
-    QCOMPARE(a[0].toMap().value("text").toString(), QStringLiteral("全天"));   // 没写时间的在前
-    QCOMPARE(a[1].toMap().value("text").toString(), QStringLiteral("清水寺"));
-    QCOMPARE(a[1].toMap().value("j").toInt(), 3);                              // 记着数组里的下标
-    QVERIFY(a[1].toMap().value("today").toBool());
+    QCOMPARE(a[2].toMap().value("text").toString(), QStringLiteral("全天"));   // 0.12.9 没写时间的放后面
+    QCOMPARE(a[0].toMap().value("text").toString(), QStringLiteral("清水寺"));
+    QCOMPARE(a[0].toMap().value("j").toInt(), 3);                              // 记着数组里的下标
+    QVERIFY(a[0].toMap().value("today").toBool());
     QVERIFY(!d[1].toMap().value("items").toList()[0].toMap().value("today").toBool());
     QCOMPARE(d[2].toMap().value("date").toString(), QString());                // 没写日期的放最后
     // 旧格式的字符串

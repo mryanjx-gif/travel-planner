@@ -1,6 +1,9 @@
 // 自检：0.10.4 行李与待办、紧急信息、游记、攻略。都在数据副本上做，最后把数据改回去。
 #include "selftest_util.h"
 
+#include <QCoreApplication>
+#include <QKeyEvent>
+
 #include "appcontroller.h"
 #include "datastore.h"
 #include "jsonio.h"
@@ -140,13 +143,34 @@ void runKit(Report &r, AppController *app, QQuickWindow *win, PlanPageController
         r.check(a[0][QStringLiteral("id")].toString() == order[0] && a[0][QStringLiteral("done")].toBool(), QStringLiteral("数据顺序没变，done 写进去了"));
     }
     r.check(page->info().value(QStringLiteral("kit")).toMap().value(QStringLiteral("packDone")).toInt() == 1, QStringLiteral("进度 1 / 11"));
-    if (QQuickItem *c = item(QStringLiteral("kitCount-packing"))) r.check(c->property("text").toString() == QLatin1String("1 / 11"), QStringLiteral("卡片上写着进度"), c->property("text").toString());
+    if (QQuickItem *c = item(QStringLiteral("kitCount-packing"))) r.check(waitFor([c] { return c->property("text").toString() == QLatin1String("1 / 11"); }, 1000), QStringLiteral("卡片上写着进度"), c->property("text").toString());
+    if (QQuickItem *b = item(QStringLiteral("kitBar-packing"))) {   // 0.12.9 勾选联动：进度条动画走完（TpMove）
+        double w0 = -1;
+        waitFor([&] { const double w = b->width(); const bool still = w == w0; w0 = w; return still && w > 0; }, 1500);
+    }
     if (QQuickItem *b = item(QStringLiteral("kitBar-packing"))) r.check(b->width() > 0 && b->width() < packCard->width() / 3, QStringLiteral("进度条有长度"), QString::number(b->width()));
     if (QQuickItem *t = item(QStringLiteral("tripTab-packing"))) r.check(t->property("n").toString() == QLatin1String("1/11"), QStringLiteral("标签上的数字"), t->property("n").toString());
     page->setCheckDone(QStringLiteral("packing"), order[0], false);
     r.check(idsOf(listOf(page, "packing")).first() == order[0], QStringLiteral("取消勾选：回到原来的位置"));
 
     // ---- 删除、存成模板 ----
+    {   // 0.12.9 键盘选中才出现、Delete 键删、Toast 撤销
+        QQuickItem *act = item(QStringLiteral("kitAct-") + order[1]);
+        r.check(act != nullptr, QStringLiteral("清单行有 RowAct"));
+        if (act) {
+            act->forceActiveFocus(Qt::TabFocusReason);
+            r.check(act->property("active").toBool(), QStringLiteral("Tab 选中这一行"));
+            QKeyEvent ev(QEvent::KeyPress, Qt::Key_Delete, Qt::NoModifier);
+            QCoreApplication::sendEvent(act, &ev);
+            r.check(listOf(page, "packing").size() == 10, QStringLiteral("Delete 键删掉这一行"));
+            QQuickItem *t = item(QStringLiteral("toast"));
+            if (t) {
+                r.check(!t->property("actionText").toString().isEmpty(), QStringLiteral("删除后有撤销"), t->property("message").toString());
+                QMetaObject::invokeMethod(t, "doAction");
+                r.check(waitFor([&] { return listOf(page, "packing").size() == 11; }, 1000), QStringLiteral("点撤销：回来了"));
+            }
+        }
+    }
     r.check(page->removeCheck(QStringLiteral("packing"), order[1]), QStringLiteral("删除一条"));
     r.check(listOf(page, "packing").size() == 10 && !item(QStringLiteral("kitRow-") + order[1]), QStringLiteral("删掉的行不见了"));
     click(win, item(QStringLiteral("kitTplSave")));

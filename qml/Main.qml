@@ -857,6 +857,26 @@ Window {
     }
     // 0.12.3 占位入口（AI、导入导出）统一走这里：外观和真按钮一样，点了提示还在做
     function notReady() { toast.show(qsTr("这个功能还在做"), false) }
+    // 0.12.9 删除后撤销：fn 真的删了才提示（返回 false = 没删）。前后各存一步，撤销只退这一下；
+    // 删完又改过，按钮不能再退（退的会是后面的改动），提示用 Ctrl+Z
+    function deleteWithUndo(fn, msg) {
+        app.commitStep()
+        if (fn() === false) return false
+        app.commitStep()
+        const mark = app.undoMark()
+        toast.show(msg || qsTr("已删除"), false, qsTr("撤销"), () => {
+            if (app.undoMark() === mark) app.undo()
+            else toast.show(qsTr("删除之后又改过了，请按 Ctrl+Z 一步步撤销"), false)
+        })
+        return true
+    }
+    function deleteExpenseRow(r) { return deleteWithUndo(() => planPage.deleteExpense(r.id)) }
+    function deleteBookingRow(r) {
+        let n = -1
+        return deleteWithUndo(() => { n = planPage.deleteBooking(r.id); return n >= 0 },
+                              r.linked ? qsTr("已删除，“消费”里对应的那一笔也删了") : "")
+    }
+    function showRowMenu(x, y, list) { rowMenu.show(x, y, list) }
     function md(d) { return d ? String(d).slice(5).replace("-", ".") : "" }   // palette.js md
     function statusLabel(s) { return s === "wish" ? qsTr("想去") : s === "completed" ? qsTr("已完成") : qsTr("计划中") }
     // 条目（palette.js source()）。页面只有做好的；操作补上原来系统菜单里的命令（PO 0.8.8 选方案 B），带快捷键提示
@@ -1254,6 +1274,7 @@ Window {
         onPhotoViewRequested: (l, i) => lightbox.show(l, i)
     }
     StylePopover { id: stylePop; objectName: "stylePop" }
+    RowMenu { id: rowMenu }
 
     // ---- 抽屉的高度：一半 / 大半 / 只露标题三档，拖动松手时吸到最近的一档 ----
     property real drawerFrac: 0.5
@@ -1701,10 +1722,10 @@ Window {
         onPickStop: (i) => mapc.markers.selectPlan(win.tripId, i, true)
         onAddBooking: (kind) => bookingDialog.show(null, kind)
         onEditBooking: (row) => bookingDialog.show(row, "")
-        onDeleteBooking: (row) => moneyDialog.ask("booking", row)
+        onDeleteBooking: (row) => win.deleteBookingRow(row)
         onAddExpense: (draft) => expenseDialog.show(null, draft)
         onEditExpense: (row) => expenseDialog.show(row, null)
-        onDeleteExpense: (row) => moneyDialog.ask("expense", row)
+        onDeleteExpense: (row) => win.deleteExpenseRow(row)
         onPeopleRequested: peopleDialog.show()
         onNotice: (t) => toast.show(t, false)
         onSaveTemplateRequested: {
@@ -1758,7 +1779,12 @@ Window {
         buttons: [{ key: "cancel", text: qsTr("取消") }, { key: "ok", text: qsTr("移除"), kind: "danger" }]
         property string planId: ""
         property string photoId: ""
-        function ask(plan, ph) { planId = plan; photoId = ph.id; open = true }
+        // 0.12.9 能撤销就不问；编辑器开着时不能撤销，还是问一句
+        function ask(plan, ph) {
+            planId = plan; photoId = ph.id
+            if (editor.open) open = true
+            else win.deleteWithUndo(() => photos.removeFromPlan(plan, ph.id), qsTr("已移除"))
+        }
         onChosen: (key) => {
             open = false
             if (key !== "ok") return
@@ -1853,33 +1879,6 @@ Window {
             spacing: Theme.px(8)
             TpButton { text: qsTr("取消"); onClicked: budgetDialog.open = false }
             TpButton { objectName: "budgetOk"; kind: "primary"; text: qsTr("保存"); onClicked: budgetDialog.save() }
-        }
-    }
-    MessageDialog {
-        id: moneyDialog
-        objectName: "moneyDialog"
-        property string what: ""
-        property var row: null
-        function ask(kind, r) {
-            what = kind
-            row = r
-            if (kind === "booking") {
-                title = qsTr("删除这条记录？")
-                const name = r.title || Fmt.kindLabel(r.kind)
-                paragraphs = r.linked ? [name, qsTr("“消费”里对应的那一笔也会一起删掉。")] : [name]
-            } else {
-                title = qsTr("删除这一笔？")
-                paragraphs = [(r.title || Fmt.catLabel(r.cat)) + "  " + Fmt.money(r.amount, r.cur)]
-            }
-            buttons = [{ key: "cancel", text: qsTr("取消") }, { key: "del", text: qsTr("删除"), kind: "danger" }]
-            open = true
-        }
-        onChosen: (key) => {
-            open = false
-            if (key !== "del") return
-            if (what === "expense") { planPage.deleteExpense(row.id); return }
-            const n = planPage.deleteBooking(row.id)
-            if (n > 0) toast.show(qsTr("已删除，“消费”里对应的那一笔也删了（可以撤销）"), false)
         }
     }
     TextInputDialog {
@@ -2492,6 +2491,7 @@ Window {
         { name: "style", on: () => stylePop.visible, close: () => stylePop.close() },
         { name: "pick", on: () => editor.open && editor.pickMode, close: () => { editor.pickMode = false } },
         { name: "search", on: () => editor.open && editor.searchState !== "idle", close: () => editor.clearSearch() },
+        { name: "rowMenu", on: () => rowMenu.visible, close: () => rowMenu.hide() },
         { name: "editor", on: () => editor.open, close: () => win.finishEditor() },
         { name: "sheet", on: () => win.mapShown && mapc.markers.selectedPlan !== "", close: () => mapc.markers.clearSelection() },
         // 0.11.2 日历：拖动中 → 弹出卡、选年月（页面本身由最后的 page 关）
@@ -2575,7 +2575,7 @@ Window {
                                       || importDialog.open || importProgressDialog.open || importReportDialog.open || takeOverDialog.open
                                       || photoReview.open || cleanupDialog.open || planConfirm.open || bulkConfirm.open || wishDialog.open || editorDialog.open
                                       || daysDialog.open || startDialog.open
-                                      || bookingDialog.open || expenseDialog.open || budgetDialog.open || moneyDialog.open || peopleDialog.open
+                                      || bookingDialog.open || expenseDialog.open || budgetDialog.open || peopleDialog.open
                                       || emergencyDialog.open || docDialog.open || guideLinkDialog.open || photoPickDialog.open || tplDialog.open
                                       || journalDeleteDialog.open || journalPhotoPick.open || journalLinkDialog.open
                                       || lightbox.open || photoCaptionDialog.open || photoRemoveDialog.open || coverPickDialog.open

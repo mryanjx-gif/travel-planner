@@ -283,8 +283,7 @@ void runPlanPhotos(Report &r, AppController *app, QQuickWindow *win, PlanPageCon
     pause(300);
     QQuickItem *rmDlg = item(QStringLiteral("photoRemoveDialog"));
     click(win, findItem(findItem(tab, QStringLiteral("photoTile-0")), QStringLiteral("photoRemove")));
-    r.check(waitFor([&] { return rmDlg && rmDlg->property("open").toBool(); }, 1000), QStringLiteral("移除：先问一句"));
-    if (rmDlg) QMetaObject::invokeMethod(rmDlg, "chosen", Q_ARG(QString, QStringLiteral("ok")));
+    r.check(rmDlg && !rmDlg->property("open").toBool(), QStringLiteral("0.12.9 移除：能撤销，不再问"));
     r.check(waitFor([&] { return (*photoRec(store->data(), ph0))[QStringLiteral("plan")].toString().isEmpty(); }, 1000), QStringLiteral("移除：这张不再属于计划"));
     r.check((*photoRec(store->data(), ph0))[QStringLiteral("file")].toString() == file0 && QFileInfo::exists(store->dataDir() + u'/' + file0), QStringLiteral("移除：记录和文件都还在"), file0);
     r.check((*plans::planById(store->data(), id))[QStringLiteral("cover")].toString().isEmpty(), QStringLiteral("移除的是封面：封面去掉"));

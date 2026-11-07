@@ -3,11 +3,105 @@
 #include "perf.h"
 #include "thumbprovider.h"
 
+#include <QCryptographicHash>
+#include <QDir>
+#include <QElapsedTimer>
+#include <QFile>
+#include <QSaveFile>
+#include <QSet>
+
 namespace tp::app {
 
 namespace pm = tp::map::photomap;
 
-AlbumModel::AlbumModel(QObject *parent) : QAbstractListModel(parent) {}
+AlbumModel::AlbumModel(QObject *parent) : QAbstractListModel(parent) { m_pool.setMaxThreadCount(1); }
+
+AlbumModel::~AlbumModel()
+{
+    *m_alive = false;
+    m_pool.waitForDone();
+}
+
+void AlbumModel::setRatioSource(std::function<QString()> dataDir, const QString &cacheRoot, std::function<QSize(const QString &, const QString &)> read)
+{
+    m_dataDir = std::move(dataDir);
+    m_cacheRoot = cacheRoot;
+    m_readSize = std::move(read);
+}
+
+// 缓存文件按数据文件夹分开（路径是相对的），放在缩略图缓存里：清缓存时一起清，清了重新读
+static QString ratioFile(const QString &root, const QString &dir)
+{
+    return root + QStringLiteral("/photo-ratios-") + QString::fromLatin1(QCryptographicHash::hash(dir.toUtf8(), QCryptographicHash::Md5).toHex().left(12)) + QStringLiteral(".txt");
+}
+
+void AlbumModel::loadRatios(const QString &dir)
+{
+    m_ratioDir = dir;
+    m_ratios.clear();
+    QFile f(ratioFile(m_cacheRoot, dir));
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return;
+    while (!f.atEnd()) {   // 一行：比例 <Tab> 相对路径
+        const QString line = QString::fromUtf8(f.readLine()).trimmed();
+        const qsizetype tab = line.indexOf(u'\t');
+        const double a = tab > 0 ? line.left(tab).toDouble() : 0;
+        if (a > 0) m_ratios.insert(line.mid(tab + 1), a);
+    }
+}
+
+void AlbumModel::saveRatios() const
+{
+    QDir().mkpath(m_cacheRoot);
+    QSaveFile f(ratioFile(m_cacheRoot, m_ratioDir));
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) return;   // 写不了下次重新读，不影响显示
+    for (auto it = m_ratios.constBegin(); it != m_ratios.constEnd(); ++it)
+        if (it.value() > 0) f.write(QString::number(it.value(), 'f', 4).toUtf8() + '\t' + it.key().toUtf8() + '\n');
+    f.commit();
+}
+
+void AlbumModel::fillRatios()
+{
+    if (!m_dataDir || !m_readSize) return;
+    const QString dir = m_dataDir();
+    if (dir != m_ratioDir) loadRatios(dir);
+    QSet<QString> need;
+    for (pm::Rec &r : m_lib.recs) {
+        if (r.ratio > 0) continue;
+        const auto it = m_ratios.constFind(r.file);
+        if (it == m_ratios.constEnd()) { if (r.file.startsWith(QLatin1String("photos/"))) need.insert(r.file); }
+        else r.ratio = *it;
+    }
+    if (need.isEmpty() || m_scanning || dir.isEmpty()) return;
+    m_scanning = true;
+    qInfo("相册：%d 张没记录比例，后台读文件头", int(need.size()));
+    m_pool.start([this, dir, files = need.values(), alive = m_alive, read = m_readSize] {
+        QHash<QString, double> got;
+        QElapsedTimer t;
+        t.start();
+        for (const QString &file : files) {
+            if (!*alive) return;
+            const QSize s = read(dir, file);
+            got.insert(file, s.width() > 0 && s.height() > 0 ? double(s.width()) / s.height() : 0.0);
+            if (t.elapsed() >= 2000) {   // 上万张时每 2 秒排一次，不是每张都动
+                QMetaObject::invokeMethod(this, [this, dir, got] { onRatios(dir, got, false); }, Qt::QueuedConnection);
+                got.clear();
+                t.restart();
+            }
+        }
+        QMetaObject::invokeMethod(this, [this, dir, got] { onRatios(dir, got, true); }, Qt::QueuedConnection);
+    });
+}
+
+void AlbumModel::onRatios(const QString &dir, const QHash<QString, double> &got, bool finished)
+{
+    if (finished) m_scanning = false;
+    if (dir != m_ratioDir) { if (finished) fillRatios(); return; }   // 中途换了数据文件夹
+    for (auto it = got.constBegin(); it != got.constEnd(); ++it) m_ratios.insert(it.key(), it.value());
+    saveRatios();
+    for (pm::Rec &r : m_lib.recs) if (r.ratio <= 0) r.ratio = m_ratios.value(r.file);
+    if (finished) fillRatios();
+    rebuildRows(true);
+}
 
 void AlbumModel::setViewStore(const QString &saved, std::function<void(const QString &)> save)
 {
@@ -48,11 +142,11 @@ void AlbumModel::setCompact(bool c)
     emit stateChanged();
 }
 
-void AlbumModel::setColumns(int n)
+void AlbumModel::setLayout(double width, double targetHeight, double gap)
 {
-    n = std::max(1, n);
-    if (n == m_columns) return;
-    m_columns = n;
+    width = std::max(1.0, width);
+    if (width == m_layout.width && targetHeight == m_layout.targetHeight && gap == m_layout.gap) return;
+    m_layout = { width, targetHeight, gap };
     emit columnsChanged();
     rebuildRows(true);
 }
@@ -63,6 +157,7 @@ void AlbumModel::refresh()
     tp::app::perf::Scope timing("相册重建", 30);
     const pm::Library old = std::move(m_lib);
     m_lib = pm::read(m_get());
+    fillRatios();
     if (!m_plan.isEmpty() && m_plan != QLatin1String(pm::kNoPos)) {   // 选中的那趟没有照片了
         bool ok = false;
         for (const pm::Trip &t : m_lib.trips) ok = ok || t.id == m_plan;
@@ -75,7 +170,7 @@ void AlbumModel::refresh()
 void AlbumModel::rebuildRows(bool keep, const tp::map::photomap::Library *old)
 {
     if (!m_active) return;
-    QVector<pm::Row> fresh = pm::rows(m_lib, m_view, m_plan, m_compact, m_columns);
+    QVector<pm::Row> fresh = pm::rows(m_lib, m_view, m_plan, m_compact, m_layout);
     // 行的结构没变（比如点了精选）：只通知内容变了，元素和滚动位置都不动
     bool same = keep && fresh.size() == m_rows.size();
     for (int i = 0; same && i < fresh.size(); ++i) same = fresh[i].kind == m_rows[i].kind && fresh[i].recs.size() == m_rows[i].recs.size();
@@ -83,6 +178,7 @@ void AlbumModel::rebuildRows(bool keep, const tp::map::photomap::Library *old)
         // 只通知真的变了的行：变了的行照片格子会重建，其余的不闪
         const auto differs = [&](const pm::Row &a, const pm::Row &b) {
             if (a.title != b.title || a.sub != b.sub || a.count != b.count || a.group != b.group || a.open != b.open) return true;
+            if (a.height != b.height || a.widths != b.widths) return true;
             if (!old) return a.recs != b.recs;
             for (int k = 0; k < a.recs.size(); ++k) {
                 const pm::Rec &x = old->recs.value(a.recs[k]), &y = m_lib.recs[b.recs[k]];
@@ -93,7 +189,8 @@ void AlbumModel::rebuildRows(bool keep, const tp::map::photomap::Library *old)
         QVector<int> changed;
         for (int i = 0; i < fresh.size(); ++i) if (differs(m_rows[i], fresh[i])) changed << i;
         m_rows = std::move(fresh);
-        for (int i : std::as_const(changed)) emit dataChanged(index(i), index(i));
+        if (changed.size() > 64) emit dataChanged(index(0), index(int(m_rows.size()) - 1));   // 窗口变了宽度：几乎每行都变
+        else for (int i : std::as_const(changed)) emit dataChanged(index(i), index(i));
         return;
     }
     if (keep) emit aboutToRebuild();
@@ -133,13 +230,14 @@ QVariant AlbumModel::data(const QModelIndex &index, int role) const
     case RowCount: return r.count;
     case Group: return r.group;
     case Open: return r.open;
+    case RowH: return r.height;
     case Thumb: return r.rep >= 0 ? ThumbProvider::urlFor(m_lib.recs[r.rep].file, 160, 0) : QString();
     case Items: {
         QVariantList out;
         out.reserve(r.recs.size());
-        for (int i : r.recs) {
-            const pm::Rec &p = m_lib.recs[i];
-            out << QVariantMap{ { QStringLiteral("id"), p.id }, { QStringLiteral("file"), p.file }, { QStringLiteral("caption"), p.caption },
+        for (int k = 0; k < r.recs.size(); ++k) {
+            const pm::Rec &p = m_lib.recs[r.recs[k]];
+            out << QVariantMap{ { QStringLiteral("w"), r.widths.value(k) }, { QStringLiteral("id"), p.id }, { QStringLiteral("file"), p.file }, { QStringLiteral("caption"), p.caption },
                                 { QStringLiteral("fav"), p.fav }, { QStringLiteral("planName"), p.planName }, { QStringLiteral("takenAt"), p.takenAt },
                                 { QStringLiteral("heic"), pm::isHeic(p.file) } };
         }
@@ -152,7 +250,7 @@ QVariant AlbumModel::data(const QModelIndex &index, int role) const
 QHash<int, QByteArray> AlbumModel::roleNames() const
 {
     return { { Kind, "kind" }, { Title, "title" }, { Sub, "sub" }, { PlanId, "planId" }, { StopNo, "stopNo" }, { RowCount, "count" },
-             { Group, "group" }, { Items, "items" }, { Open, "open" }, { Thumb, "thumb" } };
+             { Group, "group" }, { Items, "items" }, { Open, "open" }, { Thumb, "thumb" }, { RowH, "rowH" } };
 }
 
 QVariantMap AlbumModel::lightItem(const pm::Rec &r) const
@@ -195,6 +293,20 @@ QVariantList AlbumModel::itemsFor(const QStringList &ids) const
 int AlbumModel::tripRow(const QString &planId) const
 {
     for (int i = 0; i < m_rows.size(); ++i) if (m_rows[i].kind == QLatin1String("trip") && m_rows[i].planId == planId) return i;
+    return -1;
+}
+
+QString AlbumModel::anchorPhoto(int row) const
+{
+    for (int i = std::max(0, row); i < m_rows.size(); ++i)
+        if (!m_rows[i].recs.isEmpty()) return m_lib.recs[m_rows[i].recs.first()].id;
+    return {};
+}
+
+int AlbumModel::rowOfPhoto(const QString &id) const
+{
+    for (int i = 0; i < m_rows.size(); ++i)
+        for (int k : m_rows[i].recs) if (m_lib.recs[k].id == id) return i;
     return -1;
 }
 

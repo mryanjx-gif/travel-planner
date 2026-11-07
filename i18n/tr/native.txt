@@ -1222,3 +1222,11 @@ Windows 自带，不随程序分发。	Come with Windows; not distributed with t
 在地图上显示	Show on map
 在地图上隐藏	Hide on map
 新建计划	New plan
+删除之后又改过了，请按 Ctrl+Z 一步步撤销	You changed something after deleting. Press Ctrl+Z to undo step by step.
+已删除，“消费”里对应的那一笔也删了	Deleted, along with its entry in Spending
+已移除	Removed
+按类别	By category
+全部类别	All categories
+%1 笔	%1 entries
+这个类别没有消费。	Nothing in this category.
+未定时间	No time set

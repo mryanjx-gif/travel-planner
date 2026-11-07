@@ -40,8 +40,11 @@ Column {
         return uses.length > 5 ? qsTr("%1 等 %2 笔").arg(names).arg(uses.length) : names
     }
     function remove(p) {
-        note = planPage.editPerson(p.id, "", true) === "used"
-               ? qsTr("%1 付过钱或被单独写进了这几笔，先改了才能删：%2").arg(p.name).arg(usesText(p.uses)) : ""
+        win.deleteWithUndo(() => {
+            const used = planPage.editPerson(p.id, "", true) === "used"
+            note = used ? qsTr("%1 付过钱或被单独写进了这几笔，先改了才能删：%2").arg(p.name).arg(usesText(p.uses)) : ""
+            return !used
+        })
     }
     // 这次会变成几人平摊多少笔（再加一个人的话）
     function hintText() {
@@ -73,6 +76,7 @@ Column {
                     property string typed: modelData.name
                     function commit() { if (typed.trim() !== "" && typed !== modelData.name) planPage.editPerson(modelData.id, typed, false) }
                     width: listCol.width
+                    HoverHandler { id: pHover }
                     height: Theme.px(32)
                     TpField {
                         objectName: "peopleName-" + pRow.modelData.name
@@ -92,7 +96,12 @@ Column {
                         width: Theme.px(26); height: width
                         Accessible.role: Accessible.Button
                         Accessible.name: qsTr("删除")
-                        Rectangle { anchors.fill: parent; radius: width / 2; color: delMa.containsMouse ? Theme.panel2 : "transparent" }
+                        activeFocusOnTab: true
+                        opacity: pHover.hovered || activeFocus ? 1 : 0   // 0.12.9 移上去或 Tab 到才出现
+                        Keys.onReturnPressed: root.remove(pRow.modelData)
+                        Keys.onSpacePressed: root.remove(pRow.modelData)
+                        Keys.onDeletePressed: root.remove(pRow.modelData)
+                        Rectangle { anchors.fill: parent; radius: width / 2; color: delMa.containsMouse || delBtn.activeFocus ? Theme.panel2 : "transparent" }
                         TpIcon { anchors.centerIn: parent; width: Theme.px(15); height: width; name: "trash"; color: Theme.muted }
                         TpTip { text: qsTr("删除"); show: delMa.containsMouse }
                         MouseArea { id: delMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.remove(pRow.modelData) }

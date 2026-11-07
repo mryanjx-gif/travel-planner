@@ -15,6 +15,9 @@ TpCard {
     property string draft: ""               // 输入框里的字（M4 看它有几行）
     default property alias tools: slot.data
     property bool hasTools: false
+    // 0.12.9 勾选联动：数字和进度条一起走
+    property real shownDone: doneCount
+    Behavior on shownDone { TpMove {} }
     readonly property bool todos: listKey === "todos"
     readonly property var lines: draft.indexOf("\n") >= 0 ? planPage.splitLines(draft) : []
     readonly property bool pasted: lines.length > 1
@@ -30,6 +33,7 @@ TpCard {
         field.clear()
     }
     function cancelPaste() { draft = ""; field.clear() }
+    function removeRow(id) { win.deleteWithUndo(() => planPage.removeCheck(listKey, id)) }
 
     // ---- 把 rows 同步进模型：挪、插、删，已有的行不重建 ----
     ListModel { id: rowModel }
@@ -75,7 +79,7 @@ TpCard {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 visible: root.rows.length > 0
-                text: root.doneCount + " / " + root.rows.length
+                text: Math.round(root.shownDone) + " / " + root.rows.length
                 font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.muted
             }
         }
@@ -93,6 +97,7 @@ TpCard {
                 objectName: "kitBar-" + root.listKey
                 width: parent.width * root.doneCount / Math.max(1, root.rows.length); height: parent.height; radius: parent.radius
                 color: Theme.accent
+                Behavior on width { TpMove {} }
             }
         }
         Column {
@@ -114,7 +119,13 @@ TpCard {
                     objectName: "kitRow-" + rowId
                     width: rowsCol.width
                     height: main.height + Theme.px(4) + (editingDue ? dateBox.height + Theme.px(4) : 0)
-                    HoverHandler { id: hover }
+                    RowAct {
+                        id: rowAct
+                        objectName: "kitAct-" + rowItem.rowId
+                        enabled: !root.readOnly
+                        onActivated: root.toggle(rowItem.rowId, !rowItem.done)
+                        onDeleteRequested: root.removeRow(rowItem.rowId)
+                    }
                     Item {
                         id: main
                         y: Theme.px(2)
@@ -152,7 +163,7 @@ TpCard {
                             spacing: Theme.px(4)
                             Rectangle {   // 截止日期：有日期时一直显示；没有时悬停才出现
                                 objectName: "kitDue-" + rowItem.rowId
-                                visible: root.todos && (rowItem.due !== "" || (hover.hovered && !root.readOnly))
+                                visible: root.todos && (rowItem.due !== "" || (rowAct.active && !root.readOnly))
                                 width: dueText.implicitWidth + Theme.px(12)
                                 height: Theme.px(20)
                                 radius: Theme.px(7)
@@ -179,14 +190,14 @@ TpCard {
                                 visible: !root.readOnly
                                 Accessible.role: Accessible.Button
                                 Accessible.name: qsTr("删除")
-                                TpIcon { anchors.centerIn: parent; width: Theme.px(13); height: width; name: "close"; color: delMa.containsMouse ? Theme.danger : Theme.muted; visible: hover.hovered }
+                                TpIcon { anchors.centerIn: parent; width: Theme.px(13); height: width; name: "close"; color: delMa.containsMouse ? Theme.danger : Theme.muted; visible: rowAct.active }
                                 TpTip { text: qsTr("删除"); show: delMa.containsMouse }
                                 MouseArea {
                                     id: delMa
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: planPage.removeCheck(root.listKey, rowItem.rowId)
+                                    onClicked: root.removeRow(rowItem.rowId)
                                 }
                             }
                         }

@@ -52,6 +52,7 @@ AppController::AppController(Settings *settings, DataStore *store, QObject *pare
 {
     m_full = new platform::Fullscreen;
     m_electronDir = DataFolder::readElectronDataDir(Paths::electronSettingsFile());
+    connect(m_store, &DataStore::contentChanged, this, [this] { ++m_contentSeq; });
     connect(m_store, &DataStore::externallyChanged, this, [this] {
         qInfo("travel.json 被别处改过");
         if (!m_extChanged) { m_extChanged = true; emit extChangedChanged(); }
@@ -575,6 +576,15 @@ void AppController::noteChanged(bool now, int delayMs)
 {
     m_saver.changed(now ? data::SaveScheduler::Mode::Now : data::SaveScheduler::Mode::Debounced, delayMs);
 }
+
+void AppController::commitStep()
+{
+    if (m_editing || m_conflictPending || m_store->state() == DataStore::State::None || m_store->isReadOnly() || !m_store->isDirty()) return;
+    m_saver.cancel();
+    doSave(false, true);
+}
+
+QString AppController::listPref(const QString &key) const { return m_settings->value(QStringLiteral("list.") + key).toString(); }
 
 void AppController::autoSave()
 {

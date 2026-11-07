@@ -148,7 +148,7 @@ Item {
                     anchors.fill: parent
                     source: root.open ? root.cur.thumb || "" : ""
                     fillMode: Image.PreserveAspectFit
-                    visible: !root.heicMissing && fit.status !== Image.Ready && full.status !== Image.Ready   // 没装扩展时下面压着提示文字
+                    visible: !root.heicMissing && fit.opacity < 1 && full.status !== Image.Ready   // 没装扩展时下面压着提示文字
                     asynchronous: true
                 }
                 Image {
@@ -165,6 +165,9 @@ Item {
                     cache: false
                     smooth: true
                     visible: full.status !== Image.Ready
+                    // 0.12.9 从糊到清：解好了淡入，盖住垫着的缩略图
+                    opacity: status === Image.Ready ? 1 : 0
+                    Behavior on opacity { TpMove { ms: 180 } }
                 }
                 Image {
                     id: full
