@@ -34,6 +34,9 @@ Column {
             wrapMode: Text.Wrap
             text: detail
             font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
+            linkColor: Theme.accent
+            onLinkActivated: (link) => Qt.openUrlExternally(link)   // 0.12.6 Exchange Rate API 要求署名带链接
+            HoverHandler { cursorShape: parent.hoveredLink !== "" ? Qt.PointingHandCursor : Qt.ArrowCursor }
         }
     }
 

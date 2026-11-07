@@ -35,6 +35,8 @@ void NetController::reload()
         const Value v = n[k];
         m_net->setServiceEnabled(k, !(v.isBool() && !v.toBool()));   // Electron：P.net[k] === false 才算关
     }
+    const double mb = m_settings->value(QStringLiteral("tileCacheMaxMB")).toNumber();
+    if (mb > 0) m_tiles->setMaxBytes(qint64(mb) * 1048576);
 }
 
 bool NetController::offline() const { return m_net->offline(); }
@@ -76,6 +78,16 @@ double NetController::tileBytes() const { return double(m_tiles->bytes()); }
 bool NetController::tileScanned() const { return m_tiles->scanned(); }
 bool NetController::tileClearing() const { return m_tiles->clearing(); }
 void NetController::clearTileCache() { m_tiles->clearToTrash(); }
+int NetController::tileMaxMB() const { return int(m_tiles->maxBytes() / 1048576); }
+
+void NetController::setTileMaxMB(int mb)
+{
+    if (mb <= 0 || mb == tileMaxMB()) return;
+    m_settings->setValue(QStringLiteral("tileCacheMaxMB"), Value(double(mb)));
+    m_settings->save();
+    m_tiles->setMaxBytes(qint64(mb) * 1048576);
+    emit cacheChanged();
+}
 void NetController::offlineForShot() { m_net->setOffline(true); }
 
 } // namespace tp::app

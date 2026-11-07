@@ -12,6 +12,7 @@ namespace plans = tp::map::plans;
 
 namespace {
 constexpr double kFreshMs = 20 * 3600e3;
+constexpr double kFillRetryMs = 3600e3;
 constexpr int kTimeoutMs = 25000;
 const QString kService = QStringLiteral("rates");
 }
@@ -28,6 +29,7 @@ RatesController::RatesController(Settings *settings, services::NetClient *net, Q
     for (const auto &[k, v] : t[QStringLiteral("rates")].asObject().members())
         if (v.toNumber() > 0) m_rates.table.insert(k, v.toNumber());
     m_at = settings->value(QStringLiteral("ratesAt")).toNumber();
+    m_fillAt = settings->value(QStringLiteral("ratesFillAt")).toNumber();
     if (m_net) connect(m_net, &services::NetClient::switchesChanged, this, &RatesController::changed);
 }
 
@@ -46,8 +48,49 @@ void RatesController::setMain(const QString &cur)
 void RatesController::ensure()
 {
     if (m_busy) return;
-    if (!m_rates.table.isEmpty() && m_rates.base == m_main && QDateTime::currentMSecsSinceEpoch() - m_at < kFreshMs) return;
+    if (!m_rates.table.isEmpty() && m_rates.base == m_main && QDateTime::currentMSecsSinceEpoch() - m_at < kFreshMs) { fillMissing(); return; }
     refreshNow();
+}
+
+QStringList RatesController::missingUsed() const
+{
+    const QStringList used = m_fetch ? m_testUsed : (m_used ? m_used() : QStringList());
+    QStringList out;
+    for (const QString &c : used)
+        if (c != m_rates.base && !m_rates.table.contains(c)) out << c;
+    return out;
+}
+
+void RatesController::fillMissing()
+{
+    if (m_busy || netOff()) return;
+    if (m_rates.table.isEmpty() || m_rates.base != m_main || m_rates.src == QLatin1String("er-api")) return;   // 表本来就是它给的，再问也没有
+    const double now = double(QDateTime::currentMSecsSinceEpoch());
+    if (now - m_fillAt < kFreshMs || now - m_fillTriedAt < kFillRetryMs) return;
+    const QStringList missing = missingUsed();
+    if (missing.isEmpty()) return;
+    m_fillTriedAt = now;
+    m_busy = true;
+    emit busyChanged();
+    const QString base = m_rates.base;
+    request(QUrl(QStringLiteral("https://open.er-api.com/v6/latest/") + base), [this, base, missing](int status, const QByteArray &body, int netError) {
+        m_busy = false;
+        emit busyChanged();
+        plans::Rates r;
+        if (netError == 0) r = plans::parseRates(body, QStringLiteral("er-api"), base);
+        if (r.table.isEmpty()) {
+            qWarning("汇率：补缺的货币失败（HTTP %d，网络错误 %d）", status, netError);   // 不算更新失败：Frankfurter 的表还是好的，页面写着缺哪种
+            return;
+        }
+        if (m_rates.base == base) {
+            const int added = plans::mergeRates(m_rates, r);
+            m_fillAt = double(QDateTime::currentMSecsSinceEpoch());
+            persist();
+            qInfo("汇率：open.er-api.com 补了 %d 种（要的是 %s）", added, qUtf8Printable(missing.join(u' ')));
+            emit changed();
+        }
+        if (base != m_main) ensure();   // 取的时候又换了主货币
+    });
 }
 
 bool RatesController::refreshNow()
@@ -73,10 +116,14 @@ void RatesController::fetch(int step)
             m_busy = false;
             emit busyChanged();
             m_failed = false;
+            const double now = double(QDateTime::currentMSecsSinceEpoch());
+            if (m_rates.base != r.base) m_fillAt = 0;   // 换了基准，补过的数不算了
+            else if (now - m_fillAt < kFreshMs) plans::mergeRates(r, m_rates);   // 20 小时内补过：留着，不再问一次
             store(r);
             qInfo("汇率：更新了（%s，%s，%d 种）", qUtf8Printable(r.src), qUtf8Printable(r.date), int(r.table.size()));
             emit changed();
             if (base != m_main) ensure();   // 取的时候又换了主货币
+            else fillMissing();
             return;
         }
         qWarning("汇率：第 %d 个来源失败（HTTP %d，网络错误 %d）", step + 1, status, netError);
@@ -86,6 +133,11 @@ void RatesController::fetch(int step)
         m_failed = true;
         emit changed();
     };
+    request(url, done);
+}
+
+void RatesController::request(const QUrl &url, std::function<void(int, const QByteArray &, int)> done)
+{
     ++m_requests;
     if (m_fetch) { m_fetch(url, done); return; }
     m_net->get(url, kTimeoutMs, this, [done](const services::NetClient::Reply &r) { done(r.status, r.body, int(r.error)); });
@@ -109,6 +161,7 @@ void RatesController::persist()
     o.set(QStringLiteral("rates"), Value(std::move(table)));
     m_settings->setValue(QStringLiteral("rates"), Value(std::move(o)));
     m_settings->setValue(QStringLiteral("ratesAt"), Value(m_at));
+    m_settings->setValue(QStringLiteral("ratesFillAt"), Value(m_fillAt));
     m_settings->save();
 }
 
@@ -117,6 +170,7 @@ void RatesController::resetForTest(const QString &main, const plans::Rates &r, d
     m_main = main;
     m_rates = r;
     m_at = at;
+    m_fillAt = m_fillTriedAt = 0;
     m_failed = false;
     m_settings->setValue(QStringLiteral("currency"), Value(main));
     persist();   // 自检的假汇率不能留在 settings.json 里

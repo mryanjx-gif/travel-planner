@@ -43,7 +43,7 @@ GlassPanel {
         { key: "tiles", name: qsTr("地图瓦片"), use: qsTr("地图和地球的卫星图、街道图。关掉后只用“已解锁”底图，存下来的瓦片地球上照常显示。"), who: qsTr("Esri（Esri 及其数据提供方）") },
         { key: "geocode", name: qsTr("地名搜索"), use: qsTr("编辑器里搜地名、点地图取地名。关掉后可以在地图上点选或手动输入坐标。"), who: qsTr("Nominatim · © OpenStreetMap 贡献者（ODbL）") },
         { key: "routing", name: qsTr("道路路线"), use: qsTr("自驾、徒步段按道路画线。关掉后已经算好的路线还在，没算的画直线。"), who: qsTr("OSRM（FOSSGIS 服务器 routing.openstreetmap.de）· © OpenStreetMap 贡献者") },
-        { key: "rates", name: qsTr("汇率"), use: qsTr("消费折算成主货币，一天最多更新一次。关掉后继续用上次的。"), who: qsTr("Frankfurter（欧洲央行数据），失败时用 open.er-api.com（Rates By Exchange Rate API）") },
+        { key: "rates", name: qsTr("汇率"), use: qsTr("消费折算成主货币，一天最多更新一次。关掉后继续用上次的。"), who: qsTr("Frankfurter（欧洲央行数据）；失败或缺某种货币时用 open.er-api.com（<a href=\"https://www.exchangerate-api.com\">Rates By Exchange Rate API</a>）") },
         { key: "weather", name: qsTr("天气"), use: qsTr("16 天内出发或正在旅行的计划，显示各站点的预报。"), who: qsTr("Open-Meteo（CC BY 4.0）") },
         { key: "climate", name: qsTr("气候"), use: qsTr("各站点近 10 年同一个月的平均气温和降水。"), who: qsTr("Open-Meteo 历史天气（CC BY 4.0；ERA5 · Copernicus 气候变化服务）") },
         { key: "elev", name: qsTr("海拔和时区"), use: qsTr("自动补站点的海拔（高反提示用）和时区（日出日落时间用）。"), who: qsTr("Open-Meteo（CC BY 4.0；海拔：Copernicus DEM GLO-90）") },
@@ -808,13 +808,25 @@ GlassPanel {
                     sub: qsTr("照片文件夹里没被任何照片用到的文件，移到回收站。")
                     TpButton { text: qsTr("检查…"); compact: true; enabled: app.dataDir !== "" && !app.readOnly && !photos.trashRunning; onClicked: root.cleanupClicked() }
                 }
-                // 0.12.5：缓存用量和清空（只移进回收站）。硬盘上限在 0.12.6
+                // 0.12.5：缓存用量和清空（只移进回收站）；0.12.6：硬盘上限
                 SettingsRow {
                     objectName: "cacheTiles"
                     width: parent.width
                     label: qsTr("地图瓦片缓存")
-                    sub: (netc.tileClearing ? qsTr("正在移进回收站…") : !netc.tileScanned ? qsTr("正在统计…") : netc.tileBytes === 0 ? "0 KB" : root.sizeText(netc.tileBytes)) + " · " + qsTr("看过的地图存在这里，离线也能看。超过 2 GB 时自动删掉最旧的。")
+                    sub: (netc.tileClearing ? qsTr("正在移进回收站…") : !netc.tileScanned ? qsTr("正在统计…") : netc.tileBytes === 0 ? "0 KB" : root.sizeText(netc.tileBytes)) + " · " + qsTr("看过的地图存在这里，离线也能看。")
                     TpButton { objectName: "cacheTilesClear"; text: qsTr("清空"); compact: true; enabled: netc.tileBytes > 0 && !netc.tileClearing; onClicked: netc.clearTileCache() }
+                }
+                SettingsRow {
+                    objectName: "cacheTilesMax"
+                    width: parent.width
+                    label: qsTr("地图瓦片缓存上限")
+                    sub: qsTr("超过时自动删掉最旧的。调低后马上按新上限删。")
+                    Segmented {
+                        objectName: "cacheTilesMaxPick"
+                        options: [{ key: "512", text: "500 MB" }, { key: "1024", text: "1 GB" }, { key: "2048", text: "2 GB" }, { key: "5120", text: "5 GB" }]
+                        current: String(netc.tileMaxMB)
+                        onPicked: (k) => netc.tileMaxMB = Number(k)
+                    }
                 }
                 SettingsRow {
                     objectName: "cacheThumbs"

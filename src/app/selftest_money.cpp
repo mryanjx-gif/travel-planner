@@ -8,6 +8,7 @@
 #include "datastore.h"
 #include "navhistory.h"
 #include "plancontroller.h"
+#include "jsonio.h"
 #include "planmoney.h"
 #include "planpagecontroller.h"
 #include "plans.h"
@@ -90,12 +91,12 @@ void runMoney(Report &r, AppController *app, QQuickWindow *win, PlanPageControll
     const QString oldMain = rates->main();
     const plans::Rates oldTable = rates->table();
     QStringList asked;
-    int mode = 0;   // 0 Frankfurter 好；1 Frankfurter 坏；2 都坏
+    int mode = 0;   // 0 Frankfurter 好；1 Frankfurter 坏；2 都坏；3 er-api 坏
     rates->setFetchForTest([&](const QUrl &url, std::function<void(int, const QByteArray &, int)> done) {
         asked << url.host();
         const bool first = url.host() == QLatin1String("api.frankfurter.dev");
-        if (mode == 2 || (mode == 1 && first)) { done(0, {}, 5); return; }
-        done(200, first ? QByteArrayLiteral(R"({"base":"CNY","date":"2026-11-05","rates":{"AUD":0.2,"USD":0.14}})")
+        if (mode == 2 || (mode == 1 && first) || (mode == 3 && !first)) { done(0, {}, 5); return; }
+        done(200, first ? QByteArrayLiteral(R"({"date":"2026-11-05","rates":{"AUD":0.2,"USD":0.14}})")   // 不写 base：换主货币后也照样收
                         : QByteArrayLiteral(R"({"result":"success","time_last_update_unix":1793923351,"rates":{"AUD":0.25,"USD":0.15,"VND":3500}})"), 0);
     });
     rates->resetForTest(QStringLiteral("CNY"), plans::Rates(), 0);
@@ -112,6 +113,32 @@ void runMoney(Report &r, AppController *app, QQuickWindow *win, PlanPageControll
     rates->resetForTest(QStringLiteral("CNY"), rates->table(), 0);
     rates->ensure();
     r.check(rates->failed() && rates->date() == keepDate && !rates->table().table.isEmpty(), QStringLiteral("都失败时留着上次的表，并标记失败"));
+    // 0.12.6 Frankfurter 成功但缺用到的货币：再问一次 open.er-api.com，只补缺的；20 小时内不重复
+    mode = 0; asked.clear();
+    rates->setUsedForTest({ QStringLiteral("VND") });
+    rates->resetForTest(QStringLiteral("CNY"), plans::Rates(), 0);
+    rates->ensure();
+    r.check(asked.size() == 2 && qAbs(plans::perMain(rates->table(), QStringLiteral("CNY"), QStringLiteral("VND")) - 1.0 / 3500) < 1e-12 && qAbs(rates->table().table.value(QStringLiteral("AUD")) - 0.2) < 1e-9
+                && rates->date() == QLatin1String("2026-11-05") && !rates->failed(), QStringLiteral("缺货币时补上，Frankfurter 的不动"), asked.join(u','));
+    asked.clear();
+    rates->ensure(); rates->fillMissing();
+    r.check(asked.isEmpty(), QStringLiteral("补过 20 小时内不再问"), asked.join(u','));
+    rates->refreshNow();
+    r.check(asked == QStringList{ QStringLiteral("api.frankfurter.dev") } && rates->table().table.contains(QStringLiteral("VND")), QStringLiteral("现在更新：补过的留着，不再问第二个"), asked.join(u','));
+    rates->setUsedForTest({ QStringLiteral("AUD") });
+    asked.clear();
+    rates->resetForTest(QStringLiteral("CNY"), plans::Rates(), 0);
+    rates->ensure();
+    r.check(asked.size() == 1, QStringLiteral("不缺就不问第二个"), asked.join(u','));
+    rates->setUsedForTest({ QStringLiteral("VND") });
+    asked.clear();
+    mode = 3;
+    rates->resetForTest(QStringLiteral("CNY"), plans::Rates(), 0);
+    rates->ensure();
+    const int triedOnce = asked.size();
+    rates->fillMissing();
+    r.check(triedOnce == 2 && asked.size() == 2 && !rates->failed() && !rates->table().table.contains(QStringLiteral("VND")) && !rates->table().table.isEmpty(), QStringLiteral("补失败不算更新失败，也不马上再试"), asked.join(u','));
+    rates->setUsedForTest({});
     mode = 0;
     rates->resetForTest(QStringLiteral("CNY"), plans::Rates(), 0);
     rates->ensure();
@@ -331,6 +358,16 @@ void runMoney(Report &r, AppController *app, QQuickWindow *win, PlanPageControll
     pc->setNextTrip(id, false);
     store->modify([&](Value &d) { d = before; });
     rates->setFetchForTest({});
+    // 0.12.6 真的请求一次：用了 Frankfurter 没有的货币，补上以后能换算
+    store->modify([&](Value &d) {
+        plans::mutPlan(d, id)->mutObject().set(QStringLiteral("expenses"), json::parse(QStringLiteral(R"([{"id":"twd1","amount":100,"currency":"TWD","date":"2026-01-01"}])")));
+    });
+    rates->resetForTest(QStringLiteral("CNY"), plans::Rates(), 0);
+    rates->refreshNow();
+    const bool gotTwd = waitFor([&] { return !rates->busy() && rates->table().table.contains(QStringLiteral("TWD")); }, 30000);
+    const double twd = plans::perMain(rates->table(), QStringLiteral("CNY"), QStringLiteral("TWD"));
+    r.check(gotTwd && twd > 0.1 && twd < 0.5 && rates->src().contains(QLatin1String("er-api")), QStringLiteral("真实请求：缺 TWD 时补上了，换算对"), QStringLiteral("1 TWD = %1 CNY，来源 %2").arg(twd).arg(rates->src()));
+    store->modify([&](Value &d) { d = before; });
     rates->resetForTest(oldMain, oldTable, 0);
     pc->setTodayOverride(QString());
     pc->setTestAllStatuses(true);
@@ -349,7 +386,7 @@ void runSplit(Report &r, AppController *app, QQuickWindow *win, PlanPageControll
     const QString oldMain = rates->main();
     const plans::Rates oldTable = rates->table();
     rates->setFetchForTest([](const QUrl &, std::function<void(int, const QByteArray &, int)> done) {
-        done(200, QByteArrayLiteral(R"({"base":"CNY","date":"2026-11-05","rates":{"AUD":0.2,"USD":0.14}})"), 0);
+        done(200, QByteArrayLiteral(R"({"date":"2026-11-05","rates":{"AUD":0.2,"USD":0.14}})"), 0);
     });
     rates->resetForTest(QStringLiteral("AUD"), plans::Rates(), 0);
     rates->ensure();

@@ -702,6 +702,14 @@ void runNetAbout(Report &r, AppController *app, map::MapController *mapc, QQuick
     pause(150);
     QQuickItem *tileRow = item(QStringLiteral("cacheTiles"));
     r.check(effectivelyShown(tileRow) && effectivelyShown(item(QStringLiteral("cacheThumbs"))), QStringLiteral("数据分组显示地图和缩略图的缓存用量"), tileRow ? tileRow->property("sub").toString() : QString());
+    {   // 0.12.6 硬盘上限：存进 settings.json，读回来是新值；0 不收
+        const int keep = netc->tileMaxMB();
+        netc->setTileMaxMB(5120);
+        const bool saved = int(settings->value(QStringLiteral("tileCacheMaxMB")).toNumber()) == 5120 && netc->tileMaxMB() == 5120;
+        netc->setTileMaxMB(0);
+        r.check(saved && netc->tileMaxMB() == 5120 && effectivelyShown(item(QStringLiteral("cacheTilesMax"))), QStringLiteral("地图缓存上限存进 settings.json，缓存真的用它"));
+        netc->setTileMaxMB(keep);
+    }
 
     // ---- 关于 ----
     panel->setProperty("section", QStringLiteral("about"));
@@ -709,7 +717,7 @@ void runNetAbout(Report &r, AppController *app, map::MapController *mapc, QQuick
     QQuickItem *aboutCard = item(QStringLiteral("aboutSection"));
     const QString about = allText(aboutCard);
     QStringList lack;
-    for (const char *w : { "不用于商业", "Windows 10", "Black Marble", "Esri", "OpenStreetMap", "Nominatim", "OSRM", "Open-Meteo", "CC BY", "Frankfurter", "er-api", "Natural Earth",
+    for (const char *w : { "不用于商业", "Windows 10", "Black Marble", "Esri", "OpenStreetMap", "Nominatim", "OSRM", "Open-Meteo", "CC BY", "Frankfurter", "er-api", "exchangerate-api.com", "Natural Earth",
                            "LGPL-3", "maplibre-native-qt", "suncalc", "OFL", "Apache 2.0", "Material Symbols", "思源宋体", "原创" })
         if (!about.contains(QString::fromUtf8(w))) lack << QString::fromUtf8(w);
     r.check(effectivelyShown(aboutCard) && lack.isEmpty(), QStringLiteral("关于写全了作者、系统要求、署名、授权、字体、素材"), lack.join(u','));

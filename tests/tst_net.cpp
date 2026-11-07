@@ -504,6 +504,22 @@ void TestNet::tileCacheEvictAndScan()
         for (int i = 0; i < 5; ++i) QVERIFY(!c.contains({ QStringLiteral("gray"), 3, i, 1 }));
         for (int i = 5; i < 10; ++i) QVERIFY(c.contains({ QStringLiteral("gray"), 3, i, 1 }));
     }
+    {   // 0.12.6 一次要删很多：分批删，事件循环跑完文件都没了；刚存回来的不会被排队的删掉
+        QTemporaryDir many;
+        qint64 t = 1000;
+        TileCache c(many.path());
+        c.setClock([&t] { return t; });
+        c.startScan();
+        c.waitScan();
+        for (int i = 0; i < 700; ++i) { t += 1000; QVERIFY(c.put({ QStringLiteral("gray"), 4, i, 1 }, QByteArray(10, 'b'))); }
+        c.setMaxBytes(50);
+        QVERIFY(c.bytes() <= 45);
+        QVERIFY(QFile::exists(many.path() + QStringLiteral("/gray/4/0/1.t")));   // 第一批从队尾删，这张在队头：还没轮到
+        QVERIFY(c.put({ QStringLiteral("gray"), 4, 0, 1 }, QByteArray(10, 'c')));
+        QTRY_VERIFY(!QFile::exists(many.path() + QStringLiteral("/gray/4/1/1.t")));
+        QTest::qWait(50);
+        QVERIFY(QFile::exists(many.path() + QStringLiteral("/gray/4/0/1.t")));
+    }
     // 不认识的文件不管、不删
     QFile junk(root + QStringLiteral("/gray/3/readme.txt"));
     QVERIFY(junk.open(QIODevice::WriteOnly));

@@ -239,14 +239,17 @@ Rates parseRates(const QByteArray &body, const QString &src, const QString &base
 {
     Rates r;
     const QJsonObject j = QJsonDocument::fromJson(body).object();
-    QString date;
+    QString date, replyBase;
     if (src == QLatin1String("frankfurter")) {
         date = j.value(QStringLiteral("date")).toString();
+        replyBase = j.value(QStringLiteral("base")).toString();
     } else {
         if (j.value(QStringLiteral("result")).toString() != QLatin1String("success")) return r;
+        replyBase = j.value(QStringLiteral("base_code")).toString();
         const qint64 t = qint64(j.value(QStringLiteral("time_last_update_unix")).toDouble());
         if (t > 0) date = QDateTime::fromSecsSinceEpoch(t, QTimeZone::UTC).date().toString(Qt::ISODate);
     }
+    if (!replyBase.isEmpty() && replyBase != base) return r;   // 基准对不上，数不能用
     const QJsonObject rates = j.value(QStringLiteral("rates")).toObject();
     for (auto it = rates.begin(); it != rates.end(); ++it) {
         const double v = it.value().toDouble();
@@ -264,6 +267,29 @@ double perMain(const Rates &r, const QString &main, const QString &cur)
     if (cur == main) return 1;
     const double a = cur == r.base ? 1 : r.table.value(cur, -1), b = main == r.base ? 1 : r.table.value(main, -1);
     return a > 0 && b > 0 ? b / a : -1;
+}
+
+int mergeRates(Rates &into, const Rates &from)
+{
+    if (into.base != from.base) return 0;
+    int added = 0;
+    for (auto it = from.table.begin(); it != from.table.end(); ++it)
+        if (!into.table.contains(it.key())) { into.table.insert(it.key(), it.value()); ++added; }
+    if (added) into.src = QStringLiteral("frankfurter + er-api");   // 只有这一种补法；设置页"来源"显示它
+    return added;
+}
+
+QStringList usedCurrencies(const Value &root)
+{
+    QStringList out;
+    const auto add = [&out](const QString &c) { if (!c.isEmpty() && !out.contains(c)) out << c; };
+    for (const Value &plan : root[QStringLiteral("plans")].asArray()) {
+        if (!plan.isObject()) continue;
+        if (num(plan, "budget") > 0) add(planCurrency(plan));
+        for (const SpendRow &r : spendRows(plan))
+            if (r.amount != 0) add(r.cur);
+    }
+    return out;
 }
 
 QStringList currencyCodes()

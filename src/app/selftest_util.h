@@ -125,6 +125,7 @@ FrameStats *frameStats();
 Settings *settingsObj();
 void runGlass(Report &r, AppController *app, QQuickWindow *win);
 void runPerf(Report &r, AppController *app, map::MapController *mapc, QQuickWindow *win);
+void runCacheMeasure(Report &r, map::MapController *mapc, QQuickWindow *win, services::TileServer *ts, services::TileCache *cache);   // 0.12.6
 // 0.9.1：显卡内存分配器的统计（Vulkan / D3D12 才有；在渲染线程上读）
 struct RhiMem { bool ok = false; quint32 blocks = 0, allocs = 0; double usedMB = 0, unusedMB = 0; QString text() const; };
 RhiMem readRhiMem(QQuickWindow *win);

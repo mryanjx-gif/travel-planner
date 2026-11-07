@@ -7,6 +7,7 @@
 #include <QFileInfo>
 #include <QSaveFile>
 #include <QThread>
+#include <QTimer>
 #include <algorithm>
 #include <vector>
 
@@ -153,13 +154,24 @@ void TileCache::evictIfNeeded()
     for (const auto &entry : order) {
         if (m_bytes <= target) break;
         const QString &rel = entry.second;
-        QFile::remove(m_dir + u'/' + rel);   // 删不掉（被占用）也从索引里拿掉，下次数的时候再算进来
+        m_evictQueue << rel;   // 删不掉（被占用）也从索引里拿掉，下次数的时候再算进来
         m_bytes -= m_index.value(rel).size;
         m_index.remove(rel);
         ++removed;
     }
     qInfo("瓦片缓存超过上限（%.0f MB）：删了最旧的 %d 张，%.1f → %.1f MB", m_max / 1048576.0, removed, before / 1048576.0, m_bytes / 1048576.0);
+    drainEvict();
     emit sizeChanged();
+}
+
+void TileCache::drainEvict()
+{
+    constexpr int kBatch = 300;
+    for (int i = 0; i < kBatch && !m_evictQueue.isEmpty(); ++i) {
+        const QString rel = m_evictQueue.takeLast();
+        if (!m_index.contains(rel)) QFile::remove(m_dir + u'/' + rel);   // 排队时又存了新的就不删
+    }
+    if (!m_evictQueue.isEmpty()) QTimer::singleShot(0, this, &TileCache::drainEvict);
 }
 
 void TileCache::clear()

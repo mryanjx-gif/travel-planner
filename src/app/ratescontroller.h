@@ -2,6 +2,8 @@
 // 都存在 settings.json：currency（主货币，PO 选 3A：在消费和账本页头直接选）、rates（上次的表）、ratesAt（毫秒）。键名和 Electron prefs.js 一样。
 // 0.12.5：去掉了手动汇率（PO 2026-11-08）。settings.json 里已有的 manualRates 键不读也不删。
 // 20 小时内更新过就不再取（汇率源每个工作日更新一次）；离线时用上次的，页面上写明日期。
+// 0.12.6（PO 2026-11-08）：Frankfurter 成功但缺数据里用到的货币（它没有 TWD、VND、RUB、AED、EGP 等）时，再问一次 open.er-api.com，
+// 把表里没有的补进同一张表（基准相同才补，已有的不动）；只在有缺的时候请求，时间记在 ratesFillAt，20 小时内不重复。
 #pragma once
 
 #include "planmoney.h"
@@ -47,9 +49,13 @@ public:
     Q_INVOKABLE void ensure();
     // "现在更新"：不看 20 小时。这项联网关着时返回 false
     Q_INVOKABLE bool refreshNow();
+    // 表是新的但缺用到的货币时补一次（打开计划、账本，数据变了时调）；没缺、刚补过、联网关着都什么也不做
+    void fillMissing();
+    void setUsedProvider(std::function<QStringList()> f) { m_used = std::move(f); }
 
     using Fetch = std::function<void(const QUrl &, std::function<void(int httpStatus, const QByteArray &body, int netError)>)>;
     void setFetchForTest(Fetch f) { m_fetch = std::move(f); }
+    void setUsedForTest(const QStringList &used) { m_testUsed = used; }   // 假联网时用这个，不看真数据
     void resetForTest(const QString &main, const map::plans::Rates &r, double at);
     int requests() const { return m_requests; }
 
@@ -59,12 +65,18 @@ signals:
 
 private:
     void fetch(int step);
+    void request(const QUrl &url, std::function<void(int, const QByteArray &, int)> done);
+    QStringList missingUsed() const;
     void store(const map::plans::Rates &r);
     void persist();
 
     Settings *m_settings;
     services::NetClient *m_net;
     Fetch m_fetch;
+    std::function<QStringList()> m_used;
+    QStringList m_testUsed;
+    double m_fillAt = 0;        // 上次补成功的时间（settings.json 的 ratesFillAt）
+    double m_fillTriedAt = 0;   // 上次试着补的时间（只在内存里：失败后 1 小时内不再试，免得每次刷新都打对方）
     QString m_main;
     map::plans::Rates m_rates;
     double m_at = 0;

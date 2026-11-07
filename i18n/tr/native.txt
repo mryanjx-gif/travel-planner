@@ -1100,7 +1100,7 @@ Nominatim · © OpenStreetMap 贡献者（ODbL）	Nominatim · © OpenStreetMap 
 自驾、徒步段按道路画线。关掉后已经算好的路线还在，没算的画直线。	Draws driving and walking legs along roads. When off, routes already worked out stay; others are straight lines.
 OSRM（FOSSGIS 服务器 routing.openstreetmap.de）· © OpenStreetMap 贡献者	OSRM (FOSSGIS server routing.openstreetmap.de) · © OpenStreetMap contributors
 消费折算成主货币，一天最多更新一次。关掉后继续用上次的。	Converts spending to your main currency, updated at most once a day. When off, the last rates stay in use.
-Frankfurter（欧洲央行数据），失败时用 open.er-api.com（Rates By Exchange Rate API）	Frankfurter (European Central Bank data), falling back to open.er-api.com (Rates By Exchange Rate API)
+Frankfurter（欧洲央行数据）；失败或缺某种货币时用 open.er-api.com（<a href="https://www.exchangerate-api.com">Rates By Exchange Rate API</a>）	Frankfurter (European Central Bank data); open.er-api.com when it fails or lacks a currency (<a href="https://www.exchangerate-api.com">Rates By Exchange Rate API</a>)
 16 天内出发或正在旅行的计划，显示各站点的预报。	Forecasts for each stop on plans leaving within 16 days or under way.
 Open-Meteo（CC BY 4.0）	Open-Meteo (CC BY 4.0)
 天气	Weather
@@ -1124,7 +1124,7 @@ Open-Meteo（CC BY 4.0；海拔：Copernicus DEM GLO-90）	Open-Meteo (CC BY 4.0
 更新日志只有中文。	The changelog is in Chinese only.
 地图瓦片缓存	Map tile cache
 正在移进回收站…	Moving to the Recycle Bin…
-看过的地图存在这里，离线也能看。超过 2 GB 时自动删掉最旧的。	Maps you've viewed are kept here for offline use. The oldest are removed automatically above 2 GB.
+看过的地图存在这里，离线也能看。	Maps you've viewed are kept here for offline use.
 每个版本改了什么	What changed in each version
 查看	View
 作者	Author
@@ -1160,3 +1160,5 @@ Google，Apache 2.0，地图标记的图标，打包在程序里。	Google, Apac
 Windows 自带，不随程序分发。	Come with Windows; not distributed with the app.
 界面素材	Interface artwork
 除了上面列出的，图标、按钮和装饰都是程序绘制的原创素材，没有第三方授权问题。	Apart from the items above, icons, buttons and decoration are original and drawn by the app, with no third-party licensing.
+地图瓦片缓存上限	Map tile cache limit
+超过时自动删掉最旧的。调低后马上按新上限删。	The oldest are removed automatically above this. Lowering it removes them right away.

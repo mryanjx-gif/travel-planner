@@ -357,6 +357,7 @@ int main(int argc, char *argv[])
     geocoder.setBase(settings.value(QStringLiteral("geocodeUrl")).toString());
     geocoder.setCacheFile(Paths::cacheDir() + (testRun ? QStringLiteral("/test-geocode.json") : QStringLiteral("/geocode.json")));
     tp::app::RatesController rates(&settings, &net);                    // 0.10.1 汇率和主货币
+    rates.setUsedProvider([&store] { return tp::map::plans::usedCurrencies(store.data()); });   // 0.12.6 缺哪种再补
     tp::app::PlanPageController planPage(&ctl, &plans, &store, &net, &rates, &settings);   // 0.10.0 完整计划页
     tp::app::WeatherController weather(&planPage, &plans, &store, &net);   // 0.10.3 预报和往年气候
     tp::app::CalendarController calendar(&ctl, &plans, &settings, &store, &mapc);   // 0.11.2 日历

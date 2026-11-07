@@ -24,10 +24,14 @@ struct Rates {
     QString base, date, src;
     QHash<QString, double> table;   // 1 base = 多少这种货币
 };
-// src："frankfurter" / "er-api"。回复认不出时 table 是空的
+// src："frankfurter" / "er-api"。回复认不出、或者回复写的基准不是 base 时，table 是空的
 Rates parseRates(const QByteArray &body, const QString &src, const QString &base);
 // 1 cur = 多少 main；不知道时 < 0。表的基准不是 main 时交叉换算（刚换主货币、离线时也能算）
 double perMain(const Rates &r, const QString &main, const QString &cur);
+// 0.12.6：把 from 里 into 没有的货币补进 into，已有的不动。基准不同时什么都不做（两边的数不能混）。返回补了几种
+int mergeRates(Rates &into, const Rates &from);
+// 0.12.6：数据里真正用到的货币：有金额的消费、交通住宿，有预算的计划
+QStringList usedCurrencies(const json::Value &root);
 QStringList currencyCodes();                        // 24 种（Electron prefs.js CURRENCIES）
 QString planCurrency(const json::Value &plan);      // 计划的币种，没写时 AUD（Electron planCur 的默认）
 

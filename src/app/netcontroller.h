@@ -21,6 +21,7 @@ class NetController : public QObject
     Q_PROPERTY(double tileBytes READ tileBytes NOTIFY cacheChanged)
     Q_PROPERTY(bool tileScanned READ tileScanned NOTIFY cacheChanged)
     Q_PROPERTY(bool tileClearing READ tileClearing NOTIFY cacheChanged)
+    Q_PROPERTY(int tileMaxMB READ tileMaxMB WRITE setTileMaxMB NOTIFY cacheChanged)   // 0.12.6 硬盘上限；settings.json 的 tileCacheMaxMB，没写 = 2048
 
 public:
     NetController(Settings *settings, services::NetClient *net, services::TileCache *tiles, QObject *parent = nullptr);
@@ -32,6 +33,8 @@ public:
     double tileBytes() const;
     bool tileScanned() const;
     bool tileClearing() const;
+    int tileMaxMB() const;
+    void setTileMaxMB(int mb);
 
     Q_INVOKABLE void setSwitch(const QString &key, bool on);
     Q_INVOKABLE void clearTileCache();             // 移进回收站；完成发 tileCacheCleared

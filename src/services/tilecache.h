@@ -73,12 +73,14 @@ private:
     struct Entry { qint64 size = 0; qint64 mtime = 0; };
     qint64 now() const;
     void evictIfNeeded();
+    void drainEvict();   // 0.12.6 调低上限可能一下删几万个文件：每轮事件循环删一批，不卡界面
     void mergeScan();
 
     QString m_dir;
     qint64 m_max = kDefaultMaxBytes;
     std::function<qint64()> m_now;
     QHash<QString, Entry> m_index;   // 相对路径 → 大小、取回来的时间
+    QStringList m_evictQueue;        // 已经从索引拿掉、文件还没删的（程序中途退出也没事：下次启动数到了再按上限删）
     qint64 m_bytes = 0;
     bool m_scanned = false;
     QThread *m_scanThread = nullptr;

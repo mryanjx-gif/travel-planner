@@ -2359,6 +2359,26 @@ void TestMap::moneyRates()
     QCOMPARE(e.date, QStringLiteral("2026-11-06"));
     QVERIFY(parseRates(R"({"result":"error","rates":{"AUD":0.25}})", "er-api", "CNY").table.isEmpty());
     QVERIFY(parseRates("不是 JSON", "frankfurter", "CNY").table.isEmpty());
+    // 0.12.6 基准对不上的回复不能用；补缺只补没有的，基准不同不补，补完能换算
+    QVERIFY(parseRates(R"({"base":"USD","rates":{"AUD":1.5}})", "frankfurter", "CNY").table.isEmpty());
+    QVERIFY(parseRates(R"({"result":"success","base_code":"USD","rates":{"AUD":1.5}})", "er-api", "CNY").table.isEmpty());
+    {
+        Rates into = f;
+        const Rates er = parseRates(R"({"result":"success","base_code":"CNY","rates":{"AUD":0.25,"TWD":5}})", "er-api", "CNY");
+        QCOMPARE(mergeRates(into, er), 1);
+        QVERIFY(qFuzzyCompare(into.table.value("AUD"), 0.2));   // Frankfurter 的不动
+        QVERIFY(qFuzzyCompare(perMain(into, "CNY", "TWD"), 0.2));
+        QVERIFY(qFuzzyCompare(perMain(into, "AUD", "TWD"), 0.04));   // 主货币不是基准时也对：1 TWD = 0.2 CNY = 0.04 AUD
+        QCOMPARE(into.src, QStringLiteral("frankfurter + er-api"));
+        const Rates other = parseRates(R"({"result":"success","rates":{"TWD":30}})", "er-api", "USD");
+        Rates keep = f;
+        QCOMPARE(mergeRates(keep, other), 0);
+        QVERIFY(!keep.table.contains("TWD"));
+        const tp::json::Value data = tp::json::parse(QStringLiteral(R"({"plans":[{"currency":"VND","budget":10,"expenses":[{"id":"a","amount":5,"currency":"TWD"},{"id":"b","amount":0,"currency":"EGP"}]},{"currency":"RUB"}]})"));
+        const QStringList used = usedCurrencies(data);
+        QVERIFY(used.contains("VND") && used.contains("TWD"));   // 有预算的计划币种、有金额的消费
+        QVERIFY(!used.contains("EGP") && !used.contains("RUB"));   // 金额 0、没预算没花销的不算
+    }
     // 1 AUD = 5 CNY；表的基准不是主货币时交叉换算；不知道时 < 0
     QVERIFY(qFuzzyCompare(perMain(f, "CNY", "AUD"), 5.0));
     QVERIFY(qFuzzyCompare(perMain(f, "CNY", "CNY"), 1.0));

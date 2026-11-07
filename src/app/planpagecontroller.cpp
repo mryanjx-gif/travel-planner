@@ -71,6 +71,7 @@ void PlanPageController::showLedger(bool on)
 
 void PlanPageController::refresh()
 {
+    if (m_ledgerOn || !m_id.isEmpty()) m_rates->fillMissing();   // 0.12.6 刚记了一笔新货币的消费也能补上（失败不发 changed，不会绕回来）
     if (m_ledgerOn) {
         const QVariantMap l = plans::ledgerInfo(m_store->data(), m_rates->main(), m_rates->table(), m_plans->today());
         if (l != m_ledger) { m_ledger = l; emit ledgerChanged(); }

@@ -13,10 +13,13 @@
 #include "mapcontroller.h"
 #include "markerlayer.h"
 #include "perf.h"
+#include "procmem.h"
 #include "plancontroller.h"
 #include "datastore.h"
 #include "jsonvalue.h"
 #include "settings.h"
+#include "tilecache.h"
+#include "tileserver.h"
 
 #include <QDir>
 #include <QElapsedTimer>
@@ -319,6 +322,90 @@ void runPerf(Report &r, AppController *app, map::MapController *mapc, QQuickWind
     waitFor([&] { return pc->mode() == QLatin1String("plan") && !(cover && cover->property("active").toBool()); }, 4000);
     mapc->setBase(QStringLiteral("street"));
     r.check(pc->mode() == QLatin1String("plan"), QStringLiteral("性能一节跑完，回到计划模式"));
+}
+
+// 0.12.6"先量"：地图放大、拖动时慢在哪里，内存和硬盘缓存各占多少、命中率。只记数，不判断；要真联网，所以只有点名
+// （TP_SELFTEST_ONLY=cachemeasure）才跑，全量不跑。同一条路走两遍：第一遍 = 没进内存（硬盘有就读硬盘，没有就联网），
+// 第二遍 = 地图库内存缓存能接住多少（它接住的不会来问本机瓦片服务）。重启再跑一次，第一遍就全是硬盘。
+void runCacheMeasure(Report &r, map::MapController *mapc, QQuickWindow *win, services::TileServer *ts, services::TileCache *cache)
+{
+    r.section(QStringLiteral("地图缓存测量（0.12.6）"));
+    constexpr double kLat = 64.18, kLng = -51.72;   // 努克：平时不会看的地方，第一次跑是冷的
+    FrameStats *fs = frameStats();
+    QQuickItem *mapItem = win ? win->findChild<QQuickItem *>(QStringLiteral("map")) : nullptr;
+    if (!mapItem || !ts || !cache || !waitFor([mapItem] { return mapItem->property("styleLoaded").toBool(); }, 20000)) { r.info(QStringLiteral("地图没加载，跳过")); return; }
+    cache->waitScan();
+    r.info(QStringLiteral("窗口 %1×%2，缩放 %3；硬盘缓存开始时 %4 张、%5 MB；瓦片服务在线：%6")
+               .arg(win->width()).arg(win->height()).arg(win->devicePixelRatio()).arg(cache->count()).arg(cache->bytes() / 1048576.0, 0, 'f', 1).arg(ts->online()));
+
+    const auto settled = [ts] { waitFor([ts] { return ts->busyForMap() == 0 && ts->msSinceLastResponse() >= 300; }, 25000); };
+    const auto line = [&](const QString &label, double t0, const services::TileServer::Stats &s0, double waitedMs) {
+        const services::TileServer::Stats s = ts->stats();
+        const ProcMem m = readProcMem();
+        const int req = s.requests - s0.requests, hit = s.hits - s0.hits;
+        const FrameStats::Summary f = fs ? fs->summary(t0, perf::nowMs()) : FrameStats::Summary();
+        r.info(QStringLiteral("%1：要 %2 张（硬盘 %3，联网 %4）到齐 %5 ms；帧 %6，间隔中位 %7 / P95 %8 / 最长 %9 ms，超 50 ms 的 %10 帧，同步中位 %11 / 最长 %12 ms；私有 %13 MB，显存 %14 MB")
+                   .arg(label).arg(req).arg(hit).arg(s.fetched - s0.fetched).arg(waitedMs, 0, 'f', 0)
+                   .arg(f.frames).arg(f.intervalMedian, 0, 'f', 1).arg(f.intervalP95, 0, 'f', 1).arg(f.intervalMax, 0, 'f', 0).arg(f.over50)
+                   .arg(f.syncMedian, 0, 'f', 1).arg(f.syncMax, 0, 'f', 0).arg(m.privateMB, 0, 'f', 0).arg(m.gpuLocalMB + m.gpuNonLocalMB, 0, 'f', 0));
+        return req;
+    };
+    // 不用 zoomBy / dragBy：动画和惯性每次走的不完全一样，两遍就不是同一条路。逐帧 jumpTo，路是固定的
+    const auto glide = [&](double fromLng, double toLng, double fromZ, double toZ, int ms) {
+        QElapsedTimer t; t.start();
+        QTimer timer;
+        timer.setTimerType(Qt::PreciseTimer);
+        timer.setInterval(16);
+        QObject::connect(&timer, &QTimer::timeout, &timer, [&] {
+            const double k = std::min(1.0, double(t.elapsed()) / ms);
+            mapc->jumpTo(kLat, fromLng + (toLng - fromLng) * k, fromZ + (toZ - fromZ) * k);
+        });
+        timer.start();
+        waitFor([&] { return t.elapsed() >= ms; }, ms + 2000);
+        timer.stop();
+        mapc->jumpTo(kLat, toLng, toZ);
+    };
+    const auto pass = [&](const QString &label) {
+        int total = 0;
+        mapc->jumpTo(kLat, kLng, 5);
+        settled();
+        for (int z = 6; z <= 13; ++z) {
+            const double t0 = perf::nowMs();
+            const auto s0 = ts->stats();
+            QElapsedTimer t; t.start();
+            glide(kLng, kLng, z - 1, z, 250);
+            pause(100);   // 地图库要瓦片在下一帧，等它问过再看"到齐"
+            settled();
+            total += line(QStringLiteral("%1 放大到 %2 级").arg(label).arg(z), t0, s0, t.elapsed() - 300.0);
+        }
+        // 13 级一屏约 0.17°（1400 px，纬度 64）：每段 1.5 秒横移 0.1°，约 750 px/s
+        for (int i = 0; i < 3; ++i) {
+            const double t0 = perf::nowMs();
+            const auto s0 = ts->stats();
+            QElapsedTimer t; t.start();
+            glide(kLng + 0.1 * i, kLng + 0.1 * (i + 1), 13, 13, 1500);
+            pause(100);
+            settled();
+            total += line(QStringLiteral("%1 拖动第 %2 段").arg(label).arg(i + 1), t0, s0, t.elapsed() - 300.0);
+        }
+        r.info(QStringLiteral("%1 合计要了 %2 张").arg(label).arg(total));
+        return total;
+    };
+    for (const QString &base : { QStringLiteral("street"), QStringLiteral("sat") }) {
+        mapc->setBase(base);
+        waitFor([mapItem] { return !mapItem->property("styleLoaded").toBool(); }, 1500);
+        waitFor([mapItem] { return mapItem->property("styleLoaded").toBool(); }, 10000);
+        const int a = pass(base + QStringLiteral(" 第一遍"));
+        const int b = pass(base + QStringLiteral(" 第二遍"));
+        r.info(QStringLiteral("%1：第二遍要了 %2 张 / 第一遍 %3 张，地图库内存接住约 %4%；tileSize %5")
+                   .arg(base).arg(b).arg(a).arg(a > 0 ? 100.0 * (a - b) / a : 0, 0, 'f', 0).arg(mapc->tileSizeOf(base)));
+    }
+    const services::TileServer::Stats s = ts->stats();
+    r.info(QStringLiteral("总计：地图要了 %1 张，硬盘命中 %2 张（%3%），联网成功 %4（含预取 %5），失败 %6；硬盘缓存现在 %7 张、%8 MB")
+               .arg(s.requests).arg(s.hits).arg(s.requests > 0 ? 100.0 * s.hits / s.requests : 0, 0, 'f', 0).arg(s.fetched).arg(s.prefetched).arg(s.failed)
+               .arg(cache->count()).arg(cache->bytes() / 1048576.0, 0, 'f', 1));
+    mapc->setBase(QStringLiteral("street"));
+    r.check(true, QStringLiteral("缓存测量跑完了"));
 }
 
 } // namespace tp::app::selftest
