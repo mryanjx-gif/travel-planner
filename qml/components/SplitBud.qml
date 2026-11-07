@@ -17,6 +17,8 @@ Item {
     property real homeX: 0
     property real homeY: 0            // 0.8.10：顶栏 ⋯ 泡泡太多、一行放不下时排到第二行
     property real centerX: 0
+    property real centerY: 0          // 0.11.6：竖列从上一颗（所在行）出发，不是第一行
+    property bool caret: false        // 0.11.6：文字后面的小三角 ▾（计划、照片带竖列）
     property var badges: []           // [{ text, kind: "days" | "count" }]（顶栏"下次出发"的倒计时和待办数）
     property real baseAlpha: 0.5      // 小泡泡遮盖（glass.css .lyr-opt --lg-alpha .5）
     property color onColor: Theme.text
@@ -27,7 +29,7 @@ Item {
     property real p: 0   // 平移 / 缩放的进度（0 收起，1 打开；回弹时会略超过 1）
     property real a: 0   // 透明度
     x: homeX + bx * (1 - p)
-    y: homeY * p
+    y: centerY + (homeY - centerY) * p
     scale: 0.55 + 0.45 * p
     opacity: a
     visible: a > 0.002
@@ -100,6 +102,13 @@ Item {
                 font.bold: bud.on
                 color: bud.dark && !bud.on ? "#ffffff" : (bud.on ? bud.onColor : Theme.text)
             }
+        }
+        TpIcon {
+            visible: bud.caret
+            name: "down"
+            width: Theme.px(12); height: width
+            color: bud.on ? bud.onColor : Theme.muted
+            anchors.verticalCenter: parent.verticalCenter
         }
         Repeater {
             model: bud.badges

@@ -15,6 +15,7 @@
 #include <QJsonObject>
 #include <QQuickItem>
 #include <QQuickWindow>
+#include <qpa/qwindowsysteminterface.h>
 
 namespace tp::app::selftest {
 
@@ -124,17 +125,24 @@ void runPlans(Report &r, AppController *app, map::MapController *mapc, QQuickWin
         const double right = sheet ? sheet->x() : win->width();
         r.check(n && cx > 0 && cx < right, QStringLiteral("飞过去时让开面板（计划在面板左边）"),
                 QStringLiteral("站点中心 x = %1，面板左边 x = %2").arg(cx, 0, 'f', 0).arg(right, 0, 'f', 0));
-        // 点进某一站以后回到整条路线（0.8.7 PO）：站点条最前面的"全部"——聚焦时不亮，回到概览时亮
+        // 点进某一站以后回到整条路线（0.8.7 PO；0.11.6 改成这一排最左边的 ↩ 全部路线）：看某一站时才出现，点了回概览；全部路线时不显示
         if (mapc->markers()->canStep()) {
+            auto ov = [&] { return win->findChild<QQuickItem *>(QStringLiteral("sheetOverview")); };
+            auto vis = [&] { QQuickItem *a = ov(); return a && a->isVisible() && a->opacity() > 0.5; };
             mapc->markers()->selectPlan(aCompleted, 1, true);
-            waitFor([&] { QQuickItem *a = win->findChild<QQuickItem *>(QStringLiteral("sheetOverview")); return a && a->isVisible() && !a->property("on").toBool(); }, 1500);
-            QQuickItem *all = win->findChild<QQuickItem *>(QStringLiteral("sheetOverview"));
-            const bool offWhenFocused = all && all->isVisible() && !all->property("on").toBool();
-            mapc->markers()->selectPlan(aCompleted, -1, false);
-            waitFor([&] { QQuickItem *a = win->findChild<QQuickItem *>(QStringLiteral("sheetOverview")); return a && a->property("on").toBool(); }, 1500);
-            r.check(offWhenFocused && all->property("on").toBool() && mapc->markers()->focusStop() < 0,
-                    QStringLiteral("简易面板的\"全部\"：聚焦某站时不亮，回到整条路线时亮"),
-                    all ? QString() : QStringLiteral("找不到 sheetOverview"));
+            const bool onStop = waitFor(vis, 1500);
+            bool back = false;
+            if (onStop) {
+                waitStill(ov(), 1500);
+                QQuickItem *a = ov();
+                const QPointF p = a->mapToScene(QPointF(a->width() / 2, a->height() / 2));
+                const QPointF g = win->mapToGlobal(p);
+                QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, g, Qt::LeftButton, Qt::LeftButton, QEvent::MouseButtonPress);
+                QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, g, Qt::NoButton, Qt::LeftButton, QEvent::MouseButtonRelease);
+                back = waitFor([&] { return mapc->markers()->focusStop() < 0 && !vis(); }, 1500);
+            }
+            r.check(onStop && back, QStringLiteral("简易面板：看某一站时有 ↩ 全部路线，点了回到整条路线，全部路线时图标不显示"),
+                    QStringLiteral("出现 %1，点后回概览 %2，focusStop %3，").arg(onStop).arg(back).arg(mapc->markers()->focusStop()) + (ov() ? QStringLiteral("图标 %1").arg(vis()) : QStringLiteral("找不到 sheetOverview")));
         }
         mapc->markers()->clearSelection();
         waitFrames(win, 2);

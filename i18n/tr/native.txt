@@ -954,3 +954,4 @@ HEIC 照片能导入；这台电脑没装 HEIF / HEVC 扩展，暂时显示不�
 第一次加别人时会自动带上“我”。	"Me" is added automatically with the first person.
 添加同行人的名字，回车	Type a companion's name, press Enter
 还没有记账。旅途中随手记，回来就知道钱花在哪了。和别人一起出去时，点上面的“同行人”添加，就能分账。	Nothing recorded yet. Jot things down as you go and you'll know where the money went. Traveling with others? Add them with "Companions" above to split costs.
+全部路线	All stops

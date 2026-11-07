@@ -3,7 +3,7 @@
 # 规则（PO 2026-11-02）：大更新改第一位，中等更新改第二位，小修改改第三位；正式版之前是 0.x.y，正式版 1.0.0。
 cmake_minimum_required(VERSION 3.24)
 
-set(TP_VERSION "0.11.5")
+set(TP_VERSION "0.11.6")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TP_VERSION_NUMERIC "${TP_VERSION}")
 
 project(TravelPlannerNative

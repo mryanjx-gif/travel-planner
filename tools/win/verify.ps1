@@ -41,6 +41,7 @@ $AllPages = @(
     'trip-packing|zh', 'trip-packing|en', 'trip-packing-narrow|zh', 'trip-packing-paste|zh', 'trip-emergency-form|zh', 'trip-emergency-form|en',
     'trip-journal|zh', 'trip-journal|en', 'trip-guide|zh', 'trip-guide|en', 'trip-guide-narrow|zh', 'trip-guide-edit|zh', 'trip-guide-edit|en', 'trip-guide-edit-narrow|zh', 'trip-guide-new|zh',
     'trip-photos|zh', 'trip-photos|en', 'trip-photos-narrow|zh', 'trip-lightbox|zh', 'trip-lightbox|en', 'trip-lightbox-zoom|zh',
+    'modes|zh', 'modes-sub|zh', 'modes-sub|en', 'modes-sub-narrow|zh',
     'sheet|zh', 'now|zh', 'now|en', 'editor|zh', 'editor-photos|zh', 'editor-photos|en', 'editor-cover|zh', 'filter-overlay|zh', 'filter-overlay|en',
     'library|zh', 'library|en', 'library-table|zh', 'library-table|en', 'library-region|zh', 'library-select|zh', 'library-select|en', 'library-narrow|zh', 'library-hover|zh',
     'mode-wish|zh', 'mode-wish|en', 'wish-start|zh', 'wish-start|en', 'wish-season|zh', 'wish-season|en', 'mode-foot|zh', 'mode-foot|en',

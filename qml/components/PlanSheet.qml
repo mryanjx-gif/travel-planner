@@ -18,7 +18,7 @@ Item {
     property int focusIndex: -1                      // 聚焦的站点（mapc.markers.focusStop）
     signal closeRequested()
     signal locate(string planId)                // ◎：回到整条路线（取消聚焦、框住整个计划）
-    signal overview(string planId)              // 站点条最前面的"全部"：同上（0.8.7 PO：点进某一站后回不到整条路线）
+    signal overview(string planId)              // 站点条上看某一站时的 ↩ 全部路线：同上（0.8.7 PO：点进某一站后回不到整条路线）
     signal pickStop(int index)
     signal togglePin(string planId)
     signal toggleNext(string planId, bool on)
@@ -29,7 +29,7 @@ Item {
     readonly property var stops: sheet.stops || []
     readonly property bool route: sheet.type === "route" && stops.length > 1
     readonly property int shown: route ? focusIndex : (stops.length ? 0 : -1)   // 现在显示哪一站（-1 = 概览）
-    readonly property bool overview: shown < 0 || !route   // 计划的封面和备注：路线在概览时、单一目的地一直显示（想去多半是单一目的地）
+    readonly property bool atOverview: shown < 0 || !route   // 计划的封面和备注：路线在概览时、单一目的地一直显示（想去多半是单一目的地）
     readonly property var stop: shown >= 0 && shown < stops.length ? stops[shown] : null
 
     function statusLabel(s) { return s === "completed" ? qsTr("已完成") : s === "wish" ? qsTr("想去") : qsTr("计划中") }
@@ -126,32 +126,6 @@ Item {
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         model: root.route ? root.stops : []
-        // "全部"：没有聚焦时是选中状态；点了回到概览、地图框住整条路线
-        header: Item {
-            width: allChip.width + Theme.px(6)
-            height: Theme.px(36)
-            Rectangle {
-                id: allChip
-                objectName: "sheetOverview"
-                readonly property bool on: root.focusIndex < 0
-                width: allText.implicitWidth + Theme.px(24)
-                height: Theme.px(32)
-                y: Theme.px(2)
-                radius: height / 2
-                color: on ? "#ffffff" : (allMa.containsMouse ? Qt.rgba(1, 1, 1, 0.8) : Qt.rgba(1, 1, 1, 0.55))
-                border.width: 1
-                border.color: on ? Theme.accent : Theme.line
-                Accessible.role: Accessible.Button
-                Accessible.name: allText.text
-                Text {
-                    id: allText
-                    anchors.centerIn: parent
-                    text: qsTr("全部")
-                    font.family: serifFamily; font.pixelSize: Theme.px(13); font.bold: allChip.on; color: Theme.text
-                }
-                MouseArea { id: allMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.overview(root.sheet.id) }
-            }
-        }
         currentIndex: root.focusIndex
         highlightFollowsCurrentItem: false
         onCurrentIndexChanged: if (currentIndex >= 0) positionViewAtIndex(currentIndex, ListView.Contain); else positionViewAtBeginning()
@@ -207,10 +181,10 @@ Item {
             // 概览（路线没有聚焦；单一目的地这一块也显示，下面接着站点内容）
             Image {
                 objectName: "sheetCover"
-                visible: root.overview && (root.sheet.coverThumb || "") !== "" && status !== Image.Error
+                visible: root.atOverview && (root.sheet.coverThumb || "") !== "" && status !== Image.Error
                 width: parent.width
                 height: visible ? Math.round(width * 0.42) : 0
-                source: root.overview ? (root.sheet.coverThumb || "") : ""
+                source: root.atOverview ? (root.sheet.coverThumb || "") : ""
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 sourceSize.width: 640
@@ -221,7 +195,7 @@ Item {
                     onClicked: root.photoViewRequested([{ file: root.sheet.coverFile, thumb: root.sheet.coverThumb }], 0)
                 }
             }
-            NotesBlock { objectName: "sheetNotes"; visible: root.overview && (root.sheet.notes || "") !== ""; text: root.sheet.notes || ""; open: root.notesOpen; onToggled: root.notesOpen = !root.notesOpen }
+            NotesBlock { objectName: "sheetNotes"; visible: root.atOverview && (root.sheet.notes || "") !== ""; text: root.sheet.notes || ""; open: root.notesOpen; onToggled: root.notesOpen = !root.notesOpen }
             Text {
                 visible: root.shown < 0
                 font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.muted
@@ -291,9 +265,10 @@ Item {
                 }
                 Row {
                     id: steps
-                    visible: root.route
+                    visible: root.route && root.focusIndex >= 0
                     anchors.right: parent.right
                     spacing: Theme.px(4)
+                    RoundIcon { objectName: "sheetOverview"; kind: "uturn"; label: qsTr("全部路线"); small: true; showTip: true; onClicked: root.overview(root.sheet.id) }
                     RoundIcon { kind: "prev"; label: qsTr("上一站"); small: true; enabled: root.focusIndex > 0; onClicked: root.pickStop(root.focusIndex - 1) }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter

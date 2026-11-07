@@ -18,6 +18,7 @@
 #include <QTemporaryDir>
 
 #include <algorithm>
+#include <cmath>
 #include <QQmlContext>
 #include <QQmlEngine>
 #include <QQuickItem>
@@ -162,12 +163,12 @@ void runPages(Report &r, AppController *app, map::MapController *mapc, QQuickWin
     {
         click(win, item(win, "dotsPill"));
         waitFor([bubbles] { return bubbles && bubbles->property("open").toBool(); }, 1000);
-        QQuickItem *last = item(win, demo.isEmpty() ? "bud-ledger" : "bud-next");
+        QQuickItem *last = item(win, "bud-ledger");
         waitFor([last] { return last && last->opacity() > 0.95; }, 1500);
         QStringList keys;
         double prevRight = -1;
         bool inOrder = true;
-        for (const char *k : { "bud-plan", "bud-wish", "bud-foot", "bud-photo", "bud-calendar", "bud-journal", "bud-ledger", "bud-next" }) {
+        for (const char *k : { "bud-plan", "bud-photo", "bud-calendar", "bud-journal", "bud-ledger" }) {
             QQuickItem *b = item(win, k);
             if (!shown(b)) continue;
             keys << QString::fromLatin1(k + 4);
@@ -175,8 +176,27 @@ void runPages(Report &r, AppController *app, map::MapController *mapc, QQuickWin
             if (left < prevRight) inOrder = false;
             prevRight = left + b->width();
         }
-        const int want = demo.isEmpty() ? 7 : 8;
-        r.check(keys.size() == want && inOrder, QStringLiteral("⋯：%1 颗泡泡，从左到右 计划 想去 足迹 照片 ｜ 日历 游记 账本 ｜ 下次出发").arg(want), keys.join(u' '));
+        r.check(keys.size() == 5 && inOrder, QStringLiteral("⋯ 横条：5 颗泡泡，从左到右 计划 照片 ｜ 日历 游记 账本（0.11.6）"), keys.join(u' '));
+        // 竖列：在计划这一组里点"计划" = 展开竖列（计划库 想去 足迹 下次出发），排在"计划"正下方
+        pause(700);   // 和 ⋯ 同一处，隔开 0.7 秒（Windows差异清单 #26）
+        click(win, item(win, "bud-plan"));
+        QQuickItem *subLast = item(win, demo.isEmpty() ? "bud-foot" : "bud-next");
+        waitFor([subLast] { return subLast && subLast->opacity() > 0.95; }, 1500);
+        waitStill(subLast, 1500);
+        {
+            QQuickItem *own = item(win, "bud-plan");
+            const QPointF o = own->mapToScene(QPointF(0, 0));
+            bool ok = true; double prevY = o.y() + own->height(); QStringList got;
+            for (const char *k : { "bud-library", "bud-wish", "bud-foot", "bud-next" }) {
+                QQuickItem *b = item(win, k);
+                if (!shown(b)) continue;
+                got << QString::fromLatin1(k + 4);
+                const QPointF p = b->mapToScene(QPointF(0, 0));
+                if (std::abs(p.x() - o.x()) > 1.5 || p.y() < prevY) ok = false;
+                prevY = p.y() + b->height();
+            }
+            r.check(ok && got.size() == (demo.isEmpty() ? 3 : 4), QStringLiteral("计划的竖列：计划库、想去、足迹（、下次出发），对齐\"计划\"、往下排"), got.join(u' '));
+        }
         click(win, item(win, "bud-foot"));
         const bool ok = waitMode(pc, win, QStringLiteral("foot"));
         const QSet<QString> s = statusesOnMap(mapc);
@@ -429,16 +449,16 @@ void runPages(Report &r, AppController *app, map::MapController *mapc, QQuickWin
     // 窄窗口：⋯ 排不下时换行，不压到右边的胶囊
     {
         const int w0 = win->width();
-        win->setWidth(560);
-        waitFor([win] { return win->width() == 560; }, 2000); waitFrames(win, 2);
+        win->setWidth(400);
+        waitFor([win] { return win->width() == 400; }, 2000); waitFrames(win, 2);
         QMetaObject::invokeMethod(item(win, "topBar"), "setBubbles", Q_ARG(QVariant, true), Q_ARG(QVariant, QVariant()));
-        QQuickItem *last = item(win, demo.isEmpty() ? "bud-ledger" : "bud-next");
+        QQuickItem *last = item(win, "bud-ledger");
         waitFor([last] { return last && last->opacity() > 0.95; }, 1500);
         waitStill(last, 1500);
         QQuickItem *cap = item(win, "topCapsule");
         const double capLeft = cap ? cap->mapToScene(QPointF(0, 0)).x() : win->width();
         double maxRight = 0, maxBottom = 0;
-        for (const char *k : { "bud-plan", "bud-wish", "bud-foot", "bud-photo", "bud-calendar", "bud-journal", "bud-ledger", "bud-next" }) {
+        for (const char *k : { "bud-plan", "bud-photo", "bud-calendar", "bud-journal", "bud-ledger" }) {
             QQuickItem *b = item(win, k);
             if (!shown(b)) continue;
             const QPointF tl = b->mapToScene(QPointF(0, 0));
@@ -446,7 +466,7 @@ void runPages(Report &r, AppController *app, map::MapController *mapc, QQuickWin
             maxBottom = std::max(maxBottom, tl.y() + b->height());
         }
         r.check(maxRight <= capLeft && maxBottom > win->property("topH").toDouble(),
-                QStringLiteral("560 宽：⋯ 的泡泡排成两行，不压到右边的胶囊"), QStringLiteral("最右 %1，胶囊左边 %2，最下 %3").arg(maxRight).arg(capLeft).arg(maxBottom));
+                QStringLiteral("400 宽：⋯ 的泡泡排成两行，不压到右边的胶囊"), QStringLiteral("最右 %1，胶囊左边 %2，最下 %3").arg(maxRight).arg(capLeft).arg(maxBottom));
         escOnce(win);
         win->setWidth(w0);
         waitFor([win, w0] { return win->width() == w0; }, 2000); waitFrames(win, 2);

@@ -1,4 +1,4 @@
-// 面板头部的圆形小按钮（0.10.0 从 PlanSheet 拆出来，计划页也用）：kind = locate / more / edit / close / prev / next
+// 面板头部的圆形小按钮（0.10.0 从 PlanSheet 拆出来，计划页也用）：kind = locate / more / edit / close / prev / next / uturn
 import QtQuick
 import TPApp
 
@@ -9,6 +9,7 @@ Rectangle {
     property bool active: false
     property bool plain: false
     property bool small: false
+    property bool showTip: false       // 鼠标停上去显示 label（0.11.6：简易面板的 ↩ 全部路线）
     signal clicked()
     width: Theme.px(small ? 28 : 36)
     height: width
@@ -53,8 +54,20 @@ Rectangle {
                 c.moveTo(15 * s, 5 * s); c.lineTo(8 * s, 12 * s); c.lineTo(15 * s, 19 * s); c.stroke()
             } else if (k === "next") {
                 c.moveTo(9 * s, 5 * s); c.lineTo(16 * s, 12 * s); c.lineTo(9 * s, 19 * s); c.stroke()
+            } else if (k === "uturn") {   // 同 TpIcon uturn
+                c.moveTo(9 * s, 14 * s); c.lineTo(4 * s, 9 * s); c.lineTo(9 * s, 4 * s)
+                c.moveTo(4 * s, 9 * s); c.lineTo(15 * s, 9 * s); c.arc(15 * s, 14 * s, 5 * s, -Math.PI / 2, Math.PI / 2, false); c.lineTo(11 * s, 19 * s); c.stroke()
             }
         }
+    }
+    Rectangle {
+        visible: ri.showTip && riMa.containsMouse
+        z: 10
+        y: parent.height + 4
+        x: parent.width - width
+        width: tipText.implicitWidth + 12; height: tipText.implicitHeight + 6; radius: 6
+        color: "#26323c"
+        Text { id: tipText; anchors.centerIn: parent; text: ri.label; font.family: serifFamily; font.pixelSize: Theme.px(11); color: "#ffffff" }
     }
     MouseArea { id: riMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: ri.clicked() }
 }

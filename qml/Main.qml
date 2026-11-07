@@ -627,7 +627,7 @@ Window {
     }
 
     // ---- 顶栏（0.8.8，S-06 / S-07）：⋯ 页面胶囊 + 泡泡、↩ 回到地图、保存状态、列表按钮 | 头像 ----
-    readonly property real topH: topBar.height
+    readonly property real topH: topBar.barH
     // ⋯ 里的页面（0.8.10 PO 定的页面结构）：地图的 4 种模式 + 3 个整页（日历、游记、账本在阶段 ⑤ 之前是占位页，PO 选 ① A）
     readonly property var navPages: [
         { key: "plan", name: qsTr("计划"), g: 0, alias: qsTr("计划库") + " " + qsTr("地图") },
@@ -638,6 +638,25 @@ Window {
         { key: "journal", name: qsTr("游记"), g: 1 },
         { key: "ledger", name: qsTr("账本"), g: 1, alias: qsTr("消费") + " " + qsTr("花费") }
     ]
+    // 0.11.6：⋯ 横条只放 5 颗（计划 ▾、照片 ▾ ｜ 日历、游记、账本），其余进竖列；navPages 仍是全部（头像菜单、Ctrl K 用）
+    readonly property var barPages: navPages.filter(p => ["plan", "photo", "calendar", "journal", "ledger"].indexOf(p.key) >= 0)
+                                            .map(p => p.g === 0 ? Object.assign({ sub: true }, p) : p)
+    readonly property var subPages: [
+        { key: "library", name: qsTr("计划库"), owner: "plan" },
+        { key: "wish", name: qsTr("想去"), owner: "plan" },
+        { key: "foot", name: qsTr("足迹"), owner: "plan" },
+        { key: "album", name: qsTr("相册"), owner: "photo" }
+    ]
+    // 横条 / 竖列里高亮的：计划这一组 = 计划地图、计划库、想去、足迹；照片这一组 = 照片地图、相册
+    readonly property var barActive: {
+        const p = nav.page, a = []
+        if (p === "plan") { a.push("plan"); if (plans.libraryOpen) a.push("library") }
+        else if (p === "wish" || p === "foot") a.push("plan", p)
+        else if (p === "photo") { a.push("photo"); if (win.albumOpen) a.push("album") }
+        else a.push(p)
+        if (win.nowOpen) a.push("next")
+        return a
+    }
     // 保存状态（PO 0.8.8 选改进 c）：只读时一直显示；有改动超过 1.5 秒还没存上才显示（自动保存很快，照 Electron 写法会一闪一闪）
     property bool dirtyLong: false
     Timer { id: dirtyTimer; interval: 1500; onTriggered: win.dirtyLong = app.dirty }
@@ -653,8 +672,14 @@ Window {
         page: nav.page
         onMap: win.onMapPage
         // ⋯ 上的名字：当前模式 / 整页（"计划"是默认的，不显示）
-        pageLabel: { const it = win.navPages.find(x => x.key === nav.page); return it && nav.page !== "plan" ? it.name : "" }
-        pages: win.navPages
+        pageLabel: {
+            if (nav.page === "plan") return plans.libraryOpen ? qsTr("计划库") : ""
+            if (nav.page === "photo" && win.albumOpen) return qsTr("相册")
+            const it = win.navPages.find(x => x.key === nav.page); return it ? it.name : ""
+        }
+        pages: win.barPages
+        subPages: win.subPages
+        activeKeys: win.barActive
         nowKind: win.nowKind
         nowLabel: win.nowKind === "live" ? qsTr("在路上") : win.nowKind === "back" ? qsTr("刚回来") : qsTr("下次出发")
         nowBadge: win.nowBadge
@@ -666,6 +691,8 @@ Window {
         saveWarn: win.dirtyLong
         // Electron：点 ⋯ 里的一颗 = 去那一页；点当前页那一颗 = 回地图
         onPagePicked: (key) => win.pickPage(key)
+        onGroupClicked: (key) => win.pickGroup(key)
+        onSubPicked: (key) => win.pickSub(key)
         onOpenNow: { if (!win.onMapPage) win.goPage("map"); win.setNowOpen(true) }
         onBackClicked: win.goPage("map")
         onListClicked: win.toggleList()
@@ -678,8 +705,26 @@ Window {
 
     // 点 ⋯ 里的一颗（Electron：点一颗 = 去那一页；点当前页那一颗 = 回地图）。0.8.10：点当前模式那一颗 = 回"计划"
     function pickPage(key) {
+        if (key === "library" || key === "album") { win.pickSub(key); return }   // 头像菜单的入口
         if (key !== nav.page) win.goPage(key)
         else win.goPage(win.onMapPage ? "plan" : "map")
+    }
+
+    // 0.11.6 计划 ▾ / 照片 ▾ 的点法（PO 定）：不在这一组 → 去它的地图；已在这一组 → 展开竖列（地图不动）；竖列开着再点 → 回它的地图并收起
+    function inGroup(g) { return g === "plan" ? (nav.page === "plan" || nav.page === "wish" || nav.page === "foot") : nav.page === "photo" }
+    function pickGroup(g) {
+        if (win.inGroup(g) && topBar.subOpen !== g) { topBar.openSub(g); return }
+        if (g === "plan") plans.setLibraryOpen(false); else win.albumOpen = false
+        win.goPage(g)
+        topBar.setBubbles(false, g)
+    }
+    // 选竖列里一项：去那里（横条和竖列由 TopBar 一起收起）
+    function pickSub(key) {
+        if (key === "library") win.openLibrary()
+        else if (key === "album") {
+            win.goPage("photo"); win.listOpen = true
+            Qt.callLater(() => { win.albumOpen = true; photos.album.plan = "" })
+        } else win.goPage(key)
     }
 
     // 头像菜单（S-06 + PO 选的改进 b：Electron 系统菜单里的几项）
@@ -692,6 +737,7 @@ Window {
         y: win.topH - 4
         // ≤ 1100 时最上面加页面入口（S-15；和 ⋯ 泡泡同一份：只放做好的页面 + 下次出发）
         items: (win.wide ? [] : win.navPages.map(p => ({ key: "page:" + p.key, text: p.name }))
+                                .concat([{ key: "page:library", text: qsTr("计划库") }, { key: "page:album", text: qsTr("相册") }])
                                 .concat(win.nowKind !== "none" ? [{ key: "now", text: topBar.nowLabel }] : [])
                                 .concat([{ sep: true }])).concat([
             { key: "settings", text: qsTr("设置") },
@@ -860,7 +906,8 @@ Window {
             if (filterMenu.open && !filterMenu.containsGlobal(x, y) && !statusPill.containsGlobal(x, y) && !planList.filterButtonContains(x, y)) filterMenu.open = false
             if (win.nowOpen && !nowCard.containsGlobal(x, y) && !topBar.nextBudContains(x, y) && !win.modalOpen && !palette.open) win.nowOpen = false
             // 0.8.8：⋯ 泡泡、头像菜单
-            if (topBar.bubblesOpen && !topBar.bubblesContain(x, y)) topBar.setBubbles(false)
+            if (topBar.subIsOpen && !topBar.bubblesContain(x, y)) topBar.closeSub()   // 先收竖列，再点一次收横条
+            else if (topBar.bubblesOpen && !topBar.bubblesContain(x, y)) topBar.setBubbles(false)
             if (avatarMenu.open && !avatarMenu.containsGlobal(x, y) && !topBar.menuButtonContains(x, y)) avatarMenu.open = false
         }
     }
@@ -2317,6 +2364,7 @@ Window {
     // 弹框开着时 Esc 交给弹框自己。
     readonly property var escChain: [
         { name: "palette", on: () => palette.open, close: () => palette.hide() },
+        { name: "sub", on: () => topBar.subIsOpen, close: () => topBar.closeSub() },
         { name: "bubbles", on: () => topBar.bubblesOpen, close: () => topBar.setBubbles(false) },
         { name: "menu", on: () => avatarMenu.open, close: () => { avatarMenu.open = false } },
         { name: "layers", on: () => layers.open, close: () => layers.setOpen(false) },
@@ -2590,7 +2638,7 @@ Window {
         else if (shotPage.startsWith("trip")) tripShot.start()
         else if (shotPage.startsWith("editor") || shotPage.startsWith("narrow") || shotPage === "locate" || shotPage === "controls") editShot.start()
         else if (shotPage.startsWith("calendar") || shotPage.startsWith("journal")) pagesShot.start()
-        else if (shotPage.startsWith("mode-") || shotPage === "modes" || shotPage === "modes-narrow" || shotPage.startsWith("ledger") || shotPage.startsWith("library") || shotPage.startsWith("wish-") || shotPage.startsWith("album") || shotPage.startsWith("photo-") || shotPage.startsWith("heic-")) modeShot.start()
+        else if (shotPage.startsWith("mode") || shotPage.startsWith("ledger") || shotPage.startsWith("library") || shotPage.startsWith("wish-") || shotPage.startsWith("album") || shotPage.startsWith("photo-") || shotPage.startsWith("heic-")) modeShot.start()
         else if (shotPage !== "" && !shotPage.startsWith("ui-") && shotPage !== "selftest") mapc.base = shotPage
     }
 
@@ -2863,9 +2911,10 @@ Window {
                 win.listOpen = true
                 const w = (plans.list.rows || [])[0]
                 if (w) { if (shotPage === "wish-start") wishDialog.showStart(w.id); else wishDialog.showSeason(w.id) }
-            } else if (shotPage === "modes" || shotPage === "modes-narrow") {
-                if (shotPage === "modes-narrow") win.width = 640
-                Qt.callLater(() => topBar.setBubbles(true))
+            } else if (shotPage === "modes" || shotPage === "modes-narrow" || shotPage === "modes-sub" || shotPage === "modes-sub-narrow") {
+                if (shotPage.endsWith("narrow")) win.width = 640
+                // 0.11.6：modes-sub = 横条展开后再展开计划的竖列（计划库、想去、足迹、下次出发）
+                Qt.callLater(() => { topBar.setBubbles(true); if (shotPage.startsWith("modes-sub")) topBar.openSub("plan") })
             } else if (shotPage.startsWith("ledger")) {
                 if (shotPage === "ledger-narrow") win.width = 500
                 win.goPage("ledger")

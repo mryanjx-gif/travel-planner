@@ -9,6 +9,7 @@
 #include "navhistory.h"
 #include "plancontroller.h"
 #include "plans.h"
+#include "translator.h"
 
 #include <QGuiApplication>
 #include <QMouseEvent>
@@ -121,17 +122,21 @@ void runShell(Report &r, AppController *app, map::MapController *mapc, QQuickWin
         waitFrames(win, 2);
         click(win, item(win, "dotsPill"));
         const bool opened = waitFor([bubbles] { return bubbles && bubbles->property("open").toBool(); }, 1000);
-        // 0.8.10：8 颗——计划、想去、足迹、照片、日历、游记、账本、下次出发（PO 定的页面结构）
+        // 0.11.6：横条 5 颗——计划 ▾、照片 ▾、日历、游记、账本；想去、足迹、计划库、相册、下次出发在竖列里（点\"计划\"展开）
         QQuickItem *budNext = item(win, "bud-next");
-        QQuickItem *lastBud = budNext ? budNext : item(win, "bud-ledger");   // 最后一颗出发得最晚
+        QQuickItem *lastBud = item(win, "bud-ledger");   // 最后一颗出发得最晚
         waitFor([lastBud] { return lastBud && lastBud->opacity() > 0.95; }, 1500);
         int pages = 0, extra = 0;
-        for (const char *k : { "bud-plan", "bud-wish", "bud-foot", "bud-photo", "bud-calendar", "bud-journal", "bud-ledger" }) if (shown(item(win, k))) ++pages;
-        for (const char *k : { "bud-map", "bud-library", "bud-album", "bud-wishlist" }) if (item(win, k)) ++extra;   // 旧的页面名不该再有
-        r.check(opened && pages == 7 && (demo.isEmpty() || shown(budNext)) && extra == 0,
-                QStringLiteral("点 ⋯：分裂出 4 种模式、3 个整页和\"下次出发\""),
-                QStringLiteral("页面 %1 / 7，下次出发 %2，多余 %3").arg(pages).arg(shown(budNext)).arg(extra));
+        for (const char *k : { "bud-plan", "bud-photo", "bud-calendar", "bud-journal", "bud-ledger" }) if (shown(item(win, k))) ++pages;
+        for (const char *k : { "bud-wish", "bud-foot", "bud-library", "bud-album", "bud-next", "bud-map", "bud-wishlist" }) if (shown(item(win, k))) ++extra;   // 竖列没开时不该看到
+        r.check(opened && pages == 5 && extra == 0,
+                QStringLiteral("点 ⋯：横条分裂出 计划、照片、日历、游记、账本 5 颗，竖列里的不出现"),
+                QStringLiteral("页面 %1 / 5，多余 %2").arg(pages).arg(extra));
         if (budNext && !demo.isEmpty()) {
+            pause(700);   // 和 ⋯ 同一处，隔开 0.7 秒（#26）
+            click(win, item(win, "bud-plan"));   // 已在计划这一组：展开竖列
+            waitFor([budNext] { return budNext->opacity() > 0.95; }, 1500);
+            waitStill(budNext, 1500);
             click(win, budNext);
             const bool nowShown = waitFor([win] { QQuickItem *n = item(win, "nowCard"); return n && n->isVisible(); }, 1500);
             r.check(nowShown && !bubbles->property("open").toBool(), QStringLiteral("点\"下次出发\"：泡泡收回，打开\"此刻\"卡片"));
@@ -142,6 +147,107 @@ void runShell(Report &r, AppController *app, map::MapController *mapc, QQuickWin
         waitFor([top] { return top->property("bubblesOpen").toBool(); }, 1000);
         if (g_focus) key(win, Qt::Key_Escape); else call(win, "escOnce");
         r.check(!bubbles->property("open").toBool(), QStringLiteral("Esc 收回 ⋯ 泡泡"));
+    }
+
+    // ---- 0.11.6 ⋯ 的竖列（计划 ▾ / 照片 ▾ 的点法；全用鼠标真点，同一处连点隔开 0.7 秒，Windows差异清单 #26） ----
+    {
+        QObject *top = item(win, "topBar");
+        auto bar = [&] { return item(win, "pageBubbles")->property("open").toBool(); };
+        auto sub = [&] { return top->property("subIsOpen").toBool(); };
+        auto page = [&](const char *p) { return nav->page() == QLatin1String(p); };
+        auto openBar = [&] {
+            click(win, item(win, "dotsPill"));
+            waitFor([&] { QQuickItem *b = item(win, "bud-ledger"); return bar() && b && b->opacity() > 0.95; }, 1500);
+            waitStill(item(win, "bud-ledger"), 1500);
+        };
+        auto clickBud = [&](const char *k, bool needSub) {
+            QQuickItem *b = item(win, k);
+            if (needSub) waitFor([b] { return b && b->opacity() > 0.95; }, 1500);
+            waitStill(b, 1500);
+            pause(700);
+            click(win, b);
+        };
+        // 规则 1：在日历里点"计划" = 去计划地图，竖列不开，横条收起
+        nav->go(QStringLiteral("calendar"));
+        waitFor([&] { return page("calendar"); }, 1000);
+        openBar();
+        clickBud("bud-plan", false);
+        r.check(waitFor([&] { return page("plan") && !bar(); }, 1500) && !sub(), QStringLiteral("竖列规则 1：日历里点\"计划\"：去计划地图，竖列不盖在整页上，横条收起"));
+        // 规则 2：在想去里点"计划" = 展开竖列，模式不变，想去那一项高亮
+        nav->go(QStringLiteral("wish"));
+        waitFor([&] { return page("wish") && pc->mode() == QLatin1String("wish"); }, 1500);
+        openBar();
+        clickBud("bud-plan", false);
+        const bool opened = waitFor([&] { return sub(); }, 1500);
+        QQuickItem *wishBud = item(win, "bud-wish");
+        waitFor([wishBud] { return wishBud && wishBud->opacity() > 0.95; }, 1500);
+        r.check(opened && bar() && page("wish") && pc->mode() == QLatin1String("wish") && wishBud && wishBud->property("on").toBool(),
+                QStringLiteral("竖列规则 2：在想去里点\"计划\"：展开竖列、模式不变、\"想去\"高亮"));
+        // 规则 3：竖列开着再点"计划" = 回计划地图，竖列和横条收起
+        clickBud("bud-plan", false);
+        r.check(waitFor([&] { return page("plan") && !sub() && !bar(); }, 1500) && pc->mode() == QLatin1String("plan"),
+                QStringLiteral("竖列规则 3：竖列开着再点\"计划\"：回计划地图，收起"));
+        // 规则 4：选竖列里的足迹 / 计划库
+        openBar();
+        clickBud("bud-plan", false);
+        waitFor([&] { return sub(); }, 1500);
+        clickBud("bud-foot", true);
+        r.check(waitFor([&] { return page("foot") && !sub() && !bar(); }, 1500) && pc->mode() == QLatin1String("foot"),
+                QStringLiteral("竖列规则 4：选\"足迹\"：去足迹，横条和竖列都收起"));
+        openBar();
+        clickBud("bud-plan", false);
+        waitFor([&] { return sub(); }, 1500);
+        clickBud("bud-library", true);
+        r.check(waitFor([&] { return page("plan") && pc->libraryOpen() && !sub() && !bar(); }, 2000),
+                QStringLiteral("竖列规则 4：选\"计划库\"：计划库打开，横条和竖列都收起"));
+        QQuickItem *lbl = item(win, "dotsLabel");
+        r.check(shown(lbl) && lbl->property("text").toString() == tp::tr("计划库"), QStringLiteral("⋯ 上显示\"计划库\""));
+        // Esc：先收竖列，再收横条，页面不动
+        openBar();
+        clickBud("bud-plan", false);
+        waitFor([&] { return sub(); }, 1500);
+        call(win, "escOnce");
+        const bool e1 = !sub() && bar() && page("plan") && pc->libraryOpen();
+        call(win, "escOnce");
+        r.check(e1 && !bar() && page("plan") && pc->libraryOpen(), QStringLiteral("Esc：先收竖列，再按一次收横条，地图和计划库不动"));
+        // 规则 3 的计划库：竖列开着再点"计划" 关掉计划库
+        openBar();
+        clickBud("bud-plan", false);
+        waitFor([&] { return sub(); }, 1500);
+        clickBud("bud-plan", false);
+        r.check(waitFor([&] { return !pc->libraryOpen() && !sub() && !bar(); }, 1500), QStringLiteral("竖列开着再点\"计划\"：计划库也关掉"));
+        // 照片这一组：不在组里点"照片" = 去照片地图；再点展开；选"相册"
+        openBar();
+        clickBud("bud-photo", false);
+        r.check(waitFor([&] { return page("photo") && !bar() && !sub(); }, 1500), QStringLiteral("点\"照片\"（不在这一组）：去照片地图，横条收起"));
+        openBar();
+        clickBud("bud-photo", false);
+        waitFor([&] { return sub(); }, 1500);
+        clickBud("bud-album", true);
+        r.check(waitFor([&] { return page("photo") && win->property("albumOpen").toBool() && !sub() && !bar(); }, 2000),
+                QStringLiteral("照片的竖列：选\"相册\"：相册铺满，横条和竖列收起"));
+        lbl = item(win, "dotsLabel");
+        r.check(shown(lbl) && lbl->property("text").toString() == tp::tr("相册"), QStringLiteral("⋯ 上显示\"相册\""));
+        win->setProperty("albumOpen", false);
+        nav->go(QStringLiteral("plan"));
+        waitFor([&] { return page("plan"); }, 1000);
+        // 窄窗口：头像菜单里的页面入口还能到想去
+        const int w0 = win->width();
+        win->setWidth(640);
+        waitFor([win] { return win->width() == 640; }, 2000); waitFrames(win, 2);
+        pause(700);
+        click(win, item(win, "meBtn"));
+        QQuickItem *wishItem = nullptr;
+        waitFor([&] { wishItem = item(win, "menu-page:wish"); return wishItem && wishItem->isVisible(); }, 1500);
+        const bool hasLib = item(win, "menu-page:library") && item(win, "menu-page:album");
+        click(win, wishItem);
+        r.check(hasLib && waitFor([&] { return page("wish"); }, 1500), QStringLiteral("窄窗口：头像菜单的页面入口能到想去（还有计划库、相册）"));
+        win->setWidth(w0);
+        waitFor([win, w0] { return win->width() == w0; }, 2000); waitFrames(win, 2);
+        nav->go(QStringLiteral("plan"));
+        waitFor([&] { return page("plan"); }, 1000);
+        win->setProperty("listOpen", false);   // 计划库、相册进来时开了列表：关掉，别影响后面的列表检查
+        waitFrames(win, 2);
     }
 
     // ---- 头像菜单 ----

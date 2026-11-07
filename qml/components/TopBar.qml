@@ -9,6 +9,8 @@
 //   - ⋯ 里只放已经做好的页面（现在是"地图"），计划库 / 日历 / 相册 / 游记 / 愿望清单做好一页加一颗（pages 由 Main 给）。
 // 0.8.10（PO 定的页面结构）：⋯ 里 8 颗：计划、想去、足迹、照片（地图的 4 种模式）｜日历、游记、账本（整页）｜下次出发，
 //   三组之间多空一点；一行放不下时排到第二行。⋯ 上显示当前模式 / 页名（"计划"是默认的，不显示）；↩ 只在整页、设置时出现。
+// 0.11.6（PO 定）：⋯ 横条只有 5 颗：计划 ▾、照片 ▾ ｜ 日历、游记、账本；计划的竖列：计划库、想去、足迹、下次出发；照片的竖列：相册。
+//   竖列排在那一颗的正下方，同一套分裂参数。点法（计划 / 照片这一组）在 Main.pickGroup。
 // 液态玻璃和泡泡的粘连在阶段 ⑥。
 import QtQuick
 import TPApp
@@ -19,7 +21,11 @@ Item {
     property string page: "plan"
     property bool onMap: true              // 0.8.10：当前是地图的一种模式（不是整页 / 设置）
     property string pageLabel: ""          // 不在地图页时 ⋯ 旁边显示的页名（只有 ⋯ 里有的页面才有）
-    property var pages: []                 // [{ key, name, g }]：⋯ 里的泡泡；g = 组（0 模式、1 整页），组之间多空 10 px
+    property var pages: []                 // [{ key, name, g, sub }]：⋯ 里的泡泡（横条）；g = 组，组之间多空 10 px；sub = 带竖列（名字后面一个 ▾）
+    property var subPages: []              // [{ key, name, owner }]：竖列里的泡泡，排在 owner 那颗的正下方（0.11.6）；"下次出发"由 nowKind 自动补在 plan 的竖列最后
+    property var activeKeys: []            // 高亮的泡泡（横条和竖列一起用 key 对）
+    property string subOpen: ""            // 哪一颗的竖列开着（空 = 没开）
+    readonly property bool subIsOpen: subOpen !== ""
     property string nowKind: "none"        // none / live / next / back
     property string nowLabel: ""
     property string nowBadge: ""
@@ -31,6 +37,8 @@ Item {
     property bool saveWarn: false
     readonly property bool bubblesOpen: bubbles.open
     signal pagePicked(string key)
+    signal groupClicked(string key)        // 点带竖列的那颗（计划 / 照片）：开竖列还是去地图由 Main 定
+    signal subPicked(string key)           // 选了竖列里的一项
     signal openNow()
     signal backClicked()
     signal listClicked()
@@ -40,12 +48,16 @@ Item {
     property bool compact: false           // ≤ 900（S-15）："新建计划"只剩 ＋、边距 10
     property bool hidePageLabel: false     // ≤ 1100（S-15）：⋯ 旁边不显示页名
 
-    height: Theme.px(64)
+    // 0.11.6：顶栏本身高 barH（Main 的 topH 用它）；Item 自己撑满窗口高，竖列才点得到——Qt 把落在父级范围外的点交不给子元素
+    readonly property real barH: Theme.px(64)
+    height: parent ? Math.max(barH, parent.height) : barH
     readonly property real budsMaxW: right.x - root.gapX - Theme.px(12)
     readonly property int gapX: Theme.px(compact ? 10 : 14)
     readonly property int btnH: Theme.px(40)
 
     function setBubbles(on, picked) { bubbles.setOpen(on, picked) }
+    function openSub(g) { bubbles.openSub(g) }
+    function closeSub(picked) { bubbles.closeSub(picked) }
     function inside(item, gx, gy) {
         if (!item || !item.visible) return false
         const p = item.mapFromItem(null, gx, gy)
@@ -55,12 +67,13 @@ Item {
     function bubblesContain(gx, gy) {
         if (inside(dotsPill, gx, gy)) return true
         for (let i = 0; i < buds.count; ++i) if (inside(buds.itemAt(i), gx, gy)) return true
+        for (let i = 0; i < subBuds.count; ++i) { const b = subBuds.itemAt(i); if (b && b.interactive && inside(b, gx, gy)) return true }
         return false
     }
     function menuButtonContains(gx, gy) { return inside(meBtn, gx, gy) }
     function listButtonContains(gx, gy) { return inside(listBtn, gx, gy) }
     function nextBudContains(gx, gy) {
-        for (let i = 0; i < buds.count; ++i) { const b = buds.itemAt(i); if (b && b.key === "next" && inside(b, gx, gy)) return true }
+        for (let i = 0; i < subBuds.count; ++i) { const b = subBuds.itemAt(i); if (b && b.key === "next" && inside(b, gx, gy)) return true }
         return false
     }
 
@@ -68,7 +81,7 @@ Item {
     Item {
         id: left
         x: root.gapX
-        y: (root.height - root.btnH) / 2
+        y: (root.barH - root.btnH) / 2
         width: dotsPill.width
         height: root.btnH
 
@@ -154,20 +167,35 @@ Item {
             id: bubbles
             objectName: "pageBubbles"
             property bool open: false
-            readonly property var model: {
-                const m = root.pages.slice()
-                if (root.nowKind !== "none") m.push({ key: "next", name: root.nowLabel, g: 2 })
-                return m
+            readonly property var model: root.pages
+            // 竖列：subPages + 下次出发（nowKind 为 none 时不显示）；n = 在这一列里排第几，ownerIndex = 横条里的位置
+            readonly property var subModel: {
+                const m = root.subPages.slice()
+                if (root.nowKind !== "none") m.push({ key: "next", name: root.nowLabel, owner: "plan" })
+                const cnt = {}
+                return m.map(x => { const n = cnt[x.owner] || 0; cnt[x.owner] = n + 1
+                                    return { key: x.key, name: x.name, owner: x.owner, n: n, ownerIndex: root.pages.findIndex(p => p.key === x.owner) } })
             }
             function setOpen(on, picked) {
                 if (on === open) return
                 open = on
+                if (!on) closeSub(picked)
                 for (let i = 0; i < buds.count; ++i) {
                     const b = buds.itemAt(i)
                     if (!b) continue
                     if (on) b.go(true, i * 30)
                     else b.go(false, picked && b.key === picked ? 80 : 0)
                 }
+            }
+            // 竖列：同一套分裂 / 回弹 / 收回参数，从所属那颗出发，逐颗往下
+            function openSub(g) {
+                root.subOpen = g
+                for (let i = 0; i < subBuds.count; ++i) { const b = subBuds.itemAt(i); if (b) b.go(b.owner === g, b.owner === g ? b.n * 30 : 0) }
+            }
+            function closeSub(picked) {
+                if (root.subOpen === "") return
+                root.subOpen = ""
+                for (let i = 0; i < subBuds.count; ++i) { const b = subBuds.itemAt(i); if (b) b.go(false, picked && b.key === picked ? 80 : 0) }
             }
             Repeater {
                 id: buds
@@ -179,7 +207,8 @@ Item {
                     objectName: "bud-" + modelData.key
                     backdrop: root.backdrop
                     text: modelData.name
-                    on: key === "next" ? root.nowOpen : root.page === key
+                    on: root.activeKeys.indexOf(key) >= 0
+                    caret: modelData.sub === true
                     onColor: Theme.accentInk
                     interactive: bubbles.open
                     // 打开后的位置 = 前一颗的右边 + 6 px（换组时再多 10 px；前一颗先建好；宽度变了跟着挪）；
@@ -196,11 +225,41 @@ Item {
                     centerX: dotsPill.width / 2
                     width: contentWidth
                     height: root.btnH
+                    onClicked: {
+                        if (modelData.sub === true) root.groupClicked(key)
+                        else { root.pagePicked(key); bubbles.setOpen(false, key) }
+                    }
+                }
+            }
+            // 竖列（0.11.6）：排在所属那颗的正下方，homeX 对齐它，homeY 逐颗往下（间距照横条）；起点是那颗所在的行
+            Repeater {
+                id: subBuds
+                model: bubbles.subModel
+                delegate: SplitBud {
+                    required property var modelData
+                    required property int index
+                    readonly property string key: modelData.key
+                    readonly property string owner: modelData.owner
+                    readonly property int n: modelData.n
+                    readonly property var parentBud: { buds.count; return buds.itemAt(modelData.ownerIndex) }
+                    readonly property var ps: parentBud ? parentBud.slot : ({ x: 0, row: 0 })
+                    objectName: "bud-" + modelData.key
+                    backdrop: root.backdrop
+                    text: modelData.name
+                    on: root.activeKeys.indexOf(key) >= 0
+                    onColor: Theme.accentInk
+                    interactive: root.subOpen === owner
+                    homeX: ps.x
+                    homeY: (ps.row + n + 1) * (root.btnH + Theme.px(8))
+                    centerX: ps.x + (parentBud ? parentBud.width / 2 : 0)
+                    centerY: ps.row * (root.btnH + Theme.px(8))
+                    width: contentWidth
+                    height: root.btnH
                     badges: key === "next" ? [root.nowBadge !== "" ? { text: root.nowBadge, kind: "days" } : null,
                                               root.todoOpen > 0 ? { text: String(root.todoOpen), kind: "count" } : null].filter(x => x) : []
                     onClicked: {
                         if (key === "next") { bubbles.setOpen(false, key); nextLater.restart() }
-                        else { root.pagePicked(key); bubbles.setOpen(false, key) }
+                        else { root.subPicked(key); bubbles.setOpen(false, key) }
                     }
                 }
             }
@@ -214,7 +273,7 @@ Item {
         id: right
         anchors.right: parent.right
         anchors.rightMargin: root.gapX
-        y: (root.height - root.btnH) / 2
+        y: (root.barH - root.btnH) / 2
         spacing: Theme.px(8)
 
         Item {
