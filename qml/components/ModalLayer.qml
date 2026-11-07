@@ -36,7 +36,7 @@ Item {
         GlassPanel {
             id: card
             liquid: false
-            tint: Qt.rgba(Theme.glassTint.r, Theme.glassTint.g, Theme.glassTint.b, 0.97)
+            tint: Qt.rgba(Theme.glassTint.r, Theme.glassTint.g, Theme.glassTint.b, 0.99)   // .97 时背后的大字还看得出影子
             width: Math.min(Theme.px(root.cardWidth), root.width - 32)
             height: col.implicitHeight + Theme.px(48)
             anchors.centerIn: parent

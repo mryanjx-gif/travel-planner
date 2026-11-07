@@ -505,7 +505,7 @@ void runAudit(Report &r, AppController *app, map::MapController *mapc, QQuickWin
             ram1 = findShown(seasonView, name.left(name.lastIndexOf(u'-')) + QStringLiteral("-1"));
             return ram1 != nullptr;
         }, 2000);
-        r.check(two, QStringLiteral("季节表：2033 年一行画两段斋月"));
+        r.check(two, QStringLiteral("季节表：2033 年一行画两段斋月"), QStringLiteral("页面 %1，视图 %2，第一段 %3，表 %4").arg(nav->page(), cal->view(), ram0 ? ram0->objectName() : QStringLiteral("没有"), seasonView ? QStringLiteral("有") : QStringLiteral("没有")));
         pc->setTodayOverride(QString());
         cal->setSeasonGroupClosed(QStringLiteral("东南亚"), false);
         cal->setAllSeasonGroups(false);
