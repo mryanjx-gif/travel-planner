@@ -260,46 +260,13 @@ Item {
             topPadding: Theme.px(14)
             spacing: Theme.px(12)
 
-            // ---- 封面 + 标题 + chip（右边给 × 让位）----
+            // ---- 标题 + chip（右边给 × 让位）；封面小图 PO 2026-11-08 去掉（封面在计划库、编辑器、照片标签里照常显示和设置）----
             Row {
                 id: titleRow
                 width: parent.width - Theme.px(40)
                 spacing: Theme.px(14)
-                Rectangle {
-                    id: coverBox
-                    width: Theme.px(64); height: width
-                    radius: Theme.px(12)
-                    color: Theme.panel2
-                    clip: true
-                    RouteSketch {
-                        visible: cover.status !== Image.Ready
-                        anchors.fill: parent
-                        stops: root.stops
-                        route: root.route
-                        tone: root.info.color || Theme.accent
-                    }
-                    Image {
-                        id: cover
-                        objectName: "tripCover"
-                        anchors.fill: parent
-                        source: root.info.coverThumb || ""
-                        fillMode: Image.PreserveAspectCrop
-                        asynchronous: true
-                        sourceSize.width: 320
-                        MouseArea {   // 0.10.5 看大图：封面在照片列表里就从它开始翻（没设封面时显示的是第一张）
-                            anchors.fill: parent
-                            enabled: cover.status === Image.Ready
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                const l = root.info.photos || [], i = l.findIndex(p => p.id === root.info.cover)
-                                if (i >= 0 || !root.info.coverFile) root.photoViewRequested(l, Math.max(i, 0))
-                                else root.photoViewRequested([{ file: root.info.coverFile, thumb: root.info.coverThumb }], 0)
-                            }
-                        }
-                    }
-                }
                 Column {
-                    width: parent.width - coverBox.width - parent.spacing
+                    width: parent.width
                     spacing: Theme.px(6)
                     Text {
                         objectName: "tripTitle"

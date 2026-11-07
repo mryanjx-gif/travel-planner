@@ -55,6 +55,7 @@ $AllPages = @(
     'calendar-season|zh', 'calendar-season|en', 'calendar-season-2030|zh', 'calendar-season-2030|en', 'calendar-season-2033|zh', 'calendar-season-narrow|zh',
     'journal|zh', 'journal|en', 'journal-empty|zh', 'journal-empty|en', 'journal-read|zh', 'journal-edit|zh', 'journal-edit|en', 'journal-edit-narrow|zh',
     'heic-album|zh', 'heic-lightbox|zh', 'heic-off-album|zh', 'heic-off-album|en', 'heic-off-lightbox|zh', 'heic-off-lightbox|en',
+    'newbtn-grey1|zh', 'newbtn-grey2|zh', 'newbtn-grey3|zh', 'newbtn-grey1-sat|zh', 'newbtn-grey2-sat|zh', 'newbtn-grey3-sat|zh',
     'street|zh|hide'
 )
 # 按需跑：逗号分开或多个参数都行

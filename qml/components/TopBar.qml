@@ -44,7 +44,7 @@ Item {
     signal backClicked()
     signal listClicked()
     signal menuClicked()
-    signal newClicked()                    // 0.8.9：新建计划（PO 0.8.8 选方案 C：在右边胶囊里，列表和头像中间）
+    signal newClicked()                    // 0.8.9：新建计划（PO 2026-11-08：自成一颗灰玻璃泡泡，在列表 | 头像胶囊左边）
     property bool showNew: true
     property bool compact: false           // ≤ 900（S-15）："新建计划"只剩 ＋、边距 10
     property bool hidePageLabel: false     // ≤ 1100（S-15）：⋯ 旁边不显示页名
@@ -273,7 +273,7 @@ Item {
         }
     }
 
-    // ---------------- 右边：保存状态 + 胶囊（列表 | 头像） ----------------
+    // ---------------- 右边：保存状态 + 新建计划 + 胶囊（列表 | 头像） ----------------
     Row {
         id: right
         anchors.right: parent.right
@@ -300,6 +300,46 @@ Item {
                 font.family: serifFamily; font.pixelSize: Theme.px(13)
                 color: root.saveWarn ? Theme.warn : Theme.muted
             }
+        }
+
+        // 新建计划（Electron .mf-new：＋ + 文字；≤ 900 只剩 ＋）。
+        // PO 2026-11-08：从列表 | 头像那颗胶囊里分出来，自成一颗液态玻璃小泡泡（挨着会和胶囊粘连），
+        // 白色蒙版换成灰色，字和 ＋ 用主题蓝。灰度三档给 PO 选（grey，截图 newbtn-grey1/2/3 切换），默认中档。
+        Item {
+            id: newBtn
+            objectName: "newBtn"
+            visible: root.showNew
+            readonly property int grey: shotPage.startsWith("newbtn-grey") ? Number(shotPage.charAt(11)) : 2
+            readonly property var greys: [[222, 228, 233], [205, 213, 220], [186, 196, 205]]
+            readonly property var g: greys[Math.max(1, Math.min(3, grey)) - 1]
+            width: newRow.implicitWidth + Theme.px(root.compact ? 26 : 30)
+            height: root.btnH
+            scale: newMa.pressed ? 0.95 : 1
+            Behavior on scale { TpSpring {} }
+            Accessible.role: Accessible.Button
+            Accessible.name: qsTr("新建计划")
+            GlassPanel {
+                anchors.fill: parent
+                radius: height / 2
+                liquid: !root.overPage
+                tint: Qt.rgba(newBtn.g[0] / 255, newBtn.g[1] / 255, newBtn.g[2] / 255, Theme.glass && !root.overPage ? 0.69 : 0.96)
+                edge: newMa.containsMouse ? Theme.lineStrong : Theme.glassEdge
+            }
+            Row {
+                id: newRow
+                anchors.centerIn: parent
+                spacing: Theme.px(4)
+                // 深一点的 accentInk：最深那档灰上 accent 对比度不到 4.5
+                TpIcon { name: "plus"; color: Theme.accentInk; width: Theme.px(16); height: width; stroke: 2.2; anchors.verticalCenter: parent.verticalCenter }
+                Text {
+                    visible: !root.compact
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: qsTr("新建计划")
+                    font.family: serifFamily; font.pixelSize: Theme.px(13); font.bold: true; color: Theme.accentInk
+                }
+            }
+            TpTip { text: qsTr("新建计划"); show: newMa.containsMouse && root.compact }
+            MouseArea { id: newMa; hoverEnabled: true; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.newClicked() }
         }
 
         Item {
@@ -336,38 +376,6 @@ Item {
                     MouseArea { id: listMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.listClicked() }
                 }
                 Rectangle { width: 1; height: Theme.px(18); color: Theme.lineStrong; anchors.verticalCenter: parent.verticalCenter }
-                // 新建计划（Electron .mf-new：＋ + 文字；≤ 900 只剩 ＋）
-                Item {
-                    id: newBtn
-                    objectName: "newBtn"
-                    visible: root.showNew
-                    width: newRow.implicitWidth + Theme.px(root.compact ? 18 : 22)
-                    height: Theme.px(32)
-                    anchors.verticalCenter: parent.verticalCenter
-                    Accessible.role: Accessible.Button
-                    Accessible.name: qsTr("新建计划")
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: height / 2
-                        color: newMa.pressed ? Theme.accentInk : Theme.accent
-                        scale: newMa.pressed ? 0.95 : 1
-                        Behavior on scale { TpSpring {} }
-                    }
-                    Row {
-                        id: newRow
-                        anchors.centerIn: parent
-                        spacing: Theme.px(4)
-                        TpIcon { name: "plus"; color: "#ffffff"; width: Theme.px(16); height: width; stroke: 2.2; anchors.verticalCenter: parent.verticalCenter }
-                        Text {
-                            visible: !root.compact
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: qsTr("新建计划")
-                            font.family: serifFamily; font.pixelSize: Theme.px(13); font.bold: true; color: "#ffffff"
-                        }
-                    }
-                    TpTip { text: qsTr("新建计划"); show: newMa.containsMouse && root.compact }
-                    MouseArea { id: newMa; hoverEnabled: true; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.newClicked() }
-                }
                 Item {
                     id: meBtn
                     objectName: "meBtn"

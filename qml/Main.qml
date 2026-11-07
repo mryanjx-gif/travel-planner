@@ -2770,6 +2770,7 @@ Window {
         else if (shotPage === "roadbar") { mapc.base = "street"; roads.demoForShot(7) }
         else if (shotPage === "layers" || shotPage === "layers-sat") { mapc.base = shotPage === "layers" ? "street" : "sat"; layersShot.start() }
         else if (shotPage === "tilefail") { mapc.base = "street"; mapc.demoTileBanner() }
+        else if (shotPage.startsWith("newbtn-grey")) mapc.base = shotPage.endsWith("-sat") ? "sat" : "street"   // 新建计划三档灰（TopBar newBtn.grey），PO 选
         else if (shotPage === "unlock-edit" || shotPage === "unlock-search") { mapc.base = "unlock"; unlockShot.start() }
         else if (shotPage === "now" || shotPage === "sheet" || shotPage === "filter" || shotPage.startsWith("filter-overlay")) planShot.start()
         else if (shotPage === "bubbles" || shotPage === "list" || shotPage === "palette" || shotPage === "menu") shellShot.start()
