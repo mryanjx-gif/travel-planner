@@ -59,7 +59,7 @@ struct Ctx
     void moveTo(const QPointF &p) const { QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, win->mapToGlobal(p), Qt::LeftButton, Qt::NoButton, QEvent::MouseMove); pause(30); }
     void release(const QPointF &p) const { QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, win->mapToGlobal(p), Qt::NoButton, Qt::LeftButton, QEvent::MouseButtonRelease); pause(60); }
     QPointF center(QQuickItem *it) const { return it->mapToScene(QPointF(it->width() / 2, it->height() / 2)); }
-    void click(QQuickItem *it) const { if (!it) return; const QPointF p = center(it); press(p); release(p); pause(100); }
+    void click(QQuickItem *it) const { if (!it) return; waitStill(it, 1000); const QPointF p = center(it); press(p); release(p); pause(100); }
     void click(const QString &n) const { click(item(n)); }
     // 真的用鼠标拖：按下、分几步走、（可选）途中回调、松手
     void dragTo(const QPointF &from, const QPointF &to, const std::function<void()> &mid = {}) const
@@ -99,6 +99,29 @@ Value noTime(Value v)
     return v;
 }
 QString str(const Value &o, const char *k) { return o[QString::fromLatin1(k)].toString(); }
+// 两份数据第一处不一样的路径，失败时写进报告（查"撤销后不一样"用）
+QString firstDiff(const Value &a, const Value &b, const QString &path = QStringLiteral("$"))
+{
+    if (a == b) return {};
+    if (a.isObject() && b.isObject()) {
+        for (const auto &m : a.asObject().members()) {
+            const Value *o = b.asObject().find(m.first);
+            if (!o) return path + QStringLiteral(".") + m.first + QStringLiteral(" 另一边没有");
+            const QString d = firstDiff(m.second, *o, path + QStringLiteral(".") + m.first);
+            if (!d.isEmpty()) return d;
+        }
+        return path + QStringLiteral(" 另一边多了键");
+    }
+    if (a.isArray() && b.isArray()) {
+        if (a.asArray().size() != b.asArray().size()) return path + QStringLiteral(" 长度 %1 / %2").arg(a.asArray().size()).arg(b.asArray().size());
+        for (size_t k = 0; k < a.asArray().size(); ++k) {
+            const QString d = firstDiff(a.asArray()[k], b.asArray()[k], path + QStringLiteral("[%1]").arg(k));
+            if (!d.isEmpty()) return d;
+        }
+    }
+    const auto show = [](const Value &v) { return v.isNumber() ? QString::number(v.toNumber(), 'f', 0) : v.toString(); };
+    return path + QStringLiteral("：") + show(a) + QStringLiteral(" / ") + show(b);
+}
 
 template <class T>
 T *ctxObject(QQuickWindow *win, const char *name)
@@ -506,7 +529,7 @@ void runCalendarWeek(Report &r, AppController *app, map::MapController *mapc, QQ
         r.check(c.saved() && app->undoCount() == std::min(undo0 + 1, data::UndoStack::kMaxSteps), tag + QStringLiteral("：马上保存，撤销里只多一步"));
         r.check(onDisk(store) == noTime(store->data()), tag + QStringLiteral("：磁盘上是挪过的"));
         c.click(QStringLiteral("calNoticeUndo"));
-        r.check(waitFor([&] { return !store->isDirty() && noTime(store->data()) == noTime(before); }, 3000), tag + QStringLiteral("：一步撤销，数据和原来完全一样（含 updatedAt）"));
+        r.check(waitFor([&] { return !store->isDirty() && noTime(store->data()) == noTime(before); }, 3000), tag + QStringLiteral("：一步撤销，数据和原来完全一样（含 updatedAt）"), firstDiff(noTime(store->data()), noTime(before)));
         r.check(onDisk(store) == noTime(before), tag + QStringLiteral("：磁盘上也和原来完全一样"));
         // 月视图：这一格的日期跟着周首走，拖过去落点对，撤销也回来
         cal->setView(QStringLiteral("month"));

@@ -61,6 +61,7 @@ void mouse(QQuickWindow *win, const QPointF &p, Qt::MouseButton b)
 void click(QQuickWindow *win, QQuickItem *it)
 {
     if (!it) return;
+    waitStill(it, 1000);   // 0.12.11：面板滑进、列表滚动时先等停稳再点，不然点在半路上
     mouse(win, it->mapToScene(QPointF(it->width() / 2, it->height() / 2)), Qt::LeftButton);
 }
 // 0.8.10：点不中时写清楚点在哪（0.8.9 PO 电脑上右边的按钮点不中，Windows差异清单 #26）
@@ -150,7 +151,7 @@ void runShell(Report &r, AppController *app, map::MapController *mapc, QQuickWin
         // Esc 收回 ⋯
         QMetaObject::invokeMethod(top, "setBubbles", Q_ARG(QVariant, true), Q_ARG(QVariant, QVariant()));
         waitFor([top] { return top->property("bubblesOpen").toBool(); }, 1000);
-        if (g_focus) key(win, Qt::Key_Escape); else call(win, "escOnce");
+        if (ensureFocus(win)) key(win, Qt::Key_Escape); else call(win, "escOnce");
         r.check(!bubbles->property("open").toBool(), QStringLiteral("Esc 收回 ⋯ 泡泡"));
     }
 
@@ -275,9 +276,9 @@ void runShell(Report &r, AppController *app, map::MapController *mapc, QQuickWin
     {
         nav->go(QStringLiteral("settings"));
         waitFrames(win, 1);
-        if (g_focus) key(win, Qt::Key_Left, Qt::AltModifier); else nav->back();
+        if (ensureFocus(win)) key(win, Qt::Key_Left, Qt::AltModifier); else nav->back();
         const bool back = nav->page() == QLatin1String("plan");
-        if (g_focus) key(win, Qt::Key_Right, Qt::AltModifier); else nav->forward();
+        if (ensureFocus(win)) key(win, Qt::Key_Right, Qt::AltModifier); else nav->forward();
         const bool fwd = nav->page() == QLatin1String("settings");
         r.check(back && fwd, QStringLiteral("Alt ← / Alt →：后退、前进"));
         sideButton(win, Qt::BackButton);
@@ -285,7 +286,7 @@ void runShell(Report &r, AppController *app, map::MapController *mapc, QQuickWin
         sideButton(win, Qt::ForwardButton);
         const bool sf = nav->page() == QLatin1String("settings");
         r.check(sb && sf, QStringLiteral("鼠标侧键：后退、前进"));
-        if (g_focus) key(win, Qt::Key_Escape); else call(win, "escOnce");
+        if (ensureFocus(win)) key(win, Qt::Key_Escape); else call(win, "escOnce");
         r.check(nav->page() == QLatin1String("plan"), QStringLiteral("设置开着时 Esc 回到地图"));
     }
 
@@ -303,7 +304,9 @@ void runShell(Report &r, AppController *app, map::MapController *mapc, QQuickWin
         r.check(open && rows.size() == matches, QStringLiteral("顶栏列表按钮：打开我的旅程，列出筛选下的全部计划"),
                 QStringLiteral("%1 行，筛选下 %2 个").arg(rows.size()).arg(matches) + (open ? QString() : QStringLiteral("；") + whereStr(win, item(win, "listBtn"))));
         QQuickItem *pill = item(win, "statusPill");
-        r.check(pill && list && pill->x() >= list->x() + list->width(), QStringLiteral("列表开着时左下状态胶囊挪到列表右边"));
+        // 胶囊挪过去有动画：等它到位（0.12.11 点之前等停稳后，读的时候动画还没走完）
+        r.check(waitFor([&] { return pill && list && pill->x() >= list->x() + list->width(); }, 1000), QStringLiteral("列表开着时左下状态胶囊挪到列表右边"),
+                pill && list ? QStringLiteral("%1 / %2").arg(pill->x()).arg(list->x() + list->width()) : QString());
         // 点一行 = 选中、飞过去
         if (!routeId.isEmpty()) {
             QQuickItem *row = item(win, QStringLiteral("planRow-") + routeId);
@@ -340,7 +343,7 @@ void runShell(Report &r, AppController *app, map::MapController *mapc, QQuickWin
         const bool fOpen = waitFor([fm] { return fm && fm->property("open").toBool(); }, 800);
         r.check(fOpen && fb && fm->y() > fb->mapToScene(QPointF(0, 0)).y(), QStringLiteral("列表头的\"筛选\"：打开筛选下拉（在按钮下面）"));
         // Ctrl B 关掉列表（筛选下拉跟着收起）
-        if (g_focus) key(win, Qt::Key_B, Qt::ControlModifier); else QMetaObject::invokeMethod(win, "toggleList");
+        if (ensureFocus(win)) key(win, Qt::Key_B, Qt::ControlModifier); else QMetaObject::invokeMethod(win, "toggleList");
         r.check(waitFor([list] { return !list->isVisible(); }, 1000) && !fm->property("open").toBool(), QStringLiteral("Ctrl B：关掉我的旅程，筛选下拉跟着收起"));
     }
 
@@ -348,7 +351,7 @@ void runShell(Report &r, AppController *app, map::MapController *mapc, QQuickWin
     {
         QQuickItem *pal = item(win, "palette");
         mapc->markers()->clearSelection();
-        if (g_focus) key(win, Qt::Key_K, Qt::ControlModifier); else call(win, "openPalette", QString());
+        if (ensureFocus(win)) key(win, Qt::Key_K, Qt::ControlModifier); else call(win, "openPalette", QString());
         const bool open = waitFor([pal] { return pal && pal->property("open").toBool(); }, 800);
         QVariantList res = pal ? pal->property("results").toList() : QVariantList();
         r.check(open && !res.isEmpty() && res.first().toMap().value(QStringLiteral("group")).toString() == QLatin1String("recent")
@@ -368,7 +371,7 @@ void runShell(Report &r, AppController *app, map::MapController *mapc, QQuickWin
             const QVariantMap first = res.isEmpty() ? QVariantMap() : res.first().toMap();
             r.check(first.value(QStringLiteral("label")).toString().startsWith(name) && first.value(QStringLiteral("score")).toInt() == 0,
                     QStringLiteral("输入计划名：开头匹配的排第一"), QStringLiteral("搜\"%1\" → %2").arg(name, first.value(QStringLiteral("label")).toString()));
-            if (g_focus) key(win, Qt::Key_Return); else QMetaObject::invokeMethod(pal, "runAt", Q_ARG(QVariant, 0));
+            if (ensureFocus(win)) key(win, Qt::Key_Return); else QMetaObject::invokeMethod(pal, "runAt", Q_ARG(QVariant, 0));
             const QString pick = first.value(QStringLiteral("id")).toString();
             r.check(waitFor([mapc, pick] { return mapc->markers()->selectedPlan() == pick; }, 1500) && !pal->property("open").toBool(),
                     QStringLiteral("Enter：关掉面板，选中这个计划（打开简易面板）"));
@@ -377,7 +380,7 @@ void runShell(Report &r, AppController *app, map::MapController *mapc, QQuickWin
         QMetaObject::invokeMethod(pal, "show", Q_ARG(QVariant, QStringLiteral("zzqqxx没有这个")));
         pause(80);
         r.check(pal->property("results").toList().isEmpty(), QStringLiteral("搜不到时没有结果（显示\"没有找到\"）"));
-        if (g_focus) key(win, Qt::Key_Escape); else call(win, "escOnce");
+        if (ensureFocus(win)) key(win, Qt::Key_Escape); else call(win, "escOnce");
         r.check(!pal->property("open").toBool(), QStringLiteral("Esc 关掉命令面板"));
     }
 

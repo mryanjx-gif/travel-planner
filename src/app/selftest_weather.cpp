@@ -38,6 +38,7 @@ bool isShown(QQuickItem *it) { return it && it->isVisible() && it->opacity() > 0
 void click(QQuickWindow *win, QQuickItem *it)
 {
     if (!it) return;
+    waitStill(it, 1000);   // 0.12.11：面板滑进、列表滚动时先等停稳再点，不然点在半路上
     const QPointF p = it->mapToScene(QPointF(it->width() / 2, it->height() / 2));
     const QPointF g = win->mapToGlobal(p);
     QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, g, Qt::LeftButton, Qt::LeftButton, QEvent::MouseButtonPress);

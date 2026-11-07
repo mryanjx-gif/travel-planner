@@ -50,6 +50,7 @@ void key(QQuickWindow *win, int k, Qt::KeyboardModifiers mods = Qt::NoModifier)
 void click(QQuickWindow *win, QQuickItem *it)
 {
     if (!it) return;
+    waitStill(it, 1000);   // 0.12.11：面板滑进、列表滚动时先等停稳再点，不然点在半路上
     const QPointF p = it->mapToScene(QPointF(it->width() / 2, it->height() / 2));
     const QPointF g = win->mapToGlobal(p);
     QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, g, Qt::LeftButton, Qt::LeftButton, QEvent::MouseButtonPress);
@@ -242,7 +243,7 @@ void runPages(Report &r, AppController *app, map::MapController *mapc, QQuickWin
         const QString e = escOnce(win);
         const bool toPlan = waitMode(pc, win, QStringLiteral("plan"));
         const QString planBase = mapc->base();
-        if (g_focus) key(win, Qt::Key_3, Qt::ControlModifier); else goPage(win, QStringLiteral("foot"));
+        if (ensureFocus(win)) key(win, Qt::Key_3, Qt::ControlModifier); else goPage(win, QStringLiteral("foot"));
         const bool toFoot = waitMode(pc, win, QStringLiteral("foot"));
         r.check(e == QLatin1String("page") && toPlan && planBase == QLatin1String("sat") && toFoot && mapc->base() == QLatin1String("sat"),
                 QStringLiteral("四种模式共用一个底图：足迹里换成卫星图，Esc 回计划还是卫星图，Ctrl 3 再进足迹也是"),
@@ -254,7 +255,7 @@ void runPages(Report &r, AppController *app, map::MapController *mapc, QQuickWin
     // 想去（PO 选改进 c：只显示想去）、照片（全部）
     {
         const double swT0 = perf::nowMs();
-        if (g_focus) key(win, Qt::Key_2, Qt::ControlModifier); else goPage(win, QStringLiteral("wish"));
+        if (ensureFocus(win)) key(win, Qt::Key_2, Qt::ControlModifier); else goPage(win, QStringLiteral("wish"));
         const bool w = waitMode(pc, win, QStringLiteral("wish"));
         double swMs = -1;
         for (const perf::Entry &e : perf::entriesSince(swT0)) if (e.what == QStringLiteral("换模式（直接换）")) swMs = e.ms;
@@ -267,7 +268,7 @@ void runPages(Report &r, AppController *app, map::MapController *mapc, QQuickWin
                     && pc->overlayAvailable() && title && title->property("text").toString() == tp::tr("想去"),
                 QStringLiteral("Ctrl 2 想去：只画想去的，筛选里有\"叠上其他旅程\"，列表标题\"想去\""),
                 QStringLiteral("状态 %1，底图 %2").arg(join(s), mapc->base()));
-        if (g_focus) key(win, Qt::Key_4, Qt::ControlModifier); else goPage(win, QStringLiteral("photo"));
+        if (ensureFocus(win)) key(win, Qt::Key_4, Qt::ControlModifier); else goPage(win, QStringLiteral("photo"));
         const bool ph = waitMode(pc, win, QStringLiteral("photo"));
         const QSet<QString> s2 = statusesOnMap(mapc);
         int total = 0;
@@ -392,9 +393,9 @@ void runPages(Report &r, AppController *app, map::MapController *mapc, QQuickWin
         goPage(win, QStringLiteral("calendar"));
         goPage(win, QStringLiteral("journal"));
         const bool j = nav->page() == QLatin1String("journal") && waitFor([journalPage] { return journalPage && journalPage->opacity() > 0.5; }, 800);
-        if (g_focus) { key(win, Qt::Key_Left, Qt::AltModifier); key(win, Qt::Key_Left, Qt::AltModifier); } else { nav->back(); nav->back(); }
+        if (ensureFocus(win)) { key(win, Qt::Key_Left, Qt::AltModifier); key(win, Qt::Key_Left, Qt::AltModifier); } else { nav->back(); nav->back(); }
         const bool b2 = nav->page() == QLatin1String("foot") && pc->mode() == QLatin1String("foot");
-        if (g_focus) key(win, Qt::Key_Right, Qt::AltModifier); else nav->forward();
+        if (ensureFocus(win)) key(win, Qt::Key_Right, Qt::AltModifier); else nav->forward();
         r.check(j && b2 && nav->page() == QLatin1String("calendar"), QStringLiteral("Alt ← / → 在整页和模式之间按顺序走"), nav->page());
         // 模式之间也算一步：计划 → 足迹，后退回到计划
         goPage(win, QStringLiteral("plan"));

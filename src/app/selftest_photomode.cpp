@@ -57,7 +57,9 @@ void click(QQuickWindow *win, const QPointF &p)
 }
 void click(QQuickWindow *win, QQuickItem *it)
 {
-    if (it) click(win, it->mapToScene(QPointF(it->width() / 2, it->height() / 2)));
+    if (!it) return;
+    waitStill(it, 1000);   // 0.12.11：面板滑进、列表滚动时先等停稳再点，不然点在半路上
+    click(win, it->mapToScene(QPointF(it->width() / 2, it->height() / 2)));
 }
 void key(QQuickWindow *win, int k)
 {

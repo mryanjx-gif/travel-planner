@@ -268,7 +268,9 @@ void GlassWatch::setWindow(QQuickWindow *w)
         auto *sc = static_cast<QRhiSwapChain *>(ri->getResource(w, QSGRendererInterface::RhiSwapchainResource));
         QRhiCommandBuffer *cb = sc ? sc->currentFrameCommandBuffer() : nullptr;
         const double ms = cb ? cb->lastCompletedGpuTime() * 1000 : 0;
-        if (!m_active || ms <= 20) {
+        // 每帧超过多少 ms 算带不动。TP_GLASS_SLOW_MS 只给实测用（调低了触发降级，不用改代码重编）
+        static const double limit = qEnvironmentVariableIsSet("TP_GLASS_SLOW_MS") ? qEnvironmentVariable("TP_GLASS_SLOW_MS").toDouble() : 20;
+        if (!m_active || ms <= limit) {
             if (ms > 0 || !m_active) { m_since = -1; m_count = 0; }   // 0 = 这帧没拿到结果，不算
             return;
         }
@@ -276,6 +278,7 @@ void GlassWatch::setWindow(QQuickWindow *w)
         if (m_since < 0) m_since = now;
         if (++m_count >= 20 && now - m_since >= 2000) {
             m_active = false;
+            qInfo("玻璃：连续 %.0f ms 显卡每帧超过 %.2f ms（最后一帧 %.1f ms），这次运行换成标准玻璃", now - m_since, limit, ms);
             QMetaObject::invokeMethod(this, &GlassWatch::slow, Qt::QueuedConnection);
         }
     }, Qt::DirectConnection);

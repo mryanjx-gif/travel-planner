@@ -62,6 +62,9 @@ bool waitRendered(QQuickWindow *win, tp::map::MapController *mapc, int timeoutMs
 bool waitGlobeIdle(QQuickWindow *win, GlobeItem *globe, int timeoutMs = 3000);
 // 一个界面元素停稳了（位置、大小连续 3 次检查没变；面板滑进滑出、宽度动画）
 bool waitStill(QQuickItem *it, int timeoutMs = 2000);
+// 0.12.11：快捷键要窗口有焦点。跑的中途焦点会被别的程序抢走（日志里按键时 focusWindow 是空的），每按一下之前要回来；
+// 要不回来返回 false，调用方改用直接调用
+bool ensureFocus(QQuickWindow *win, int timeoutMs = 1500);
 // 截一张窗口图，在 (x, y)（逻辑像素）附近 24 像素内找品红探针的中心；找不到返回 false
 bool findProbe(QQuickWindow *win, double x, double y, double *fx, double *fy, QImage *shot = nullptr);
 double luminanceAt(const QImage &img, QQuickWindow *win, double x, double y);

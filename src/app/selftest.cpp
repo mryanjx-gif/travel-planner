@@ -111,7 +111,9 @@ void runAll(Report &r, AppController *app, PhotoController *photos, map::MapCont
     if (!r.check(!store->isReadOnly() && store->state() != data::DataStore::State::None, QStringLiteral("数据能写"), store->loadError())) return;
     // 0.9.3：环境变量 TP_SELFTEST_ONLY=globe,photos…（逗号分隔）只跑其中几节（云端没有 maplibre 时只测地球用；PO 电脑上不设，全跑）
     const QStringList only = qEnvironmentVariable("TP_SELFTEST_ONLY").split(u',', Qt::SkipEmptyParts);
-    const auto want = [&only](const char *key) { return only.isEmpty() || only.contains(QLatin1String(key)); };
+    // 0.12.11：每个分组开始前把上一组留下的改动存掉。store->modify 不安排保存（程序里都接 noteChanged，自检的收尾没有），
+    // 留着不存，下一组第一次保存就把"收尾还原"和它的改动并成一步，撤销一下子退回上一组中途的样子（week,kit 的 8 项）
+    const auto want = [&only, app](const char *key) { app->commitStep(); return only.isEmpty() || only.contains(QLatin1String(key)); };
     if (!only.isEmpty()) r.info(QStringLiteral("只跑：%1（TP_SELFTEST_ONLY）").arg(only.join(QStringLiteral("、"))));
     if (only.contains(QLatin1String("cachemeasure"))) runCacheMeasure(r, mapc, win, ts, tileCache);   // 0.12.6 要真联网，只有点名才跑
     if (want("glass")) runGlass(r, app, win);   // 0.12.1

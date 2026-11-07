@@ -169,6 +169,7 @@ static QString bundledSerif()
 {
     static const QString family = [] {
         const QString dir = QCoreApplication::applicationDirPath() + QStringLiteral("/assets/fonts/");
+        if (!QFileInfo::exists(dir + QStringLiteral("NotoSerifCJKsc-Regular.otf"))) return QString();   // 0.12.11：不在时不让 Qt 报"Cannot open"
         const int id = QFontDatabase::addApplicationFont(dir + QStringLiteral("NotoSerifCJKsc-Regular.otf"));
         if (id < 0) return QString();
         QFontDatabase::addApplicationFont(dir + QStringLiteral("NotoSerifCJKsc-Bold.otf"));
@@ -508,6 +509,15 @@ int main(int argc, char *argv[])
     }
     else keeper.restoreAndShow();
     tp::app::perf::startup("窗口显示");
+#ifdef TP_DEV_TOOLS
+    // 0.12.11 开发版：TP_GRAB="毫秒:路径;毫秒:路径" 正常启动后按时截程序自己的窗口（实测首启、升级提示、离线这些真实启动路径用，不截屏幕）
+    for (const QString &g : qEnvironmentVariable("TP_GRAB").split(u';', Qt::SkipEmptyParts)) {
+        const QString path = g.section(u':', 1);
+        QTimer::singleShot(g.section(u':', 0, 0).toInt(), win, [win, path] {
+            qInfo("TP_GRAB %s %s", qUtf8Printable(path), win->grabWindow().save(path) ? "ok" : "FAILED");
+        });
+    }
+#endif
     tp::app::perf::startStallWatch();   // 0.9.1：主线程顿了超过 0.25 秒就写一行日志
     QObject::connect(&single, &tp::platform::SingleInstance::activateRequested, &ctl, &tp::app::AppController::activateWindow);
 

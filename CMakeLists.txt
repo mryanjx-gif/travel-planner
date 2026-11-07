@@ -3,7 +3,7 @@
 # 规则（PO 2026-11-02）：大更新改第一位，中等更新改第二位，小修改改第三位；正式版之前是 0.x.y，正式版 1.0.0。
 cmake_minimum_required(VERSION 3.24)
 
-set(TP_VERSION "0.12.10")
+set(TP_VERSION "0.12.11")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TP_VERSION_NUMERIC "${TP_VERSION}")
 
 project(TravelPlannerNative
@@ -374,6 +374,8 @@ add_custom_command(TARGET TravelPlanner POST_BUILD
     VERBATIM)
 # 安装目录也要带上（OPTIONAL：文件不存在时跳过，不报错）
 install(FILES "${CMAKE_SOURCE_DIR}/assets/fonts/NotoSerifCJKsc-Regular.otf" "${CMAKE_SOURCE_DIR}/assets/fonts/NotoSerifCJKsc-Bold.otf" OPTIONAL DESTINATION assets/fonts)
+# 0.12.11：字体的授权跟着装（原来只装了字体文件）。正式打包走 package.ps1，那边一直带着
+install(FILES "${CMAKE_SOURCE_DIR}/assets/fonts/LICENSE-NotoSerifCJK.txt" "${CMAKE_SOURCE_DIR}/assets/fonts/LICENSE-Material-Symbols.txt" DESTINATION LICENSES)
 
 # 以后各模块（src/services …）按阶段加进来；
 # 逻辑单元测试放在 tests/，用 Qt Test（qtbase 自带，LGPL-3；只用于测试，不打包），打开 TP_BUILD_TESTS 时编译。

@@ -32,6 +32,7 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QEventLoop>
+#include <QGuiApplication>
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
@@ -69,6 +70,15 @@ bool waitFor(const std::function<bool()> &pred, int timeoutMs)
 }
 
 void pause(int ms) { waitFor([] { return false; }, ms); }
+
+bool ensureFocus(QQuickWindow *win, int timeoutMs)
+{
+    if (QGuiApplication::focusWindow() == win) return true;
+    win->requestActivate();
+    const bool ok = waitFor([win] { return QGuiApplication::focusWindow() == win; }, timeoutMs);
+    if (!ok) qInfo("自检：窗口被别的程序抢走焦点、要不回来，这一下改用直接调用");
+    return ok;
+}
 
 bool waitFrames(QQuickWindow *win, int n, int timeoutMs)
 {
