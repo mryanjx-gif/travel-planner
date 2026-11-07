@@ -7,7 +7,6 @@ import TPApp
 
 Item {
     id: root
-    property Item backdrop: null
     property bool open: false
     property var items: []          // [{ key, text, kbd? }] 或 { sep: true }
     signal picked(string key)
@@ -27,7 +26,6 @@ Item {
 
     GlassPanel {
         anchors.fill: parent
-        backdrop: root.backdrop
         radius: Theme.px(14)
         tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.9 : 0.98)
     }

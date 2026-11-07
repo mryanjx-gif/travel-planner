@@ -22,6 +22,12 @@ Window {
     title: qsTr("旅行计划") + " v" + app.version + (app.windowTitleExtra !== "" ? "  " + app.windowTitleExtra : "")
 
     Binding { target: Theme; property: "scale"; value: app.fontScale }
+    Binding { target: Theme; property: "motion"; value: app.motion === "on" || (app.motion === "auto" && app.systemMotion) }
+    Binding { target: Theme; property: "glass"; value: app.transparency !== "off" }
+    Binding { target: Theme; property: "glassMode"; value: app.glassMode }
+    // 带不动就换标准玻璃，设置页写明原因；改一次外观设置或下次启动再试
+    GlassWatch { window: win; active: Theme.liquidOn; onSlow: Theme.glassSlow = true }
+    Connections { target: app; function onAppearanceChanged() { Theme.glassSlow = false } }
     Binding { target: Fmt; property: "en"; value: app.lang === "en" }
 
     property bool globeMode: false
@@ -114,6 +120,8 @@ Window {
     // 自检"性能"（0.9.1）：临时关掉 / 打开透明效果，量玻璃占多少（设置页的开关在阶段 ⑥）
     function setGlassForTest(on) { Theme.glass = on }
     function setMotionForTest(on) { Theme.motion = on }
+    function setGlassSlowForTest(on) { Theme.glassSlow = on }
+    function glassReasonForTest() { return Theme.glassReason }
     // 图形后端退回原因（C++ 里是中文原文）：整句或"前半句：后半句"分别查词典，查不到的部分（如显卡报的错误）原样显示
     function trReason(r) {
         if (!r) return ""
@@ -683,7 +691,6 @@ Window {
         objectName: "topBar"
         width: parent.width
         z: 25
-        backdrop: scene
         page: nav.page
         onMap: win.onMapPage
         // ⋯ 上的名字：当前模式 / 整页（"计划"是默认的，不显示）
@@ -747,7 +754,6 @@ Window {
         id: avatarMenu
         objectName: "avatarMenu"
         z: 26
-        backdrop: scene
         x: win.width - width - win.gap
         y: win.topH - 4
         // ≤ 1100 时最上面加页面入口（S-15；和 ⋯ 泡泡同一份：只放做好的页面 + 下次出发）
@@ -788,7 +794,6 @@ Window {
         y: win.topH + 2
         z: 15
         visible: (!win.tripOpen || win.tripRoom) && !win.albumOpen   // 0.11.1 相册铺满时不留地图按钮
-        backdrop: scene
         bases: win.bases
         current: win.layerKey
         dark: win.globeMode || mapc.base === "sat"   // 地球上背景是星空，用烟色玻璃
@@ -808,7 +813,6 @@ Window {
         Behavior on x { NumberAnimation { duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
         GlassPanel {
             anchors.fill: parent
-            backdrop: scene
             radius: width / 2
             tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.69 : 0.96)
         }
@@ -836,7 +840,6 @@ Window {
         objectName: "palette"
         anchors.fill: parent
         z: 60
-        backdrop: scene
         recent: plans.recent
         source: win.paletteItems
         onRun: (item) => win.runCommand(item)
@@ -1027,7 +1030,6 @@ Window {
         id: nowCard
         objectName: "nowCard"
         visible: win.nowOpen && win.nowKind !== "none" && win.mapShown
-        backdrop: scene
         x: win.gap
         y: win.topH - 6
         z: 14
@@ -1062,7 +1064,6 @@ Window {
         Behavior on width { enabled: Theme.motion; NumberAnimation { duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
         height: win.height - y - 20
         open: win.listOpen && win.mapShown
-        backdrop: scene
         info: plans.list
         // 0.8.10：标题跟着模式（PO 选 ② B）
         title: plans.mode === "foot" ? qsTr("去过的") : plans.mode === "wish" ? qsTr("想去") : plans.mode === "photo" ? (win.albumOpen ? qsTr("相册") : qsTr("照片"))
@@ -1095,7 +1096,6 @@ Window {
         id: monthBar
         objectName: "wishMonthBar"
         visible: win.mapShown && plans.mode === "wish" && !win.sheetOpen && !win.editorShown
-        backdrop: scene
         z: 12
         readonly property real leftEdge: statusPill.x + statusPill.width + win.gap
         readonly property bool below: win.width - leftEdge - win.gap >= 12 * Theme.px(30)
@@ -1107,20 +1107,17 @@ Window {
     WishDialog {
         id: wishDialog
         objectName: "wishDialog"
-        backdrop: scene
         onStarted: (name) => toast.show(qsTr("「%1」已改成计划中").arg(name), false, qsTr("撤销"), () => app.undo())
     }
     PhotoAssignDialog {
         id: photoAssign
         objectName: "photoAssign"
-        backdrop: scene
         onAssigned: (n, plan, stop) => toast.show(Fmt.one(qsTr("%1 张已归到「%2」· %3（照片文件留在原位置，不用挪）").arg(n).arg(plan).arg(stop)), false, qsTr("撤销"), () => app.undo())
     }
     // 0.11.0 批量删除（L-08：列前 8 个名字，照片不删）
     MessageDialog {
         id: bulkConfirm
         objectName: "bulkConfirm"
-        backdrop: scene
         property var ids: []
         function ask(list) {
             ids = list
@@ -1150,7 +1147,6 @@ Window {
         id: statusPill
         objectName: "statusPill"
         visible: win.mapShown && !win.sheetOpen && !win.editorShown && !plans.libraryOpen && !win.photoMode   // 0.11.0 计划库有自己的筛选；0.11.1 照片模式没有可筛的
-        backdrop: scene
         x: win.leftX
         Behavior on x { enabled: Theme.motion; NumberAnimation { duration: 250; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
 
@@ -1165,7 +1161,6 @@ Window {
     FilterMenu {
         id: filterMenu
         objectName: "filterMenu"
-        backdrop: scene
         readonly property point listAnchor: {
             planList.x; planList.y; planList.width; win.width; open
             const b = planList.filterButton
@@ -1192,7 +1187,6 @@ Window {
         Behavior on y { enabled: Theme.motion && !win.drawerDragging; NumberAnimation { duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
         Behavior on x { enabled: Theme.motion; NumberAnimation { duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
         z: 14
-        backdrop: scene
         source: plans.sheet
         focusIndex: mapc.markers.focusStop
         onCloseRequested: mapc.markers.clearSelection()
@@ -1221,7 +1215,6 @@ Window {
     PlanEditor {
         id: planEditor
         objectName: "planEditor"
-        backdrop: scene
         drawer: win.drawerMode
         z: 14
         width: win.drawerMode ? win.width : Math.min(Theme.px(470), win.width - 2 * win.gap)   // Electron --editor-w: 470px
@@ -1319,7 +1312,6 @@ Window {
     MessageDialog {
         id: editorDialog
         objectName: "editorDialog"
-        backdrop: scene
         property string kind: ""
         property int index: -1
         property string name: ""
@@ -1398,7 +1390,6 @@ Window {
     // 确认：标记为已完成 / 删除计划
     MessageDialog {
         id: planConfirm
-        backdrop: scene
         property string kind: ""
         property string planId: ""
         property string planName: ""
@@ -1423,7 +1414,6 @@ Window {
         id: unlockPanel
         objectName: "unlockPanel"
         visible: mapc.base === "unlock" && !win.globeMode && win.map !== null
-        backdrop: scene
         x: win.leftX
         Behavior on x { enabled: Theme.motion; NumberAnimation { duration: 250; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
         readonly property real bottomGap: win.height - win.leftStackTop + 10   // 0.8.9：在比例尺 / 图例上面（Electron 左下：足迹 → 比例尺 → 图例）
@@ -1475,7 +1465,6 @@ Window {
         Accessible.name: qsTr("我的位置")
         GlassPanel {
             anchors.fill: parent
-            backdrop: scene
             radius: width / 2
             tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.69 : 0.96)
             edge: locMa.containsMouse ? Theme.lineStrong : Theme.glassEdge
@@ -1507,7 +1496,6 @@ Window {
         Banner {
             width: parent.width
             visible: app.readOnly && !app.newerVersion && !app.lockedByOther || shotPage === "ui-unreadable"
-            backdrop: scene
             warning: true
             closable: false
             title: qsTr("数据文件读不出来，已暂停保存")
@@ -1518,7 +1506,6 @@ Window {
         Banner {
             width: parent.width
             visible: app.newerVersion || shotPage === "ui-newer"
-            backdrop: scene
             warning: true
             closable: false
             title: qsTr("这份数据是更新版本的旅行计划写的")
@@ -1527,7 +1514,6 @@ Window {
         Banner {
             width: parent.width
             visible: app.lockedByOther && !app.newerVersion || shotPage === "ui-locked"
-            backdrop: scene
             closable: false
             title: qsTr("这份数据正在别处打开")
             detail: qsTr("%1 正开着这份数据，现在只能看、不能改。那边关掉以后，这里会自动恢复编辑。").arg(app.lockOwner !== "" ? app.lockOwner : qsTr("%1 上的旅行计划 %2").arg("LAPTOP-JASON").arg("0.6.0"))
@@ -1539,7 +1525,6 @@ Window {
             objectName: "tileBanner"
             width: parent.width
             visible: mapc.tileBanner && (win.globeMode ? globe.base !== "unlock" : mapc.base !== "unlock")
-            backdrop: scene
             warning: true
             title: qsTr("当前底图加载失败（可能没联网，或服务方限流、改了政策）。可以换成不用联网的「已解锁」底图。")
             onCloseClicked: mapc.dismissTileBanner()
@@ -1549,7 +1534,6 @@ Window {
         RoadBar {
             id: roadBar
             anchors.horizontalCenter: parent.horizontalCenter
-            backdrop: scene
             maxWidth: Math.min(Theme.px(620), parent.width)
         }
     }
@@ -1621,7 +1605,6 @@ Window {
                 message: model.message
                 report: model.report
                 width: Math.min(Theme.px(340), win.width - 28)
-                backdrop: scene
                 onCloseClicked: errModel.remove(index)
                 onCopyClicked: { app.copyText(report); toast.show(qsTr("已复制，可以直接粘贴发给 Jason"), false) }
             }
@@ -1630,7 +1613,6 @@ Window {
             id: extCard
             property bool forced: false
             width: Math.min(Theme.px(340), win.width - 28)
-            backdrop: scene
             open: (app.extChanged || forced) && !win.settingsOpen
             dirty: app.dirty || forced && shotPage === "ui-ext-dirty"
             onReloadClicked: { forced = false; app.reloadData() }
@@ -1656,7 +1638,6 @@ Window {
         id: planPanel
         objectName: "planPage"
         z: 14
-        backdrop: scene
         width: Math.min(Theme.px(820), win.width - 2 * win.gap)
         y: win.topH + 4
         height: win.height - y - win.gap
@@ -1711,14 +1692,13 @@ Window {
             budgetDialog.open = true
         }
     }
-    EmergencyDialog { id: emergencyDialog; objectName: "emergencyDialog"; backdrop: scene }
-    GuideLinkDialog { id: guideLinkDialog; objectName: "guideLinkDialog"; backdrop: scene; onAccepted: (md) => planPanel.guideInsertLink(md) }
-    PhotoPickDialog { id: photoPickDialog; objectName: "photoPickDialog"; backdrop: scene; onPicked: (ph) => planPanel.guideInsertPhoto(ph) }
+    EmergencyDialog { id: emergencyDialog; objectName: "emergencyDialog" }
+    GuideLinkDialog { id: guideLinkDialog; objectName: "guideLinkDialog"; onAccepted: (md) => planPanel.guideInsertLink(md) }
+    PhotoPickDialog { id: photoPickDialog; objectName: "photoPickDialog"; onPicked: (ph) => planPanel.guideInsertPhoto(ph) }
     // ---- 0.10.5 照片标签和编辑器共用：写说明、移除、加照片、选封面 ----
     TextInputDialog {
         id: photoCaptionDialog
         objectName: "photoCaptionDialog"
-        backdrop: scene
         maxLength: 200
         title: qsTr("照片说明")
         property string photoId: ""
@@ -1729,7 +1709,6 @@ Window {
     MessageDialog {
         id: photoRemoveDialog
         objectName: "photoRemoveDialog"
-        backdrop: scene
         title: qsTr("从计划里移除这张照片？")
         paragraphs: [qsTr("只是从计划里去掉，照片文件还留在数据文件夹的 photos 里（不会删文件）。")]
         buttons: [{ key: "cancel", text: qsTr("取消") }, { key: "ok", text: qsTr("移除"), kind: "danger" }]
@@ -1747,7 +1726,6 @@ Window {
     PhotoPickDialog {
         id: coverPickDialog
         objectName: "coverPickDialog"
-        backdrop: scene
         title: qsTr("选择封面照片")
         fromFile: true
         onPicked: (ph) => editor.setField("cover", ph.id)
@@ -1777,7 +1755,6 @@ Window {
     MessageDialog {
         id: tplDialog
         objectName: "tplDialog"
-        backdrop: scene
         title: qsTr("存成行李模板？")
         buttons: [{ key: "cancel", text: qsTr("取消") }, { key: "ok", text: qsTr("存成模板"), kind: "primary" }]
         onChosen: (key) => {
@@ -1785,20 +1762,18 @@ Window {
             if (key === "ok" && planPage.saveTemplate() > 0) toast.show(qsTr("模板已更新"), false)
         }
     }
-    BookingDialog { id: bookingDialog; objectName: "bookingDialog"; backdrop: scene; currency: (planPage.info.money || {}).currency || "" }
-    ExpenseDialog { id: expenseDialog; objectName: "expenseDialog"; backdrop: scene; planCurrency: (planPage.info.money || {}).currency || ""; today: plans.today; people: (planPage.info.money || {}).people || []; onPeopleRequested: peopleDialog.show() }
+    BookingDialog { id: bookingDialog; objectName: "bookingDialog"; currency: (planPage.info.money || {}).currency || "" }
+    ExpenseDialog { id: expenseDialog; objectName: "expenseDialog"; planCurrency: (planPage.info.money || {}).currency || ""; today: plans.today; people: (planPage.info.money || {}).people || []; onPeopleRequested: peopleDialog.show() }
     // 同行人（0.11.5）：放在记一笔后面，从那里打开时盖在上面
     PeopleDialog {
         id: peopleDialog
         objectName: "peopleDialog"
-        backdrop: scene
         money: planPage.info.money || ({})
         onOpenChanged: if (!open && expenseDialog.open) expenseDialog.takeFocus()
     }
     ModalLayer {
         id: budgetDialog
         objectName: "budgetDialog"
-        backdrop: scene
         cardWidth: 400
         property string budget: ""
         property string cur: ""
@@ -1840,7 +1815,6 @@ Window {
     MessageDialog {
         id: moneyDialog
         objectName: "moneyDialog"
-        backdrop: scene
         property string what: ""
         property var row: null
         function ask(kind, r) {
@@ -1867,7 +1841,6 @@ Window {
     }
     TextInputDialog {
         id: daysDialog
-        backdrop: scene
         maxLength: 6
         title: qsTr("预计天数")
         hint: qsTr("大约几天（不确定可以留空）")
@@ -1879,7 +1852,6 @@ Window {
     }
     ModalLayer {
         id: startDialog
-        backdrop: scene
         cardWidth: 420
         property string start: ""
         property string end: ""
@@ -1913,7 +1885,6 @@ Window {
         anchors.margins: win.gap
         width: win.w900 ? win.width - 2 * win.gap : Math.min(Theme.px(430), win.width - 28)   // ≤ 900 占满宽度（S-15）
         anchors.topMargin: win.topH + 4   // 0.8.8：停在顶栏下面（Electron 右边面板 top: --mf-top + 4），顶栏的 ↩ 一直看得到
-        backdrop: scene
         z: 30
         open: win.settingsOpen
         onCloseClicked: win.goPage("map")
@@ -1935,7 +1906,6 @@ Window {
         anchors.fill: parent
         anchors.margins: win.gap
         anchors.topMargin: win.topH + 4
-        backdrop: scene
         z: 20
         shown: nav.page === "ledger"
         onOpenPlan: (id) => { win.tripTab = "budget"; win.openTrip(id, -1) }
@@ -1947,7 +1917,6 @@ Window {
         anchors.fill: parent
         anchors.margins: win.gap
         anchors.topMargin: win.topH + 4
-        backdrop: scene
         z: 20
         shown: nav.page === "calendar"
         onOpenPlan: (id, tab) => { win.tripTab = tab; win.openTrip(id, -1) }
@@ -1959,7 +1928,6 @@ Window {
         anchors.fill: parent
         anchors.margins: win.gap
         anchors.topMargin: win.topH + 4
-        backdrop: scene
         z: 20
         shown: nav.page === "journal"
         onOpenPlan: (id) => { win.tripTab = "journal"; win.openTrip(id, -1) }
@@ -1979,7 +1947,6 @@ Window {
     MessageDialog {
         id: journalDeleteDialog
         objectName: "journalDeleteDialog"
-        backdrop: scene
         property string entry: ""
         title: qsTr("删除这篇游记？")
         buttons: [{ key: "cancel", text: qsTr("取消") }, { key: "ok", text: qsTr("删除"), kind: "danger" }]
@@ -1990,8 +1957,8 @@ Window {
             toast.show(qsTr("已删除"), false, qsTr("撤销"), () => app.undo())
         }
     }
-    PhotoPickDialog { id: journalPhotoPick; objectName: "journalPhotoPick"; backdrop: scene; onPicked: (ph) => journalPage.insertPicked(ph) }
-    GuideLinkDialog { id: journalLinkDialog; objectName: "journalLinkDialog"; backdrop: scene; onAccepted: (md) => journalPage.insertLink(md) }
+    PhotoPickDialog { id: journalPhotoPick; objectName: "journalPhotoPick"; onPicked: (ph) => journalPage.insertPicked(ph) }
+    GuideLinkDialog { id: journalLinkDialog; objectName: "journalLinkDialog"; onAccepted: (md) => journalPage.insertLink(md) }
     // 计划页 ⋯"在日历里看"（Electron：有日期跳到那个月，没有就在右边定位）
     function showInCalendar(id, date) {
         win.goPage("calendar")
@@ -2017,11 +1984,9 @@ Window {
     }
     PhotoImportReview {
         id: photoReview
-        backdrop: scene
     }
     PhotoCleanupDialog {
         id: cleanupDialog
-        backdrop: scene
         onToastRequested: (text, error) => toast.show(text, error)
     }
     Connections {
@@ -2071,7 +2036,6 @@ Window {
         id: dataChoice
         property string forced: ""
         readonly property string mode: forced !== "" ? forced : app.startupChoice
-        backdrop: scene
         open: mode !== ""
         title: mode === "missing" ? qsTr("找不到数据文件夹") : qsTr("数据放在哪？")
         message: mode === "missing"
@@ -2099,7 +2063,6 @@ Window {
     ChoiceDialog {
         id: noDataDialog
         property string dir: ""
-        backdrop: scene
         title: qsTr("这个文件夹里还没有旅行计划的数据")
         message: dir
         cancelKey: "cancel"
@@ -2125,7 +2088,6 @@ Window {
     // 冲突（PO 2026-11-02 选方案 B）
     ChoiceDialog {
         id: conflictDialog
-        backdrop: scene
         title: qsTr("数据文件被别处改过")
         message: qsTr("打开之后，数据文件夹里的 travel.json 被别的程序改过（比如另一个旅行计划窗口）。这次保存要怎么办？")
         cancelKey: "keep"
@@ -2145,7 +2107,6 @@ Window {
         id: closeFailDialog
         property bool conflict: true
         property string error: ""
-        backdrop: scene
         cardWidth: 540
         title: qsTr("关闭前没能保存")
         paragraphs: conflict
@@ -2168,7 +2129,6 @@ Window {
     MessageDialog {
         id: restoreDialog
         property var entry: null
-        backdrop: scene
         title: qsTr("恢复到这一天的版本？")
         paragraphs: entry ? [settings.dateText(entry.date) + " · " + qsTr("%1 个计划").arg(entry.plans),
                              qsTr("现在的 travel.json 会先存成 travel.backup.json，然后换成这一版。")] : []
@@ -2186,7 +2146,6 @@ Window {
     MessageDialog {
         id: crashDialog
         property var crash: ({})   // 不能叫 info：Main 里已有 id info（左下角测试信息），id 优先
-        backdrop: scene
         cardWidth: 500
         open: crash.code !== undefined && crash.code !== ""
         cancelKey: "ok"
@@ -2214,7 +2173,6 @@ Window {
     ChoiceDialog {
         id: electronFolderDialog
         property string dir: ""
-        backdrop: scene
         title: qsTr("这是 Electron 版的数据文件夹")
         message: dir + "\n" + qsTr("原生版用自己的数据文件夹，不在这里写东西。可以把它导入到现在的数据里（Electron 版的数据不会被改动）。")
         cancelKey: "cancel"
@@ -2235,7 +2193,6 @@ Window {
     ChoiceDialog {
         id: importDialog
         property string src: ""
-        backdrop: scene
         cardWidth: 480
         title: qsTr("从 Electron 版导入")
         message: (src !== "" ? qsTr("来源：") + src + "\n" : qsTr("没有找到 Electron 版的数据文件夹，请先选一个。") + "\n")
@@ -2274,7 +2231,6 @@ Window {
     MessageDialog {
         id: importProgressDialog
         property bool forced: false
-        backdrop: scene
         open: app.importRunning || forced
         dismissible: false
         cancelKey: "cancel"
@@ -2292,7 +2248,6 @@ Window {
     MessageDialog {
         id: importReportDialog
         property var report: ({})
-        backdrop: scene
         cardWidth: 520
         cancelKey: "ok"
         function show(r) { report = r; open = true }
@@ -2326,7 +2281,6 @@ Window {
     // 别的旅行计划开着这份数据时"仍然编辑"
     MessageDialog {
         id: takeOverDialog
-        backdrop: scene
         cardWidth: 480
         title: qsTr("仍然在这里编辑？")
         paragraphs: [qsTr("%1 正开着这份数据。两边都改的话，后保存的会覆盖先保存的（被覆盖的那一版存成 travel.backup.json，可以找回）。").arg(app.lockOwner !== "" ? app.lockOwner : qsTr("%1 上的旅行计划 %2").arg("LAPTOP-JASON").arg("0.6.0")),
@@ -2337,7 +2291,6 @@ Window {
 
     TextInputDialog {
         id: titleDialog
-        backdrop: scene
         title: qsTr("修改窗口标题")
         hint: qsTr("显示在“旅行计划 v版本号”后面，留空就不显示。")
         onAccepted: (t) => { app.windowTitleExtra = t; open = false }

@@ -117,6 +117,7 @@ void runJournal(Report &r, AppController *app, QQuickWindow *win);
 // 0.9.1：性能——启动各步、拖地图每帧、换模式、数据重建、写设置、玻璃和标记各占多少（selftest_perf.cpp）
 FrameStats *frameStats();
 Settings *settingsObj();
+void runGlass(Report &r, AppController *app, QQuickWindow *win);
 void runPerf(Report &r, AppController *app, map::MapController *mapc, QQuickWindow *win);
 // 0.9.1：显卡内存分配器的统计（Vulkan / D3D12 才有；在渲染线程上读）
 struct RhiMem { bool ok = false; quint32 blocks = 0, allocs = 0; double usedMB = 0, unusedMB = 0; QString text() const; };

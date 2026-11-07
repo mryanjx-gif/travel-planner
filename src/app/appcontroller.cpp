@@ -1,4 +1,7 @@
 #include "appcontroller.h"
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 
 #include <QMouseEvent>
 
@@ -145,6 +148,21 @@ void AppController::setCloseAction(const QString &v)
 }
 QString AppController::windowTitleExtra() const { return m_settings->windowTitle(); }
 // ---------- 星空动画（0.9.3）----------
+QString AppController::motion() const { return m_settings->motion(); }
+void AppController::setMotion(const QString &v) { m_settings->setMotion(v); m_settings->save(); emit appearanceChanged(); }
+QString AppController::transparency() const { return m_settings->transparency(); }
+void AppController::setTransparency(const QString &v) { m_settings->setTransparency(v); m_settings->save(); emit appearanceChanged(); }
+QString AppController::glassMode() const { return m_settings->glassMode(); }
+void AppController::setGlassMode(const QString &v) { m_settings->setGlassMode(v); m_settings->save(); emit appearanceChanged(); }
+bool AppController::systemMotion() const
+{
+#ifdef Q_OS_WIN
+    static const bool on = [] { BOOL b = TRUE; return !SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &b, 0) || b; }();
+    return on;
+#else
+    return true;
+#endif
+}
 bool AppController::spaceAnim() const { return m_settings->spaceAnim(); }
 void AppController::setSpaceAnim(bool on)
 {

@@ -72,6 +72,50 @@ QString fmtPrefixed(const QList<perf::Entry> &list, const QString &prefix)
 
 } // namespace
 
+// 0.12.1：液态 / 标准 / 实色三种状态和原因，真的换了画法（同一块玻璃边上的像素变了）
+void runGlass(Report &r, AppController *app, QQuickWindow *win)
+{
+    const auto reason = [win] {
+        QVariant v;
+        QMetaObject::invokeMethod(win, "glassReasonForTest", Q_RETURN_ARG(QVariant, v));
+        return v.toString();
+    };
+    QQuickItem *surface = nullptr;
+    const auto find = [&](auto &&self, QQuickItem *i) -> void {
+        if (surface) return;
+        if (i->objectName() == QLatin1String("glassSurface") && i->isVisible() && i->width() > 20) { surface = i; return; }
+        for (QQuickItem *c : i->childItems()) self(self, c);
+    };
+    find(find, win->contentItem());
+    r.check(surface != nullptr, QStringLiteral("看得见的液态玻璃至少一块"));
+    if (!surface) return;
+    const QPointF edge = surface->mapToScene(QPointF(surface->width() / 2, 3));   // 斜面上
+    const auto pixel = [&] {
+        waitFrames(win, 3);
+        return win->grabWindow().pixelColor((edge * win->effectiveDevicePixelRatio()).toPoint());
+    };
+    const QString m0 = app->motion(), t0 = app->transparency(), g0 = app->glassMode();
+    app->setMotion(QStringLiteral("on")); app->setTransparency(QStringLiteral("on")); app->setGlassMode(QStringLiteral("liquid"));
+    r.check(reason().isEmpty(), QStringLiteral("默认是液态，没有原因"));
+    const QColor liquid = pixel();
+    app->setGlassMode(QStringLiteral("css"));
+    r.check(reason() == QLatin1String("pref"), QStringLiteral("选标准：原因 pref"));
+    const QColor std0 = pixel();
+    r.check(liquid != std0, QStringLiteral("标准玻璃真的换了画法（%1 → %2）").arg(liquid.name(), std0.name()));
+    app->setGlassMode(QStringLiteral("liquid"));
+    app->setMotion(QStringLiteral("off"));
+    r.check(reason() == QLatin1String("motion"), QStringLiteral("减少动效：原因 motion"));
+    app->setMotion(QStringLiteral("on"));
+    app->setTransparency(QStringLiteral("off"));
+    r.check(reason() == QLatin1String("transparency"), QStringLiteral("透明效果关：原因 transparency"));
+    app->setTransparency(QStringLiteral("on"));
+    QMetaObject::invokeMethod(win, "setGlassSlowForTest", Q_ARG(QVariant, true));
+    r.check(reason() == QLatin1String("slow"), QStringLiteral("带不动：原因 slow"));
+    app->setGlassMode(QStringLiteral("liquid"));   // 改一次设置：重试
+    r.check(reason().isEmpty(), QStringLiteral("改一次设置：回到液态"));
+    app->setMotion(m0); app->setTransparency(t0); app->setGlassMode(g0);
+}
+
 void runPerf(Report &r, AppController *app, map::MapController *mapc, QQuickWindow *win)
 {
     r.section(QStringLiteral("性能（0.9.1，先量再改；这一节只记数，不判断快慢）"));

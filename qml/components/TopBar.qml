@@ -17,7 +17,6 @@ import TPApp
 
 Item {
     id: root
-    property Item backdrop: null
     property string page: "plan"
     property bool onMap: true              // 0.8.10：当前是地图的一种模式（不是整页 / 设置）
     property string pageLabel: ""          // 不在地图页时 ⋯ 旁边显示的页名（只有 ⋯ 里有的页面才有）
@@ -98,7 +97,6 @@ Item {
             Accessible.name: qsTr("页面")
             GlassPanel {
                 anchors.fill: parent
-                backdrop: root.backdrop
                 radius: height / 2
                 tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.69 : 0.96)
                 edge: dotsMa.containsMouse ? Theme.lineStrong : Theme.glassEdge
@@ -155,7 +153,6 @@ Item {
             visible: !root.onMap
             opacity: bubbles.open ? 0 : 1
             Behavior on opacity { NumberAnimation { duration: Theme.motion ? 200 : 0 } }
-            backdrop: root.backdrop
             icon: "uturn"
             iconColor: Theme.accentInk
             tip: qsTr("回到地图")
@@ -205,7 +202,6 @@ Item {
                     required property int index
                     readonly property string key: modelData.key
                     objectName: "bud-" + modelData.key
-                    backdrop: root.backdrop
                     text: modelData.name
                     on: root.activeKeys.indexOf(key) >= 0
                     caret: modelData.sub === true
@@ -244,7 +240,6 @@ Item {
                     readonly property var parentBud: { buds.count; return buds.itemAt(modelData.ownerIndex) }
                     readonly property var ps: parentBud ? parentBud.slot : ({ x: 0, row: 0 })
                     objectName: "bud-" + modelData.key
-                    backdrop: root.backdrop
                     text: modelData.name
                     on: root.activeKeys.indexOf(key) >= 0
                     onColor: Theme.accentInk
@@ -284,7 +279,6 @@ Item {
             height: root.btnH
             GlassPanel {
                 anchors.fill: parent
-                backdrop: root.backdrop
                 radius: height / 2
                 tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.69 : 0.96)
             }
@@ -304,7 +298,6 @@ Item {
             height: root.btnH
             GlassPanel {
                 anchors.fill: parent
-                backdrop: root.backdrop
                 radius: height / 2
                 tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.69 : 0.96)
             }

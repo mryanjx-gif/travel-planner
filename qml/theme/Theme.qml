@@ -9,6 +9,11 @@ QtObject {
     // "动效"和"透明效果"两个设置（设置页在阶段 ⑥；现在默认都开）
     property bool motion: true
     property bool glass: true
+    property string glassMode: "liquid"   // "liquid" / "css"（设置）
+    property bool glassSlow: false        // 带不动，这次运行自动换成了标准玻璃
+    readonly property bool liquidOn: glass && motion && glassMode === "liquid" && !glassSlow
+    // 没用真玻璃的原因（设置页显示）：""、pref、motion、transparency、slow
+    readonly property string glassReason: !glass ? "transparency" : glassMode !== "liquid" ? "pref" : !motion ? "motion" : glassSlow ? "slow" : ""
     property Item glassSource: null   // 全窗口共用的玻璃背景（Main.qml 给）
 
     function px(n) { return Math.round(n * scale) }

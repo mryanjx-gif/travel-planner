@@ -51,6 +51,14 @@ public:
     static double fontScaleFor(const QString &size);
     static QString stepFontSize(const QString &size, int dir);   // Ctrl+ / Ctrl−：往大 / 往小一档
 
+    // 外观（0.12.1，功能清单 X-04–X-07）。键名和取值同 Electron prefs.js
+    QString motion() const;             // 'auto' 跟随系统（默认）/ 'on' / 'off'
+    void setMotion(const QString &v);
+    QString transparency() const;       // 'on'（默认）/ 'off'
+    void setTransparency(const QString &v);
+    QString glassMode() const;          // 'liquid'（默认）/ 'css' 标准
+    void setGlassMode(const QString &v);
+
     QString windowTitle() const;        // 用户加在标题后面的文字（默认空）
     void setWindowTitle(const QString &v);
 

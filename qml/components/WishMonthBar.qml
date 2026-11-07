@@ -5,13 +5,12 @@ import TPApp
 
 Item {
     id: root
-    property Item backdrop: null
     readonly property int month: plans.wishMonth
     readonly property int nowMonth: +plans.today.slice(5, 7)
     implicitHeight: Theme.px(46)
     implicitWidth: 12 * Theme.px(42) + Theme.px(12)
 
-    GlassPanel { anchors.fill: parent; backdrop: root.backdrop; radius: Theme.px(16) }
+    GlassPanel { anchors.fill: parent; radius: Theme.px(16) }
     MouseArea { anchors.fill: parent; onWheel: (w) => w.accepted = true }
     Row {
         x: Theme.px(6)

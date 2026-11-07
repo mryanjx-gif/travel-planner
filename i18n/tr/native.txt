@@ -955,3 +955,17 @@ HEIC 照片能导入；这台电脑没装 HEIF / HEVC 扩展，暂时显示不�
 添加同行人的名字，回车	Type a companion's name, press Enter
 还没有记账。旅途中随手记，回来就知道钱花在哪了。和别人一起出去时，点上面的“同行人”添加，就能分账。	Nothing recorded yet. Jot things down as you go and you'll know where the money went. Traveling with others? Add them with "Companions" above to split costs.
 全部路线	All stops
+动效	Motion
+跟随系统	Follow system
+开	On
+减少动效	Reduce motion
+透明效果	Transparency
+关（全部实色）	Off (solid colors)
+玻璃材质	Glass
+液态	Liquid
+标准	Standard
+当前：液态	Current: liquid
+当前：标准 · 设置里选了“标准”	Current: standard · chosen in settings
+当前：标准 · 动效设成了减少动效（或系统关了动画）	Current: standard · motion is reduced (here or in Windows)
+当前：标准 · 显卡带不动，已自动换成标准玻璃，改一次这里的设置或下次启动时重试	Current: standard · the graphics card couldn't keep up, so it switched automatically. Change a setting here or restart to retry
+当前：实色 · 透明效果关了	Current: solid · transparency is off

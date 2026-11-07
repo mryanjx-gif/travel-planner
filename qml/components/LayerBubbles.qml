@@ -14,7 +14,6 @@ import TPApp
 
 Item {
     id: root
-    property Item backdrop: null
     property var bases: []            // [{ key, name }]，顺序 = 离按钮由近到远（Electron：row-reverse 排列）
     property string current: ""
     property bool dark: false         // 卫星图上
@@ -68,7 +67,6 @@ Item {
             id: bud
             required property var modelData
             required property int index
-            backdrop: root.backdrop
             text: modelData.name
             on: root.current === modelData.key
             dark: root.dark
@@ -105,7 +103,6 @@ Item {
     GlassPanel {
         id: btn
         anchors.fill: parent
-        backdrop: root.backdrop
         radius: Theme.px(12)
         tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? (root.dark ? 0.25 : 0.69) : 0.96)
         scale: btnArea.pressed ? 0.9 : 1   // 按下时轻轻缩一下（glass.css :active scale(.9)）

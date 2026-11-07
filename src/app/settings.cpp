@@ -89,6 +89,17 @@ QString Settings::lang() const
 }
 void Settings::setLang(const QString &v) { m_langOverride.clear(); setValue(QStringLiteral("lang"), v == QLatin1String("en") ? QStringLiteral("en") : QStringLiteral("zh")); }
 
+QString Settings::motion() const
+{
+    const QString v = str(QStringLiteral("motion"));
+    return v == QLatin1String("on") || v == QLatin1String("off") ? v : QStringLiteral("auto");
+}
+void Settings::setMotion(const QString &v) { setValue(QStringLiteral("motion"), v); }
+QString Settings::transparency() const { return str(QStringLiteral("transparency")) == QLatin1String("off") ? QStringLiteral("off") : QStringLiteral("on"); }
+void Settings::setTransparency(const QString &v) { setValue(QStringLiteral("transparency"), v); }
+QString Settings::glassMode() const { return str(QStringLiteral("glassMode")) == QLatin1String("css") ? QStringLiteral("css") : QStringLiteral("liquid"); }
+void Settings::setGlassMode(const QString &v) { setValue(QStringLiteral("glassMode"), v); }
+
 QString Settings::fontSize() const
 {
     const QString v = str(QStringLiteral("fontSize"));

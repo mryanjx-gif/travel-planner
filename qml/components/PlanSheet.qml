@@ -11,7 +11,6 @@ import TPApp
 
 Item {
     id: root
-    property Item backdrop: null
     property var source: ({})                   // plans.sheet；关掉（变空）时面板滑出去，内容留着
     property var sheet: ({})
     onSourceChanged: if (source && source.id) sheet = source
@@ -62,7 +61,6 @@ Item {
 
     GlassPanel {
         anchors.fill: parent
-        backdrop: root.backdrop
         radius: Theme.radiusLarge
     }
     MouseArea { anchors.fill: parent; onClicked: moreMenu.open = false; onWheel: (w) => w.accepted = true }

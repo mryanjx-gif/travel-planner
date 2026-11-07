@@ -16,7 +16,6 @@ import TPApp
 
 Item {
     id: root
-    property Item backdrop: null
     property bool open: false
     property var info: ({})               // plans.list
     property string selectedId: ""
@@ -107,7 +106,6 @@ Item {
 
     GlassPanel {
         anchors.fill: parent
-        backdrop: root.backdrop
         radius: Theme.px(16)
     }
     MouseArea { anchors.fill: parent; onWheel: (w) => w.accepted = true }   // 面板里的空白处不穿透到地图

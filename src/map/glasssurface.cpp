@@ -6,6 +6,9 @@
 #include <QSGMaterial>
 #include <QSGMaterialShader>
 #include <QSGTextureProvider>
+#include <QElapsedTimer>
+#include <QSGRendererInterface>
+#include <rhi/qrhi.h>
 #include <algorithm>
 #include <cstring>
 
@@ -24,7 +27,7 @@ QVector<GlassSurface *> &all()
 
 // 和 glass.frag 的 std140 布局一致：从第 68 字节开始（前面是 qt_Matrix、qt_Opacity）
 struct Uniforms {
-    float lod = 0, n = 1, pad0 = 0;
+    float lod = 0, n = 1, plain = 0;
     float sceneSize[2] = {1, 1};
     float pad1[2] = {0, 0};
     float tint[4] = {1, 1, 1, 1};
@@ -147,6 +150,14 @@ void GlassSurface::setTint(const QColor &c)
     emit tintChanged();
 }
 
+void GlassSurface::setPlain(bool on)
+{
+    if (m_plain == on) return;
+    m_plain = on;
+    update();
+    emit plainChanged();
+}
+
 bool GlassSurface::pill() const { return m_radius >= std::min(width(), height()) / 2 - 1; }
 
 qreal GlassSurface::sceneRadius() const { return width() > 0 ? m_radius * m_rect.width() / width() : m_radius; }
@@ -228,6 +239,7 @@ QSGNode *GlassSurface::updatePaintNode(QSGNode *old, UpdatePaintNodeData *)
     put(0, m_rect, sceneRadius(), pill() ? 1.f : 2.f);   // 第 0 个总是自己
     for (int i = 0; i < m_near.size(); ++i) put(i + 1, m_near[i].rect, m_near[i].radius, 1.f);
     u.n = float(1 + m_near.size());
+    u.plain = m_plain ? 1.f : 0.f;
 
     // 顶点：本地坐标（跟着缩放走）；纹理坐标放场景坐标，着色器按它算
     const qreal k = width() > 0 ? m_rect.width() / width() : 1;
@@ -240,4 +252,28 @@ QSGNode *GlassSurface::updatePaintNode(QSGNode *old, UpdatePaintNodeData *)
     v[3].set(float(width() + lp), float(height() + lp), float(sr.right()), float(sr.bottom()));
     node->markDirty(QSGNode::DirtyGeometry | QSGNode::DirtyMaterial);
     return node;
+}
+
+void GlassWatch::setWindow(QQuickWindow *w)
+{
+    if (m_win == w || !w) return;
+    m_win = w;
+    connect(w, &QQuickWindow::afterRendering, this, [this, w] {
+        static QElapsedTimer clock;
+        if (!clock.isValid()) clock.start();
+        QSGRendererInterface *ri = w->rendererInterface();
+        auto *sc = static_cast<QRhiSwapChain *>(ri->getResource(w, QSGRendererInterface::RhiSwapchainResource));
+        QRhiCommandBuffer *cb = sc ? sc->currentFrameCommandBuffer() : nullptr;
+        const double ms = cb ? cb->lastCompletedGpuTime() * 1000 : 0;
+        if (!m_active || ms <= 20) {
+            if (ms > 0 || !m_active) { m_since = -1; m_count = 0; }   // 0 = 这帧没拿到结果，不算
+            return;
+        }
+        const double now = clock.elapsed();
+        if (m_since < 0) m_since = now;
+        if (++m_count >= 20 && now - m_since >= 2000) {
+            m_active = false;
+            QMetaObject::invokeMethod(this, &GlassWatch::slow, Qt::QueuedConnection);
+        }
+    }, Qt::DirectConnection);
 }

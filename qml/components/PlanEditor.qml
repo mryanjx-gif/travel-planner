@@ -14,7 +14,6 @@ Item {
     QtObject { id: schedEdit; property int stop: -1; property int j: -2; property var draft: ({}); property string err: "" }
     readonly property bool scheduleEditing: schedEdit.j !== -2
     function cancelSchedule() { schedEdit.j = -2 }
-    property Item backdrop: null
     property bool drawer: false
     property bool infoOpen: false
     property var expanded: ({})          // 站点 id → 展开着
@@ -110,7 +109,7 @@ Item {
         }
     }
 
-    GlassPanel { anchors.fill: parent; backdrop: root.backdrop; radius: root.drawer ? Theme.radius : Theme.radiusLarge }
+    GlassPanel { anchors.fill: parent; radius: root.drawer ? Theme.radius : Theme.radiusLarge }
     MouseArea { anchors.fill: parent; onWheel: (w) => w.accepted = true }
 
     // ---- 抽屉的把手（窄窗口） ----

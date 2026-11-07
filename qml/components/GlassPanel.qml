@@ -8,7 +8,6 @@ import TPApp
 
 Item {
     id: root
-    property Item backdrop: null
     property real radius: Theme.radius
     property color tint: Theme.glassTint
     property color edge: Theme.glassEdge
@@ -34,6 +33,7 @@ Item {
         source: Theme.glassSource
         radius: root.radius
         tint: root.tint
+        plain: !Theme.liquidOn
     }
 
     // 玻璃自带亮线：液态时这里只画特别的边（鼠标移上去、警告）

@@ -107,6 +107,58 @@ GlassPanel {
                     width: parent.width
                     spacing: Theme.px(7)
                     Text {
+                        text: qsTr("动效")
+                        font.family: serifFamily; font.pixelSize: Theme.px(13.5); font.bold: true; color: Theme.text
+                    }
+                    Segmented {
+                        width: parent.width
+                        fill: true
+                        options: [{ key: "auto", text: qsTr("跟随系统") }, { key: "on", text: qsTr("开") }, { key: "off", text: qsTr("减少动效") }]
+                        current: app.motion
+                        onPicked: (k) => app.motion = k
+                    }
+                }
+                Column {
+                    width: parent.width
+                    spacing: Theme.px(7)
+                    Text {
+                        text: qsTr("透明效果")
+                        font.family: serifFamily; font.pixelSize: Theme.px(13.5); font.bold: true; color: Theme.text
+                    }
+                    Segmented {
+                        options: [{ key: "on", text: qsTr("开") }, { key: "off", text: qsTr("关（全部实色）") }]
+                        current: app.transparency
+                        onPicked: (k) => app.transparency = k
+                    }
+                }
+                Column {
+                    width: parent.width
+                    spacing: Theme.px(7)
+                    Text {
+                        text: qsTr("玻璃材质")
+                        font.family: serifFamily; font.pixelSize: Theme.px(13.5); font.bold: true; color: Theme.text
+                    }
+                    Segmented {
+                        options: [{ key: "liquid", text: qsTr("液态") }, { key: "css", text: qsTr("标准") }]
+                        current: app.glassMode
+                        onPicked: (k) => app.glassMode = k
+                    }
+                    Text {
+                        objectName: "glassStatus"
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        text: Theme.glassReason === "" ? qsTr("当前：液态")
+                            : Theme.glassReason === "pref" ? qsTr("当前：标准 · 设置里选了“标准”")
+                            : Theme.glassReason === "motion" ? qsTr("当前：标准 · 动效设成了减少动效（或系统关了动画）")
+                            : Theme.glassReason === "slow" ? qsTr("当前：标准 · 显卡带不动，已自动换成标准玻璃，改一次这里的设置或下次启动时重试")
+                            : qsTr("当前：实色 · 透明效果关了")
+                        font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
+                    }
+                }
+                Column {
+                    width: parent.width
+                    spacing: Theme.px(7)
+                    Text {
                         text: qsTr("关闭按钮")
                         font.family: serifFamily; font.pixelSize: Theme.px(13.5); font.bold: true; color: Theme.text
                     }

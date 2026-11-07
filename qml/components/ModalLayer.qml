@@ -6,7 +6,6 @@ import TPApp
 Item {
     id: root
     property bool open: false
-    property Item backdrop: null
     property real cardWidth: 460
     property bool dismissible: true     // Esc / 点遮罩能不能关
     default property alias content: col.data
@@ -36,7 +35,6 @@ Item {
 
         GlassPanel {
             id: card
-            backdrop: root.backdrop
             liquid: false
             tint: Qt.rgba(Theme.glassTint.r, Theme.glassTint.g, Theme.glassTint.b, 0.97)
             width: Math.min(Theme.px(root.cardWidth), root.width - 32)

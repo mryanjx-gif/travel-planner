@@ -8,7 +8,6 @@ import TPApp
 
 Item {
     id: root
-    property Item backdrop: null
     property bool open: false
     property var source: function () { return [] }   // Main 给：() → [{ kind, label, sub, id, key, kbd, color, … }]
     property var recent: []
@@ -90,7 +89,6 @@ Item {
         Behavior on scale { enabled: Theme.motion; NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
         GlassPanel {
             anchors.fill: parent
-            backdrop: root.backdrop
             radius: Theme.px(18)
             tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.92 : 0.98)
         }

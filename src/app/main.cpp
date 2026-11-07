@@ -440,8 +440,8 @@ int main(int argc, char *argv[])
     tp::app::perf::startup("界面加载完");
     // 0.9.1：每一帧的时间（自检"性能"一节、内存测试用；平时设环境变量 TP_FRAME_STATS=1 才挂）。显卡时间戳要在窗口显示前打开
     tp::app::FrameStats *frameStats = nullptr;
+    tp::app::FrameStats::enableGpuTimestamps(win);   // 0.12.1：玻璃的自动降级要看显卡耗时
     if (testRun || qEnvironmentVariableIntValue("TP_FRAME_STATS") > 0) {
-        tp::app::FrameStats::enableGpuTimestamps(win);
         frameStats = new tp::app::FrameStats(win, &app);
     }
     // 第一帧换上来的时刻（渲染线程上发，只记一次）

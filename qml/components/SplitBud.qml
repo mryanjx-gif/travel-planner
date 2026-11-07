@@ -9,7 +9,6 @@ import TPApp
 
 Item {
     id: bud
-    property Item backdrop: null
     property string text: ""
     property bool on: false
     property bool dark: false
@@ -60,7 +59,6 @@ Item {
 
     GlassPanel {
         anchors.fill: parent
-        backdrop: bud.backdrop
         radius: height / 2
         shadow: bud.p > 0.98
         tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? (bud.dark ? 0.25 : bud.baseAlpha) : 0.96)

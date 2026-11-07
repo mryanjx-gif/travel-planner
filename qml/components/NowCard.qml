@@ -13,7 +13,6 @@ import TPApp
 
 Item {
     id: root
-    property Item backdrop: null
     property var info: ({})
     signal closeRequested()
     signal showOnMap(string planId)
@@ -42,7 +41,6 @@ Item {
 
     GlassPanel {
         anchors.fill: parent
-        backdrop: root.backdrop
         radius: Theme.radius
     }
     MouseArea { anchors.fill: parent; onClicked: moreMenu.open = false }

@@ -113,6 +113,7 @@ void runAll(Report &r, AppController *app, PhotoController *photos, map::MapCont
     const QStringList only = qEnvironmentVariable("TP_SELFTEST_ONLY").split(u',', Qt::SkipEmptyParts);
     const auto want = [&only](const char *key) { return only.isEmpty() || only.contains(QLatin1String(key)); };
     if (!only.isEmpty()) r.info(QStringLiteral("只跑：%1（TP_SELFTEST_ONLY）").arg(only.join(QStringLiteral("、"))));
+    if (want("glass")) runGlass(r, app, win);   // 0.12.1
     if (want("perf")) runPerf(r, app, mapc, win);   // 0.9.1：放在最前面（数据、筛选都还是刚打开时的样子）
     if (want("map")) runMap(r, app, mapc, win);
     if (want("markers")) runMarkers(r, mapc, win);

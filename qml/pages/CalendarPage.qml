@@ -7,7 +7,6 @@ import TPApp
 
 Item {
     id: root
-    property Item backdrop: null
     property bool shown: false
     signal openPlan(string id, string tab)
     signal toast(string text, bool warn)
@@ -183,7 +182,6 @@ Item {
 
     GlassPanel {
         anchors.fill: parent
-        backdrop: root.backdrop
         radius: Theme.radius
         tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.985 : 0.99)
         liquid: false

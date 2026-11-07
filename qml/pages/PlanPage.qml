@@ -9,7 +9,6 @@ import TPApp
 
 Item {
     id: root
-    property Item backdrop: null
     property var source: ({})
     property var info: ({})                 // 关掉（变空）时面板滑出去，内容留着
     onSourceChanged: if (source && source.id) {
@@ -223,7 +222,6 @@ Item {
 
     GlassPanel {
         anchors.fill: parent
-        backdrop: root.backdrop
         radius: Theme.radiusLarge
         tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.95 : 0.99)
     }

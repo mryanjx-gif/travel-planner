@@ -8,6 +8,7 @@ layout(std140, binding = 0) uniform buf {
     float qt_Opacity;
     float lod;
     float n;
+    float plain;
     vec2 sceneSize;
     vec4 tint;
     vec4 rects[8];

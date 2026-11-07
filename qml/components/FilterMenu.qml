@@ -8,7 +8,6 @@ import TPApp
 
 Item {
     id: root
-    property Item backdrop: null
     property bool open: false
     width: Theme.px(Fmt.en ? 360 : 300)
     height: col.implicitHeight + Theme.px(26)
@@ -25,7 +24,6 @@ Item {
 
     GlassPanel {
         anchors.fill: parent
-        backdrop: root.backdrop
         radius: Theme.radius
     }
     MouseArea { anchors.fill: parent }   // 面板里的空白处不穿透到地图

@@ -4,7 +4,6 @@ import TPApp
 
 Item {
     id: root
-    property Item backdrop: null
     property string icon: ""
     property color iconColor: Theme.text
     property bool on: false            // 选中 / 打开时图标用强调色
@@ -17,7 +16,6 @@ Item {
 
     GlassPanel {
         anchors.fill: parent
-        backdrop: root.backdrop
         radius: width / 2
         tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.69 : 0.96)
         edge: ma.containsMouse ? Theme.lineStrong : Theme.glassEdge

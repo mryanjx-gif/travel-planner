@@ -10,6 +10,7 @@ layout(std140, binding = 0) uniform buf {
     float qt_Opacity;
     float lod;        // 面上磨砂的 mip 级别
     float n;          // rects 里有几个
+    float plain;      // 1 = 标准玻璃
     vec2 sceneSize;
     vec4 tint;        // 底色 rgba（雾蓝 --g-map × .92 × 这块的 --lg-alpha）
     vec4 rects[8];    // x, y, w, h（场景像素）
@@ -49,6 +50,13 @@ void main()
     float d = sdf(p);
     // 一个像素只由离它最近的那块面来画，不盖住相邻泡泡的内容
     if (d > 1.5 || gi != 0) { fragColor = vec4(0.); return; }
+    if (plain > .5) {   // 标准玻璃（X-04）：同一个形状和粘连，只磨砂 + 底色 + 细亮线
+        vec3 c0 = mix(bg(p / sceneSize, lod + 1.), tint.rgb, clamp(tint.a, 0., 1.));
+        c0 += vec3(smoothstep(1.2, 0., abs(d + .9)) * .35);
+        float a0 = 1. - smoothstep(-.75, .75, d);
+        fragColor = vec4(c0 * a0, a0) * qt_Opacity;
+        return;
+    }
     float hx = height(sdf(p + vec2(1., 0.))) - height(sdf(p - vec2(1., 0.)));
     float hy = height(sdf(p + vec2(0., 1.))) - height(sdf(p - vec2(0., 1.)));
     vec3 n3 = normalize(vec3(-hx * BEVEL * .5, -hy * BEVEL * .5, 1.));

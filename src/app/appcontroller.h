@@ -39,6 +39,10 @@ class AppController : public QObject
     Q_PROPERTY(double fontScale READ fontScale NOTIFY fontSizeChanged)
     Q_PROPERTY(QString closeAction READ closeAction WRITE setCloseAction NOTIFY closeActionChanged)
     Q_PROPERTY(QString windowTitleExtra READ windowTitleExtra WRITE setWindowTitleExtra NOTIFY windowTitleExtraChanged)
+    Q_PROPERTY(QString motion READ motion WRITE setMotion NOTIFY appearanceChanged)
+    Q_PROPERTY(QString transparency READ transparency WRITE setTransparency NOTIFY appearanceChanged)
+    Q_PROPERTY(QString glassMode READ glassMode WRITE setGlassMode NOTIFY appearanceChanged)
+    Q_PROPERTY(bool systemMotion READ systemMotion CONSTANT)   // Windows 的"显示动画"，启动时读一次
     Q_PROPERTY(bool spaceAnim READ spaceAnim WRITE setSpaceAnim NOTIFY spaceAnimChanged)   // 0.9.3 星空动画
 
     Q_PROPERTY(QString dataDir READ dataDir NOTIFY dataChanged)
@@ -101,6 +105,13 @@ public:
     QString closeAction() const;
     void setCloseAction(const QString &v);
     QString windowTitleExtra() const;
+    QString motion() const;
+    void setMotion(const QString &v);
+    QString transparency() const;
+    void setTransparency(const QString &v);
+    QString glassMode() const;
+    void setGlassMode(const QString &v);
+    bool systemMotion() const;
     bool spaceAnim() const;
     void setSpaceAnim(bool on);
     void setWindowTitleExtra(const QString &v);
@@ -211,6 +222,7 @@ signals:
     void fontSizeChanged();
     void closeActionChanged();
     void windowTitleExtraChanged();
+    void appearanceChanged();
     void spaceAnimChanged();
     void dataChanged();
     void docReplaced();       // 撤销 / 重做换了一版数据（0.7.0，照片页跟着刷新）
