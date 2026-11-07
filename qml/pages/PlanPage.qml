@@ -38,6 +38,7 @@ Item {
     signal saveTemplateRequested()
     signal editLocalEmergency()
     signal editEmergency()
+    signal docsRequested()                  // 0.12.4 证件警告的"管理证件"
     signal guideLinkRequested(string selected)
     signal guidePhotoRequested()
     // 0.10.5 照片标签、看大图（对话框和 Lightbox 在 Main.qml）
@@ -375,7 +376,7 @@ Item {
                     font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
                 }
             }
-            // ---- 证件警告（"管理证件"在阶段 ⑥ 有证件设置以后再加）----
+            // ---- 证件警告（0.12.4 加"管理证件"，同 Electron warnHtml）----
             Rectangle {
                 objectName: "tripWarn"
                 visible: (root.info.warnings || []).length > 0
@@ -397,6 +398,12 @@ Item {
                             text: root.warnText(modelData)
                             font.family: serifFamily; font.pixelSize: Theme.px(13); color: "#7a5a1c"
                         }
+                    }
+                    LinkText {
+                        objectName: "tripWarnDocs"
+                        small: true
+                        text: qsTr("管理证件")
+                        onClicked: root.docsRequested()
                     }
                 }
             }

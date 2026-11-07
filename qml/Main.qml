@@ -944,6 +944,11 @@ Window {
     onNowKindChanged: if (nowKind === "none") nowOpen = false
     // "此刻"卡片和"我的旅程"列表都在左边：一个打开时另一个收起（Electron syncList / setNowOpen）
     // 0.11.0 去计划库 = 计划模式 + 列表展开
+    function openDocs() {   // 0.12.4 此刻卡"看证件"、计划页"管理证件"
+        win.nowOpen = false
+        settings.showSection("docs")
+        win.goPage("settings")
+    }
     function openLibrary() {
         win.goPage("plan")
         win.listOpen = true
@@ -1051,6 +1056,7 @@ Window {
         onOpenPacking: (id) => { win.tripTab = "packing"; win.openTrip(id, -1) }
         onUnsetNext: { win.nowOpen = false; plans.setNextTrip(plans.now.planId, false) }
         onOpenLibrary: win.openLibrary()
+        onOpenDocs: win.openDocs()
         onOpenPhotos: (id) => win.openTripPhotos(id)
         onOpenJournal: (id) => { win.tripTab = "journal"; win.tripTabPlan = id; win.openTrip(id, -1) }
         onMarkDone: (id, name) => { planConfirm.ask("done", id, name) }
@@ -1693,6 +1699,7 @@ Window {
         }
         onEditLocalEmergency: emergencyDialog.showLocal(planPage.info.kit)
         onEditEmergency: emergencyDialog.showGlobal(planPage.info.kit)
+        onDocsRequested: win.openDocs()
         onGuideLinkRequested: (s) => guideLinkDialog.show(s)
         onGuidePhotoRequested: {
             const list = planPage.planPhotos()
@@ -1715,6 +1722,7 @@ Window {
         }
     }
     EmergencyDialog { id: emergencyDialog; objectName: "emergencyDialog" }
+    DocDialog { id: docDialog; objectName: "docDialog" }
     GuideLinkDialog { id: guideLinkDialog; objectName: "guideLinkDialog"; onAccepted: (md) => planPanel.guideInsertLink(md) }
     PhotoPickDialog { id: photoPickDialog; objectName: "photoPickDialog"; onPicked: (ph) => planPanel.guideInsertPhoto(ph) }
     // ---- 0.10.5 照片标签和编辑器共用：写说明、移除、加照片、选封面 ----
@@ -1921,6 +1929,8 @@ Window {
         onImportClicked: { importDialog.src = app.electronDataDir; importDialog.open = true }
         onToastRequested: (text, error) => toast.show(text, error)
         onCleanupClicked: win.startCleanup()
+        onDocRequested: (row) => docDialog.show(row)
+        onEmergencyRequested: emergencyDialog.showGlobal({ emergency: planPage.emergencyInfo() })
     }
 
     // ---- 0.8.10 整页：账本 0.10.2，日历、游记 0.11.2 ----
@@ -2452,7 +2462,7 @@ Window {
                                       || photoReview.open || cleanupDialog.open || planConfirm.open || bulkConfirm.open || wishDialog.open || editorDialog.open
                                       || daysDialog.open || startDialog.open
                                       || bookingDialog.open || expenseDialog.open || budgetDialog.open || moneyDialog.open || peopleDialog.open
-                                      || emergencyDialog.open || guideLinkDialog.open || photoPickDialog.open || tplDialog.open
+                                      || emergencyDialog.open || docDialog.open || guideLinkDialog.open || photoPickDialog.open || tplDialog.open
                                       || journalDeleteDialog.open || journalPhotoPick.open || journalLinkDialog.open
                                       || lightbox.open || photoCaptionDialog.open || photoRemoveDialog.open || coverPickDialog.open
     readonly property bool textFocused: activeFocusItem !== null && activeFocusItem.cursorPosition !== undefined
@@ -2594,6 +2604,19 @@ Window {
         else if (shotPage === "ui-ext" || shotPage === "ui-ext-dirty") extCard.forced = true
         else if (shotPage === "ui-closefail") closeFailDialog.open = true
         else if (shotPage === "ui-closefail-error") { closeFailDialog.conflict = false; closeFailDialog.error = qsTr("拒绝访问。"); closeFailDialog.open = true }
+        else if (shotPage === "ui-settings-money") { rates.setManualForShot("AUD", 4.65); goPage("settings") }
+        else if (shotPage === "ui-settings-docs" || shotPage === "ui-settings-doc-form") {
+            const opt = planPage.documentPlanOptions("")
+            const addDay = (n) => { const x = new Date(); x.setDate(x.getDate() + n); return Qt.formatDate(x, "yyyy-MM-dd") }
+            if (planPage.documents().length === 0) {   // 截图的数据副本会留到下一张，只加一次
+                planPage.saveDocument(-1, "", { kind: "passport", owner: "我", label: "中国护照", expires: addDay(-30) })
+                planPage.saveDocument(-1, "", { kind: "visa", owner: "妈妈", label: "日本单次签证", expires: addDay(90), planId: opt.length ? opt[0].key : "", notes: "在领馆办的，出发前再看一眼" })
+                planPage.saveDocument(-1, "", { kind: "other", label: "国际驾照" })
+            }
+            planPage.saveEmergency({ insurer: "Allianz", policyNo: "AZ-2041-77", n0: "李明", r0: "父亲", p0: "+86 138 0000 0000" })
+            goPage("settings")
+            if (shotPage === "ui-settings-doc-form") docDialog.show(planPage.documents()[1])
+        }
         else if (shotPage.startsWith("ui-settings-") && shotPage !== "ui-settings-photos") goPage("settings")
         else if (shotPage === "ui-settings" || shotPage === "ui-backup" || shotPage === "ui-backup-running" || shotPage === "ui-devtools") goPage("settings")
         else if (shotPage === "ui-firstrun") dataChoice.forced = "firstRun"

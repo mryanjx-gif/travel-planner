@@ -47,6 +47,17 @@ bool putJournal(json::Value &root, const QString &id, const QVariantMap &fields)
 bool removeJournal(json::Value &root, const QString &id);
 int dropEmptyJournal(json::Value &root, const QString &keepId);               // 删掉标题和正文都是空的（keepId 除外），返回删了几篇
 
+// ---- 证件（0.12.4，T-08；Electron travelkit.js settingsHtml、editDoc）----
+// 按到期日排（没填的在前面，同 Electron）：[{ index（在 documents 里的位置）, id, kind, owner, label, expires, planId, planName, notes, expired }]
+QVariantList documentsInfo(const json::Value &root, const QString &today);
+// 没完成的计划 [{ key, text }]；keepId 指向别的（已完成或已删）时也列上，免得改证件时把关联丢了（已删的 text 是空的）
+QVariantList documentPlanOptions(const json::Value &root, const QString &keepId);
+// index < 0 = 新加。只动 kind、owner、label、expires、planId、notes，空的去掉键，别的键留着。
+// index 和 id 对不上（列表变过）时什么都不改，返回 "gone"。documents 删空后留 []（原生格式总有这个键）
+QString putDocument(json::Value &root, int index, const QString &id, const QVariantMap &fields);
+QString removeDocument(json::Value &root, int index, const QString &id);
+QVariantMap emergencyInfo(const json::Value &root);   // { insurer, policyNo, insurerPhone, notes, contacts: [{ name, relation, phone }] }
+
 // ---- 攻略 ----
 // { blocks: [{ type: h1 / h2 / p / li / task / quote / img, html, line（task：原文第几行）, done, id, file, caption, width, height }],
 //   heads: [{ block, level, text }] }。html 已转义，可以直接给 Text.StyledText。photo:<id> 找不到时 img 的 file 是空的

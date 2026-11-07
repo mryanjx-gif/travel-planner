@@ -23,11 +23,17 @@ namespace tp::map::plans {
 struct Rates {
     QString base, date, src;
     QHash<QString, double> table;   // 1 base = 多少这种货币
+    QHash<QString, double> manual;  // 手动汇率（settings.json manualRates，0.12.4）：1 这种货币 = 多少主货币，优先于 table
 };
 // src："frankfurter" / "er-api"。回复认不出时 table 是空的
 Rates parseRates(const QByteArray &body, const QString &src, const QString &base);
 // 1 cur = 多少 main；不知道时 < 0。表的基准不是 main 时交叉换算（刚换主货币、离线时也能算）
+// 手动填的优先（Electron prefs.js mainPer）
 double perMain(const Rates &r, const QString &main, const QString &cur);
+double onlinePerMain(const Rates &r, const QString &main, const QString &cur);   // 只看联网的表（设置页的占位提示）
+// 设置页的手动汇率表（Electron moneyHtml）：AUD、USD、JPY、EUR + 有花销或预算的计划的币种 + 填过手动汇率的 + extra，去掉主货币。
+// [{ cur, online（< 0 = 没有）, manual（0 = 没填）}]
+QVariantList rateRows(const json::Value &root, const QString &main, const Rates &r, const QStringList &extra);
 QStringList currencyCodes();                        // 24 种（Electron prefs.js CURRENCIES）
 QString planCurrency(const json::Value &plan);      // 计划的币种，没写时 AUD（Electron planCur 的默认）
 

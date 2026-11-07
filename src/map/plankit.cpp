@@ -16,7 +16,7 @@ using json::Value;
 
 namespace {
 
-const QString kPacking = QStringLiteral("packing"), kTodos = QStringLiteral("todos");
+const QString kPacking = QStringLiteral("packing"), kTodos = QStringLiteral("todos"), kDocuments = QStringLiteral("documents");
 constexpr int kDueSoonDays = 3;   // M2：方案页写的"3 天内到期"
 
 QString str(const Value &o, const char *key) { return o[QString::fromLatin1(key)].toString(); }
@@ -32,7 +32,7 @@ json::Array &mutList(Value &o, const QString &key)
 QString newId(const QString &key)   // 和 Electron TP.uid 一样的样子
 {
     static const char kChars[] = "0123456789abcdefghijklmnopqrstuvwxyz";
-    QString s = key == kTodos ? QStringLiteral("td_") : QStringLiteral("pk_");
+    QString s = key == kDocuments ? QStringLiteral("doc_") : key == kTodos ? QStringLiteral("td_") : QStringLiteral("pk_");
     for (int i = 0; i < 13; ++i) s += QLatin1Char(kChars[QRandomGenerator::global()->bounded(36)]);
     return s;
 }
@@ -129,14 +129,87 @@ QVariantMap kitInfo(const Value &root, const Value &plan, const QString &today)
         local << QVariantMap{ { QStringLiteral("label"), str(x, "label") }, { QStringLiteral("phone"), str(x, "phone") } };
     m.insert(QStringLiteral("local"), local);
 
+    m.insert(QStringLiteral("emergency"), emergencyInfo(root));
+    return m;
+}
+
+QVariantMap emergencyInfo(const Value &root)
+{
     const Value &e = root[QStringLiteral("emergency")];
     QVariantList contacts;
     for (const Value &c : e[QStringLiteral("contacts")].asArray())
         contacts << QVariantMap{ { QStringLiteral("name"), str(c, "name") }, { QStringLiteral("relation"), str(c, "relation") }, { QStringLiteral("phone"), str(c, "phone") } };
-    m.insert(QStringLiteral("emergency"), QVariantMap{
+    return QVariantMap{
         { QStringLiteral("insurer"), str(e, "insurer") }, { QStringLiteral("policyNo"), str(e, "policyNo") },
-        { QStringLiteral("insurerPhone"), str(e, "insurerPhone") }, { QStringLiteral("notes"), str(e, "notes") }, { QStringLiteral("contacts"), contacts } });
-    return m;
+        { QStringLiteral("insurerPhone"), str(e, "insurerPhone") }, { QStringLiteral("notes"), str(e, "notes") }, { QStringLiteral("contacts"), contacts } };
+}
+
+// ---------------- 证件 ----------------
+
+QVariantList documentsInfo(const Value &root, const QString &today)
+{
+    QVariantList out;
+    const json::Array &docs = root[kDocuments].asArray();
+    for (size_t i = 0; i < docs.size(); ++i) {
+        const Value &d = docs[i];
+        if (!d.isObject()) continue;
+        const QString ex = str(d, "expires"), planId = str(d, "planId");
+        QString planName;
+        for (const Value &p : root[QStringLiteral("plans")].asArray())
+            if (!planId.isEmpty() && p[QStringLiteral("id")].toString() == planId) planName = str(p, "name");
+        out << QVariantMap{ { QStringLiteral("index"), int(i) }, { QStringLiteral("id"), str(d, "id") }, { QStringLiteral("kind"), str(d, "kind") },
+                            { QStringLiteral("owner"), str(d, "owner") }, { QStringLiteral("label"), str(d, "label") }, { QStringLiteral("expires"), ex },
+                            { QStringLiteral("planId"), planId }, { QStringLiteral("planName"), planName }, { QStringLiteral("notes"), str(d, "notes") },
+                            { QStringLiteral("expired"), !ex.isEmpty() && ex < today } };
+    }
+    std::stable_sort(out.begin(), out.end(), [](const QVariant &a, const QVariant &b) {
+        return a.toMap().value(QStringLiteral("expires")).toString() < b.toMap().value(QStringLiteral("expires")).toString();
+    });
+    return out;
+}
+
+QVariantList documentPlanOptions(const Value &root, const QString &keepId)
+{
+    QVariantList out;
+    bool kept = keepId.isEmpty();
+    QString keepName;
+    for (const Value &p : root[QStringLiteral("plans")].asArray()) {
+        const QString id = p[QStringLiteral("id")].toString();
+        if (id == keepId) keepName = str(p, "name");
+        if (str(p, "status") == QLatin1String("completed")) continue;
+        out << QVariantMap{ { QStringLiteral("key"), id }, { QStringLiteral("text"), str(p, "name") } };
+        if (id == keepId) kept = true;
+    }
+    if (!kept) out << QVariantMap{ { QStringLiteral("key"), keepId }, { QStringLiteral("text"), keepName } };
+    return out;
+}
+
+QString putDocument(Value &root, int index, const QString &id, const QVariantMap &f)
+{
+    Value d = Value::object();
+    if (index >= 0) {
+        const json::Array &docs = root[kDocuments].asArray();
+        if (size_t(index) >= docs.size() || !docs[size_t(index)].isObject() || str(docs[size_t(index)], "id") != id) return QStringLiteral("gone");
+        d = docs[size_t(index)];
+    }
+    for (const char *k : { "kind", "owner", "label", "expires", "planId", "notes" }) {
+        const QString key = QString::fromLatin1(k), v = f.value(key).toString().trimmed();
+        if (v.isEmpty()) d.mutObject().remove(key); else d.mutObject().set(key, Value(v));
+    }
+    json::Array &list = mutList(root, kDocuments);
+    if (index >= 0) { list[size_t(index)] = std::move(d); return {}; }
+    d.mutObject().set(QStringLiteral("id"), Value(newId(kDocuments)));
+    list.push_back(std::move(d));
+    return {};
+}
+
+QString removeDocument(Value &root, int index, const QString &id)
+{
+    const json::Array &docs = root[kDocuments].asArray();
+    if (index < 0 || size_t(index) >= docs.size() || !docs[size_t(index)].isObject() || str(docs[size_t(index)], "id") != id) return QStringLiteral("gone");
+    json::Array &list = mutList(root, kDocuments);
+    list.erase(list.begin() + index);
+    return {};
 }
 
 QStringList splitLines(const QString &text)

@@ -1,5 +1,6 @@
 // 汇率和主货币（0.10.1，P-11；QML 里是 rates）。Frankfurter，失败时用 open.er-api.com（Electron main.js rates:fetch）。
 // 都存在 settings.json：currency（主货币，PO 选 3A：在消费和账本页头直接选）、rates（上次的表）、ratesAt（毫秒）。键名和 Electron prefs.js 一样。
+// 0.12.4：manualRates 手动汇率（键名同 Electron，{ AUD: 4.65 } = 1 AUD 值多少主货币），放在 Rates::manual，所有换算走 perMain 都用得上。
 // 20 小时内更新过就不再取（汇率源每个工作日更新一次）；离线时用上次的，页面上写明日期。
 #pragma once
 
@@ -23,6 +24,9 @@ class RatesController : public QObject
     Q_PROPERTY(QString date READ date NOTIFY changed)               // 表的日期（空 = 还没有表）
     Q_PROPERTY(bool failed READ failed NOTIFY changed)              // 上次更新失败了（正在用上次的或者没有）
     Q_PROPERTY(QStringList currencies READ currencies CONSTANT)
+    Q_PROPERTY(QString src READ src NOTIFY changed)                 // 表的来源
+    Q_PROPERTY(double updatedAt READ updatedAt NOTIFY changed)      // 取到的时间（毫秒）
+    Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
 
 public:
     RatesController(Settings *settings, services::NetClient *net, QObject *parent = nullptr);
@@ -33,9 +37,17 @@ public:
     bool failed() const { return m_failed; }
     QStringList currencies() const { return map::plans::currencyCodes(); }
     const map::plans::Rates &table() const { return m_rates; }
+    QString src() const { return m_rates.src; }
+    double updatedAt() const { return m_at; }
+    bool busy() const { return m_busy; }
 
     // 需要时更新（用到汇率的页面打开时调）
     Q_INVOKABLE void ensure();
+    // "现在更新"：不看 20 小时。这项联网关着时返回 false
+    Q_INVOKABLE bool refreshNow();
+    // 手动汇率：空 = 清掉（回到联网的）；不是大于 0 的数字时什么都不改，返回 false
+    Q_INVOKABLE bool setManualRate(const QString &cur, const QString &text);
+    Q_INVOKABLE void setManualForShot(const QString &cur, double v) { m_rates.manual.insert(cur, v); emit changed(); }   // 截图用：不写 settings.json
 
     using Fetch = std::function<void(const QUrl &, std::function<void(int httpStatus, const QByteArray &body, int netError)>)>;
     void setFetchForTest(Fetch f) { m_fetch = std::move(f); }
@@ -44,6 +56,7 @@ public:
 
 signals:
     void changed();
+    void busyChanged();
 
 private:
     void fetch(int step);

@@ -50,6 +50,7 @@ PlanPageController::PlanPageController(AppController *app, PlanController *pc, d
 {
     connect(m_rates, &RatesController::changed, this, &PlanPageController::refresh);
     connect(m_store, &data::DataStore::contentChanged, this, &PlanPageController::refresh);
+    connect(m_store, &data::DataStore::contentChanged, this, &PlanPageController::contentChanged);
     connect(m_app, &AppController::dataChanged, this, &PlanPageController::refresh);
     connect(m_plans, &PlanController::nowChanged, this, &PlanPageController::refresh);   // 过了零点、测试改"今天"
 }
@@ -231,6 +232,21 @@ QString PlanPageController::saveLocalEmergency(const QVariantMap &phones)
 QString PlanPageController::saveEmergency(const QVariantMap &fields)
 {
     return applyRoot([&](Value &d) { plans::setEmergency(d, fields); return QString(); });
+}
+
+QVariantMap PlanPageController::emergencyInfo() const { return plans::emergencyInfo(m_store->data()); }
+QVariantList PlanPageController::documents() const { return plans::documentsInfo(m_store->data(), m_plans->today()); }
+QVariantList PlanPageController::documentPlanOptions(const QString &keepId) const { return plans::documentPlanOptions(m_store->data(), keepId); }
+QVariantList PlanPageController::rateRows(const QStringList &extra) const { return plans::rateRows(m_store->data(), m_rates->main(), m_rates->table(), extra); }
+
+QString PlanPageController::saveDocument(int index, const QString &id, const QVariantMap &fields)
+{
+    return applyRoot([&](Value &d) { return plans::putDocument(d, index, id, fields); });
+}
+
+QString PlanPageController::deleteDocument(int index, const QString &id)
+{
+    return applyRoot([&](Value &d) { return plans::removeDocument(d, index, id); });
 }
 
 QString PlanPageController::setGuide(const QString &planId, const QString &text)

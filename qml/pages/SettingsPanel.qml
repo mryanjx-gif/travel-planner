@@ -1,5 +1,5 @@
 // 设置面板（右侧）。0.12.3 改版（PO 选 A，代替 Electron 的分组折叠 T-01）：宽约 760，左边侧边栏，快捷键和关于固定在底部；窄窗口改成顶部横向标签。
-// 货币、证件、联网、关于的内容在 0.12.4、0.12.5；AI 分组是占位，阶段 ⑦ 接功能。
+// 0.12.4：货币（T-07）、证件和紧急信息（T-08）。联网、关于的内容在 0.12.5；AI 分组是占位，阶段 ⑦ 接功能。
 // 0.5.0：数据里加"备份"（BackupSection，方案 B）和开发版的"测试改动"。
 import QtQuick
 import TPApp
@@ -16,6 +16,8 @@ GlassPanel {
     signal pickBackupFolder(string then)
     signal importClicked()
     signal cleanupClicked()
+    signal docRequested(var row)            // 0.12.4 加 / 改证件（row 空 = 新加）
+    signal emergencyRequested()
     signal toastRequested(string text, bool error)
 
     radius: Theme.radiusLarge
@@ -27,7 +29,8 @@ GlassPanel {
 
     // 现在看哪一组。截图页直接打开对应分组
     property string section: ({ "ui-backup": "data", "ui-backup-running": "data", "ui-devtools": "data", "ui-settings-photos": "data", "ui-settings-data": "data",
-                                "calendar-settings": "cal", "ui-settings-me": "me", "ui-settings-ai": "ai", "ui-settings-keys": "keys" })[shotPage] || "look"
+                                "calendar-settings": "cal", "ui-settings-me": "me", "ui-settings-ai": "ai", "ui-settings-keys": "keys",
+                                "ui-settings-money": "money", "ui-settings-docs": "docs", "ui-settings-doc-form": "docs" })[shotPage] || "look"
     readonly property bool narrow: width < Theme.px(640)
     readonly property var mainSections: [
         { key: "look", text: qsTr("外观") }, { key: "me", text: qsTr("我") }, { key: "map", text: qsTr("地图") }, { key: "cal", text: qsTr("日历") }, { key: "win", text: qsTr("窗口") },
@@ -35,13 +38,58 @@ GlassPanel {
     ]
     readonly property var footSections: [{ key: "keys", text: qsTr("快捷键") }, { key: "about", text: qsTr("关于") }]
     readonly property string sectionName: { const x = mainSections.concat(footSections).find(i => i.key === section); return x ? x.text : "" }
-    onSectionChanged: { flick.contentY = 0; if (section === "me") mapc.needUnlockCount() }
+    onSectionChanged: { flick.contentY = 0; if (section === "me") mapc.needUnlockCount(); refreshSection() }
+    // 从别处跳过来（此刻卡的"看证件"、计划页的"管理证件"）：已经在这一组时也回到开头
+    function showSection(key) { section = key; flick.contentY = 0 }
+
+    // ---- 货币、证件的内容（0.12.4）----
+    property var docRows: []
+    property var rateCodes: []               // 只在币种变了才换，免得填一格后整张表重建、焦点丢掉
+    property var rateMap: ({})
+    property var rateExtra: []               // 这次点"加一种货币"加的（还没填时不存）
+    property var emergency: ({})
+    function refreshRates() {
+        const rows = planPage.rateRows(rateExtra)
+        const m = {}
+        for (const x of rows) m[x.cur] = x
+        rateMap = m
+        const codes = rows.map(x => x.cur)
+        if (JSON.stringify(codes) !== JSON.stringify(rateCodes)) rateCodes = codes
+    }
+    function refreshDocs() { docRows = planPage.documents(); emergency = planPage.emergencyInfo() }
+    function refreshSection() {
+        if (section === "money") { rates.ensure(); refreshRates() }
+        if (section === "docs") refreshDocs()
+    }
+    Connections { target: rates; function onChanged() { if (root.section === "money") root.refreshRates() } }
+    function curName(c) {
+        return ({ CNY: qsTr("人民币"), AUD: qsTr("澳元"), USD: qsTr("美元"), EUR: qsTr("欧元"), JPY: qsTr("日元"), HKD: qsTr("港币"), GBP: qsTr("英镑"), NZD: qsTr("新西兰元"), KRW: qsTr("韩元"),
+                  SGD: qsTr("新加坡元"), THB: qsTr("泰铢"), MYR: qsTr("马来西亚林吉特"), IDR: qsTr("印尼盾"), VND: qsTr("越南盾"), CHF: qsTr("瑞士法郎"), TWD: qsTr("新台币"), RUB: qsTr("卢布"), TRY: qsTr("土耳其里拉"),
+                  AED: qsTr("阿联酋迪拉姆"), EGP: qsTr("埃及镑"), ISK: qsTr("冰岛克朗"), NOK: qsTr("挪威克朗"), SEK: qsTr("瑞典克朗"), CAD: qsTr("加元") })[c] || c
+    }
+    function fmtRate(v) { return v >= 100 ? v.toFixed(2) : v >= 1 ? v.toFixed(4) : v.toPrecision(4) }
+    readonly property string rateStatus: {
+        if (rates.busy) return qsTr("正在取汇率…")
+        if (rates.date === "") return rates.failed ? qsTr("还没拿到汇率，联网后重新打开计划试试") : qsTr("还没取到")
+        const s = qsTr("%1 的汇率（来源：%2，%3 取到）").arg(rates.date).arg(rates.src).arg(Qt.formatDateTime(new Date(rates.updatedAt), "yyyy-MM-dd hh:mm"))
+        return s + (rates.failed ? " · " + qsTr("更新失败，用的是上次的") : "")
+    }
+    function docName(d) {
+        const kind = d.kind === "passport" ? qsTr("护照") : d.kind === "visa" ? qsTr("签证") : qsTr("其他证件")
+        return [d.owner, kind, d.label].filter(x => x).join(" · ")
+    }
+    readonly property string emergencySummary: {
+        const e = emergency, n = (e.contacts || []).length
+        const parts = [e.insurer, e.policyNo ? qsTr("保单 %1").arg(e.policyNo) : "", n ? qsTr("%1 位紧急联系人").arg(n) : ""].filter(x => x)
+        return parts.length ? parts.join(" · ") : qsTr("保险、紧急联系人，所有计划共用。当地紧急电话在每个计划的“行李与待办”里填。")
+    }
 
     function refresh() { history = app.historyList() }
     // 开发版：故意制造一个 QML 里的 JS 错误（0.5.1）
     function devThrow() { const nothing = null; return nothing.boom }
-    onOpenChanged: if (open) { refresh(); photos.refreshCacheSize(); forceActiveFocus(); if (section === "me") mapc.needUnlockCount() }
+    onOpenChanged: if (open) { refresh(); photos.refreshCacheSize(); forceActiveFocus(); if (section === "me") mapc.needUnlockCount(); refreshSection() }
     Connections { target: app; function onDataChanged() { if (root.open) root.refresh() } }
+    Connections { target: planPage; function onContentChanged() { if (root.open) root.refreshSection() } }   // 证件、撤销、别处改了数据
     Keys.onEscapePressed: closeClicked()
     MouseArea { anchors.fill: parent; onWheel: (w) => w.accepted = false }
 
@@ -180,6 +228,7 @@ GlassPanel {
 
     Flickable {
         id: flick
+        objectName: "settingsFlick"
         anchors.top: root.narrow ? tabs.bottom : head.bottom
         anchors.bottom: parent.bottom
         anchors.right: parent.right
@@ -438,10 +487,211 @@ GlassPanel {
                 }
             }
 
-            // ---------- 货币、证件、联网：内容在 0.12.4、0.12.5 ----------
+            // ---------- 货币（T-07；Electron moneyHtml）----------
+            SettingsCard {
+                objectName: "setCard-money"
+                visible: root.section === "money"
+                width: parent.width
+                title: qsTr("货币")
+                SettingsRow {
+                    width: parent.width
+                    label: qsTr("主货币")
+                    sub: qsTr("消费统计、分账结算都折算成这种货币")
+                    TpSelect {
+                        objectName: "setMainCur"
+                        width: Theme.px(200)
+                        options: rates.currencies.map(c => ({ key: c, text: c + " · " + root.curName(c) }))
+                        current: rates.main
+                        onPicked: (k) => rates.main = k
+                    }
+                }
+                SettingsRow {
+                    objectName: "setRatesRow"
+                    width: parent.width
+                    label: qsTr("联网汇率")
+                    sub: root.rateStatus + qsTr("。需要时自动更新，一天最多一次；没联网时继续用这一版。")
+                    TpButton {
+                        objectName: "setRatesNow"
+                        compact: true
+                        enabled: !rates.busy
+                        text: qsTr("现在更新")
+                        onClicked: if (!rates.refreshNow()) root.toastRequested(qsTr("汇率的联网已关闭"), true)
+                    }
+                }
+            }
+            SettingsCard {
+                objectName: "setCard-rates"
+                visible: root.section === "money"
+                width: parent.width
+                title: qsTr("手动汇率")
+                Text {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    text: qsTr("手动填了就一直用手动的，清空后恢复用联网的。计划自己的币种在计划页“消费”标签里改。")
+                    font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
+                }
+                Repeater {
+                    model: root.rateCodes
+                    delegate: Item {
+                        id: rateRow
+                        required property string modelData
+                        readonly property var info: root.rateMap[modelData] || ({})
+                        readonly property bool hasManual: (info.manual || 0) > 0
+                        width: parent ? parent.width : 0
+                        height: Theme.px(32)
+                        function commit() {
+                            const t = rateField.text.trim()
+                            if (t === rateField.value) { rateField.bad = false; return }
+                            rateField.bad = !rates.setManualRate(modelData, t)
+                            if (rateField.bad) root.toastRequested(qsTr("汇率要填大于 0 的数字"), true)
+                        }
+                        Text {
+                            id: rateName
+                            width: Math.min(Theme.px(170), parent.width * 0.36)
+                            anchors.verticalCenter: parent.verticalCenter
+                            elide: Text.ElideRight
+                            text: "1 " + rateRow.modelData + " " + root.curName(rateRow.modelData) + " ="
+                            font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.text
+                        }
+                        TpField {
+                            id: rateField
+                            objectName: "rateField-" + rateRow.modelData
+                            x: rateName.width + Theme.px(8)
+                            width: Theme.px(104)
+                            value: rateRow.hasManual ? String(rateRow.info.manual) : ""
+                            placeholder: (rateRow.info.online || 0) > 0 ? root.fmtRate(rateRow.info.online) : qsTr("没有数据")
+                            onEditingChanged: if (!editing) rateRow.commit()
+                            onAccepted: rateRow.commit()
+                        }
+                        Text {
+                            id: rateMain
+                            x: rateField.x + rateField.width + Theme.px(8)
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: rates.main
+                            font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft
+                        }
+                        Text {
+                            x: rateMain.x + rateMain.width + Theme.px(10)
+                            width: parent.width - x - (rateClear.visible ? rateClear.width + Theme.px(6) : 0)
+                            anchors.verticalCenter: parent.verticalCenter
+                            elide: Text.ElideRight
+                            text: rateRow.hasManual ? qsTr("手动填的") : (rateRow.info.online || 0) > 0 ? qsTr("联网的") : ""
+                            font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
+                        }
+                        TpButton {
+                            id: rateClear
+                            objectName: "rateClear-" + rateRow.modelData
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: rateRow.hasManual
+                            compact: true
+                            kind: "ghost"
+                            text: qsTr("清除")
+                            onClicked: { rateField.clear(); rateField.bad = false; rates.setManualRate(rateRow.modelData, "") }
+                        }
+                    }
+                }
+                TpSelect {
+                    objectName: "rateAdd"
+                    width: Theme.px(200)
+                    placeholder: qsTr("加一种货币")
+                    options: rates.currencies.filter(c => c !== rates.main && root.rateCodes.indexOf(c) < 0).map(c => ({ key: c, text: c + " · " + root.curName(c) }))
+                    onPicked: (k) => { root.rateExtra = root.rateExtra.concat([k]); root.refreshRates() }
+                }
+            }
+
+            // ---------- 证件和紧急信息（T-08；Electron travelkit.js settingsHtml）----------
+            SettingsCard {
+                objectName: "setCard-docs"
+                visible: root.section === "docs"
+                width: parent.width
+                title: qsTr("证件")
+                Text {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    text: qsTr("填护照、签证的到期日期，计划页会在有效期不够时提醒。不要填证件号码。")
+                    font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
+                }
+                Repeater {
+                    model: root.docRows
+                    delegate: Item {
+                        id: docRow
+                        required property var modelData
+                        width: parent ? parent.width : 0
+                        height: docCol.implicitHeight
+                        Column {
+                            id: docCol
+                            width: parent.width - docEdit.width - Theme.px(10)
+                            spacing: Theme.px(2)
+                            Text {
+                                width: parent.width
+                                wrapMode: Text.Wrap
+                                text: root.docName(docRow.modelData)
+                                font.family: serifFamily; font.pixelSize: Theme.px(13.5); font.bold: true; color: Theme.text
+                            }
+                            Flow {
+                                width: parent.width
+                                spacing: Theme.px(10)
+                                Text {
+                                    objectName: "docDate-" + docRow.modelData.id
+                                    text: docRow.modelData.expires ? qsTr("到期 %1").arg(docRow.modelData.expires) + (docRow.modelData.expired ? " · " + qsTr("已过期") : "") : qsTr("没填到期日期")
+                                    font.family: serifFamily; font.pixelSize: Theme.px(12.5); font.bold: docRow.modelData.expired
+                                    color: docRow.modelData.expired ? Theme.danger : Theme.textSoft
+                                }
+                                Text {
+                                    visible: docRow.modelData.planId !== ""
+                                    text: qsTr("关联：%1").arg(docRow.modelData.planName || qsTr("（已删除的计划）"))
+                                    font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.muted
+                                }
+                            }
+                            Text {
+                                visible: docRow.modelData.notes !== ""
+                                width: parent.width
+                                wrapMode: Text.Wrap
+                                text: docRow.modelData.notes
+                                font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
+                            }
+                        }
+                        TpButton {
+                            id: docEdit
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            compact: true
+                            text: qsTr("修改")
+                            onClicked: root.docRequested(docRow.modelData)
+                        }
+                    }
+                }
+                TpButton {
+                    objectName: "docAdd"
+                    compact: true
+                    text: qsTr("添加证件")
+                    onClicked: root.docRequested(null)
+                }
+            }
+            SettingsCard {
+                objectName: "setCard-emergency"
+                visible: root.section === "docs"
+                width: parent.width
+                title: qsTr("紧急信息")
+                SettingsRow {
+                    objectName: "setEmergencyRow"
+                    width: parent.width
+                    label: qsTr("所有计划共用")
+                    sub: root.emergencySummary
+                    TpButton {
+                        objectName: "setEmergencyEdit"
+                        compact: true
+                        text: qsTr("编辑")
+                        onClicked: root.emergencyRequested()
+                    }
+                }
+            }
+
+            // ---------- 联网：内容在 0.12.5 ----------
             SettingsCard {
                 objectName: "setCard-later"
-                visible: ["money", "docs", "net"].indexOf(root.section) >= 0
+                visible: root.section === "net"
                 width: parent.width
                 title: root.sectionName
                 Text {

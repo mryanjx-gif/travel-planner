@@ -101,6 +101,8 @@ WeatherController *weatherCtl();
 void runWeather(Report &r, AppController *app, QQuickWindow *win, PlanPageController *page, NavHistory *nav, WeatherController *weather);
 // 0.10.4：行李与待办、紧急信息、游记、攻略（selftest_kit.cpp）
 void runKit(Report &r, AppController *app, QQuickWindow *win, PlanPageController *page, NavHistory *nav);
+// 0.12.4：设置的货币、证件、紧急信息，此刻卡"看证件"（selftest_kit.cpp）
+void runDocs(Report &r, AppController *app, QQuickWindow *win, PlanPageController *page, NavHistory *nav, RatesController *rates);
 // 0.10.5：照片标签、看大图、编辑器的照片和封面（selftest_photos_tab.cpp）
 void runPlanPhotos(Report &r, AppController *app, QQuickWindow *win, PlanPageController *page, NavHistory *nav, PhotoController *photos);
 // 0.11.0：计划库、想去、足迹（selftest_library.cpp）

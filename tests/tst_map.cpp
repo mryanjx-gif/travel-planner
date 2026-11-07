@@ -75,6 +75,8 @@ private slots:
     void elevEditing();
     void kitChecks();       // 0.10.4
     void kitEmergency();
+    void kitDocuments();
+    void manualRates();
     void kitJournal();
     void calShiftAndPlace();  // 0.11.2
     void calRoundTrip();
@@ -3010,6 +3012,97 @@ void TestMap::kitChecks()
     QCOMPARE(saveTemplate(root, "p"), 11);
     QCOMPARE(addFromTemplate(root, "q"), 11);
     QCOMPARE((*planById(root, "q"))["packing"].asArray()[0]["text"].toString(), QStringLiteral("雨具"));
+}
+
+void TestMap::kitDocuments()
+{
+    using namespace tp::map::plans;
+    // Electron 存的样子（travelkit.js editDoc），带一个不认识的键、一个坏条目、一个没有 id 的
+    const QString src = QString::fromUtf8(R"({"keep":1,"plans":[{"id":"p1","name":"日本","status":"planning"},{"id":"p2","name":"旧的","status":"completed"}],
+      "documents":[{"kind":"visa","owner":"妈妈","label":"单次","expires":"2030-01-01","planId":"p1","notes":"n","id":"doc_a","future":{"x":1}},
+                   7,{"kind":"passport","expires":"2020-01-01","id":"doc_b"},{"kind":"other","label":"没有 id"},{"kind":"weird","planId":"p2","id":"doc_d"}]})");
+    tp::json::Value root = parseJson(src.toUtf8());
+    const tp::json::Value orig = root;
+    const QVariantList l = documentsInfo(root, "2026-11-08");
+    QCOMPARE(l.size(), 4);
+    QCOMPARE(l[0].toMap().value("expires").toString(), QString());   // 没填的在前面
+    QCOMPARE(l[2].toMap().value("id").toString(), QStringLiteral("doc_b"));
+    QVERIFY(l[2].toMap().value("expired").toBool());
+    QCOMPARE(l[3].toMap().value("index").toInt(), 0);
+    QVERIFY(!l[3].toMap().value("expired").toBool());
+    QCOMPARE(l[3].toMap().value("planName").toString(), QStringLiteral("日本"));
+    // 不改内容地存一遍 = 往返不变（含不认识的键、键的顺序）
+    const QVariantMap same{ { "kind", "visa" }, { "owner", "妈妈" }, { "label", "单次" }, { "expires", "2030-01-01" }, { "planId", "p1" }, { "notes", "n" } };
+    QCOMPARE(putDocument(root, 0, "doc_a", same), QString());
+    QCOMPARE(tp::json::stringify(root, 0), tp::json::stringify(orig, 0));
+    // 改：清空的键去掉，不认识的留着；没有 id 的也能改，不会补 id
+    QCOMPARE(putDocument(root, 0, "doc_a", { { "kind", "visa" }, { "expires", "2031-02-03" } }), QString());
+    const tp::json::Value &a = root["documents"].asArray()[0];
+    QCOMPARE(a["expires"].toString(), QStringLiteral("2031-02-03"));
+    QVERIFY(!a.asObject().contains("owner"));
+    QCOMPARE(a["future"]["x"].toNumber(), 1.0);
+    QCOMPARE(putDocument(root, 3, "", { { "kind", "other" }, { "label", "改了" } }), QString());
+    QCOMPARE(root["documents"].asArray()[3]["label"].toString(), QStringLiteral("改了"));
+    QVERIFY(!root["documents"].asArray()[3].asObject().contains("id"));
+    // 列表变过：对不上就不动
+    const QString beforeStale = tp::json::stringify(root, 0);
+    QCOMPARE(putDocument(root, 0, "别的", same), QStringLiteral("gone"));
+    QCOMPARE(removeDocument(root, 1, ""), QStringLiteral("gone"));   // 坏条目
+    QCOMPARE(removeDocument(root, 99, "x"), QStringLiteral("gone"));
+    QCOMPARE(tp::json::stringify(root, 0), beforeStale);
+    // 新加：id 的样子同 Electron，键的顺序同 editDoc
+    QCOMPARE(putDocument(root, -1, "", { { "kind", "passport" }, { "owner", " 我 " }, { "expires", "2028-01-01" } }), QString());
+    const tp::json::Value &n = root["documents"].asArray().back();
+    QVERIFY(n["id"].toString().startsWith("doc_"));
+    QCOMPARE(n["owner"].toString(), QStringLiteral("我"));
+    // 关联到已完成或已删的计划：选项里留着，改证件时不丢
+    QCOMPARE(documentPlanOptions(root, "").size(), 1);
+    const QVariantList keep = documentPlanOptions(root, "p2");
+    QCOMPARE(keep.size(), 2);
+    QCOMPARE(keep[1].toMap().value("text").toString(), QStringLiteral("旧的"));
+    QCOMPARE(documentPlanOptions(root, "gone").last().toMap().value("text").toString(), QString());
+    // 删；删空留 []；没有 documents 时新加能建出来；顶层别的键不动
+    tp::json::Value one = parseJson(R"({"keep":1,"documents":[{"id":"a"}]})");
+    QCOMPARE(removeDocument(one, 0, "a"), QString());
+    QCOMPARE(tp::json::stringify(one, 0), QStringLiteral("{\"keep\":1,\"documents\":[]}"));
+    tp::json::Value none = parseJson(R"({"keep":1})");
+    QVERIFY(documentsInfo(none, "2026-11-08").isEmpty());
+    QCOMPARE(putDocument(none, -1, "", { { "kind", "visa" } }), QString());
+    QCOMPARE(none["documents"].asArray().size(), size_t(1));
+    QCOMPARE(none["keep"].toNumber(), 1.0);
+}
+
+void TestMap::manualRates()
+{
+    using namespace tp::map::plans;
+    Rates t = parseRates(R"({"date":"d","rates":{"AUD":0.2,"USD":0.14}})", "frankfurter", "CNY");
+    t.manual.insert("AUD", 4.65);
+    t.manual.insert("ISK", 0.05);
+    QVERIFY(qFuzzyCompare(perMain(t, "CNY", "AUD"), 4.65));          // 手动优先
+    QVERIFY(qFuzzyCompare(onlinePerMain(t, "CNY", "AUD"), 5.0));
+    QVERIFY(qFuzzyCompare(perMain(t, "CNY", "ISK"), 0.05));          // 联网表里没有也能用
+    QVERIFY(qFuzzyCompare(perMain(t, "CNY", "USD"), 1 / 0.14));      // 没填的还是联网的
+    QVERIFY(qFuzzyCompare(perMain(t, "AUD", "AUD"), 1.0));           // 主货币自己永远是 1
+    // 消费、账本、分账都用上
+    const tp::json::Value plan = parseJson(R"({"id":"p","name":"x","status":"completed","startDate":"2026-01-01","endDate":"2026-01-02","currency":"AUD",
+        "people":[{"id":"a","name":"甲"},{"id":"b","name":"乙"}],"expenses":[{"id":"e","amount":100,"date":"2026-01-01","paidBy":"a","split":["a","b"]}]})");
+    QVERIFY(qAbs(spendInfo(plan, "CNY", t).value("mainTotal").toDouble() - 465) < 1e-6);
+    tp::json::Value root = tp::json::Value::object();
+    tp::json::Array list;
+    list.push_back(plan);
+    root.mutObject().set("plans", tp::json::Value(std::move(list)));
+    QVERIFY(qAbs(ledgerInfo(root, "CNY", t, "2026-11-08").value("total").toDouble() - 465) < 1e-6);
+    const QVariantList used = settleInfo(plan, "CNY", t).value("settle").toMap().value("rates").toList();
+    QVERIFY(!used.isEmpty());
+    QVERIFY(qFuzzyCompare(used[0].toMap().value("per").toDouble(), 4.65));
+    // 表：默认 4 种 + 计划币种 + 手动填过的 + 这次加的，去掉主货币，不重复
+    tp::json::Value r2 = parseJson(R"({"plans":[{"currency":"GBP","budget":10},{"currency":"NZD"},{"currency":"KRW","expenses":[{"amount":1}]}]})");
+    QStringList curs;
+    const QVariantList rows = rateRows(r2, "USD", t, { "SEK", "AUD" });
+    for (const QVariant &v : rows) curs << v.toMap().value("cur").toString();
+    QCOMPARE(curs, QStringList({ "AUD", "JPY", "EUR", "GBP", "KRW", "ISK", "SEK" }));
+    QVERIFY(qFuzzyCompare(rows[0].toMap().value("manual").toDouble(), 4.65));
+    QVERIFY(rows[1].toMap().value("online").toDouble() < 0);
 }
 
 void TestMap::kitEmergency()

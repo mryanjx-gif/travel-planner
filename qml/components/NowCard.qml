@@ -5,8 +5,7 @@
 // 0.10.0 起主按钮是"今天的行程"（在路上）/"打开计划"，"在地图上看"退到第二个。
 // 0.10.1：在路上时加"记一笔"，跳到消费标签的一行快记（J3）。
 // 0.11.1：刚回来时"整理照片"去照片模式、展开这一趟。
-// 指向还没做的页面的按钮（看证件，证件管理在阶段 ⑥ 的设置页）先不显示，
-// 页面做好时补上（PO 2026-11-05，记在待办需求记录.md）。
+// 0.12.4：证件提醒加"看证件"，跳到设置的证件分组。
 // info = plans.now（plans.cpp nowInfo）。勾待办后先显示勾上，0.45 秒后才真的改数据（Electron setTimeout(renderNow, 450)）。
 import QtQuick
 import TPApp
@@ -22,6 +21,7 @@ Item {
     signal openPacking(string planId)           // 0.10.4 行李与待办（和 Electron 一样只在"下一次出发"时有）
     signal unsetNext()
     signal openLibrary()                        // 0.11.0 提醒里的"去计划库"
+    signal openDocs()                           // 0.12.4 提醒里的"看证件"
     signal openPhotos(string planId)            // 0.11.1 刚回来：整理照片
     signal openJournal(string planId)           // 0.11.4 刚回来：写游记（计划页的游记标签）
     readonly property string kind: info.kind || "none"
@@ -369,13 +369,13 @@ Item {
                         }
                         LinkText {
                             id: link
-                            visible: modelData.kind === "done" || modelData.kind === "more"
+                            objectName: modelData.kind === "doc" ? "nowDocs" : ""
                             anchors.right: parent.right
                             anchors.rightMargin: Theme.px(10)
                             anchors.verticalCenter: parent.verticalCenter
                             small: true
-                            text: modelData.kind === "more" ? qsTr("去计划库") : qsTr("标为已完成")
-                            onClicked: { if (modelData.kind === "more") root.openLibrary(); else root.markDone(modelData.planId, modelData.name || "") }
+                            text: modelData.kind === "doc" ? qsTr("看证件") : modelData.kind === "more" ? qsTr("去计划库") : qsTr("标为已完成")
+                            onClicked: { if (modelData.kind === "doc") root.openDocs(); else if (modelData.kind === "more") root.openLibrary(); else root.markDone(modelData.planId, modelData.name || "") }
                         }
                     }
                 }

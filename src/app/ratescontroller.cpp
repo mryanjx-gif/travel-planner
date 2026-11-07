@@ -28,6 +28,9 @@ RatesController::RatesController(Settings *settings, services::NetClient *net, Q
     for (const auto &[k, v] : t[QStringLiteral("rates")].asObject().members())
         if (v.toNumber() > 0) m_rates.table.insert(k, v.toNumber());
     m_at = settings->value(QStringLiteral("ratesAt")).toNumber();
+    const Value manual = settings->value(QStringLiteral("manualRates"));
+    for (const auto &[k, v] : manual.asObject().members())
+        if (v.toNumber() > 0) m_rates.manual.insert(k, v.toNumber());
 }
 
 void RatesController::setMain(const QString &cur)
@@ -44,9 +47,39 @@ void RatesController::ensure()
 {
     if (m_busy) return;
     if (!m_rates.table.isEmpty() && m_rates.base == m_main && QDateTime::currentMSecsSinceEpoch() - m_at < kFreshMs) return;
-    if (!m_fetch && (!m_net || !m_net->allows(kService))) return;
+    refreshNow();
+}
+
+bool RatesController::refreshNow()
+{
+    if (m_busy) return true;
+    if (!m_fetch && (!m_net || !m_net->allows(kService))) return false;
     m_busy = true;
+    emit busyChanged();
     fetch(0);
+    return true;
+}
+
+bool RatesController::setManualRate(const QString &cur, const QString &text)
+{
+    if (cur.isEmpty()) return false;
+    const QString t = QString(text).remove(QLatin1Char(',')).trimmed();
+    double v = 0;
+    if (!t.isEmpty()) {
+        bool ok = false;
+        v = t.toDouble(&ok);
+        if (!ok || !qIsFinite(v) || v <= 0) return false;
+    }
+    if (m_rates.manual.value(cur, 0) == v) return true;
+    // 在原来的对象上改：别的键原样留着
+    const Value old = m_settings->value(QStringLiteral("manualRates"));
+    Value m = old.isObject() ? old : Value::object();
+    if (v > 0) { m.mutObject().set(cur, Value(v)); m_rates.manual.insert(cur, v); }
+    else { m.mutObject().remove(cur); m_rates.manual.remove(cur); }
+    m_settings->setValue(QStringLiteral("manualRates"), std::move(m));
+    m_settings->save();
+    emit changed();
+    return true;
 }
 
 void RatesController::fetch(int step)
@@ -60,6 +93,7 @@ void RatesController::fetch(int step)
         if (netError == 0) r = plans::parseRates(body, first ? QStringLiteral("frankfurter") : QStringLiteral("er-api"), base);
         if (!r.table.isEmpty()) {
             m_busy = false;
+            emit busyChanged();
             m_failed = false;
             store(r);
             qInfo("汇率：更新了（%s，%s，%d 种）", qUtf8Printable(r.src), qUtf8Printable(r.date), int(r.table.size()));
@@ -70,6 +104,7 @@ void RatesController::fetch(int step)
         qWarning("汇率：第 %d 个来源失败（HTTP %d，网络错误 %d）", step + 1, status, netError);
         if (first) { fetch(1); return; }
         m_busy = false;
+        emit busyChanged();
         m_failed = true;
         emit changed();
     };
@@ -80,7 +115,9 @@ void RatesController::fetch(int step)
 
 void RatesController::store(const plans::Rates &r)
 {
+    const auto manual = m_rates.manual;
     m_rates = r;
+    m_rates.manual = manual;
     m_at = double(QDateTime::currentMSecsSinceEpoch());
     persist();
 }

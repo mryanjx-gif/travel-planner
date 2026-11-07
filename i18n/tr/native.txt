@@ -1035,3 +1035,67 @@ API 密钥	API key
 打开日志文件夹	Open log folder
 退出	Quit
 更新日志、数据来源和授权下一版做。	Changelog, data sources and licenses come in the next version.
+主货币	Main currency
+消费统计、分账结算都折算成这种货币	Spending totals and split settlements are converted to this currency
+联网汇率	Online rates
+%1 的汇率（来源：%2，%3 取到）	Rates for %1 (source: %2, fetched %3)
+还没取到	Not fetched yet
+。需要时自动更新，一天最多一次；没联网时继续用这一版。	. Updates automatically when needed, at most once a day. Offline, this version stays in use.
+现在更新	Update now
+汇率的联网已关闭	Online rates are turned off
+手动汇率	Manual rates
+手动填了就一直用手动的，清空后恢复用联网的。计划自己的币种在计划页“消费”标签里改。	A manual rate always wins. Clear it to go back to the online rate. A plan's own currency is changed in the plan's Spending tab.
+没有数据	No data
+手动填的	Manual
+联网的	Online
+汇率要填大于 0 的数字	The rate must be a number above 0
+加一种货币	Add a currency
+人民币	Chinese yuan
+澳元	Australian dollar
+美元	US dollar
+欧元	Euro
+日元	Japanese yen
+港币	Hong Kong dollar
+英镑	British pound
+新西兰元	New Zealand dollar
+韩元	South Korean won
+新加坡元	Singapore dollar
+泰铢	Thai baht
+马来西亚林吉特	Malaysian ringgit
+印尼盾	Indonesian rupiah
+越南盾	Vietnamese dong
+瑞士法郎	Swiss franc
+新台币	New Taiwan dollar
+卢布	Russian ruble
+土耳其里拉	Turkish lira
+阿联酋迪拉姆	UAE dirham
+埃及镑	Egyptian pound
+冰岛克朗	Icelandic krona
+挪威克朗	Norwegian krone
+瑞典克朗	Swedish krona
+加元	Canadian dollar
+填护照、签证的到期日期，计划页会在有效期不够时提醒。不要填证件号码。	Enter passport and visa expiry dates. The plan page warns you when one won't last the trip. Don't enter document numbers.
+到期 %1	Expires %1
+已过期	Expired
+没填到期日期	No expiry date
+关联：%1	Linked to: %1
+（已删除的计划）	(deleted plan)
+添加证件	Add document
+修改证件	Edit document
+类型	Type
+谁的（可不填）	Whose (optional)
+如 我、妈妈	e.g. me, Mum
+名称（可不填）	Name (optional)
+如 中国护照、日本单次签证	e.g. Chinese passport, Japan single-entry visa
+到期日期	Expiry date
+关联的计划（签证用）	Linked plan (for visas)
+备注（不要写证件号码）	Notes (don't enter document numbers)
+删除这个证件	Delete this document
+再点一次确认删除	Click again to confirm
+没有保存：这个证件可能已经被改过了	Not saved: this document may have changed
+所有计划共用	Shared by all plans
+保险、紧急联系人，所有计划共用。当地紧急电话在每个计划的“行李与待办”里填。	Insurance and emergency contacts, shared by all plans. Local emergency numbers go in each plan's Packing & to-dos.
+保单 %1	Policy %1
+%1 位紧急联系人	%1 emergency contact(s)
+看证件	View documents
+管理证件	Manage documents

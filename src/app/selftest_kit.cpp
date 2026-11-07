@@ -3,12 +3,17 @@
 
 #include "appcontroller.h"
 #include "datastore.h"
+#include "jsonio.h"
 #include "navhistory.h"
 #include "plancontroller.h"
 #include "planpagecontroller.h"
 #include "plans.h"
+#include "ratescontroller.h"
+#include "settings.h"
 
+#include <QColor>
 #include <QDate>
+#include <QDateTime>
 
 #include <algorithm>
 #include <QQuickItem>
@@ -407,6 +412,178 @@ void runKit(Report &r, AppController *app, QQuickWindow *win, PlanPageController
     pause(350);   // 攻略的保存计时器走完，不再改数据
     store->modify([&](Value &d) { d = before; });
     pc->setTodayOverride(QString());
+    nav->go(QStringLiteral("map"));
+    pause(100);
+}
+
+void runDocs(Report &r, AppController *app, QQuickWindow *win, PlanPageController *page, NavHistory *nav, RatesController *rates)
+{
+    r.section(QStringLiteral("0.12.4 设置：货币、证件、紧急信息"));
+    PlanController *pc = plansCtl();
+    data::DataStore *store = app->store();
+    Settings *settings = settingsObj();
+    const auto item = [&](const QString &name) { return findItem(win->contentItem(), name); };
+    QQuickItem *panel = item(QStringLiteral("settingsPanel"));
+    QQuickItem *planPanel = item(QStringLiteral("planPage"));
+    if (!r.check(pc && page && nav && rates && settings && panel && planPanel, QStringLiteral("设置面板在"))) return;
+    pc->setTestAllStatuses(false);
+    const QVariantMap demo = pc->demo();
+    const QString id = demo.value(QStringLiteral("planId")).toString();
+    if (!r.check(!id.isEmpty(), QStringLiteral("有带日期的路线"))) return;
+    const QString today = demo.value(QStringLiteral("today")).toString();
+    pc->setTodayOverride(today);
+    const QDate day = QDate::fromString(today, Qt::ISODate);
+    const Value before = store->data();
+    const QString oldMain = rates->main();
+    const plans::Rates oldTable = rates->table();
+    const Value oldManual = settings->value(QStringLiteral("manualRates"));
+    const auto gotoSection = [&](const char *key) {
+        nav->go(QStringLiteral("settings"));
+        panel->setProperty("section", QString::fromLatin1(key));
+        pause(150);
+    };
+
+    // ---- 货币 ----
+    QStringList asked;
+    rates->setFetchForTest([&](const QUrl &url, std::function<void(int, const QByteArray &, int)> done) {
+        asked << url.host();
+        done(200, QByteArrayLiteral(R"({"base":"CNY","date":"2026-11-05","rates":{"AUD":0.2,"USD":0.14}})"), 0);
+    });
+    rates->resetForTest(QStringLiteral("CNY"), plans::Rates(), double(QDateTime::currentMSecsSinceEpoch()));
+    settings->setValue(QStringLiteral("manualRates"), json::parse(QStringLiteral(R"({"ZZZ":"留着"})")));
+    r.check(rates->refreshNow() && asked.size() == 1 && rates->date() == QLatin1String("2026-11-05"), QStringLiteral("现在更新：20 小时内也会取"), asked.join(u','));
+    r.check(rates->src() == QLatin1String("frankfurter") && rates->updatedAt() > 0 && !rates->busy(), QStringLiteral("汇率状态有来源和时间"));
+    store->modify([&](Value &d) {
+        Value *p = plans::mutPlan(d, id);
+        json::Object &o = p->mutObject();
+        o.set(QStringLiteral("currency"), Value(QStringLiteral("AUD")));
+        o.remove(QStringLiteral("bookings"));
+        o.set(QStringLiteral("expenses"), json::parse(QStringLiteral(R"([{"id":"e1","amount":100,"date":"2026-01-01"}])")));
+    });
+    page->show(id);
+    const auto mainTotal = [&] { return page->info().value(QStringLiteral("money")).toMap().value(QStringLiteral("mainTotal")).toDouble(); };
+    r.check(qAbs(mainTotal() - 500) < 1e-6, QStringLiteral("没填手动时用联网汇率"), QString::number(mainTotal()));
+    r.check(!rates->setManualRate(QStringLiteral("AUD"), QStringLiteral("abc")) && !rates->setManualRate(QStringLiteral("AUD"), QStringLiteral("-1")) && !rates->setManualRate(QStringLiteral("AUD"), QStringLiteral("inf")),
+            QStringLiteral("手动汇率不是大于 0 的数字时不收"));
+    r.check(rates->setManualRate(QStringLiteral("AUD"), QStringLiteral(" 4.65 ")) && qAbs(mainTotal() - 465) < 1e-6, QStringLiteral("手动汇率优先，消费的换算马上跟着变"), QString::number(mainTotal()));
+    const Value saved = settings->value(QStringLiteral("manualRates"));
+    r.check(saved[QStringLiteral("AUD")].toNumber() == 4.65 && saved[QStringLiteral("ZZZ")].toString() == QStringLiteral("留着"), QStringLiteral("手动汇率存进 settings.json manualRates，别的键留着"));
+    {
+        RatesController again(settings, nullptr);   // 等于重新打开程序
+        r.check(qAbs(plans::perMain(again.table(), QStringLiteral("CNY"), QStringLiteral("AUD")) - 4.65) < 1e-9, QStringLiteral("重新读 settings.json 手动汇率还在"));
+    }
+    rates->refreshNow();
+    r.check(qAbs(mainTotal() - 465) < 1e-6, QStringLiteral("联网更新不会盖掉手动汇率"));
+    page->show(QString());
+    gotoSection("money");
+    QQuickItem *rateField = item(QStringLiteral("rateField-AUD"));
+    QQuickItem *moneyCard = item(QStringLiteral("setCard-money"));
+    r.check(effectivelyShown(moneyCard) && rateField && rateField->property("value").toString() == QLatin1String("4.65"), QStringLiteral("货币分组显示手动汇率"));
+    r.check(!item(QStringLiteral("rateField-CNY")), QStringLiteral("主货币不进手动表"));
+    QQuickItem *usdField = item(QStringLiteral("rateField-USD"));
+    r.check(usdField && usdField->property("placeholder").toString().startsWith(QLatin1String("7.14")), QStringLiteral("没填的显示联网汇率作占位"), usdField ? usdField->property("placeholder").toString() : QString());
+    QQuickItem *clearBtn = item(QStringLiteral("rateClear-AUD"));
+    r.check(clearBtn && clearBtn->isVisible(), QStringLiteral("填过的有清除按钮"));
+    if (clearBtn) click(win, clearBtn);
+    page->show(id);
+    r.check(waitFor([&] { return qAbs(mainTotal() - 500) < 1e-6; }, 2000), QStringLiteral("点清除回到联网汇率"), QString::number(mainTotal()));
+    page->show(QString());
+
+    // ---- 证件：此刻卡跳过去 ----
+    const QString soon = day.addDays(10).toString(Qt::ISODate), past = day.addDays(-1).toString(Qt::ISODate), far = day.addYears(5).toString(Qt::ISODate);
+    store->modify([&](Value &d) {
+        // Electron 存的样子，带一个不认识的键
+        d.mutObject().set(QStringLiteral("documents"), json::parse(QStringLiteral(R"([{"kind":"visa","owner":"妈妈","label":"单次","expires":"%1","planId":"%2","id":"doc_a","future":1},{"kind":"passport","label":"旧护照","expires":"%3","id":"doc_b"}])").arg(soon, id, past)));
+        d.mutObject().remove(QStringLiteral("emergency"));
+        plans::mutPlan(d, id)->mutObject().set(QStringLiteral("status"), Value(QStringLiteral("planning")));
+    });
+    nav->go(pc->mode());
+    pause(350);
+    pc->setNextTrip(id, true);
+    win->setProperty("nowOpen", true);
+    panel->setProperty("section", QStringLiteral("look"));
+    QQuickItem *nowDocs = nullptr;
+    const bool hasLink = waitFor([&] { nowDocs = item(QStringLiteral("nowDocs")); return effectivelyShown(nowDocs); }, 3000);
+    r.check(hasLink, QStringLiteral("此刻卡的证件提醒有 看证件"));
+    if (hasLink) {
+        pause(350);   // 卡片滑入停下再点（Windows差异清单 #26）
+        click(win, nowDocs);
+        r.check(waitFor([&] { return nav->page() == QLatin1String("settings") && panel->property("section").toString() == QLatin1String("docs"); }, 3000), QStringLiteral("点了跳到设置的证件分组"), nav->page());
+        QQuickItem *docsCard = item(QStringLiteral("setCard-docs"));
+        r.check(waitFor([&] { return effectivelyShown(docsCard) && docsCard->isVisible() && effectivelyShown(panel); }, 3000), QStringLiteral("证件分组显示出来"));
+        QQuickItem *flick = item(QStringLiteral("settingsFlick"));
+        r.check(flick && qFuzzyIsNull(flick->property("contentY").toDouble()), QStringLiteral("滚到证件那一组的开头"));
+    }
+    win->setProperty("nowOpen", false);
+    gotoSection("docs");
+    const auto docs = [&] { return page->documents(); };
+    r.check(docs().size() == 2 && docs()[0].toMap().value(QStringLiteral("id")).toString() == QLatin1String("doc_b"), QStringLiteral("证件按到期日排"));
+    QQuickItem *date0 = nullptr;
+    const bool rowsUp = waitFor([&] { date0 = item(QStringLiteral("docDate-doc_b")); return date0 != nullptr; }, 2000);
+    r.check(rowsUp, QStringLiteral("证件列表显示出来"));
+    QQuickItem *date1 = item(QStringLiteral("docDate-doc_a"));
+    if (rowsUp && date1)
+        r.check(date0->property("color").value<QColor>() != date1->property("color").value<QColor>(), QStringLiteral("过期的日期标红"));
+    QQuickItem *dlg = item(QStringLiteral("docDialog"));
+    QQuickItem *add = item(QStringLiteral("docAdd"));
+    if (r.check(dlg && add, QStringLiteral("有添加按钮和对话框"))) {
+        click(win, add);
+        r.check(waitFor([&] { return dlg->property("open").toBool(); }, 2000), QStringLiteral("点添加证件打开对话框"));
+        dlg->setProperty("owner", QStringLiteral("我"));
+        dlg->setProperty("expires", far);
+        dlg->setProperty("planId", id);
+        QQuickItem *ok = item(QStringLiteral("docOk"));
+        pause(250);
+        click(win, ok);
+        r.check(waitFor([&] { return docs().size() == 3 && !dlg->property("open").toBool(); }, 2000), QStringLiteral("保存后多一条，对话框关上"));
+    }
+    QVariantMap added, visa;
+    for (const QVariant &v : docs()) {
+        const QVariantMap m = v.toMap();
+        if (m.value(QStringLiteral("id")) == QStringLiteral("doc_a")) visa = m;
+        else if (m.value(QStringLiteral("id")) != QStringLiteral("doc_b")) added = m;
+    }
+    r.check(added.value(QStringLiteral("id")).toString().startsWith(QLatin1String("doc_")) && added.value(QStringLiteral("kind")) == QStringLiteral("passport")
+            && added.value(QStringLiteral("owner")) == QStringLiteral("我") && added.value(QStringLiteral("expires")).toString() == far && added.value(QStringLiteral("planId")).toString() == id,
+            QStringLiteral("新证件的字段和 Electron 一样"));
+    visa.insert(QStringLiteral("label"), QStringLiteral("多次"));
+    r.check(page->saveDocument(visa.value(QStringLiteral("index")).toInt(), QStringLiteral("doc_a"), visa).isEmpty(), QStringLiteral("改证件"));
+    const Value &va = store->data()[QStringLiteral("documents")].asArray()[0];
+    r.check(va[QStringLiteral("label")].toString() == QStringLiteral("多次") && va[QStringLiteral("future")].toNumber() == 1 && va[QStringLiteral("owner")].toString() == QStringLiteral("妈妈"), QStringLiteral("改证件保留不认识的键"));
+    r.check(page->deleteDocument(2, added.value(QStringLiteral("id")).toString()).isEmpty() && docs().size() == 2, QStringLiteral("删证件"));
+    r.check(page->deleteDocument(0, QStringLiteral("对不上")) == QLatin1String("gone") && docs().size() == 2, QStringLiteral("列表变过时不会删错"));
+
+    // ---- 紧急信息 ----
+    QQuickItem *emBtn = item(QStringLiteral("setEmergencyEdit"));
+    QQuickItem *emDlg = item(QStringLiteral("emergencyDialog"));
+    if (r.check(emBtn && emDlg && effectivelyShown(emBtn), QStringLiteral("证件分组有紧急信息"))) {
+        pause(250);   // 刚删了一行，列表要重新排好，按钮才在算出来的位置上
+        click(win, emBtn);
+        r.check(waitFor([&] { return emDlg->property("open").toBool() && emDlg->property("mode").toString() == QLatin1String("global"); }, 2000), QStringLiteral("点编辑打开紧急信息（不用先打开计划）"));
+        emDlg->setProperty("open", false);
+        waitFor([&] { return !emDlg->property("open").toBool(); }, 1000);
+    }
+    r.check(page->saveEmergency({ { QStringLiteral("insurer"), QStringLiteral("Allianz") }, { QStringLiteral("n0"), QStringLiteral("甲") } }).isEmpty()
+            && store->data()[QStringLiteral("emergency")][QStringLiteral("insurer")].toString() == QLatin1String("Allianz"), QStringLiteral("没打开计划时也能存紧急信息"));
+    r.check(page->emergencyInfo().value(QStringLiteral("contacts")).toList().size() == 1, QStringLiteral("读回紧急信息"));
+    QQuickItem *emSub = item(QStringLiteral("setEmergencyRow"));
+    r.check(waitFor([&] { return emSub && emSub->property("sub").toString().contains(QLatin1String("Allianz")); }, 2000), QStringLiteral("紧急信息一行显示摘要"));
+
+    // ---- 计划页的"管理证件" ----
+    panel->setProperty("section", QStringLiteral("look"));
+    QMetaObject::invokeMethod(planPanel, "docsRequested");
+    r.check(waitFor([&] { return nav->page() == QLatin1String("settings") && panel->property("section").toString() == QLatin1String("docs"); }, 2000), QStringLiteral("计划页的管理证件跳到证件分组"));
+
+    // ---- 收尾 ----
+    pc->setNextTrip(id, false);
+    pause(300);
+    store->modify([&](Value &d) { d = before; });
+    rates->setFetchForTest({});
+    settings->setValue(QStringLiteral("manualRates"), oldManual);
+    rates->resetForTest(oldMain, oldTable, 0);
+    pc->setTodayOverride(QString());
+    pc->setTestAllStatuses(true);
+    panel->setProperty("section", QStringLiteral("look"));
     nav->go(QStringLiteral("map"));
     pause(100);
 }

@@ -63,6 +63,13 @@ public:
     // 紧急信息（plans::setLocalEmergency、setEmergency）
     Q_INVOKABLE QString saveLocalEmergency(const QVariantMap &phones);
     Q_INVOKABLE QString saveEmergency(const QVariantMap &fields);
+    // 设置页（0.12.4）：紧急信息、证件、手动汇率表。不依赖打开的计划
+    Q_INVOKABLE QVariantMap emergencyInfo() const;
+    Q_INVOKABLE QVariantList documents() const;                        // plans::documentsInfo
+    Q_INVOKABLE QVariantList documentPlanOptions(const QString &keepId) const;
+    Q_INVOKABLE QString saveDocument(int index, const QString &id, const QVariantMap &fields);   // 空 = 改好了；readOnly / gone
+    Q_INVOKABLE QString deleteDocument(int index, const QString &id);
+    Q_INVOKABLE QVariantList rateRows(const QStringList &extra) const;
     // 攻略。planId 跟着调用方：停手保存时可能已经换了计划（写完马上关掉）
     Q_INVOKABLE QString setGuide(const QString &planId, const QString &text);
     Q_INVOKABLE bool toggleGuideTask(int line, bool on);
@@ -80,6 +87,7 @@ public:
 signals:
     void changed();
     void ledgerChanged();
+    void contentChanged();     // 数据变了（设置页的证件、紧急信息、手动汇率表跟着刷新）
 
 private:
     void refresh();
