@@ -348,7 +348,6 @@ HEIC（还没法显示）	HEIC (can't display yet)
 移到回收站（%1 个）	Move to Recycle Bin (%1)
 缩略图写不进缓存：%1	Couldn't write the thumbnail to the cache: %1
 缩略图缓存	Thumbnail cache
-缩略图缓存已清空，用到时会重新生成。	Thumbnail cache cleared; thumbnails will be regenerated when needed.
 读不出来	Can't read
 读不出这张照片：%1	Can't read this photo: %1
 超过 1 GB 时自动删掉最旧的。	The oldest are deleted automatically above 1 GB.
@@ -1043,13 +1042,6 @@ API 密钥	API key
 。需要时自动更新，一天最多一次；没联网时继续用这一版。	. Updates automatically when needed, at most once a day. Offline, this version stays in use.
 现在更新	Update now
 汇率的联网已关闭	Online rates are turned off
-手动汇率	Manual rates
-手动填了就一直用手动的，清空后恢复用联网的。计划自己的币种在计划页“消费”标签里改。	A manual rate always wins. Clear it to go back to the online rate. A plan's own currency is changed in the plan's Spending tab.
-没有数据	No data
-手动填的	Manual
-联网的	Online
-汇率要填大于 0 的数字	The rate must be a number above 0
-加一种货币	Add a currency
 人民币	Chinese yuan
 澳元	Australian dollar
 美元	US dollar
@@ -1099,3 +1091,72 @@ API 密钥	API key
 %1 位紧急联系人	%1 emergency contact(s)
 看证件	View documents
 管理证件	Manage documents
+# 0.12.5 设置：联网、缓存、关于、更新日志
+地图瓦片	Map tiles
+地图和地球的卫星图、街道图。关掉后只用“已解锁”底图，存下来的瓦片地球上照常显示。	Satellite and street maps on the map and globe. When off, only the "Unlocked" base map is used; tiles already saved still show on the globe.
+Esri（Esri 及其数据提供方）	Esri (Esri and its data providers)
+编辑器里搜地名、点地图取地名。关掉后可以在地图上点选或手动输入坐标。	Searching place names in the editor and naming points clicked on the map. When off, you can still pick on the map or type coordinates.
+Nominatim · © OpenStreetMap 贡献者（ODbL）	Nominatim · © OpenStreetMap contributors (ODbL)
+自驾、徒步段按道路画线。关掉后已经算好的路线还在，没算的画直线。	Draws driving and walking legs along roads. When off, routes already worked out stay; others are straight lines.
+OSRM（FOSSGIS 服务器 routing.openstreetmap.de）· © OpenStreetMap 贡献者	OSRM (FOSSGIS server routing.openstreetmap.de) · © OpenStreetMap contributors
+消费折算成主货币，一天最多更新一次。关掉后继续用上次的。	Converts spending to your main currency, updated at most once a day. When off, the last rates stay in use.
+Frankfurter（欧洲央行数据），失败时用 open.er-api.com（Rates By Exchange Rate API）	Frankfurter (European Central Bank data), falling back to open.er-api.com (Rates By Exchange Rate API)
+16 天内出发或正在旅行的计划，显示各站点的预报。	Forecasts for each stop on plans leaving within 16 days or under way.
+Open-Meteo（CC BY 4.0）	Open-Meteo (CC BY 4.0)
+天气	Weather
+气候	Climate
+各站点近 10 年同一个月的平均气温和降水。	Average temperature and rainfall for the same month over the last 10 years at each stop.
+Open-Meteo 历史天气（CC BY 4.0；ERA5 · Copernicus 气候变化服务）	Open-Meteo historical weather (CC BY 4.0; ERA5 · Copernicus Climate Change Service)
+海拔和时区	Elevation and time zone
+自动补站点的海拔（高反提示用）和时区（日出日落时间用）。	Fills in each stop's elevation (for altitude warnings) and time zone (for sunrise and sunset times).
+Open-Meteo（CC BY 4.0；海拔：Copernicus DEM GLO-90）	Open-Meteo (CC BY 4.0; elevation: Copernicus DEM GLO-90)
+右下角的 AI 助手，用你自己的 API 密钥。功能在后面的版本。	The AI assistant at the bottom right, using your own API key. Coming in a later version.
+地图瓦片缓存已移进回收站，用到时会重新下载。	The map tile cache is in the Recycle Bin. Tiles download again when needed.
+没能移进回收站，可以稍后再试。	Couldn't move it to the Recycle Bin. Try again later.
+缩略图缓存已移进回收站，用到时会重新生成。	The thumbnail cache is in the Recycle Bin. Thumbnails are rebuilt when needed.
+汇率的联网已关闭，现在没有汇率	Online rates are turned off, so there are no rates right now
+联网服务	Online services
+离线模式	Offline mode
+开着：所有联网服务都不用，下面的开关先不起作用。已经存下来的地图、汇率、天气照常显示。	On: no online services are used, and the switches below have no effect for now. Saved maps, rates and weather still show.
+开了以后所有联网服务都不用。	When on, no online services are used.
+每项服务的提供方和署名见“关于”。	See About for each service's provider and credits.
+← 返回关于	← Back to About
+更新日志只有中文。	The changelog is in Chinese only.
+地图瓦片缓存	Map tile cache
+正在移进回收站…	Moving to the Recycle Bin…
+看过的地图存在这里，离线也能看。超过 2 GB 时自动删掉最旧的。	Maps you've viewed are kept here for offline use. The oldest are removed automatically above 2 GB.
+每个版本改了什么	What changed in each version
+查看	View
+作者	Author
+Jason Yan · 个人作品，免费分享，不用于商业	Jason Yan · A personal project, shared for free, not for commercial use
+系统要求	System requirements
+Windows 10 或 Windows 11（64 位）。显卡优先用 Vulkan，不支持时用 OpenGL。	Windows 10 or Windows 11 (64-bit). Graphics use Vulkan, or OpenGL where Vulkan isn't supported.
+新手引导	Guided tour
+在地图上把几个常用按钮再指一遍	Points out the common buttons on the map again
+再看一次	Show again
+地图数据来源	Map data sources
+已解锁底图、省界和国界	Unlocked base map, province and country borders
+Natural Earth（公有领域）	Natural Earth (public domain)
+地球的夜晚灯光	Night lights on the globe
+用途和署名。可以在“联网”里逐项关掉。	What each is for, and credits. Each can be turned off under Network.
+照片署名	Photo credits
+现在没有需要署名的照片。	No photos need credits right now.
+自己拍的	My own photo
+Google 地图	Google Maps
+其他	Other
+来源页面	Source page
+授权条款	License
+开源组件和授权	Open-source components and licenses
+界面、网络、定位等。LGPL-3.0，动态链接，可以自行替换这些库。	Interface, networking, location and more. LGPL-3.0, dynamically linked, so these libraries can be replaced.
+平面地图。BSD-2-Clause。	The flat map. BSD-2-Clause.
+平面地图的渲染。BSD-2-Clause；内置的第三方组件见授权文件夹里的 maplibre-native-LICENSES.core.md。	Flat map rendering. BSD-2-Clause; its bundled third-party components are listed in maplibre-native-LICENSES.core.md in the licenses folder.
+日出日落，移植成 C++。BSD-2-Clause，Copyright (c) 2026, Volodymyr Agafonkin。	Sunrise and sunset, ported to C++. BSD-2-Clause, Copyright (c) 2026, Volodymyr Agafonkin.
+授权全文	Full license texts
+没找到授权文件夹	Licenses folder not found
+思源宋体（Noto Serif CJK SC）	Source Han Serif (Noto Serif CJK SC)
+Adobe / Google，SIL Open Font License 1.1（OFL），打包在程序里。	Adobe / Google, SIL Open Font License 1.1 (OFL), bundled with the app.
+Google，Apache 2.0，地图标记的图标，打包在程序里。	Google, Apache 2.0, icons for map markers, bundled with the app.
+微软雅黑、等线、楷体	Microsoft YaHei, DengXian, KaiTi
+Windows 自带，不随程序分发。	Come with Windows; not distributed with the app.
+界面素材	Interface artwork
+除了上面列出的，图标、按钮和装饰都是程序绘制的原创素材，没有第三方授权问题。	Apart from the items above, icons, buttons and decoration are original and drawn by the app, with no third-party licensing.

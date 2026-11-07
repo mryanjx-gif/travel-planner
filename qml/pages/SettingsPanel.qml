@@ -1,5 +1,5 @@
 // 设置面板（右侧）。0.12.3 改版（PO 选 A，代替 Electron 的分组折叠 T-01）：宽约 760，左边侧边栏，快捷键和关于固定在底部；窄窗口改成顶部横向标签。
-// 0.12.4：货币（T-07）、证件和紧急信息（T-08）。联网、关于的内容在 0.12.5；AI 分组是占位，阶段 ⑦ 接功能。
+// 0.12.4：货币（T-07）、证件和紧急信息（T-08）。0.12.5：联网（T-09）、缓存用量、关于（T-13，AboutSection）、更新日志。AI 分组是占位，阶段 ⑦ 接功能。
 // 0.5.0：数据里加"备份"（BackupSection，方案 B）和开发版的"测试改动"。
 import QtQuick
 import TPApp
@@ -30,47 +30,48 @@ GlassPanel {
     // 现在看哪一组。截图页直接打开对应分组
     property string section: ({ "ui-backup": "data", "ui-backup-running": "data", "ui-devtools": "data", "ui-settings-photos": "data", "ui-settings-data": "data",
                                 "calendar-settings": "cal", "ui-settings-me": "me", "ui-settings-ai": "ai", "ui-settings-keys": "keys",
-                                "ui-settings-money": "money", "ui-settings-docs": "docs", "ui-settings-doc-form": "docs" })[shotPage] || "look"
+                                "ui-settings-money": "money", "ui-settings-docs": "docs", "ui-settings-doc-form": "docs",
+                                "ui-settings-net": "net", "ui-settings-net-off": "net", "ui-settings-about": "about", "ui-settings-about-end": "about", "ui-settings-log": "log" })[shotPage] || "look"
     readonly property bool narrow: width < Theme.px(640)
     readonly property var mainSections: [
         { key: "look", text: qsTr("外观") }, { key: "me", text: qsTr("我") }, { key: "map", text: qsTr("地图") }, { key: "cal", text: qsTr("日历") }, { key: "win", text: qsTr("窗口") },
         { key: "money", text: qsTr("货币") }, { key: "docs", text: qsTr("证件") }, { key: "ai", text: qsTr("AI") }, { key: "net", text: qsTr("联网") }, { key: "data", text: qsTr("数据") }
     ]
     readonly property var footSections: [{ key: "keys", text: qsTr("快捷键") }, { key: "about", text: qsTr("关于") }]
-    readonly property string sectionName: { const x = mainSections.concat(footSections).find(i => i.key === section); return x ? x.text : "" }
+    // 联网服务（Electron prefs.js NET_SERVICES，键名相同）：开关和关于都用这张表
+    readonly property var netServices: [
+        { key: "tiles", name: qsTr("地图瓦片"), use: qsTr("地图和地球的卫星图、街道图。关掉后只用“已解锁”底图，存下来的瓦片地球上照常显示。"), who: qsTr("Esri（Esri 及其数据提供方）") },
+        { key: "geocode", name: qsTr("地名搜索"), use: qsTr("编辑器里搜地名、点地图取地名。关掉后可以在地图上点选或手动输入坐标。"), who: qsTr("Nominatim · © OpenStreetMap 贡献者（ODbL）") },
+        { key: "routing", name: qsTr("道路路线"), use: qsTr("自驾、徒步段按道路画线。关掉后已经算好的路线还在，没算的画直线。"), who: qsTr("OSRM（FOSSGIS 服务器 routing.openstreetmap.de）· © OpenStreetMap 贡献者") },
+        { key: "rates", name: qsTr("汇率"), use: qsTr("消费折算成主货币，一天最多更新一次。关掉后继续用上次的。"), who: qsTr("Frankfurter（欧洲央行数据），失败时用 open.er-api.com（Rates By Exchange Rate API）") },
+        { key: "weather", name: qsTr("天气"), use: qsTr("16 天内出发或正在旅行的计划，显示各站点的预报。"), who: qsTr("Open-Meteo（CC BY 4.0）") },
+        { key: "climate", name: qsTr("气候"), use: qsTr("各站点近 10 年同一个月的平均气温和降水。"), who: qsTr("Open-Meteo 历史天气（CC BY 4.0；ERA5 · Copernicus 气候变化服务）") },
+        { key: "elev", name: qsTr("海拔和时区"), use: qsTr("自动补站点的海拔（高反提示用）和时区（日出日落时间用）。"), who: qsTr("Open-Meteo（CC BY 4.0；海拔：Copernicus DEM GLO-90）") },
+        { key: "ai", name: qsTr("AI 助手"), use: qsTr("右下角的 AI 助手，用你自己的 API 密钥。功能在后面的版本。"), who: "Anthropic Claude API" }
+    ]
     onSectionChanged: { flick.contentY = 0; if (section === "me") mapc.needUnlockCount(); refreshSection() }
+    Connections { target: netc; function onTileCacheCleared(ok) { root.toastRequested(ok ? qsTr("地图瓦片缓存已移进回收站，用到时会重新下载。") : qsTr("没能移进回收站，可以稍后再试。"), !ok) } }
+    Connections { target: photos; function onThumbCacheCleared(ok) { root.toastRequested(ok ? qsTr("缩略图缓存已移进回收站，用到时会重新生成。") : qsTr("没能移进回收站，可以稍后再试。"), !ok) } }
     // 从别处跳过来（此刻卡的"看证件"、计划页的"管理证件"）：已经在这一组时也回到开头
     function showSection(key) { section = key; flick.contentY = 0 }
 
     // ---- 货币、证件的内容（0.12.4）----
     property var docRows: []
-    property var rateCodes: []               // 只在币种变了才换，免得填一格后整张表重建、焦点丢掉
-    property var rateMap: ({})
-    property var rateExtra: []               // 这次点"加一种货币"加的（还没填时不存）
     property var emergency: ({})
-    function refreshRates() {
-        const rows = planPage.rateRows(rateExtra)
-        const m = {}
-        for (const x of rows) m[x.cur] = x
-        rateMap = m
-        const codes = rows.map(x => x.cur)
-        if (JSON.stringify(codes) !== JSON.stringify(rateCodes)) rateCodes = codes
-    }
     function refreshDocs() { docRows = planPage.documents(); emergency = planPage.emergencyInfo() }
     function refreshSection() {
-        if (section === "money") { rates.ensure(); refreshRates() }
+        if (section === "money") rates.ensure()
         if (section === "docs") refreshDocs()
+        if (section === "about") aboutSection.refresh()
     }
-    Connections { target: rates; function onChanged() { if (root.section === "money") root.refreshRates() } }
     function curName(c) {
         return ({ CNY: qsTr("人民币"), AUD: qsTr("澳元"), USD: qsTr("美元"), EUR: qsTr("欧元"), JPY: qsTr("日元"), HKD: qsTr("港币"), GBP: qsTr("英镑"), NZD: qsTr("新西兰元"), KRW: qsTr("韩元"),
                   SGD: qsTr("新加坡元"), THB: qsTr("泰铢"), MYR: qsTr("马来西亚林吉特"), IDR: qsTr("印尼盾"), VND: qsTr("越南盾"), CHF: qsTr("瑞士法郎"), TWD: qsTr("新台币"), RUB: qsTr("卢布"), TRY: qsTr("土耳其里拉"),
                   AED: qsTr("阿联酋迪拉姆"), EGP: qsTr("埃及镑"), ISK: qsTr("冰岛克朗"), NOK: qsTr("挪威克朗"), SEK: qsTr("瑞典克朗"), CAD: qsTr("加元") })[c] || c
     }
-    function fmtRate(v) { return v >= 100 ? v.toFixed(2) : v >= 1 ? v.toFixed(4) : v.toPrecision(4) }
     readonly property string rateStatus: {
         if (rates.busy) return qsTr("正在取汇率…")
-        if (rates.date === "") return rates.failed ? qsTr("还没拿到汇率，联网后重新打开计划试试") : qsTr("还没取到")
+        if (rates.date === "") return rates.netOff ? qsTr("汇率的联网已关闭，现在没有汇率") : rates.failed ? qsTr("还没拿到汇率，联网后重新打开计划试试") : qsTr("还没取到")
         const s = qsTr("%1 的汇率（来源：%2，%3 取到）").arg(rates.date).arg(rates.src).arg(Qt.formatDateTime(new Date(rates.updatedAt), "yyyy-MM-dd hh:mm"))
         return s + (rates.failed ? " · " + qsTr("更新失败，用的是上次的") : "")
     }
@@ -176,7 +177,7 @@ GlassPanel {
                     objectName: "setNav-" + modelData.key
                     width: side.width
                     label: modelData.text
-                    on: root.section === modelData.key
+                    on: root.section === modelData.key || (root.section === "log" && modelData.key === "about")
                     onPicked: root.section = modelData.key
                 }
             }
@@ -192,7 +193,7 @@ GlassPanel {
                     objectName: "setNav-" + modelData.key
                     width: side.width
                     label: modelData.text
-                    on: root.section === modelData.key
+                    on: root.section === modelData.key || (root.section === "log" && modelData.key === "about")
                     onPicked: root.section = modelData.key
                 }
             }
@@ -219,7 +220,7 @@ GlassPanel {
                     required property var modelData
                     objectName: "setTab-" + modelData.key
                     label: modelData.text
-                    on: root.section === modelData.key
+                    on: root.section === modelData.key || (root.section === "log" && modelData.key === "about")
                     onPicked: root.section = modelData.key
                 }
             }
@@ -238,7 +239,7 @@ GlassPanel {
         boundsBehavior: Flickable.StopAtBounds
         // 截图 ui-devtools（0.5.2）：滚到最底下的"开发版测试"
         Timer {
-            running: shotPage === "ui-devtools"
+            running: shotPage === "ui-devtools" || shotPage === "ui-settings-about-end"
             interval: 1500
             onTriggered: flick.contentY = Math.max(0, flick.contentHeight - flick.height)
         }
@@ -519,87 +520,6 @@ GlassPanel {
                     }
                 }
             }
-            SettingsCard {
-                objectName: "setCard-rates"
-                visible: root.section === "money"
-                width: parent.width
-                title: qsTr("手动汇率")
-                Text {
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    text: qsTr("手动填了就一直用手动的，清空后恢复用联网的。计划自己的币种在计划页“消费”标签里改。")
-                    font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
-                }
-                Repeater {
-                    model: root.rateCodes
-                    delegate: Item {
-                        id: rateRow
-                        required property string modelData
-                        readonly property var info: root.rateMap[modelData] || ({})
-                        readonly property bool hasManual: (info.manual || 0) > 0
-                        width: parent ? parent.width : 0
-                        height: Theme.px(32)
-                        function commit() {
-                            const t = rateField.text.trim()
-                            if (t === rateField.value) { rateField.bad = false; return }
-                            rateField.bad = !rates.setManualRate(modelData, t)
-                            if (rateField.bad) root.toastRequested(qsTr("汇率要填大于 0 的数字"), true)
-                        }
-                        Text {
-                            id: rateName
-                            width: Math.min(Theme.px(170), parent.width * 0.36)
-                            anchors.verticalCenter: parent.verticalCenter
-                            elide: Text.ElideRight
-                            text: "1 " + rateRow.modelData + " " + root.curName(rateRow.modelData) + " ="
-                            font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.text
-                        }
-                        TpField {
-                            id: rateField
-                            objectName: "rateField-" + rateRow.modelData
-                            x: rateName.width + Theme.px(8)
-                            width: Theme.px(104)
-                            value: rateRow.hasManual ? String(rateRow.info.manual) : ""
-                            placeholder: (rateRow.info.online || 0) > 0 ? root.fmtRate(rateRow.info.online) : qsTr("没有数据")
-                            onEditingChanged: if (!editing) rateRow.commit()
-                            onAccepted: rateRow.commit()
-                        }
-                        Text {
-                            id: rateMain
-                            x: rateField.x + rateField.width + Theme.px(8)
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: rates.main
-                            font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft
-                        }
-                        Text {
-                            x: rateMain.x + rateMain.width + Theme.px(10)
-                            width: parent.width - x - (rateClear.visible ? rateClear.width + Theme.px(6) : 0)
-                            anchors.verticalCenter: parent.verticalCenter
-                            elide: Text.ElideRight
-                            text: rateRow.hasManual ? qsTr("手动填的") : (rateRow.info.online || 0) > 0 ? qsTr("联网的") : ""
-                            font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
-                        }
-                        TpButton {
-                            id: rateClear
-                            objectName: "rateClear-" + rateRow.modelData
-                            anchors.right: parent.right
-                            anchors.verticalCenter: parent.verticalCenter
-                            visible: rateRow.hasManual
-                            compact: true
-                            kind: "ghost"
-                            text: qsTr("清除")
-                            onClicked: { rateField.clear(); rateField.bad = false; rates.setManualRate(rateRow.modelData, "") }
-                        }
-                    }
-                }
-                TpSelect {
-                    objectName: "rateAdd"
-                    width: Theme.px(200)
-                    placeholder: qsTr("加一种货币")
-                    options: rates.currencies.filter(c => c !== rates.main && root.rateCodes.indexOf(c) < 0).map(c => ({ key: c, text: c + " · " + root.curName(c) }))
-                    onPicked: (k) => { root.rateExtra = root.rateExtra.concat([k]); root.refreshRates() }
-                }
-            }
-
             // ---------- 证件和紧急信息（T-08；Electron travelkit.js settingsHtml）----------
             SettingsCard {
                 objectName: "setCard-docs"
@@ -688,17 +608,47 @@ GlassPanel {
                 }
             }
 
-            // ---------- 联网：内容在 0.12.5 ----------
+            // ---------- 联网（T-09；Electron prefs.js NET_SERVICES、pages-more.js）----------
             SettingsCard {
-                objectName: "setCard-later"
+                objectName: "setCard-net"
                 visible: root.section === "net"
                 width: parent.width
-                title: root.sectionName
+                title: qsTr("联网服务")
+                SettingsRow {
+                    width: parent.width
+                    label: qsTr("离线模式")
+                    sub: netc.offline ? qsTr("开着：所有联网服务都不用，下面的开关先不起作用。已经存下来的地图、汇率、天气照常显示。")
+                                      : qsTr("开了以后所有联网服务都不用。")
+                    Segmented {
+                        objectName: "netOffline"
+                        options: [{ key: "off", text: qsTr("关") }, { key: "on", text: qsTr("开") }]
+                        current: netc.offline ? "on" : "off"
+                        onPicked: (k) => netc.offline = k === "on"
+                    }
+                }
+                Repeater {
+                    model: root.netServices
+                    delegate: SettingsRow {
+                        id: netRow
+                        required property var modelData
+                        width: parent ? parent.width : 0
+                        label: modelData.name
+                        sub: modelData.use
+                        Segmented {
+                            objectName: "netSw-" + netRow.modelData.key
+                            enabled: !netc.offline
+                            opacity: enabled ? 1 : 0.45
+                            options: [{ key: "off", text: qsTr("关") }, { key: "on", text: qsTr("开") }]
+                            current: netc.switches[netRow.modelData.key] ? "on" : "off"
+                            onPicked: (k) => netc.setSwitch(netRow.modelData.key, k === "on")
+                        }
+                    }
+                }
                 Text {
                     width: parent.width
                     wrapMode: Text.Wrap
-                    text: qsTr("这一组下一版做。")
-                    font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted
+                    text: qsTr("每项服务的提供方和署名见“关于”。")
+                    font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
                 }
             }
 
@@ -770,22 +720,35 @@ GlassPanel {
                 }
             }
 
-            // ---------- 关于：内容在 0.12.5 ----------
-            SettingsCard {
-                objectName: "setCard-about"
+            // ---------- 关于（T-13）和更新日志 ----------
+            AboutSection {
+                id: aboutSection
                 visible: root.section === "about"
                 width: parent.width
-                title: qsTr("关于")
+                services: root.netServices
+                onLogClicked: root.section = "log"
+                onToastRequested: (text, error) => root.toastRequested(text, error)
+            }
+            SettingsCard {
+                objectName: "setCard-log"
+                visible: root.section === "log"
+                width: parent.width
+                title: qsTr("更新日志")
+                LinkText { objectName: "aboutLogBack"; text: qsTr("← 返回关于"); onClicked: root.section = "about" }
                 Text {
-                    width: parent.width
-                    text: qsTr("旅行计划") + " v" + app.version
-                    font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.text
-                }
-                Text {
+                    visible: app.lang === "en"
                     width: parent.width
                     wrapMode: Text.Wrap
-                    text: qsTr("更新日志、数据来源和授权下一版做。")
+                    text: qsTr("更新日志只有中文。")
                     font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted
+                }
+                Text {
+                    objectName: "logText"
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    textFormat: Text.MarkdownText
+                    text: root.section === "log" ? app.changelogText() : ""   // 约 100 KB，只在看的时候排版
+                    font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft
                 }
             }
 
@@ -845,11 +808,20 @@ GlassPanel {
                     sub: qsTr("照片文件夹里没被任何照片用到的文件，移到回收站。")
                     TpButton { text: qsTr("检查…"); compact: true; enabled: app.dataDir !== "" && !app.readOnly && !photos.trashRunning; onClicked: root.cleanupClicked() }
                 }
+                // 0.12.5：缓存用量和清空（只移进回收站）。硬盘上限在 0.12.6
                 SettingsRow {
+                    objectName: "cacheTiles"
+                    width: parent.width
+                    label: qsTr("地图瓦片缓存")
+                    sub: (netc.tileClearing ? qsTr("正在移进回收站…") : !netc.tileScanned ? qsTr("正在统计…") : netc.tileBytes === 0 ? "0 KB" : root.sizeText(netc.tileBytes)) + " · " + qsTr("看过的地图存在这里，离线也能看。超过 2 GB 时自动删掉最旧的。")
+                    TpButton { objectName: "cacheTilesClear"; text: qsTr("清空"); compact: true; enabled: netc.tileBytes > 0 && !netc.tileClearing; onClicked: netc.clearTileCache() }
+                }
+                SettingsRow {
+                    objectName: "cacheThumbs"
                     width: parent.width
                     label: qsTr("缩略图缓存")
                     sub: (photos.cacheBytes < 0 ? qsTr("正在统计…") : photos.cacheBytes === 0 ? "0 KB" : root.sizeText(photos.cacheBytes)) + " · " + qsTr("超过 1 GB 时自动删掉最旧的。")
-                    TpButton { text: qsTr("清空"); compact: true; enabled: photos.cacheBytes > 0; onClicked: { photos.clearThumbCache(); root.toastRequested(qsTr("缩略图缓存已清空，用到时会重新生成。"), false) } }
+                    TpButton { text: qsTr("清空"); compact: true; enabled: photos.cacheBytes > 0; onClicked: photos.clearThumbCache() }
                 }
                 Column {
                     width: parent.width

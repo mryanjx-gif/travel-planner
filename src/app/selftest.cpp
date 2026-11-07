@@ -132,6 +132,7 @@ void runAll(Report &r, AppController *app, PhotoController *photos, map::MapCont
     if (want("weather")) runWeather(r, app, win, planPageCtl(), navCtl(), weatherCtl());
     if (want("kit")) runKit(r, app, win, planPageCtl(), navCtl());
     if (want("docs")) runDocs(r, app, win, planPageCtl(), navCtl(), ratesCtl());   // 0.12.4
+    if (want("netset")) runNetAbout(r, app, mapc, win, navCtl(), net, ratesCtl(), weatherCtl(), photos);   // 0.12.5
     if (want("planphotos")) runPlanPhotos(r, app, win, planPageCtl(), navCtl(), photos);
     if (want("library")) runLibrary(r, app, mapc, win);
     if (want("photomode")) runPhotoMode(r, app, mapc, win, photos);
@@ -367,11 +368,14 @@ static RatesController *g_rates = nullptr;
 RatesController *ratesCtl() { return g_rates; }
 static WeatherController *g_weather = nullptr;
 WeatherController *weatherCtl() { return g_weather; }
+static NetController *g_netc = nullptr;
+NetController *netCtl() { return g_netc; }
 PlanPageController *planPageCtl() { return g_planPage; }
 NavHistory *navCtl() { return g_nav; }
 } // namespace selftest
 void SelfTest::setPlanPage(PlanPageController *p, NavHistory *n, RatesController *rates) { selftest::g_planPage = p; selftest::g_nav = n; selftest::g_rates = rates; }
 void SelfTest::setWeather(WeatherController *w) { selftest::g_weather = w; }
+void SelfTest::setNetCtl(NetController *n) { selftest::g_netc = n; }
 
 void SelfTest::setEditor(PlanEditor *e, Locator *l, services::Geocoder *g) { selftest::g_editor = e; selftest::g_locator = l; selftest::g_geo = g; }
 

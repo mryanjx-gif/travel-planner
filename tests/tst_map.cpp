@@ -76,7 +76,6 @@ private slots:
     void kitChecks();       // 0.10.4
     void kitEmergency();
     void kitDocuments();
-    void manualRates();
     void kitJournal();
     void calShiftAndPlace();  // 0.11.2
     void calRoundTrip();
@@ -3070,39 +3069,6 @@ void TestMap::kitDocuments()
     QCOMPARE(putDocument(none, -1, "", { { "kind", "visa" } }), QString());
     QCOMPARE(none["documents"].asArray().size(), size_t(1));
     QCOMPARE(none["keep"].toNumber(), 1.0);
-}
-
-void TestMap::manualRates()
-{
-    using namespace tp::map::plans;
-    Rates t = parseRates(R"({"date":"d","rates":{"AUD":0.2,"USD":0.14}})", "frankfurter", "CNY");
-    t.manual.insert("AUD", 4.65);
-    t.manual.insert("ISK", 0.05);
-    QVERIFY(qFuzzyCompare(perMain(t, "CNY", "AUD"), 4.65));          // 手动优先
-    QVERIFY(qFuzzyCompare(onlinePerMain(t, "CNY", "AUD"), 5.0));
-    QVERIFY(qFuzzyCompare(perMain(t, "CNY", "ISK"), 0.05));          // 联网表里没有也能用
-    QVERIFY(qFuzzyCompare(perMain(t, "CNY", "USD"), 1 / 0.14));      // 没填的还是联网的
-    QVERIFY(qFuzzyCompare(perMain(t, "AUD", "AUD"), 1.0));           // 主货币自己永远是 1
-    // 消费、账本、分账都用上
-    const tp::json::Value plan = parseJson(R"({"id":"p","name":"x","status":"completed","startDate":"2026-01-01","endDate":"2026-01-02","currency":"AUD",
-        "people":[{"id":"a","name":"甲"},{"id":"b","name":"乙"}],"expenses":[{"id":"e","amount":100,"date":"2026-01-01","paidBy":"a","split":["a","b"]}]})");
-    QVERIFY(qAbs(spendInfo(plan, "CNY", t).value("mainTotal").toDouble() - 465) < 1e-6);
-    tp::json::Value root = tp::json::Value::object();
-    tp::json::Array list;
-    list.push_back(plan);
-    root.mutObject().set("plans", tp::json::Value(std::move(list)));
-    QVERIFY(qAbs(ledgerInfo(root, "CNY", t, "2026-11-08").value("total").toDouble() - 465) < 1e-6);
-    const QVariantList used = settleInfo(plan, "CNY", t).value("settle").toMap().value("rates").toList();
-    QVERIFY(!used.isEmpty());
-    QVERIFY(qFuzzyCompare(used[0].toMap().value("per").toDouble(), 4.65));
-    // 表：默认 4 种 + 计划币种 + 手动填过的 + 这次加的，去掉主货币，不重复
-    tp::json::Value r2 = parseJson(R"({"plans":[{"currency":"GBP","budget":10},{"currency":"NZD"},{"currency":"KRW","expenses":[{"amount":1}]}]})");
-    QStringList curs;
-    const QVariantList rows = rateRows(r2, "USD", t, { "SEK", "AUD" });
-    for (const QVariant &v : rows) curs << v.toMap().value("cur").toString();
-    QCOMPARE(curs, QStringList({ "AUD", "JPY", "EUR", "GBP", "KRW", "ISK", "SEK" }));
-    QVERIFY(qFuzzyCompare(rows[0].toMap().value("manual").toDouble(), 4.65));
-    QVERIFY(rows[1].toMap().value("online").toDouble() < 0);
 }
 
 void TestMap::kitEmergency()

@@ -1470,7 +1470,7 @@ Window {
     // ---- 0.12.3 AI 助手泡泡（占位，阶段 ⑦ 接功能）：我的位置上面一颗 ----
     RoundButton {
         objectName: "aiBtn"
-        visible: locBtn.visible
+        visible: locBtn.visible && netc.allowed.ai   // Electron：AI 那项关了（或离线）就不显示
         width: locBtn.width; height: width
         x: locBtn.x
         y: locBtn.y - height - Theme.px(10)
@@ -2604,7 +2604,6 @@ Window {
         else if (shotPage === "ui-ext" || shotPage === "ui-ext-dirty") extCard.forced = true
         else if (shotPage === "ui-closefail") closeFailDialog.open = true
         else if (shotPage === "ui-closefail-error") { closeFailDialog.conflict = false; closeFailDialog.error = qsTr("拒绝访问。"); closeFailDialog.open = true }
-        else if (shotPage === "ui-settings-money") { rates.setManualForShot("AUD", 4.65); goPage("settings") }
         else if (shotPage === "ui-settings-docs" || shotPage === "ui-settings-doc-form") {
             const opt = planPage.documentPlanOptions("")
             const addDay = (n) => { const x = new Date(); x.setDate(x.getDate() + n); return Qt.formatDate(x, "yyyy-MM-dd") }
@@ -2617,6 +2616,7 @@ Window {
             goPage("settings")
             if (shotPage === "ui-settings-doc-form") docDialog.show(planPage.documents()[1])
         }
+        else if (shotPage === "ui-settings-net-off") { netc.offlineForShot(); goPage("settings") }
         else if (shotPage.startsWith("ui-settings-") && shotPage !== "ui-settings-photos") goPage("settings")
         else if (shotPage === "ui-settings" || shotPage === "ui-backup" || shotPage === "ui-backup-running" || shotPage === "ui-devtools") goPage("settings")
         else if (shotPage === "ui-firstrun") dataChoice.forced = "firstRun"

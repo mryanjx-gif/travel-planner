@@ -7,7 +7,7 @@
 //   - 客户端要缓存：结果存进 <缓存目录>/geocode.json，同一个词 / 同一个点 30 天内不再请求，最多 500 条；
 //   - 不许边打边搜：只在按 Enter / 点"搜索"时调用 search（界面保证）；点选时只反查那一个点；不发"我的位置"；
 //   - 要署名：结果列表下面写"地名数据 © OpenStreetMap 贡献者"（界面），"关于"里也写（阶段 ⑥）；
-//   - 对方要求时能停用：settings.json 的 netOff 里写 geocode 就关掉（NetClient 已有），geocodeUrl 可以换成别的兼容服务（不用更新软件）。
+//   - 对方要求时能停用：设置 → 联网关掉地名搜索（settings.json 的 net），geocodeUrl 可以换成别的兼容服务（不用更新软件）。
 // 和 Electron 一样：jsonv2、limit=8、accept-language=en（站点名一律存英文名；PO 0.8.9 没选"用界面语言"）。
 #pragma once
 

@@ -30,6 +30,7 @@ TileCache::TileCache(const QString &dir, QObject *parent) : QObject(parent), m_d
 
 TileCache::~TileCache()
 {
+    if (m_trashThread) { m_trashThread->wait(); delete m_trashThread; }
     if (m_scanThread) {
         m_scanCancel->store(true);
         m_scanThread->wait();
@@ -91,6 +92,7 @@ void TileCache::mergeScan()
 
 bool TileCache::contains(const TileKey &k) const
 {
+    if (m_clearing) return false;
     const QString rel = k.path();
     if (m_index.contains(rel)) return true;
     return !m_scanned && QFileInfo::exists(m_dir + u'/' + rel);
@@ -98,6 +100,7 @@ bool TileCache::contains(const TileKey &k) const
 
 std::optional<TileCache::Hit> TileCache::get(const TileKey &k)
 {
+    if (m_clearing) return std::nullopt;
     const QString rel = k.path();
     QFile f(m_dir + u'/' + rel);
     if (!f.open(QIODevice::ReadOnly)) {
@@ -119,7 +122,7 @@ std::optional<TileCache::Hit> TileCache::get(const TileKey &k)
 
 bool TileCache::put(const TileKey &k, const QByteArray &data)
 {
-    if (data.isEmpty()) return false;
+    if (data.isEmpty() || m_clearing) return false;
     const QString rel = k.path();
     const QString file = m_dir + u'/' + rel;
     if (!QDir().mkpath(QFileInfo(file).absolutePath())) return false;
@@ -176,6 +179,43 @@ void TileCache::clear()
     m_scanned = true;
     qInfo("瓦片缓存已清空");
     emit sizeChanged();
+}
+
+void TileCache::clearToTrash()
+{
+    if (m_clearing) return;
+    if (m_scanThread) {
+        m_scanCancel->store(true);
+        m_scanThread->wait();
+        delete m_scanThread;
+        m_scanThread = nullptr;
+        m_scanResult.reset();
+    }
+    m_clearing = true;
+    m_trashPath.clear();
+    emit sizeChanged();
+    const QString dir = m_dir;
+    m_trashThread = QThread::create([this, dir] {
+        QFile d(dir);
+        const bool ok = !QFileInfo::exists(dir) || d.moveToTrash();   // 进不了回收站时失败，不会永久删除（photolib.h）
+        const QString where = ok ? d.fileName() : QString();
+        QMetaObject::invokeMethod(this, [this, ok, where] {
+            m_trashThread->wait();
+            delete m_trashThread;
+            m_trashThread = nullptr;
+            m_clearing = false;
+            m_trashPath = where;
+            m_index.clear();
+            m_bytes = 0;
+            m_scanned = ok;
+            QDir().mkpath(m_dir);
+            if (!ok) startScan();   // 可能只移走了一部分，重新数
+            qInfo("瓦片缓存%s", ok ? "已移进回收站" : "没能移进回收站");
+            emit sizeChanged();
+            emit trashDone(ok);
+        }, Qt::QueuedConnection);
+    });
+    m_trashThread->start();
 }
 
 } // namespace tp::services

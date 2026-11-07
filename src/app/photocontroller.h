@@ -120,6 +120,8 @@ public:
     // ---- 缩略图缓存 ----
     Q_INVOKABLE void refreshCacheSize();
     Q_INVOKABLE void clearThumbCache();
+    // 照片署名（0.12.5，T-13；Electron creditsRow）：[{ plan, file, title, author, license, licenseUrl, url, src }]
+    Q_INVOKABLE QVariantList creditRows() const;
 
     // 程序启动后：缓存超过上限就删旧的（后台）
     void pruneCacheLater();
@@ -135,6 +137,7 @@ signals:
     void trashChanged();
     void trashFinished(const QVariantMap &result);    // { moved, failed:[…] }
     void cacheChanged();
+    void thumbCacheCleared(bool ok);
     void rotatingChanged();
     void rotateFinished(const QString &photoId, bool ok, const QString &error);
 

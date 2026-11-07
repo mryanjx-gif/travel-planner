@@ -8,12 +8,12 @@
 namespace tp::services {
 
 namespace {
-// Electron v6.3.0 用到的全部联网服务。名字是开关的键（settings.json 的 netOff；Electron TPPrefs.net 的键名）
+// Electron v6.3.0 用到的全部联网服务。名字是开关的键（settings.json 的 net；Electron TPPrefs.net 的键名）
 const NetClient::Service kServices[] = {
     { QStringLiteral("routing"), QStringLiteral("routing.openstreetmap.de"), 1100 },     // OSRM：≥1.1 秒（map-app.js fetchRoad）
     { QStringLiteral("geocode"), QStringLiteral("nominatim.openstreetmap.org"), 1000 },  // Nominatim：每秒最多 1 次（项目说明第六条）
-    { QStringLiteral("weather"), QStringLiteral("api.open-meteo.com"), 0 },              // 天气、海拔（weather.js）
-    { QStringLiteral("weather"), QStringLiteral("archive-api.open-meteo.com"), 0 },      // 往年气候
+    { QStringLiteral("weather"), QStringLiteral("api.open-meteo.com"), 0 },              // 天气；海拔和时区也在这个主机，请求时点名 elev
+    { QStringLiteral("climate"), QStringLiteral("archive-api.open-meteo.com"), 0 },      // 往年气候
     { QStringLiteral("rates"), QStringLiteral("api.frankfurter.dev"), 0 },               // 汇率（main.js rates:fetch）
     { QStringLiteral("rates"), QStringLiteral("open.er-api.com"), 0 },                   // 汇率（Frankfurter 失败时）
     { QStringLiteral("tiles"), QStringLiteral("server.arcgisonline.com"), 0 },          // Esri 底图瓦片（0.8.5 起经本机瓦片服务）
@@ -73,7 +73,7 @@ int NetClient::queued() const
     return n;
 }
 
-quint64 NetClient::get(const QUrl &url, int timeoutMs, QObject *context, Callback cb, const QByteArray &accept)
+quint64 NetClient::get(const QUrl &url, int timeoutMs, QObject *context, Callback cb, const QByteArray &accept, const QString &service)
 {
     Job job;
     job.id = m_next++;
@@ -90,7 +90,7 @@ quint64 NetClient::get(const QUrl &url, int timeoutMs, QObject *context, Callbac
     if (!url.isValid() || !(scheme == QLatin1String("https") || (m_allowHttp && scheme == QLatin1String("http"))) || !m_byHost.contains(host))
         reject = Error::NotAllowed;
     else if (m_offline) reject = Error::Offline;
-    else if (m_off.contains(m_byHost.value(host).name)) reject = Error::ServiceOff;
+    else if (m_off.contains(service.isEmpty() ? m_byHost.value(host).name : service)) reject = Error::ServiceOff;
     if (reject != Error::None) {
         if (reject == Error::NotAllowed) qWarning("联网请求被拒绝（不在白名单）：%s", qUtf8Printable(url.toString(QUrl::RemoveQuery)));
         Reply r;

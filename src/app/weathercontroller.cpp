@@ -31,9 +31,10 @@ WeatherController::WeatherController(PlanPageController *page, PlanController *p
 {
     connect(m_page, &PlanPageController::changed, this, &WeatherController::update);
     connect(m_plans, &PlanController::nowChanged, this, &WeatherController::update);
+    if (m_net) connect(m_net, &services::NetClient::switchesChanged, this, [this] { emit changed(); update(); });   // 0.12.5：设置里开关一变，气候按钮、预报跟着变
 }
 
-bool WeatherController::allowed() const { return m_net && m_net->allows(QStringLiteral("weather")); }
+bool WeatherController::allowed(const QString &service) const { return m_net && m_net->allows(service); }
 
 void WeatherController::setFetchForTest(Fetch f)
 {
@@ -86,7 +87,7 @@ void WeatherController::update()
 
 void WeatherController::requestForecast(const QVector<plans::GeoPoint> &points)
 {
-    if (m_demo || (!m_fetch && !allowed())) return;
+    if (m_demo || (!m_fetch && !allowed(QStringLiteral("weather")))) return;
     QVector<plans::GeoPoint> need;
     const qint64 now = nowSec();
     for (const plans::GeoPoint &p : points) {
@@ -147,7 +148,7 @@ void WeatherController::recompute()
 
 void WeatherController::fetchClimate()
 {
-    if (m_climBusy || (!m_fetch && !allowed())) return;
+    if (m_climBusy || (!m_fetch && !allowed(QStringLiteral("climate")))) return;
     const Value *p = plans::planById(m_store->data(), m_id);
     if (!p) return;
     const QString today = m_plans->today();

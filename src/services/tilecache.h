@@ -57,12 +57,17 @@ public:
 
     qint64 bytes() const { return m_bytes; }
     int count() const { return int(m_index.size()); }
-    // 清空（设置页"清空缓存"，阶段 ⑥ 接界面）：删掉整个缓存文件夹里的瓦片
+    // 清空（测试用）：直接删掉整个缓存文件夹里的瓦片
     void clear();
+    // 设置页的"清空"（0.12.5）：整个文件夹移进回收站，文件多时要很久，放后台线程；完成发 trashDone。移的时候不读不存
+    void clearToTrash();
+    bool clearing() const { return m_clearing; }
+    QString lastTrashPath() const { return m_trashPath; }   // 测试用：回收站里的位置
 
 signals:
     void scanDone();
     void sizeChanged();
+    void trashDone(bool ok);
 
 private:
     struct Entry { qint64 size = 0; qint64 mtime = 0; };
@@ -77,6 +82,9 @@ private:
     qint64 m_bytes = 0;
     bool m_scanned = false;
     QThread *m_scanThread = nullptr;
+    QThread *m_trashThread = nullptr;
+    bool m_clearing = false;
+    QString m_trashPath;
     std::shared_ptr<std::atomic_bool> m_scanCancel;
     std::shared_ptr<QHash<QString, Entry>> m_scanResult;
 };

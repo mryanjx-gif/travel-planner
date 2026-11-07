@@ -79,6 +79,7 @@ if ($crt) { Copy-Item (Join-Path $crt.FullName '*.dll') $Stage; Say "  VC++ 运�
 $lic = Join-Path $Stage 'LICENSES'
 New-Item -ItemType Directory -Force -Path (Join-Path $lic 'maplibre-native-qt') | Out-Null
 Copy-Item (Join-Path $Root 'third_party\maplibre-native-qt\LICENSES\*') (Join-Path $lic 'maplibre-native-qt')
+Copy-Item (Join-Path $Root 'assets\fonts\LICENSE-*.txt'), (Join-Path $Root 'assets\licenses\LICENSE-suncalc.txt') $lic
 $qtLic = Join-Path (Split-Path (Split-Path $Qt)) 'Licenses'
 if (Test-Path $qtLic) { Copy-Item $qtLic (Join-Path $lic 'Qt') -Recurse } else { Say "  [!] 没找到 Qt 授权文本目录 $qtLic（阶段 ⑧ 补）" 'Yellow' }
 Get-ChildItem $Stage -Recurse -Include *.pdb, *.ilk | Remove-Item -Force

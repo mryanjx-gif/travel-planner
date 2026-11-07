@@ -352,7 +352,11 @@ private slots:
         QCOMPARE(c.prune(1, 0), 2);
         QCOMPARE(c.fileCount(), 0);
         c.ensure(photo, 320);
-        QCOMPARE(c.clear(), 1);
+        QString inTrash;
+        QVERIFY(c.clearToTrash(&inTrash));   // 0.12.5：移进回收站，不是删掉
+        QVERIFY(QFileInfo::exists(inTrash));
+        QDir(inTrash).removeRecursively();   // 测试的东西不留在回收站
+        QCOMPARE(c.fileCount(), 0);
         // 读不了
         QVERIFY(c.ensure(tmp.filePath("nope.jpg"), 320, &err).isEmpty());
         QVERIFY(!err.isEmpty());

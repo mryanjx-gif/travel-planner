@@ -19,6 +19,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QImageReader>
+#include <QTimer>
 #include <QUrl>
 
 #include <algorithm>
@@ -684,12 +685,37 @@ void PhotoController::pruneCacheLater()
 
 void PhotoController::clearThumbCache()
 {
-    const int n = m_cache->clear();
-    qInfo("清空缩略图缓存：删掉 %d 张", n);
-    m_epoch += 1000;   // 已经显示的缩略图换个地址重新请求
-    ++m_revision;
-    emit libraryChanged();
-    refreshCacheSize();
+    if (m_cacheThread) { QTimer::singleShot(300, this, &PhotoController::clearThumbCache); return; }
+    m_cacheBytes = -1;
+    emit cacheChanged();
+    m_cacheThread = QThread::create([this] {
+        const bool ok = m_cache->clearToTrash();
+        QMetaObject::invokeMethod(this, [this, ok] {
+            if (m_cacheThread) { m_cacheThread->wait(); delete m_cacheThread; m_cacheThread = nullptr; }
+            qInfo("缩略图缓存%s", ok ? "已移进回收站" : "没能移进回收站");
+            m_epoch += 1000;   // 已经显示的缩略图换个地址重新请求
+            ++m_revision;
+            emit libraryChanged();
+            emit thumbCacheCleared(ok);
+            refreshCacheSize();
+        }, Qt::QueuedConnection);
+    });
+    m_cacheThread->start();
+}
+
+QVariantList PhotoController::creditRows() const
+{
+    QVariantList out;
+    const Value &root = m_app->store()->data();
+    for (const Value &ph : root[QStringLiteral("photos")].asArray()) {
+        const Value &c = ph[QStringLiteral("credit")];
+        if (!c.isObject()) continue;
+        const Value *plan = map::plans::planById(root, ph[QStringLiteral("plan")].toString());
+        QVariantMap m{ { QStringLiteral("plan"), plan ? (*plan)[QStringLiteral("name")].toString() : QString() }, { QStringLiteral("file"), ph[QStringLiteral("file")].toString() } };
+        for (const char *k : { "title", "author", "license", "licenseUrl", "url", "src" }) m.insert(QString::fromLatin1(k), c[QString::fromLatin1(k)].toString());
+        out << m;
+    }
+    return out;
 }
 
 } // namespace tp::app

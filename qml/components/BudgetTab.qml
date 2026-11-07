@@ -277,7 +277,7 @@ Column {
                 width: parent.width
                 wrapMode: Text.Wrap
                 text: rates.date !== "" ? qsTr("汇率日期 %1").arg(rates.date) + (rates.failed ? " · " + qsTr("更新失败，用的是上次的") : "")
-                                        : rates.failed ? qsTr("还没拿到汇率，联网后重新打开计划试试") : qsTr("正在取汇率…")
+                                        : rates.netOff ? qsTr("汇率的联网已关闭，现在没有汇率") : rates.failed ? qsTr("还没拿到汇率，联网后重新打开计划试试") : qsTr("正在取汇率…")
                 font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
             }
             Flow {

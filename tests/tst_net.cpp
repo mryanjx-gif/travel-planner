@@ -130,6 +130,7 @@ void TestNet::userAgentAndGet()
     QCOMPARE(net.serviceForHost("routing.openstreetmap.de"), QStringLiteral("routing"));
     QCOMPARE(net.serviceForHost("Nominatim.OpenStreetMap.org"), QStringLiteral("geocode"));
     QCOMPARE(net.serviceForHost("api.open-meteo.com"), QStringLiteral("weather"));
+    QCOMPARE(net.serviceForHost("archive-api.open-meteo.com"), QStringLiteral("climate"));
     QCOMPARE(net.serviceForHost("example.com"), QString());
 }
 
@@ -152,6 +153,15 @@ void TestNet::rejects()
     net.setServiceEnabled("test", true);
     QVERIFY(getSync(net, srv.url("/ok")).ok());
     QCOMPARE(srv.reqs.size(), 1);
+    // 同一主机上点名服务（0.12.5：海拔、时区）
+    net.setServiceEnabled("elev", false);
+    bool named = false;
+    NetClient::Error namedErr = NetClient::Error::None;
+    net.get(srv.url("/ok"), 5000, nullptr, [&](const NetClient::Reply &r) { namedErr = r.error; named = true; }, "application/json", "elev");
+    QVERIFY(QTest::qWaitFor([&] { return named; }, 3000));
+    QCOMPARE(namedErr, NetClient::Error::ServiceOff);
+    QCOMPARE(srv.reqs.size(), 1);
+    QVERIFY(getSync(net, srv.url("/ok")).ok());
 }
 
 void TestNet::minInterval()

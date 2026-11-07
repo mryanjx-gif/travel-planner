@@ -185,6 +185,9 @@ public:
     Q_INVOKABLE void toggleFullscreen();          // F11（W-04）
     Q_INVOKABLE void zoom(int dir);                 // +1 放大一档 / -1 缩小一档 / 0 原始大小
     Q_INVOKABLE void openDataFolder();
+    Q_INVOKABLE QString changelogText() const;   // 打包的 CHANGELOG.md，从第一个版本开始（0.12.5）
+    Q_INVOKABLE QString licensesDir() const;     // 授权全文所在的文件夹
+    Q_INVOKABLE bool openLicensesDir();
     Q_INVOKABLE void openLogFolder();
     Q_INVOKABLE void openUrl(const QString &url);   // 外链用系统浏览器打开（W-10）
     Q_INVOKABLE QString localPath(const QVariant &urlOrPath) const;   // FolderDialog 给的 file:/// → 本地路径

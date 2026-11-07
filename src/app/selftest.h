@@ -43,6 +43,7 @@ class Settings;
 class PlanPageController;
 class NavHistory;
 class RatesController;
+class NetController;
 class WeatherController;
 
 class SelfTest
@@ -54,6 +55,7 @@ public:
     static void setEditor(PlanEditor *e, Locator *l, services::Geocoder *g);
     // 0.10.0：完整计划页
     static void setPlanPage(PlanPageController *p, NavHistory *n, RatesController *rates);
+    static void setNetCtl(NetController *n);
     static void setWeather(WeatherController *w);
     // 0.9.1：每一帧的时间（没挂时为空）、设置（量写 settings.json 要多久，用它的一份副本）
     static void setPerf(FrameStats *frames, Settings *settings);

@@ -69,7 +69,6 @@ public:
     Q_INVOKABLE QVariantList documentPlanOptions(const QString &keepId) const;
     Q_INVOKABLE QString saveDocument(int index, const QString &id, const QVariantMap &fields);   // 空 = 改好了；readOnly / gone
     Q_INVOKABLE QString deleteDocument(int index, const QString &id);
-    Q_INVOKABLE QVariantList rateRows(const QStringList &extra) const;
     // 攻略。planId 跟着调用方：停手保存时可能已经换了计划（写完马上关掉）
     Q_INVOKABLE QString setGuide(const QString &planId, const QString &text);
     Q_INVOKABLE bool toggleGuideTask(int line, bool on);

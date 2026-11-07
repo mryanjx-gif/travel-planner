@@ -24,6 +24,7 @@ class PlanEditor;
 class PlanPageController;
 class NavHistory;
 class RatesController;
+class NetController;
 class WeatherController;
 class Locator;
 class FrameStats;
@@ -103,6 +104,9 @@ void runWeather(Report &r, AppController *app, QQuickWindow *win, PlanPageContro
 void runKit(Report &r, AppController *app, QQuickWindow *win, PlanPageController *page, NavHistory *nav);
 // 0.12.4：设置的货币、证件、紧急信息，此刻卡"看证件"（selftest_kit.cpp）
 void runDocs(Report &r, AppController *app, QQuickWindow *win, PlanPageController *page, NavHistory *nav, RatesController *rates);
+// 0.12.5：设置的联网开关、缓存清空、关于和更新日志（selftest_kit.cpp）
+NetController *netCtl();
+void runNetAbout(Report &r, AppController *app, map::MapController *mapc, QQuickWindow *win, NavHistory *nav, services::NetClient *net, RatesController *rates, WeatherController *weather, PhotoController *photos);
 // 0.10.5：照片标签、看大图、编辑器的照片和封面（selftest_photos_tab.cpp）
 void runPlanPhotos(Report &r, AppController *app, QQuickWindow *win, PlanPageController *page, NavHistory *nav, PhotoController *photos);
 // 0.11.0：计划库、想去、足迹（selftest_library.cpp）

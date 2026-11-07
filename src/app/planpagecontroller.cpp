@@ -237,7 +237,6 @@ QString PlanPageController::saveEmergency(const QVariantMap &fields)
 QVariantMap PlanPageController::emergencyInfo() const { return plans::emergencyInfo(m_store->data()); }
 QVariantList PlanPageController::documents() const { return plans::documentsInfo(m_store->data(), m_plans->today()); }
 QVariantList PlanPageController::documentPlanOptions(const QString &keepId) const { return plans::documentPlanOptions(m_store->data(), keepId); }
-QVariantList PlanPageController::rateRows(const QStringList &extra) const { return plans::rateRows(m_store->data(), m_rates->main(), m_rates->table(), extra); }
 
 QString PlanPageController::saveDocument(int index, const QString &id, const QVariantMap &fields)
 {
@@ -402,7 +401,7 @@ QString PlanPageController::setElev(int k, const QString &text)
 void PlanPageController::fillElev(const QString &planId)
 {
     if (m_fillingElev.contains(planId) || m_store->isReadOnly()) return;
-    if (!m_fetch && (!m_net || !m_net->allows(QStringLiteral("weather")))) return;
+    if (!m_fetch && (!m_net || !m_net->allows(QStringLiteral("elev")))) return;
     const Value *p = plans::planById(m_store->data(), planId);
     QVector<plans::TzStop> need = p ? plans::stopsWithoutElev(*p) : QVector<plans::TzStop>();
     if (need.isEmpty()) return;
@@ -423,13 +422,13 @@ void PlanPageController::fillElev(const QString &planId)
     };
     const QUrl url = plans::elevUrl(need);
     if (m_fetch) { m_fetch(url, done); return; }
-    m_net->get(url, kTzTimeoutMs, this, [done](const services::NetClient::Reply &r) { done(r.status, r.body, int(r.error)); });
+    m_net->get(url, kTzTimeoutMs, this, [done](const services::NetClient::Reply &r) { done(r.status, r.body, int(r.error)); }, QByteArrayLiteral("application/json"), QStringLiteral("elev"));
 }
 
 void PlanPageController::fillTz(const QString &planId)
 {
     if (m_filling.contains(planId) || m_store->isReadOnly()) return;
-    if (!m_fetch && (!m_net || !m_net->allows(QStringLiteral("weather")))) return;
+    if (!m_fetch && (!m_net || !m_net->allows(QStringLiteral("elev")))) return;
     m_filling.insert(planId);
     fillBatch(planId);
 }
@@ -458,7 +457,7 @@ void PlanPageController::fillBatch(const QString &planId)
     ++m_tzRequests;
     const QUrl url = plans::tzUrl(need);
     if (m_fetch) { m_fetch(url, done); return; }
-    m_net->get(url, kTzTimeoutMs, this, [done](const services::NetClient::Reply &r) { done(r.status, r.body, int(r.error)); });
+    m_net->get(url, kTzTimeoutMs, this, [done](const services::NetClient::Reply &r) { done(r.status, r.body, int(r.error)); }, QByteArrayLiteral("application/json"), QStringLiteral("elev"));
 }
 
 } // namespace tp::app

@@ -857,6 +857,22 @@ void AppController::openDataFolder()
     if (!m_store->dataDir().isEmpty()) QDesktopServices::openUrl(QUrl::fromLocalFile(m_store->dataDir()));
 }
 
+QString AppController::changelogText() const
+{
+    QFile f(QStringLiteral(":/CHANGELOG.md"));
+    if (!f.open(QIODevice::ReadOnly)) return {};
+    const QString text = QString::fromUtf8(f.readAll());
+    const qsizetype first = text.indexOf(QLatin1String("\n## "));   // 开头的版本号规则是写给开发的
+    return first < 0 ? text : text.mid(first + 1);
+}
+
+QString AppController::licensesDir() const { return QDir::toNativeSeparators(Paths::appDir() + QStringLiteral("/LICENSES")); }
+
+bool AppController::openLicensesDir()
+{
+    return QFileInfo(licensesDir()).isDir() && QDesktopServices::openUrl(QUrl::fromLocalFile(licensesDir()));
+}
+
 void AppController::copyText(const QString &text)
 {
     if (QClipboard *c = QGuiApplication::clipboard()) c->setText(text);

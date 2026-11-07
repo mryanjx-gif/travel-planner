@@ -4,16 +4,28 @@
 #include "appcontroller.h"
 #include "datastore.h"
 #include "jsonio.h"
+#include "mapcontroller.h"
 #include "navhistory.h"
 #include "plancontroller.h"
 #include "planpagecontroller.h"
 #include "plans.h"
+#include "netclient.h"
+#include "netcontroller.h"
+#include "photocontroller.h"
 #include "ratescontroller.h"
 #include "settings.h"
+#include "thumbcache.h"
+#include "tilecache.h"
+#include "weathercontroller.h"
 
 #include <QColor>
 #include <QDate>
 #include <QDateTime>
+#include <QDir>
+#include <QElapsedTimer>
+#include <QFile>
+#include <QFileInfo>
+#include <QTemporaryDir>
 
 #include <algorithm>
 #include <QQuickItem>
@@ -450,7 +462,7 @@ void runDocs(Report &r, AppController *app, QQuickWindow *win, PlanPageControlle
         done(200, QByteArrayLiteral(R"({"base":"CNY","date":"2026-11-05","rates":{"AUD":0.2,"USD":0.14}})"), 0);
     });
     rates->resetForTest(QStringLiteral("CNY"), plans::Rates(), double(QDateTime::currentMSecsSinceEpoch()));
-    settings->setValue(QStringLiteral("manualRates"), json::parse(QStringLiteral(R"({"ZZZ":"留着"})")));
+    settings->setValue(QStringLiteral("manualRates"), json::parse(QStringLiteral(R"({"AUD":4.65,"ZZZ":"留着"})")));   // 旧版留下的
     r.check(rates->refreshNow() && asked.size() == 1 && rates->date() == QLatin1String("2026-11-05"), QStringLiteral("现在更新：20 小时内也会取"), asked.join(u','));
     r.check(rates->src() == QLatin1String("frankfurter") && rates->updatedAt() > 0 && !rates->busy(), QStringLiteral("汇率状态有来源和时间"));
     store->modify([&](Value &d) {
@@ -462,32 +474,16 @@ void runDocs(Report &r, AppController *app, QQuickWindow *win, PlanPageControlle
     });
     page->show(id);
     const auto mainTotal = [&] { return page->info().value(QStringLiteral("money")).toMap().value(QStringLiteral("mainTotal")).toDouble(); };
-    r.check(qAbs(mainTotal() - 500) < 1e-6, QStringLiteral("没填手动时用联网汇率"), QString::number(mainTotal()));
-    r.check(!rates->setManualRate(QStringLiteral("AUD"), QStringLiteral("abc")) && !rates->setManualRate(QStringLiteral("AUD"), QStringLiteral("-1")) && !rates->setManualRate(QStringLiteral("AUD"), QStringLiteral("inf")),
-            QStringLiteral("手动汇率不是大于 0 的数字时不收"));
-    r.check(rates->setManualRate(QStringLiteral("AUD"), QStringLiteral(" 4.65 ")) && qAbs(mainTotal() - 465) < 1e-6, QStringLiteral("手动汇率优先，消费的换算马上跟着变"), QString::number(mainTotal()));
-    const Value saved = settings->value(QStringLiteral("manualRates"));
-    r.check(saved[QStringLiteral("AUD")].toNumber() == 4.65 && saved[QStringLiteral("ZZZ")].toString() == QStringLiteral("留着"), QStringLiteral("手动汇率存进 settings.json manualRates，别的键留着"));
+    r.check(qAbs(mainTotal() - 500) < 1e-6, QStringLiteral("settings.json 里旧的手动汇率不再起作用"), QString::number(mainTotal()));
     {
         RatesController again(settings, nullptr);   // 等于重新打开程序
-        r.check(qAbs(plans::perMain(again.table(), QStringLiteral("CNY"), QStringLiteral("AUD")) - 4.65) < 1e-9, QStringLiteral("重新读 settings.json 手动汇率还在"));
+        r.check(qAbs(plans::perMain(again.table(), QStringLiteral("CNY"), QStringLiteral("AUD")) - 5) < 1e-9, QStringLiteral("重新读 settings.json 也不认手动汇率"));
     }
     rates->refreshNow();
-    r.check(qAbs(mainTotal() - 465) < 1e-6, QStringLiteral("联网更新不会盖掉手动汇率"));
+    r.check(settings->value(QStringLiteral("manualRates"))[QStringLiteral("ZZZ")].toString() == QStringLiteral("留着"), QStringLiteral("settings.json 里的 manualRates 键原样留着"));
     page->show(QString());
     gotoSection("money");
-    QQuickItem *rateField = item(QStringLiteral("rateField-AUD"));
-    QQuickItem *moneyCard = item(QStringLiteral("setCard-money"));
-    r.check(effectivelyShown(moneyCard) && rateField && rateField->property("value").toString() == QLatin1String("4.65"), QStringLiteral("货币分组显示手动汇率"));
-    r.check(!item(QStringLiteral("rateField-CNY")), QStringLiteral("主货币不进手动表"));
-    QQuickItem *usdField = item(QStringLiteral("rateField-USD"));
-    r.check(usdField && usdField->property("placeholder").toString().startsWith(QLatin1String("7.14")), QStringLiteral("没填的显示联网汇率作占位"), usdField ? usdField->property("placeholder").toString() : QString());
-    QQuickItem *clearBtn = item(QStringLiteral("rateClear-AUD"));
-    r.check(clearBtn && clearBtn->isVisible(), QStringLiteral("填过的有清除按钮"));
-    if (clearBtn) click(win, clearBtn);
-    page->show(id);
-    r.check(waitFor([&] { return qAbs(mainTotal() - 500) < 1e-6; }, 2000), QStringLiteral("点清除回到联网汇率"), QString::number(mainTotal()));
-    page->show(QString());
+    r.check(effectivelyShown(item(QStringLiteral("setCard-money"))) && !item(QStringLiteral("setCard-rates")) && !item(QStringLiteral("rateField-AUD")), QStringLiteral("货币分组只有主货币和联网汇率"));
 
     // ---- 证件：此刻卡跳过去 ----
     const QString soon = day.addDays(10).toString(Qt::ISODate), past = day.addDays(-1).toString(Qt::ISODate), far = day.addYears(5).toString(Qt::ISODate);
@@ -583,6 +579,176 @@ void runDocs(Report &r, AppController *app, QQuickWindow *win, PlanPageControlle
     rates->resetForTest(oldMain, oldTable, 0);
     pc->setTodayOverride(QString());
     pc->setTestAllStatuses(true);
+    panel->setProperty("section", QStringLiteral("look"));
+    nav->go(QStringLiteral("map"));
+    pause(100);
+}
+
+namespace {
+// 一个项下面所有看得见的文字，拼在一起
+QString allText(QQuickItem *it)
+{
+    if (!it) return {};
+    QString s = it->property("text").toString();
+    for (QQuickItem *c : it->childItems()) s += u'\n' + allText(c);
+    return s;
+}
+}
+
+void runNetAbout(Report &r, AppController *app, map::MapController *mapc, QQuickWindow *win, NavHistory *nav, services::NetClient *net, RatesController *rates, WeatherController *weather, PhotoController *photos)
+{
+    r.section(QStringLiteral("0.12.5 设置：联网开关、缓存、关于、更新日志"));
+    using services::NetClient;
+    NetController *netc = netCtl();
+    Settings *settings = settingsObj();
+    const auto item = [&](const QString &name) { return findItem(win->contentItem(), name); };
+    QQuickItem *panel = item(QStringLiteral("settingsPanel"));
+    if (!r.check(netc && net && rates && weather && settings && panel, QStringLiteral("联网开关和设置面板在"))) return;
+    const bool oldOffline = netc->offline();
+    const QString oldBase = mapc->base();
+    const Value oldNet = settings->value(QStringLiteral("net"));
+    rates->setFetchForTest({});
+    weather->setFetchForTest({});
+
+    // ---- 每项开关都拦住对应的请求（没有真的发出去：被拒绝的回调里 status 是 0、错误是 ServiceOff / Offline）----
+    struct Svc { const char *key; const char *url; const char *named; };
+    const Svc svcs[] = {
+        { "tiles", "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/1/0/0", "" },
+        { "geocode", "https://nominatim.openstreetmap.org/search?format=jsonv2&q=x", "" },
+        { "routing", "https://routing.openstreetmap.de/routed-car/route/v1/driving/1,1;2,2", "" },
+        { "rates", "https://api.frankfurter.dev/v1/latest?base=CNY", "" },
+        { "rates", "https://open.er-api.com/v6/latest/CNY", "" },
+        { "weather", "https://api.open-meteo.com/v1/forecast?latitude=1&longitude=1", "" },
+        { "climate", "https://archive-api.open-meteo.com/v1/archive?latitude=1&longitude=1", "" },
+        { "elev", "https://api.open-meteo.com/v1/elevation?latitude=1&longitude=1", "elev" },
+    };
+    const auto ask = [&](const Svc &s) {
+        NetClient::Error e = NetClient::Error::None;
+        bool done = false;
+        const quint64 id = net->get(QUrl(QString::fromLatin1(s.url)), 3000, nullptr, [&](const NetClient::Reply &rep) { e = rep.error; done = true; },
+                                    QByteArrayLiteral("application/json"), QString::fromLatin1(s.named));
+        if (!waitFor([&] { return done; }, 500)) { net->cancel(id); return NetClient::Error::None; }   // 没被拦：不等它真的联网
+        return e;
+    };
+    netc->setOffline(false);
+    QStringList bad;
+    for (const Svc &s : svcs) {
+        const QString k = QString::fromLatin1(s.key);
+        netc->setSwitch(k, false);
+        if (ask(s) != NetClient::Error::ServiceOff) bad << k;
+        if (settings->value(QStringLiteral("net"))[k].isBool() == false) bad << k + QStringLiteral("没存");
+        netc->setSwitch(k, true);
+        if (settings->value(QStringLiteral("net")).asObject().contains(k)) bad << k + QStringLiteral("没去掉");
+    }
+    r.check(bad.isEmpty(), QStringLiteral("每项开关关掉后拦住对应请求，存进 settings.json 的 net（同 Electron）"), bad.join(u','));
+    netc->setSwitch(QStringLiteral("weather"), false);
+    const bool elevStill = net->allows(QStringLiteral("elev")) && net->allows(QStringLiteral("climate"));
+    netc->setSwitch(QStringLiteral("weather"), true);
+    netc->setSwitch(QStringLiteral("climate"), false);
+    const bool climOff = !weather->climateAvailable();
+    netc->setSwitch(QStringLiteral("climate"), true);
+    r.check(elevStill && climOff && weather->climateAvailable(), QStringLiteral("天气、气候、海拔各管各的；气候关了气候按钮不显示"));
+    netc->setSwitch(QStringLiteral("rates"), false);
+    const bool ratesOff = rates->netOff() && !rates->refreshNow() && !rates->busy();
+    netc->setSwitch(QStringLiteral("rates"), true);
+    r.check(ratesOff && !rates->netOff(), QStringLiteral("汇率关了：现在更新不发请求，界面能知道是关着"));
+    netc->setOffline(true);
+    bad.clear();
+    for (const Svc &s : svcs) if (ask(s) != NetClient::Error::Offline) bad << QString::fromLatin1(s.key);
+    r.check(bad.isEmpty() && settings->value(QStringLiteral("offline")).toBool() && !netc->allowed().value(QStringLiteral("ai")).toBool(), QStringLiteral("离线总开关拦住所有请求，AI 也算关"), bad.join(u','));
+    panel->setProperty("section", QStringLiteral("net"));
+    nav->go(QStringLiteral("settings"));
+    pause(200);
+    QQuickItem *aiBtn = item(QStringLiteral("aiBtn"));
+    r.check(aiBtn && !aiBtn->isVisible(), QStringLiteral("离线时 AI 泡泡不显示（Electron 同样）"));
+    QQuickItem *netCard = item(QStringLiteral("setCard-net"));
+    const QString netTxt = allText(netCard);
+    r.check(effectivelyShown(netCard) && item(QStringLiteral("netSw-ai")) && item(QStringLiteral("netSw-tiles")) && netTxt.contains(QStringLiteral("都不用")), QStringLiteral("联网分组有 8 项开关，离线时说人话"));
+    netc->setOffline(oldOffline);
+    settings->setValue(QStringLiteral("net"), oldNet);
+    settings->save();
+    netc->reload();
+    mapc->setBase(oldBase);   // 关瓦片时被切到了"已解锁"
+
+    // ---- 缓存清空走回收站（临时文件夹里的假缓存；验证完从回收站拿掉）----
+    {
+        QTemporaryDir tmp;
+        services::TileCache cache(tmp.path() + QStringLiteral("/tiles"));
+        cache.startScan();
+        cache.waitScan();
+        cache.put({ QStringLiteral("gray"), 1, 0, 0 }, QByteArrayLiteral("old"));
+        cache.put({ QStringLiteral("street"), 1, 0, 0 }, QByteArrayLiteral("new"));
+        bool done = false, ok = false;
+        QObject::connect(&cache, &services::TileCache::trashDone, &cache, [&](bool o) { ok = o; done = true; });
+        cache.clearToTrash();
+        const bool blocked = cache.clearing() && !cache.put({ QStringLiteral("street"), 1, 0, 1 }, QByteArrayLiteral("x"));
+        r.check(blocked && waitFor([&] { return done; }, 15000) && ok, QStringLiteral("瓦片缓存：清空时不存新的，完成后报成功"));
+        const QString where = cache.lastTrashPath();
+        const bool inTrash = !where.isEmpty() && QFileInfo::exists(where + QStringLiteral("/gray/1/0/0.t"));
+        const bool gone = !QFileInfo::exists(tmp.path() + QStringLiteral("/tiles/street/1/0/0.t")) && cache.bytes() == 0;
+        r.check(inTrash && gone, QStringLiteral("瓦片缓存移进回收站（含旧的浅灰），不是删掉"), where);
+        if (inTrash) QDir(where).removeRecursively();
+
+        data::ThumbCache thumbs(tmp.path() + QStringLiteral("/thumbs"));
+        QDir().mkpath(thumbs.root() + QStringLiteral("/a"));
+        { QFile f(thumbs.root() + QStringLiteral("/a/t.jpg")); (void)f.open(QIODevice::WriteOnly); f.write("x"); }
+        QString tw;
+        const bool tok = thumbs.clearToTrash(&tw);
+        const bool tin = !tw.isEmpty() && QFileInfo::exists(tw + QStringLiteral("/a/t.jpg"));
+        r.check(tok && tin && thumbs.totalBytes() == 0 && QFileInfo(thumbs.root()).isDir(), QStringLiteral("缩略图缓存移进回收站，文件夹重新建好"), tw);
+        if (tin) QDir(tw).removeRecursively();
+    }
+    panel->setProperty("section", QStringLiteral("data"));
+    pause(150);
+    QQuickItem *tileRow = item(QStringLiteral("cacheTiles"));
+    r.check(effectivelyShown(tileRow) && effectivelyShown(item(QStringLiteral("cacheThumbs"))), QStringLiteral("数据分组显示地图和缩略图的缓存用量"), tileRow ? tileRow->property("sub").toString() : QString());
+
+    // ---- 关于 ----
+    panel->setProperty("section", QStringLiteral("about"));
+    pause(150);
+    QQuickItem *aboutCard = item(QStringLiteral("aboutSection"));
+    const QString about = allText(aboutCard);
+    QStringList lack;
+    for (const char *w : { "不用于商业", "Windows 10", "Black Marble", "Esri", "OpenStreetMap", "Nominatim", "OSRM", "Open-Meteo", "CC BY", "Frankfurter", "er-api", "Natural Earth",
+                           "LGPL-3", "maplibre-native-qt", "suncalc", "OFL", "Apache 2.0", "Material Symbols", "思源宋体", "原创" })
+        if (!about.contains(QString::fromUtf8(w))) lack << QString::fromUtf8(w);
+    r.check(effectivelyShown(aboutCard) && lack.isEmpty(), QStringLiteral("关于写全了作者、系统要求、署名、授权、字体、素材"), lack.join(u','));
+    const QString lic = app->licensesDir();
+    bool licOk = true;
+    for (const QString &f : { QStringLiteral("LICENSE-suncalc.txt"), QStringLiteral("LICENSE-NotoSerifCJK.txt"), QStringLiteral("LICENSE-Material-Symbols.txt"), QStringLiteral("maplibre-native-qt/LGPL-3.0-only.txt"), QStringLiteral("maplibre-native-qt/BSD-2-Clause.txt") })
+        licOk = licOk && QFileInfo::exists(lic + u'/' + f);
+    r.check(licOk, QStringLiteral("授权全文在程序目录的 LICENSES"), lic);
+    QQuickItem *tour = item(QStringLiteral("aboutTour"));
+    if (r.check(effectivelyShown(tour), QStringLiteral("有 再看一次引导"))) {
+        click(win, tour);
+        QQuickItem *t = item(QStringLiteral("toast"));
+        r.check(t && waitFor([&] { return t->property("message").toString().contains(QStringLiteral("还在做")); }, 1500), QStringLiteral("引导还没做：点了提示还在做"));
+    }
+    // 照片署名：种一条看列表
+    data::DataStore *store = app->store();
+    const Value before = store->data();
+    store->modify([&](Value &d) {
+        d.mutObject().set(QStringLiteral("photos"), json::parse(QStringLiteral(R"([{"id":"ph_c","file":"photos/a.jpg","credit":{"src":"wikimedia","title":"湖","author":"某人","license":"CC BY 4.0"}},{"id":"ph_d","file":"photos/b.jpg"}])")));
+    });
+    const QVariantList credits = photos->creditRows();
+    r.check(credits.size() == 1 && credits[0].toMap().value(QStringLiteral("author")).toString() == QStringLiteral("某人"), QStringLiteral("照片署名只列有署名的"));
+    store->modify([&](Value &d) { d = before; });
+
+    // ---- 更新日志 ----
+    const QString log = app->changelogText();
+    r.check(log.startsWith(QLatin1String("## v")) && log.contains(QStringLiteral("## v") + app->version()), QStringLiteral("CHANGELOG.md 打包进资源，顶上是这个版本"), log.left(40));
+    QQuickItem *logBtn = item(QStringLiteral("aboutLog"));
+    if (r.check(effectivelyShown(logBtn), QStringLiteral("关于里有更新日志入口"))) {
+        QElapsedTimer t;
+        t.start();
+        click(win, logBtn);
+        QQuickItem *logText = nullptr;
+        const bool shown = waitFor([&] { logText = item(QStringLiteral("logText")); return effectivelyShown(logText) && logText->property("text").toString().contains(app->version()); }, 3000);
+        r.check(shown && logText->height() > 2000, QStringLiteral("点了显示更新日志"), QStringLiteral("%1 ms，高 %2").arg(t.elapsed()).arg(logText ? logText->height() : 0));
+        QQuickItem *back = item(QStringLiteral("aboutLogBack"));
+        if (back) click(win, back);
+        r.check(waitFor([&] { return panel->property("section").toString() == QLatin1String("about"); }, 1500), QStringLiteral("从更新日志回到关于"));
+    }
     panel->setProperty("section", QStringLiteral("look"));
     nav->go(QStringLiteral("map"));
     pause(100);

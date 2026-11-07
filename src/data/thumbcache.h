@@ -44,8 +44,8 @@ public:
     int fileCount() const;
     // 超过 maxBytes 时删最旧的，删到 targetBytes。返回删掉的个数
     int prune(qint64 maxBytes = kMaxBytes, qint64 targetBytes = kTargetBytes);
-    // 清空。返回删掉的个数
-    int clear();
+    // 清空：整个文件夹移进回收站（0.12.5，工作规则五）。pathInTrash：回收站里的位置（测试用）
+    bool clearToTrash(QString *pathInTrash = nullptr);
 
 private:
     QString m_root;

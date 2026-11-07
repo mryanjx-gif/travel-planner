@@ -3,7 +3,7 @@
 # 规则（PO 2026-11-02）：大更新改第一位，中等更新改第二位，小修改改第三位；正式版之前是 0.x.y，正式版 1.0.0。
 cmake_minimum_required(VERSION 3.24)
 
-set(TP_VERSION "0.12.4")
+set(TP_VERSION "0.12.5")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TP_VERSION_NUMERIC "${TP_VERSION}")
 
 project(TravelPlannerNative
@@ -142,6 +142,7 @@ qt_add_executable(TravelPlanner WIN32
     src/app/calendarcontroller.cpp src/app/calendarcontroller.h
     src/app/journalcontroller.cpp src/app/journalcontroller.h
     src/app/ratescontroller.cpp src/app/ratescontroller.h
+    src/app/netcontroller.cpp src/app/netcontroller.h
     src/app/weathercontroller.cpp src/app/weathercontroller.h
     src/app/planeditor.cpp src/app/planeditor.h
     src/app/locator.cpp src/app/locator.h
@@ -189,7 +190,7 @@ foreach(f TpAnim TpMove TpSpring FocusRing TpCard TpDone GlassPanel TpButton Mod
           SchedList RouteSketch RoundIcon MenuRow Lightbox PhotosTab MdEditor CalPlanCard CalPicker)
     set_source_files_properties(qml/components/${f}.qml PROPERTIES QT_RESOURCE_ALIAS ${f}.qml)
 endforeach()
-foreach(f SettingsPanel SettingsCard SettingsRow BackupSection CalendarPage JournalPage LedgerPage PlanPage)
+foreach(f SettingsPanel SettingsCard SettingsRow BackupSection AboutSection CalendarPage JournalPage LedgerPage PlanPage)
     set_source_files_properties(qml/pages/${f}.qml PROPERTIES QT_RESOURCE_ALIAS ${f}.qml)
 endforeach()
 qt_add_qml_module(TravelPlanner
@@ -284,6 +285,7 @@ qt_add_qml_module(TravelPlanner
         qml/pages/SettingsCard.qml
         qml/pages/SettingsRow.qml
         qml/pages/BackupSection.qml
+        qml/pages/AboutSection.qml
         qml/pages/CalendarPage.qml
         qml/pages/JournalPage.qml
         qml/pages/LedgerPage.qml
@@ -293,6 +295,8 @@ qt_add_qml_module(TravelPlanner
 # 界面翻译词典（0.4.0）：i18n/tr/*.txt 原样打包进资源 :/i18n/tr/…，运行时由 DictTranslator 读取（不生成 .ts / .qm）
 file(GLOB_RECURSE TP_TR_FILES RELATIVE "${CMAKE_SOURCE_DIR}" CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/i18n/tr/*.txt")
 qt_add_resources(TravelPlanner "tp_i18n" PREFIX "/" FILES ${TP_TR_FILES})
+# 更新日志（0.12.5，设置 → 关于）
+qt_add_resources(TravelPlanner "tp_changelog" PREFIX "/" FILES CHANGELOG.md)
 # 地图标记的图标字体（0.8.2，Material Symbols Rounded 子集，Apache 2.0；授权文本在同一个文件夹）
 qt_add_resources(TravelPlanner "tp_fonts" PREFIX "/fonts" BASE "${CMAKE_SOURCE_DIR}/assets/fonts" FILES assets/fonts/MaterialSymbolsRounded.ttf)
 
@@ -352,6 +356,9 @@ add_custom_command(TARGET TravelPlanner POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets/nightlights" "$<TARGET_FILE_DIR:TravelPlanner>/assets/nightlights"
     # 0.12.3：字体目录整个复制：思源宋体两个文件（NotoSerifCJKsc-Regular.otf、-Bold.otf）放进去就带上，没放也不会让编译失败
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets/fonts" "$<TARGET_FILE_DIR:TravelPlanner>/assets/fonts"
+    # 0.12.5：授权全文放进程序目录的 LICENSES（设置 → 关于能打开）。Qt 自带的那份在打包时加（package.ps1）
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/third_party/maplibre-native-qt/LICENSES" "$<TARGET_FILE_DIR:TravelPlanner>/LICENSES/maplibre-native-qt"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_SOURCE_DIR}/assets/fonts/LICENSE-Material-Symbols.txt" "${CMAKE_SOURCE_DIR}/assets/fonts/LICENSE-NotoSerifCJK.txt" "${CMAKE_SOURCE_DIR}/assets/licenses/LICENSE-suncalc.txt" "$<TARGET_FILE_DIR:TravelPlanner>/LICENSES"
     VERBATIM)
 # 安装目录也要带上（OPTIONAL：文件不存在时跳过，不报错）
 install(FILES "${CMAKE_SOURCE_DIR}/assets/fonts/NotoSerifCJKsc-Regular.otf" "${CMAKE_SOURCE_DIR}/assets/fonts/NotoSerifCJKsc-Bold.otf" OPTIONAL DESTINATION assets/fonts)

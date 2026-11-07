@@ -195,15 +195,14 @@ int ThumbCache::prune(qint64 maxBytes, qint64 targetBytes)
     return n;
 }
 
-int ThumbCache::clear()
+bool ThumbCache::clearToTrash(QString *pathInTrash)
 {
-    int n = 0;
-    for (const CacheFile &f : listCache(m_root)) {
-        QMutexLocker lk(&m_mutex);
-        if (m_busy.contains(f.path)) continue;
-        if (QFile::remove(f.path)) ++n;
-    }
-    return n;
+    if (!QFileInfo::exists(m_root)) return true;
+    QFile d(m_root);
+    const bool ok = d.moveToTrash();   // 进不了回收站时失败，不会永久删除（photolib.h）
+    if (ok && pathInTrash) *pathInTrash = d.fileName();
+    QDir().mkpath(m_root);
+    return ok;
 }
 
 } // namespace tp::data

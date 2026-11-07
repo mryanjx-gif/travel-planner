@@ -1,7 +1,7 @@
 // 天气预报和往年同月气候（0.10.3，N-01、N-02、L2；QML 里是 weather）。计算在 plans（planweather.h），这里管联网和缓存。
 // 缓存在 cache\weather.json，不改数据：预报同一地点 3 小时内不再问（一天后丢掉），气候长期留着。
 // 预报：打开计划页、此刻卡在路上时才取；失败时什么都不显示，10 分钟内不重试。气候：只在点按钮时取，每次打开计划要再点。
-// 开关都走 NetClient 的 weather（离线总开关 + 单项；Open-Meteo 的预报、气候、海拔共用这一项）。
+// 开关走 NetClient（离线总开关 + 单项）：预报 weather，气候 climate（海拔和时区 elev 在 PlanPageController）。
 #pragma once
 
 #include "planweather.h"
@@ -35,7 +35,7 @@ public:
 
     QVariantList stops() const { return m_stops; }
     QVariantMap today() const { return m_today; }
-    bool climateAvailable() const { return m_fetch || allowed(); }
+    bool climateAvailable() const { return m_fetch || allowed(QStringLiteral("climate")); }
     bool climateBusy() const { return m_climBusy; }
     bool climateShown() const { return m_climOn; }
 
@@ -55,7 +55,7 @@ signals:
 private:
     struct Wx { qint64 at = 0; QJsonObject daily; };
     struct ClimTask { int year = 0, month = 0; QVector<map::plans::ClimPoint> points; };
-    bool allowed() const;
+    bool allowed(const QString &service) const;
     void update();
     void requestForecast(const QVector<map::plans::GeoPoint> &points);
     void get(const QUrl &url, std::function<void(int, const QByteArray &, int)> done);

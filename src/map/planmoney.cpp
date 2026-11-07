@@ -262,29 +262,6 @@ Rates parseRates(const QByteArray &body, const QString &src, const QString &base
 double perMain(const Rates &r, const QString &main, const QString &cur)
 {
     if (cur == main) return 1;
-    const double m = r.manual.value(cur, 0);
-    return m > 0 ? m : onlinePerMain(r, main, cur);
-}
-
-QVariantList rateRows(const Value &root, const QString &main, const Rates &r, const QStringList &extra)
-{
-    QStringList curs{ QStringLiteral("AUD"), QStringLiteral("USD"), QStringLiteral("JPY"), QStringLiteral("EUR") };
-    for (const Value &p : root[QStringLiteral("plans")].asArray())
-        if (!p[QStringLiteral("expenses")].asArray().empty() || num(p, "budget") != 0) curs << planCurrency(p);
-    QStringList manual = r.manual.keys();
-    manual.sort();
-    curs << manual << extra;
-    curs.removeDuplicates();
-    curs.removeAll(main);
-    QVariantList out;
-    for (const QString &c : std::as_const(curs))
-        out << QVariantMap{ { QStringLiteral("cur"), c }, { QStringLiteral("online"), onlinePerMain(r, main, c) }, { QStringLiteral("manual"), r.manual.value(c, 0) } };
-    return out;
-}
-
-double onlinePerMain(const Rates &r, const QString &main, const QString &cur)
-{
-    if (cur == main) return 1;
     const double a = cur == r.base ? 1 : r.table.value(cur, -1), b = main == r.base ? 1 : r.table.value(main, -1);
     return a > 0 && b > 0 ? b / a : -1;
 }

@@ -28,10 +28,10 @@ RatesController::RatesController(Settings *settings, services::NetClient *net, Q
     for (const auto &[k, v] : t[QStringLiteral("rates")].asObject().members())
         if (v.toNumber() > 0) m_rates.table.insert(k, v.toNumber());
     m_at = settings->value(QStringLiteral("ratesAt")).toNumber();
-    const Value manual = settings->value(QStringLiteral("manualRates"));
-    for (const auto &[k, v] : manual.asObject().members())
-        if (v.toNumber() > 0) m_rates.manual.insert(k, v.toNumber());
+    if (m_net) connect(m_net, &services::NetClient::switchesChanged, this, &RatesController::changed);
 }
+
+bool RatesController::netOff() const { return !m_fetch && (!m_net || !m_net->allows(kService)); }
 
 void RatesController::setMain(const QString &cur)
 {
@@ -53,32 +53,10 @@ void RatesController::ensure()
 bool RatesController::refreshNow()
 {
     if (m_busy) return true;
-    if (!m_fetch && (!m_net || !m_net->allows(kService))) return false;
+    if (netOff()) return false;
     m_busy = true;
     emit busyChanged();
     fetch(0);
-    return true;
-}
-
-bool RatesController::setManualRate(const QString &cur, const QString &text)
-{
-    if (cur.isEmpty()) return false;
-    const QString t = QString(text).remove(QLatin1Char(',')).trimmed();
-    double v = 0;
-    if (!t.isEmpty()) {
-        bool ok = false;
-        v = t.toDouble(&ok);
-        if (!ok || !qIsFinite(v) || v <= 0) return false;
-    }
-    if (m_rates.manual.value(cur, 0) == v) return true;
-    // 在原来的对象上改：别的键原样留着
-    const Value old = m_settings->value(QStringLiteral("manualRates"));
-    Value m = old.isObject() ? old : Value::object();
-    if (v > 0) { m.mutObject().set(cur, Value(v)); m_rates.manual.insert(cur, v); }
-    else { m.mutObject().remove(cur); m_rates.manual.remove(cur); }
-    m_settings->setValue(QStringLiteral("manualRates"), std::move(m));
-    m_settings->save();
-    emit changed();
     return true;
 }
 
@@ -115,9 +93,7 @@ void RatesController::fetch(int step)
 
 void RatesController::store(const plans::Rates &r)
 {
-    const auto manual = m_rates.manual;
     m_rates = r;
-    m_rates.manual = manual;
     m_at = double(QDateTime::currentMSecsSinceEpoch());
     persist();
 }

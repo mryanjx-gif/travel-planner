@@ -61,6 +61,7 @@
 #include "calendarcontroller.h"
 #include "journalcontroller.h"
 #include "planpagecontroller.h"
+#include "netcontroller.h"
 #include "ratescontroller.h"
 #include "weathercontroller.h"
 #include "planeditor.h"
@@ -293,15 +294,13 @@ int main(int argc, char *argv[])
         tp::map::MarkerImages::setFonts(serif, fam.value(0));
     }
     tp::app::perf::startup("字体");
-    // 统一请求通道和批量算道路路线（0.8.4）。离线总开关、每项服务的开关在 settings.json（offline / netOff，设置页在阶段 ⑥）
+    // 统一请求通道和批量算道路路线（0.8.4）。离线总开关、每项服务的开关由 NetController 读（0.12.5）
     tp::services::NetClient net;
     net.setUserAgent(tp::services::NetClient::userAgentFor(QStringLiteral(TP_VERSION_STRING)));
-    net.setOffline(settings.value(QStringLiteral("offline")).toBool());
-    const tp::json::Value netOff = settings.value(QStringLiteral("netOff"));   // 先存下来再遍历（临时对象里的数组不能直接拿来 for）
-    for (const tp::json::Value &v : netOff.asArray()) net.setServiceEnabled(v.toString(), false);
     // 本机瓦片服务（0.8.5）：maplibre 向它要底图瓦片，它查硬盘缓存（<缓存>\tiles，上限 2 GB）、没有再经上面的通道向 Esri 取
     tp::services::TileCache tileCache(Paths::cacheDir() + QStringLiteral("/tiles"));
     tileCache.startScan();
+    tp::app::NetController netc(&settings, &net, &tileCache);
     tp::services::TileServer tileServer(&net, &tileCache);
     tileServer.start();   // 起不来时（极少见）骨架样式直接用 Esri 的地址，只是没有硬盘缓存和失败提示
 #ifdef TP_DEV_TOOLS
@@ -424,6 +423,7 @@ int main(int argc, char *argv[])
     ctx->setContextProperty("calendar", &calendar);
     ctx->setContextProperty("journal", &journal);
     ctx->setContextProperty("rates", &rates);
+    ctx->setContextProperty("netc", &netc);
     ctx->setContextProperty("weather", &weather);
     ctx->setContextProperty("locator", &locator);
     // 截图 ui-photo-import / ui-photo-e2e：把 tests/photos.txt 里的测试照片当成"选中的文件"
@@ -643,6 +643,7 @@ int main(int argc, char *argv[])
         tp::app::SelfTest::setPerf(frameStats, &settings);
         tp::app::SelfTest::setEditor(&editor, &locator, &geocoder);
         tp::app::SelfTest::setPlanPage(&planPage, &nav, &rates);
+        tp::app::SelfTest::setNetCtl(&netc);
         tp::app::SelfTest::setWeather(&weather);
         tp::app::SelfTest::start(QDir::fromNativeSeparators(selftestReport), &ctl, &photos, &mapc, win,
                                  GraphicsBackend::displayName(backend.api) + (backend.deviceInfo.isEmpty() ? QString() : QStringLiteral(" · ") + backend.deviceInfo),
