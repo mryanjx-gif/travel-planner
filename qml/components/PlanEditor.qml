@@ -152,6 +152,7 @@ Item {
             width: Theme.px(34); height: width; radius: width / 2
             color: cbMa.containsMouse ? Qt.rgba(22 / 255, 32 / 255, 42 / 255, 0.06) : "transparent"
             TpIcon { anchors.centerIn: parent; name: "close" }
+            TpTip { text: qsTr("完成"); show: cbMa.containsMouse }
             MouseArea { id: cbMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.finishRequested() }
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("完成")
@@ -786,6 +787,7 @@ Item {
         Accessible.role: Accessible.Button
         Accessible.name: label
         TpIcon { anchors.centerIn: parent; width: Theme.px(13); height: width; name: pa.icon; color: "#ffffff" }
+        TpTip { text: pa.label; show: paMa.containsMouse }
         MouseArea { id: paMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: pa.clicked() }
     }
     component Label: Text {
@@ -816,6 +818,7 @@ Item {
         opacity: enabled ? 1 : 0.3
         color: mMa.containsMouse && enabled ? (danger ? Qt.rgba(168 / 255, 64 / 255, 28 / 255, 0.08) : Qt.rgba(22 / 255, 32 / 255, 42 / 255, 0.06)) : "transparent"
         TpIcon { anchors.centerIn: parent; name: parent.icon; width: Theme.px(15); height: width; color: parent.danger ? Theme.danger : Theme.textSoft }
+        TpTip { text: parent.tip; show: mMa.containsMouse }
         MouseArea { id: mMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: parent.clicked() }
         Accessible.role: Accessible.Button
         Accessible.name: tip

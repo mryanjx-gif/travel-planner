@@ -13,6 +13,7 @@ Item {
     property bool on: false
     property bool dark: false
     property bool interactive: true
+    property bool solid: false        // 0.12.10：下面不是地图时（整页上）不折射、接近实底
     property real homeX: 0
     property real homeY: 0            // 0.8.10：顶栏 ⋯ 泡泡太多、一行放不下时排到第二行
     property real centerX: 0
@@ -61,7 +62,8 @@ Item {
         anchors.fill: parent
         radius: height / 2
         shadow: bud.p > 0.98
-        tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? (bud.dark ? 0.25 : bud.baseAlpha) : 0.96)
+        liquid: !bud.solid
+        tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass && !bud.solid ? (bud.dark ? 0.25 : bud.baseAlpha) : 0.96)
         edge: hover.hovered ? Theme.lineStrong : Theme.glassEdge
     }
     // 选中：里面垫一颗更白的玻璃胶囊

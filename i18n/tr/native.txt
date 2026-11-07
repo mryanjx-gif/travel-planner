@@ -1230,3 +1230,8 @@ Windows 自带，不随程序分发。	Come with Windows; not distributed with t
 %1 笔	%1 entries
 这个类别没有消费。	Nothing in this category.
 未定时间	No time set
+上一年	Previous year
+下一年	Next year
+上个月	Previous month
+下个月	Next month
+地图瓦片已关闭（设置 → 联网）	Map tiles are off (Settings → Network)

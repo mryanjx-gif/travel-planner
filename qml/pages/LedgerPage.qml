@@ -59,22 +59,46 @@ Item {
 
     GlassPanel {
         anchors.fill: parent
+        anchors.topMargin: -Theme.radius   // 0.12.10：贴着窗口顶，上面两个圆角放到窗口外
         radius: Theme.radius
         tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.985 : 0.99)
         liquid: false
     }
     MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; onWheel: (w) => w.accepted = true }   // 不穿透到地图
 
+    // 0.12.10 页头并进顶栏：账本的控件只有"换算成"
+    BarHead {
+        id: head
+        rightW: mainSel.implicitWidth
+        Row {
+            id: mainSel
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: Theme.px(36)
+            spacing: Theme.px(6)
+            Text { anchors.verticalCenter: parent.verticalCenter; text: qsTr("换算成"); font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.muted }
+            TpSelect {
+                objectName: "ledgerMain"
+                anchors.verticalCenter: parent.verticalCenter
+                width: Theme.px(84)
+                options: rates.currencies.map(c => ({ key: c, text: c }))
+                current: rates.main
+                onPicked: (k) => rates.main = k
+            }
+        }
+    }
+
     Flickable {
         id: flick
         objectName: "ledgerFlick"
         anchors.fill: parent
+        anchors.topMargin: head.contentTop
         contentHeight: col.implicitHeight + Theme.px(44)
         boundsBehavior: Flickable.StopAtBounds
         clip: true
         Column {
             id: col
-            y: Theme.px(22)
+            y: Theme.px(4)
             width: Math.min(flick.width - Theme.px(32), Theme.px(860))
             x: (flick.width - width) / 2
             spacing: Theme.px(14)
@@ -82,10 +106,10 @@ Item {
             // ---- 总览 ----
             Item {
                 width: parent.width
-                height: Math.max(bigCol.implicitHeight, mainSel.height)
+                height: bigCol.implicitHeight
                 Column {
                     id: bigCol
-                    width: parent.width - mainSel.width - Theme.px(10)
+                    width: parent.width
                     spacing: Theme.px(1)
                     Text { text: qsTr("已花"); font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted }
                     Text {
@@ -111,19 +135,6 @@ Item {
                         wrapMode: Text.Wrap
                         text: qsTr("还没去的预计 %1 %2（%3 趟）").arg(rates.main).arg(root.whole(root.info.future)).arg(root.info.futureCount || 0)
                         font.family: serifFamily; font.pixelSize: Theme.px(15); color: Theme.textSoft
-                    }
-                }
-                Row {
-                    id: mainSel
-                    anchors.right: parent.right
-                    spacing: Theme.px(6)
-                    Text { anchors.verticalCenter: parent.verticalCenter; text: qsTr("换算成"); font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.muted }
-                    TpSelect {
-                        objectName: "ledgerMain"
-                        width: Theme.px(84)
-                        options: rates.currencies.map(c => ({ key: c, text: c }))
-                        current: rates.main
-                        onPicked: (k) => rates.main = k
                     }
                 }
             }
@@ -284,6 +295,7 @@ Item {
     // 0.12.8 长表固定表头：滚过表头以后，上面钉一份
     Rectangle {
         objectName: "ledgerPinnedHead"
+        y: flick.y
         visible: flick.contentY > tripsHead.mapToItem(flick.contentItem, 0, 0).y && root.trips.length > 0
         x: col.x
         width: col.width

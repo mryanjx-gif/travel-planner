@@ -68,7 +68,10 @@ Item {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "✕"; font.pixelSize: Theme.px(14); color: Theme.muted
-                    MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: root.close() }
+                    Accessible.role: Accessible.Button
+                    Accessible.name: qsTr("关闭")
+                    TpTip { text: qsTr("关闭"); show: closeMa.containsMouse }
+                    MouseArea { id: closeMa; anchors.fill: parent; anchors.margins: -6; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.close() }
                 }
             }
             // 颜色

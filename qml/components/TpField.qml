@@ -1,5 +1,6 @@
 // 输入框（0.8.9，站点编辑器用）：单行或多行（multiline，跟着内容变高，最高 maxLines 行后滚动；Electron autoGrow 最高 260 px）。
-// value 是外面的值；正在输入时外面的值变了不覆盖（免得光标跳）。每打一个字发 edited(文字)；Enter（单行）发 accepted()。
+// value 是外面的值；用户打字引起的 value 变化不写回（免得光标跳，外面改写的离开时对上），别处改的马上显示。每打一个字发 edited(文字)；Enter（单行）发 accepted()。
+// 0.12.10：只有用户打字才发 edited。以前 text 绑着 value：外面改 value（如"恢复平摊"）→ 文字变 → 有焦点就发 edited → 外面再改 value，value 的绑定算到一半又被触发（binding loop）。
 import QtQuick
 import TPApp
 
@@ -23,7 +24,11 @@ Item {
     implicitWidth: Theme.px(200)
     function focusAll() { edit.forceActiveFocus(); edit.selectAll() }
     function clear() { edit.text = "" }
-    onValueChanged: if (!edit.activeFocus && edit.text !== value) edit.text = value
+    property bool syncing: false           // 正在把 value 写进输入框：这次文字变化不算用户打的
+    property bool echoing: false           // 正在发 edited：这次 value 变化是打字的回音，不写回
+    function syncText() { syncing = true; edit.text = value; syncing = false }
+    onValueChanged: if (!echoing && edit.text !== value) syncText()
+    Component.onCompleted: syncText()
 
     Rectangle {
         anchors.fill: parent
@@ -51,7 +56,6 @@ Item {
             id: edit
             width: flick.width
             height: root.multiline ? Math.max(contentHeight, flick.height) : flick.height
-            text: root.value
             verticalAlignment: root.multiline ? TextEdit.AlignTop : TextEdit.AlignVCenter
             wrapMode: root.multiline ? TextEdit.Wrap : TextEdit.NoWrap
             font.family: serifFamily; font.pixelSize: Theme.px(root.fontSize); font.bold: root.bold
@@ -61,7 +65,7 @@ Item {
             selectedTextColor: Theme.text
             onTextChanged: {
                 if (root.maxLength > 0 && text.length > root.maxLength) { text = text.slice(0, root.maxLength); cursorPosition = text.length; return }
-                if (activeFocus) root.edited(text)
+                if (activeFocus && !root.syncing) { root.echoing = true; root.edited(text); root.echoing = false }
             }
             onCursorRectangleChanged: flick.ensureVisible(cursorRectangle)
             function enter(e) {
@@ -71,7 +75,7 @@ Item {
             Keys.onReturnPressed: (e) => enter(e)
             Keys.onEnterPressed: (e) => enter(e)
             Keys.onEscapePressed: (e) => { focus = false; root.escaped(); e.accepted = true }
-            onActiveFocusChanged: if (!activeFocus && text !== root.value) text = root.value
+            onActiveFocusChanged: if (!activeFocus && text !== root.value) root.syncText()
             Text {
                 visible: edit.text === "" && edit.preeditText === ""
                 width: parent.width

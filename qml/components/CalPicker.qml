@@ -42,8 +42,8 @@ Item {
                 width: parent.width
                 height: Theme.px(34)
                 Text { anchors.centerIn: parent; objectName: "calPickerYear"; text: String(root.year); font.family: serifFamily; font.pixelSize: Theme.px(22); font.bold: true; color: Theme.text }
-                StepBtn { anchors.left: parent.left; text: "‹"; onClicked: root.year-- }
-                StepBtn { anchors.right: parent.right; text: "›"; onClicked: root.year++ }
+                StepBtn { anchors.left: parent.left; text: "‹"; tip: qsTr("上一年"); onClicked: root.year-- }
+                StepBtn { anchors.right: parent.right; text: "›"; tip: qsTr("下一年"); onClicked: root.year++ }
             }
             Flow {
                 visible: (root.info.years || []).length > 0
@@ -108,7 +108,11 @@ Item {
     component StepBtn: Rectangle {
         id: step
         property string text: ""
+        property string tip: ""
         signal clicked()
+        Accessible.role: Accessible.Button
+        Accessible.name: tip
+        TpTip { text: step.tip; show: stepMa.containsMouse }
         width: Theme.px(32); height: width; radius: Theme.px(8)
         color: stepMa.containsMouse ? Theme.panel2 : "transparent"
         Text { anchors.centerIn: parent; text: step.text; font.family: serifFamily; font.pixelSize: Theme.px(20); color: Theme.textSoft }

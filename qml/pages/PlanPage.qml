@@ -338,6 +338,7 @@ Item {
                     compact: true
                     implicitWidth: Theme.px(40)
                     text: "⋯"
+                    tip: qsTr("更多")
                     Accessible.name: qsTr("更多")
                     onClicked: root.openMenu(bigMore)
                 }
@@ -1047,7 +1048,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: Theme.px(6)
             TpButton { compact: true; kind: "primary"; text: qsTr("编辑"); onClicked: root.editRequested(root.info.id) }
-            TpButton { id: smallMore; compact: true; implicitWidth: Theme.px(40); text: "⋯"; Accessible.name: qsTr("更多"); onClicked: root.openMenu(smallMore) }
+            TpButton { id: smallMore; compact: true; implicitWidth: Theme.px(40); text: "⋯"; tip: qsTr("更多"); Accessible.name: qsTr("更多"); onClicked: root.openMenu(smallMore) }
         }
     }
     RoundIcon {

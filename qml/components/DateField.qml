@@ -141,6 +141,9 @@ Item {
                         x: modelData < 0 ? 0 : parent.width - width
                         width: Theme.px(28); height: width; radius: width / 2
                         color: nMa.containsMouse ? Theme.accentSoft : "transparent"
+                        Accessible.role: Accessible.Button
+                        Accessible.name: modelData < 0 ? qsTr("上个月") : qsTr("下个月")
+                        TpTip { text: modelData < 0 ? qsTr("上个月") : qsTr("下个月"); show: nMa.containsMouse }
                         Text { anchors.centerIn: parent; text: modelData < 0 ? "‹" : "›"; font.pixelSize: Theme.px(18); color: Theme.textSoft }
                         MouseArea { id: nMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.shiftMonth(modelData) }
                     }

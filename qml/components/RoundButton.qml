@@ -9,6 +9,7 @@ Item {
     property bool on: false            // 选中 / 打开时图标用强调色
     property string tip: ""
     property string label: ""          // 不用图标，显示一两个字（AI 泡泡）
+    property bool solid: false         // 下面不是地图时（整页上）不折射、接近实底
     signal clicked()
     width: Theme.px(40)
     height: width
@@ -18,7 +19,8 @@ Item {
     GlassPanel {
         anchors.fill: parent
         radius: width / 2
-        tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.69 : 0.96)
+        liquid: !root.solid
+        tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass && !root.solid ? 0.69 : 0.96)
         edge: ma.containsMouse ? Theme.lineStrong : Theme.glassEdge
         scale: ma.pressed ? 0.9 : 1
         Behavior on scale { TpSpring {} }

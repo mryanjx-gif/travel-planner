@@ -132,6 +132,15 @@ void runCalendar(Report &r, AppController *app, QQuickWindow *win)
     QQuickItem *bar = nullptr;
     r.check(waitFor([&] { bar = c.item(QStringLiteral("calBar-") + pid); return visibleChain(bar); }, 1500), QStringLiteral("年视图有这个计划的横条"));
 
+    // ---- 0.12.10 页头并进顶栏：宽窗口时切换控件和 ⋯ 同一行、不压着它，整页顶到窗口顶 ----
+    {
+        QQuickItem *dots = c.item(QStringLiteral("dotsPill")), *prev = c.item(QStringLiteral("calPrev")), *page = c.item(QStringLiteral("calendarPage"));
+        const bool sameRow = dots && prev && qAbs(c.center(dots).y() - c.center(prev).y()) < 3;
+        const bool clear = dots && prev && prev->mapToScene(QPointF(0, 0)).x() >= dots->mapToScene(QPointF(dots->width(), 0)).x();
+        r.check(sameRow && clear, QStringLiteral("日历的切换控件和顶栏 ⋯ 同一行，不重叠"));
+        r.check(page && page->mapToScene(QPointF(0, 0)).y() < 1, QStringLiteral("整页从窗口顶部开始"));
+    }
+
     // ---- 翻页和今天 ----
     const int y0 = cal->year(), m0 = cal->month();
     c.click(QStringLiteral("calNext"));

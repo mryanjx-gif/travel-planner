@@ -200,30 +200,23 @@ GlassPanel {
             }
         }
     }
-    // 窄：顶部横向标签，放不下时左右拖
-    Flickable {
+    // 窄：顶部横向标签，一行放不下时换行（0.12.10：以前要拖才看得到"关于"）
+    Flow {
         id: tabs
         visible: root.narrow
         anchors.top: head.bottom
         x: Theme.px(12)
         width: parent.width - 2 * x
-        height: visible ? Theme.px(42) : 0
-        contentWidth: tabRow.width
-        flickableDirection: Flickable.HorizontalFlick
-        boundsBehavior: Flickable.StopAtBounds
-        clip: true
-        Row {
-            id: tabRow
-            spacing: Theme.px(2)
-            Repeater {
-                model: root.mainSections.concat(root.footSections)
-                delegate: NavItem {
-                    required property var modelData
-                    objectName: "setTab-" + modelData.key
-                    label: modelData.text
-                    on: root.section === modelData.key || (root.section === "log" && modelData.key === "about")
-                    onPicked: root.section = modelData.key
-                }
+        height: visible ? implicitHeight + Theme.px(8) : 0
+        spacing: Theme.px(2)
+        Repeater {
+            model: root.mainSections.concat(root.footSections)
+            delegate: NavItem {
+                required property var modelData
+                objectName: "setTab-" + modelData.key
+                label: modelData.text
+                on: root.section === modelData.key || (root.section === "log" && modelData.key === "about")
+                onPicked: root.section = modelData.key
             }
         }
     }

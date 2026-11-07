@@ -124,7 +124,7 @@ MapLibre {
         property string source: "routes-ov"
         property var filter: ["==", ["get", "k"], "s"]
         layout: map.routeLayout()
-        paint: ({ "line-color": "#8b97a2", "line-width": 1.6, "line-opacity": 0.55 })
+        paint: ({ "line-color": "#6f7d89", "line-width": 1.8, "line-opacity": 0.8 })
     }
     SourceParameter { id: sRoutesHv; styleId: "routes-hv"; type: "geojson"; property string data: mapc.routesHvJson }
     SourceParameter { id: sRoutesSel; styleId: "routes-sel"; type: "geojson"; property string data: mapc.routesSelJson }

@@ -351,7 +351,7 @@ void MapController::setBase(const QString &b00)
     if (!isBase(b)) return;
     // Electron setBase：在线底图关了（或离线模式）时只能用"已解锁"
     if (b != QLatin1String("unlock") && m_tilesOff) {
-        emit toast(trd("在线底图已关闭（设置 → 联网服务）"), true);
+        emit toast(trd("地图瓦片已关闭（设置 → 联网）"), true);
         b = QStringLiteral("unlock");
     }
     setBaseInner(b, m_persistBase && b == b0);   // 被迫切到"已解锁"的不记

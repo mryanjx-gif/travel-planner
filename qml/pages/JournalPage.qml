@@ -129,11 +129,63 @@ Item {
 
     GlassPanel {
         anchors.fill: parent
+        anchors.topMargin: -Theme.radius   // 0.12.10：贴着窗口顶，上面两个圆角放到窗口外
         radius: Theme.radius
         tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.985 : 0.99)
         liquid: false
     }
     MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; onWheel: (w) => w.accepted = true }   // 不穿透到地图
+
+    // ==================== 页头（0.12.10 并进顶栏）：列表 = 篇数、筛选、写一篇；阅读、编辑 = 面包屑 ====================
+    BarHead {
+        id: head
+        leftW: root.curId === "" ? journalSummary.implicitWidth : crumb.implicitWidth
+        rightW: root.curId === "" ? headRight.implicitWidth : 0
+        Text {
+            id: journalSummary
+            objectName: "journalSummary"
+            visible: root.curId === "" && (journal.page.total || 0) > 0
+            height: Theme.px(36)
+            verticalAlignment: Text.AlignVCenter
+            text: qsTr("%1 篇").arg(journal.page.total || 0) + ((journal.page.plans || []).length > 0 ? " · " + Fmt.one(qsTr("%1 个旅程").arg(journal.page.plans.length)) : "")
+            font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted
+        }
+        Crumb {
+            id: crumb
+            visible: root.curId !== ""
+            anchors.verticalCenter: parent.top
+            anchors.verticalCenterOffset: Theme.px(18)
+            tail: root.curEdit ? qsTr("编辑") : root.exists ? (root.cur.title || qsTr("无标题")) : ""
+        }
+        Row {
+            id: headRight
+            visible: root.curId === ""
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: Theme.px(36)
+            spacing: Theme.px(10)
+            TpSelect {
+                objectName: "journalFilter"
+                visible: (journal.page.total || 0) > 0
+                anchors.verticalCenter: parent.verticalCenter
+                width: root.narrow ? Theme.px(130) : Theme.px(220)
+                options: [{ key: "all", text: qsTr("全部旅程") }]
+                         .concat((journal.page.plans || []).map(p => ({ key: p.id, text: p.name || qsTr("未命名计划") })))
+                         .concat(journal.page.hasNone ? [{ key: "none", text: qsTr("没关联计划") }] : [])
+                current: journal.filter
+                onPicked: (k) => journal.filter = k
+            }
+            TpButton {
+                objectName: "journalNew"
+                kind: "primary"
+                compact: true
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("写一篇")
+                // 预关联当前筛选（Electron newEntry）
+                onClicked: root.writeNew(journal.filter !== "all" && journal.filter !== "none" ? journal.filter : "")
+            }
+        }
+    }
 
     // ==================== 列表 ====================
     Flickable {
@@ -141,52 +193,16 @@ Item {
         objectName: "journalList"
         visible: root.curId === ""
         anchors.fill: parent
+        anchors.topMargin: head.contentTop
         contentHeight: listCol.implicitHeight + Theme.px(44)
         boundsBehavior: Flickable.StopAtBounds
         clip: true
         Column {
             id: listCol
-            y: Theme.px(22)
+            y: Theme.px(4)
             width: Math.min(listFlick.width - Theme.px(32), Theme.px(1180))
             x: (listFlick.width - width) / 2
             spacing: Theme.px(16)
-            Item {
-                width: parent.width
-                height: Theme.px(52)
-                Column {
-                    anchors.verticalCenter: parent.verticalCenter
-                    Text { text: qsTr("游记"); font.family: serifFamily; font.pixelSize: Theme.px(26); font.bold: true; color: Theme.text }
-                    Text {
-                        objectName: "journalSummary"
-                        visible: (journal.page.total || 0) > 0
-                        text: qsTr("%1 篇").arg(journal.page.total || 0) + ((journal.page.plans || []).length > 0 ? " · " + Fmt.one(qsTr("%1 个旅程").arg(journal.page.plans.length)) : "")
-                        font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted
-                    }
-                }
-                Row {
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: Theme.px(10)
-                    TpSelect {
-                        objectName: "journalFilter"
-                        visible: (journal.page.total || 0) > 0
-                        width: root.narrow ? Theme.px(130) : Theme.px(220)
-                        options: [{ key: "all", text: qsTr("全部旅程") }]
-                                 .concat((journal.page.plans || []).map(p => ({ key: p.id, text: p.name || qsTr("未命名计划") })))
-                                 .concat(journal.page.hasNone ? [{ key: "none", text: qsTr("没关联计划") }] : [])
-                        current: journal.filter
-                        onPicked: (k) => journal.filter = k
-                    }
-                    TpButton {
-                        objectName: "journalNew"
-                        kind: "primary"
-                        compact: true
-                        text: qsTr("写一篇")
-                        // 预关联当前筛选（Electron newEntry）
-                        onClicked: root.writeNew(journal.filter !== "all" && journal.filter !== "none" ? journal.filter : "")
-                    }
-                }
-            }
             // ---- 空状态 ----
             Column {
                 objectName: "journalEmptyPage"
@@ -294,16 +310,16 @@ Item {
         objectName: "journalRead"
         visible: root.curId !== "" && !root.curEdit
         anchors.fill: parent
+        anchors.topMargin: head.contentTop
         contentHeight: readCol.implicitHeight + Theme.px(60)
         boundsBehavior: Flickable.StopAtBounds
         clip: true
         Column {
             id: readCol
-            y: Theme.px(22)
+            y: Theme.px(4)
             width: Math.min(readFlick.width - Theme.px(32), Theme.px(820))
             x: (readFlick.width - width) / 2
             spacing: Theme.px(10)
-            Crumb { tail: root.exists ? (root.cur.title || qsTr("无标题")) : "" }
             // 找不到（已经删了，前进 / 后退回到这里）
             Column {
                 objectName: "journalMissing"
@@ -360,16 +376,16 @@ Item {
         objectName: "journalEditor"
         visible: root.curEdit
         anchors.fill: parent
+        anchors.topMargin: head.contentTop
         contentHeight: editCol.implicitHeight + Theme.px(32)
         boundsBehavior: Flickable.StopAtBounds
         clip: true
         Column {
             id: editCol
-            y: Theme.px(18)
+            y: Theme.px(4)
             width: Math.min(editFlick.width - Theme.px(32), Theme.px(1400))
             x: (editFlick.width - width) / 2
             spacing: Theme.px(10)
-            Crumb { tail: qsTr("编辑") }
             TextInput {
                 id: titleEdit
                 objectName: "journalTitle"

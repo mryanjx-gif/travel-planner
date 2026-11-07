@@ -723,7 +723,8 @@ Window {
         onMenuClicked: avatarMenu.open = !avatarMenu.open
         // 0.8.9
         compact: win.w900
-        hidePageLabel: !win.wide
+        hidePageLabel: !win.wide && !win.fullPageOpen   // 0.12.10：整页不再自己写页名，名字一直留在 ⋯ 上
+        overPage: win.fullPageOpen
         onNewClicked: win.newPlan()
     }
 
@@ -830,6 +831,7 @@ Window {
                     width: zoomBtns.width; height: zoomBtns.height / 2
                     Accessible.role: Accessible.Button
                     Accessible.name: modelData.t
+                    TpTip { text: parent.modelData.t; show: zMa.containsMouse }
                     TpIcon { anchors.centerIn: parent; name: parent.modelData.k; color: zMa.containsMouse ? Theme.accent : Theme.text }
                     MouseArea { id: zMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.globeMode ? globe.wheel(parent.modelData.d * 240, globe.width / 2, globe.height / 2) : mapc.zoomBy(parent.modelData.d, win.width / 2, win.height / 2, 300) }
                 }
@@ -1950,7 +1952,7 @@ Window {
         objectName: "ledgerPage"
         anchors.fill: parent
         anchors.margins: win.gap
-        anchors.topMargin: win.topH + 4
+        anchors.topMargin: 0   // 0.12.10：整页从窗口顶部开始，页头和顶栏同一行（BarHead）
         z: 20
         shown: nav.page === "ledger"
         onOpenPlan: (id) => { win.tripTab = "budget"; win.openTrip(id, -1) }
@@ -1962,7 +1964,7 @@ Window {
         objectName: "calendarPage"
         anchors.fill: parent
         anchors.margins: win.gap
-        anchors.topMargin: win.topH + 4
+        anchors.topMargin: 0
         z: 20
         shown: nav.page === "calendar"
         onOpenPlan: (id, tab) => { win.tripTab = tab; win.openTrip(id, -1) }
@@ -1974,7 +1976,7 @@ Window {
         objectName: "journalPage"
         anchors.fill: parent
         anchors.margins: win.gap
-        anchors.topMargin: win.topH + 4
+        anchors.topMargin: 0
         z: 20
         shown: nav.page === "journal"
         onOpenPlan: (id) => { win.tripTab = "journal"; win.openTrip(id, -1) }

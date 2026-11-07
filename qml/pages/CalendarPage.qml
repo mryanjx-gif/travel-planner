@@ -187,6 +187,7 @@ Item {
 
     GlassPanel {
         anchors.fill: parent
+        anchors.topMargin: -Theme.radius   // 0.12.10：贴着窗口顶，上面两个圆角放到窗口外
         radius: Theme.radius
         tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.985 : 0.99)
         liquid: false
@@ -194,15 +195,14 @@ Item {
     MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; onWheel: (w) => w.accepted = true }   // 不穿透到地图
 
     // ==================== 页头 ====================
-    Item {
+    BarHead {
         id: head
-        x: root.gutter; y: Theme.px(16)
-        width: parent.width - 2 * root.gutter
-        height: root.narrow ? Theme.px(76) : Theme.px(36)
+        leftW: headLeft.implicitWidth
+        rightW: headRight.implicitWidth
         Row {
+            id: headLeft
             height: Theme.px(36)
             spacing: Theme.px(2)
-            Text { anchors.verticalCenter: parent.verticalCenter; rightPadding: Theme.px(10); text: qsTr("日历"); font.family: serifFamily; font.pixelSize: Theme.px(24); font.bold: true; color: Theme.text }
             Text {
                 objectName: "calSeasonSub"
                 visible: root.isSeason
@@ -234,6 +234,7 @@ Item {
             TpButton { objectName: "calToday"; visible: !root.isSeason; anchors.verticalCenter: parent.verticalCenter; compact: true; text: qsTr("今天"); onClicked: calendar.goToday() }
         }
         Row {
+            id: headRight
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             height: Theme.px(36)
@@ -283,7 +284,7 @@ Item {
         id: mainCard
         objectName: "calMain"
         x: root.gutter
-        y: head.y + head.height + Theme.px(10)
+        y: head.contentTop
         width: parent.width - 2 * root.gutter - (root.sideShown && !root.narrow ? root.sideW + Theme.px(12) : 0)
         height: parent.height - y - root.gutter
         radius: Theme.px(16)
@@ -812,7 +813,7 @@ Item {
     }
 
     // ==================== 右边：还没定日期、隐藏的 ====================
-    Rectangle {
+    TpCard {
         id: sidePanel
         objectName: "calSide"
         visible: root.sideShown
@@ -822,9 +823,9 @@ Item {
         width: root.sideW
         height: mainCard.height
         radius: Theme.px(16)
-        color: root.overSide ? Theme.accentSoft : "#ffffff"
-        border.width: root.overSide ? 2 : 1
-        border.color: root.overSide ? Theme.accent : Theme.line
+        color: root.overSide ? Theme.accentSoft : Theme.card
+        // 拖到这里时才有边（松手去掉日期）
+        Rectangle { anchors.fill: parent; visible: root.overSide; radius: parent.radius; color: "transparent"; border.width: 2; border.color: Theme.accent }
         Flickable {
             id: sideFlick
             objectName: "calSideFlick"
