@@ -34,7 +34,7 @@ Item {
     opacity: a
     visible: a > 0.002
     z: on ? 2 : 1
-    readonly property real contentWidth: row.implicitWidth + Theme.px(28)
+    readonly property real contentWidth: row.implicitWidth + Theme.px(badges.length ? 20 : 28)   // 带徽标的：徽标本身是圆头，边距可以小，整颗不至于太宽
 
     function go(open, delay) {
         anim.stop()
@@ -82,7 +82,7 @@ Item {
     Row {
         id: row
         anchors.centerIn: parent
-        spacing: Theme.px(6)
+        spacing: Theme.px(bud.badges.length ? 8 : 6)
         Item {
             width: label.implicitWidth
             height: label.implicitHeight

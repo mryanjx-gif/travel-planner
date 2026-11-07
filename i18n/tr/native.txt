@@ -301,7 +301,7 @@ HEIC（还没法显示）	HEIC (can't display yet)
 导入照片…	Import photos…
 导入这张	Import this one
 尺寸	Size
-已导入 %1 张：%2 张归到计划	Imported %1: %2 added to plans
+已导入 %1 张：%2 张归到计划	Photos imported: %1, added to plans: %2
 已移到回收站：%1 个文件	Moved to the Recycle Bin: %1
 建不了文件夹 %1	Can't create folder %1
 开发版	Development build
@@ -350,7 +350,7 @@ HEIC（还没法显示）	HEIC (can't display yet)
 缩略图缓存	Thumbnail cache
 读不出来	Can't read
 读不出这张照片：%1	Can't read this photo: %1
-超过 1 GB 时自动删掉最旧的。	The oldest are deleted automatically above 1 GB.
+超过 1 GB 时自动删掉最旧的。	The oldest are removed automatically above 1 GB.
 还有没保存的改动，先保存好再清理照片。	There are unsaved changes. Save them before cleaning up photos.
 这一批里选了两次	Selected twice in this batch
 这次先不动。	 are left alone this time.
@@ -358,9 +358,9 @@ HEIC（还没法显示）	HEIC (can't display yet)
 选择要导入的照片	Choose photos to import
 选的文件里没有能导入的照片（支持 JPG、PNG、WebP、HEIC、GIF、BMP）。	None of the selected files can be imported (supported: JPG, PNG, WebP, HEIC, GIF, BMP).
 镜头	Lens
-，%1 张在“未归类”	, %1 in "Unsorted"
+，%1 张在“未归类”	, in "Unsorted": %1
 ，海拔 %1 米	, elevation %1 m
-，跳过 %1 张	, %1 skipped
+，跳过 %1 张	, skipped: %1
 ：又被用到了，没有动	: in use again, left alone
 ：路径不对	: invalid path
 # 0.7.3：图形后端退回原因
@@ -558,7 +558,7 @@ WiFi	Wi-Fi
 第 %1 / %2 站	Stop %1 of %2
 返回（Esc）	Back (Esc)
 开始计划	Start planning
-改成“计划中”	Change to "Planning"
+改成“计划中”	Start planning
 预计天数	Estimated days
 大约几天（不确定可以留空）	About how many days (leave empty if unsure)
 天数要在 1 到 999 之间	Days must be between 1 and 999
@@ -920,7 +920,7 @@ HEIC 照片能导入；这台电脑没装 HEIF / HEVC 扩展，暂时显示不�
 %1 等 %2 条	%1 and %2 in all
 什么时候去哪里合适	When to go where
 一周从哪天开始	Week starts on
-日历和选日期的小日历	The calendar and date pickers
+日历和选日期的小日历	Applies to the calendar and date pickers
 表里没写	Not in the table
 ✓ 去过	✓ Visited
 ✓ 去过（正在计算…）	✓ Visited (working it out…)
@@ -1088,7 +1088,7 @@ API 密钥	API key
 所有计划共用	Shared by all plans
 保险、紧急联系人，所有计划共用。当地紧急电话在每个计划的“行李与待办”里填。	Insurance and emergency contacts, shared by all plans. Local emergency numbers go in each plan's Packing & to-dos.
 保单 %1	Policy %1
-%1 位紧急联系人	%1 emergency contact(s)
+%1 位紧急联系人	%1 emergency contacts
 看证件	View documents
 管理证件	Manage documents
 # 0.12.5 设置：联网、缓存、关于、更新日志
@@ -1235,3 +1235,10 @@ Windows 自带，不随程序分发。	Come with Windows; not distributed with t
 上个月	Previous month
 下个月	Next month
 地图瓦片已关闭（设置 → 联网）	Map tiles are off (Settings → Network)
+# 0.12.10 第二部分
+1 位紧急联系人	1 emergency contact
+完整动效	Full motion
+没有导入新照片，跳过 %1 张	No new photos imported; skipped: %1
+搜索地名添加，例如 Kyoto、Eiffel Tower	Search to add, e.g. Kyoto
+电话（带国家代码，如 +86 …）	Phone (with country code, e.g. +86)
+其他（血型、过敏、常用药等，自己决定写不写）	Other (blood type, allergies, medication; only if you want)

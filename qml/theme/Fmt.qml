@@ -14,7 +14,7 @@ QtObject {
     function pad(n) { return (n < 10 ? "0" : "") + n }
     function addDays(s, n) { const d = dt(s); d.setDate(d.getDate() + n); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) }
     // 带年份的日期段（年跨过去时不会看错）：2026 · 12.05 — 12.17
-    function rangeY(a, b) { return ok(a) ? a.slice(0, 4) + " · " + range(a, b) : "" }
+    function rangeY(a, b) { return !ok(a) ? "" : en ? range(a, b) + ", " + a.slice(0, 4) : a.slice(0, 4) + " · " + range(a, b) }
     function ok(s) { return typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) }
     function dt(s) { const p = s.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]) }
     // 11.03 / Nov 3

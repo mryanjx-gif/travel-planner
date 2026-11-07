@@ -83,7 +83,7 @@ Item {
                 y: root.multiline ? 0 : (parent.height - height) / 2
                 text: root.placeholder
                 font: edit.font
-                color: Theme.faint
+                color: "#7f8e9a"   // 比 Theme.faint 深：要读得出来
             }
         }
     }

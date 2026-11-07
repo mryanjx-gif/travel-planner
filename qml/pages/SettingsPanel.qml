@@ -81,7 +81,7 @@ GlassPanel {
     }
     readonly property string emergencySummary: {
         const e = emergency, n = (e.contacts || []).length
-        const parts = [e.insurer, e.policyNo ? qsTr("保单 %1").arg(e.policyNo) : "", n ? qsTr("%1 位紧急联系人").arg(n) : ""].filter(x => x)
+        const parts = [e.insurer, e.policyNo ? qsTr("保单 %1").arg(e.policyNo) : "", n === 1 ? qsTr("1 位紧急联系人") : n ? qsTr("%1 位紧急联系人").arg(n) : ""].filter(x => x)
         return parts.length ? parts.join(" · ") : qsTr("保险、紧急联系人，所有计划共用。当地紧急电话在每个计划的“行李与待办”里填。")
     }
 
@@ -291,7 +291,7 @@ GlassPanel {
                     Segmented {
                         width: parent.width
                         fill: true
-                        options: [{ key: "auto", text: qsTr("跟随系统") }, { key: "on", text: qsTr("开") }, { key: "off", text: qsTr("减少动效") }]
+                        options: [{ key: "auto", text: qsTr("跟随系统") }, { key: "on", text: qsTr("完整动效") }, { key: "off", text: qsTr("减少动效") }]
                         current: app.motion
                         onPicked: (k) => app.motion = k
                     }
@@ -545,12 +545,17 @@ GlassPanel {
                             }
                             Flow {
                                 width: parent.width
-                                spacing: Theme.px(10)
+                                spacing: Theme.px(6)
                                 Text {
                                     objectName: "docDate-" + docRow.modelData.id
                                     text: docRow.modelData.expires ? qsTr("到期 %1").arg(docRow.modelData.expires) + (docRow.modelData.expired ? " · " + qsTr("已过期") : "") : qsTr("没填到期日期")
                                     font.family: serifFamily; font.pixelSize: Theme.px(12.5); font.bold: docRow.modelData.expired
                                     color: docRow.modelData.expired ? Theme.danger : Theme.textSoft
+                                }
+                                Text {
+                                    visible: docRow.modelData.planId !== ""
+                                    text: "·"
+                                    font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.muted
                                 }
                                 Text {
                                     visible: docRow.modelData.planId !== ""
@@ -810,11 +815,15 @@ GlassPanel {
                     sub: (netc.tileClearing ? qsTr("正在移进回收站…") : !netc.tileScanned ? qsTr("正在统计…") : netc.tileBytes === 0 ? "0 KB" : root.sizeText(netc.tileBytes)) + " · " + qsTr("看过的地图存在这里，离线也能看。")
                     TpButton { objectName: "cacheTilesClear"; text: qsTr("清空"); compact: true; enabled: netc.tileBytes > 0 && !netc.tileClearing; onClicked: netc.clearTileCache() }
                 }
-                SettingsRow {
+                Column {   // 四个选项太宽，放在右边会把说明挤成窄列：控件放第二行
                     objectName: "cacheTilesMax"
                     width: parent.width
-                    label: qsTr("地图瓦片缓存上限")
-                    sub: qsTr("超过时自动删掉最旧的。调低后马上按新上限删。")
+                    spacing: Theme.px(6)
+                    SettingsRow {
+                        width: parent.width
+                        label: qsTr("地图瓦片缓存上限")
+                        sub: qsTr("超过时自动删掉最旧的。调低后马上按新上限删。")
+                    }
                     Segmented {
                         objectName: "cacheTilesMaxPick"
                         options: [{ key: "512", text: "500 MB" }, { key: "1024", text: "1 GB" }, { key: "2048", text: "2 GB" }, { key: "5120", text: "5 GB" }]

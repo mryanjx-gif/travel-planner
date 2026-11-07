@@ -1606,7 +1606,7 @@ Window {
     // ---- 左下角：测试信息（图形后端、退回原因、数据、刷新率）；只在开发版显示（0.8.0） ----
     Rectangle {
         id: devInfo
-        visible: app.devTools && !win.drawerPanelOpen && !plans.libraryOpen && !win.settingsOpen && !win.tripOpen   // 计划库、设置、计划页开着时地图窄，放不下；0.8.9：窄窗口抽屉开着时不显示（会透到抽屉底下）
+        visible: app.devTools && !win.fullPageOpen && !win.drawerPanelOpen && !plans.libraryOpen && !win.settingsOpen && !win.tripOpen   // 计划库、设置、计划页开着时地图窄，放不下；0.8.9：窄窗口抽屉开着时不显示（会透到抽屉底下）
         anchors.right: parent.right   // 0.8.7：左下角给状态胶囊，测试信息挪到右下角（简易面板开着时让到它左边）
         anchors.bottom: parent.bottom
         anchors.margins: 14
@@ -2043,7 +2043,8 @@ Window {
         function onImportFinished(r) {
             if (win.coverImport && r.ok && editor.open && (r.ids || []).length > 0) editor.setField("cover", r.ids[0])
             win.coverImport = false
-            if (r.ok) toast.show(qsTr("已导入 %1 张：%2 张归到计划").arg(r.count).arg(r.toPlan)
+            if (r.ok) toast.show(r.count === 0 && r.skipped > 0 ? qsTr("没有导入新照片，跳过 %1 张").arg(r.skipped)
+                                 : qsTr("已导入 %1 张：%2 张归到计划").arg(r.count).arg(r.toPlan)
                                  + (r.inbox > 0 ? qsTr("，%1 张在“未归类”").arg(r.inbox) : "")
                                  + (r.skipped > 0 ? qsTr("，跳过 %1 张").arg(r.skipped) : ""), false)
             else if (r.cancelled) toast.show(qsTr("导入已取消，已经复制的照片删掉了。"), false)

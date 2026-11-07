@@ -169,7 +169,13 @@ Item {
                         Text {
                             width: root.labelW
                             font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.muted
-                            text: modelData.time || "·"
+                            text: modelData.time || ""
+                            Rectangle {   // 没写时间的小圆点：字符"·"在宋体里是全角居中，和这一列对不齐
+                                visible: !modelData.time
+                                width: Theme.px(3); height: width; radius: width / 2
+                                anchors.verticalCenter: parent.verticalCenter
+                                color: Theme.muted
+                            }
                         }
                         Text {
                             width: col.width - root.labelW - Theme.px(12)

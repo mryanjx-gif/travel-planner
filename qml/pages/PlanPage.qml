@@ -1004,7 +1004,7 @@ Item {
                 elide: Text.ElideRight
                 textFormat: Text.StyledText
                 text: root.focusIndex < 0
-                      ? "<b>" + qsTr("共 %1 站").arg(root.stops.length) + "</b>　" + qsTr("点 › 从第 1 站开始")
+                      ? "<b>" + qsTr("共 %1 站").arg(root.stops.length) + "</b> · " + qsTr("点 › 从第 1 站开始")
                       : "<b>" + ((root.stops[root.focusIndex] || {}).name || qsTr("未命名地点")).replace(/&/g, "&amp;").replace(/</g, "&lt;") + "</b>　" + qsTr("第 %1 / %2 站").arg(root.focusIndex + 1).arg(root.stops.length)
                 font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.text
                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (root.focusIndex >= 0) root.reveal(root.focusIndex, true) }

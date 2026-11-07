@@ -458,6 +458,17 @@ void runCalendarWeek(Report &r, AppController *app, map::MapController *mapc, QQ
     QQuickItem *weekTop = c.item(QStringLiteral("calWeekTop")), *weekView = c.item(QStringLiteral("calWeekView"));
     r.check(weekTop && weekView && weekTop->height() <= weekView->height() * 0.4 + 1 && flick->height() >= weekView->height() * 0.4,
             QStringLiteral("全天区不超过周视图的 40%，时间轴留得够"), weekTop && weekView ? QStringLiteral("%1 / %2 / %3").arg(weekTop->height()).arg(flick->height()).arg(weekView->height()) : QString());
+    // 0.12.10 事件多时全天区被裁一半：滚轮要能滚到下面。开发数据里 2026-12-12 那周放不下
+    const QString weekBack = cal->weekFirst();
+    cal->showWeek(QStringLiteral("2026-12-12"));
+    if (weekTop && waitFor([&] { return weekTop->property("contentHeight").toDouble() > weekTop->height(); }, 1000)) {
+        const QPointF at = weekTop->mapToScene(QPointF(weekTop->width() / 2, weekTop->height() / 2));
+        weekTop->setProperty("contentY", 0);
+        QWindowSystemInterface::handleWheelEvent(win, at, win->mapToGlobal(at), QPoint(), QPoint(0, -120));
+        r.check(waitFor([&] { return weekTop->property("contentY").toDouble() > 0; }, 1000), QStringLiteral("全天区放不下时滚轮能滚"), weekTop->property("contentY").toString());
+        weekTop->setProperty("contentY", 0);
+    } else r.info(QStringLiteral("这一周全天区放得下，滚轮没测"));
+    cal->showWeek(weekBack);
     r.info(QStringLiteral("一小时 %1 px（44 px 乘字号比例）").arg(flick ? flick->property("contentHeight").toDouble() / 24 : 0));
 
     // ---- 翻页：一周一周 ----

@@ -139,7 +139,8 @@ Item {
     // ---- 改完的提示 ----
     property var note: null                 // { id, line, warn, bookings }
     function showNotice(r) {
-        const when = r.start === r.end ? r.start : Fmt.rangeY(r.start, r.end)
+        // 一段日期里不断行（NBSP），破折号两边可以
+        const when = (r.start === r.end ? r.start : Fmt.rangeY(r.start, r.end)).split(" — ").map(s => s.replace(/ /g, "\u00a0")).join(" — ")
         const name = r.name || qsTr("未命名计划")
         const line = (r.placed ? qsTr("「%1」定在 %2").arg(name).arg(when) : qsTr("「%1」挪到了 %2").arg(name).arg(when))
                      + (r.toPlanning ? qsTr("，状态改成了「计划中」") : "")

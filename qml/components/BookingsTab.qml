@@ -146,7 +146,7 @@ Column {
                             }
                             Text {
                                 visible: !!(card.modelData.from || card.modelData.to)
-                                text: (card.modelData.from || "?") + " → " + (card.modelData.to || "?")
+                                text: (card.modelData.from ? card.modelData.from + " → " : "") + (card.modelData.to || "?")
                                 font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft
                             }
                         }

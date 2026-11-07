@@ -9,7 +9,7 @@ import TPApp
 Item {
     id: root
     property bool open: false
-    width: Theme.px(Fmt.en ? 360 : 300)
+    width: Theme.px(Fmt.en ? 400 : 300)   // 英文最长的区域名 West/Central Asia 要放得下一行，不然这行变高、"只看"对不齐
     height: col.implicitHeight + Theme.px(26)
     visible: opacity > 0.01
     opacity: open ? 1 : 0
