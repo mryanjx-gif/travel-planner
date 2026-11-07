@@ -763,6 +763,7 @@ Window {
                                 .concat(win.nowKind !== "none" ? [{ key: "now", text: topBar.nowLabel }] : [])
                                 .concat([{ sep: true }])).concat([
             { key: "settings", text: qsTr("设置") },
+            { key: "importTrip", text: qsTr("导入 .trip") },
             { sep: true },
             { key: "folder", text: qsTr("更换数据文件夹…") },
             { key: "title", text: qsTr("修改窗口标题…") },
@@ -774,6 +775,7 @@ Window {
             if (key.startsWith("page:")) win.pickPage(key.slice(5))
             else if (key === "now") { if (!win.onMapPage) win.goPage("map"); win.setNowOpen(true) }
             else if (key === "settings") win.goPage("settings")
+            else if (key === "importTrip") win.notReady()
             else if (key === "folder") folderDialog.open()
             else if (key === "title") { titleDialog.text = app.windowTitleExtra; titleDialog.open = true }
             else if (key === "quit") app.requestQuit()
@@ -852,6 +854,8 @@ Window {
         filterMenu.open = false
         palette.show(q)
     }
+    // 0.12.3 占位入口（AI、导入导出）统一走这里：外观和真按钮一样，点了提示还在做
+    function notReady() { toast.show(qsTr("这个功能还在做"), false) }
     function md(d) { return d ? String(d).slice(5).replace("-", ".") : "" }   // palette.js md
     function statusLabel(s) { return s === "wish" ? qsTr("想去") : s === "completed" ? qsTr("已完成") : qsTr("计划中") }
     // 条目（palette.js source()）。页面只有做好的；操作补上原来系统菜单里的命令（PO 0.8.8 选方案 B），带快捷键提示
@@ -873,6 +877,8 @@ Window {
         if (plans.excludedCount > 0) act("filterAll", qsTr("清除筛选（全选）"))
         // 0.9.7：叠上其他旅程（左下胶囊去重复；Claude 加的入口，PO 可去掉）
         if (plans.overlayAvailable) act("overlay", plans.overlay ? qsTr("不叠其他旅程") : qsTr("叠上其他旅程"))
+        for (const t of [qsTr("AI 助手"), qsTr("导入 .trip"), qsTr("导出行程单 PDF"), qsTr("导出行程单长图"), qsTr("导出日历文件 .ics"), qsTr("导出计划文件 .trip"), qsTr("导出分享版"), qsTr("导出信息卡"), qsTr("批量导出")])
+            act("notReady", t)
         act("fullscreen", qsTr("全屏"), "", "F11")
         act("dataFolder", qsTr("打开数据文件夹"))
         act("logFolder", qsTr("打开日志文件夹"), "", "F12")
@@ -900,7 +906,8 @@ Window {
             return
         }
         const k = x.key
-        if (k === "new") win.newPlan()
+        if (k === "notReady") win.notReady()
+        else if (k === "new") win.newPlan()
         else if (k === "undo") app.undo()
         else if (k === "redo") app.redo()
         else if (k.startsWith("base:")) { if (!win.onMapPage) win.goPage("map"); win.pickBase(k.slice(5)) }
@@ -1453,7 +1460,21 @@ Window {
         }
     }
 
-    // ---- 0.8.9 我的位置（M-26，PO 选 A：右下角单独一颗；阶段 ⑦ 的 AI 按钮放好后挪到它上面）----
+    Timer { running: shotPage === "ui-settings-narrow"; interval: 400; onTriggered: win.width = 620 }   // 截图：设置页的窄窗口
+    // ---- 0.12.3 AI 助手泡泡（占位，阶段 ⑦ 接功能）：我的位置上面一颗 ----
+    RoundButton {
+        objectName: "aiBtn"
+        visible: locBtn.visible
+        width: locBtn.width; height: width
+        x: locBtn.x
+        y: locBtn.y - height - Theme.px(10)
+        z: 13
+        label: "AI"
+        iconColor: Theme.accentInk
+        tip: qsTr("AI 助手")
+        onClicked: win.notReady()
+    }
+    // ---- 0.8.9 我的位置（M-26，PO 选 A：右下角单独一颗）----
     Item {
         id: locBtn
         objectName: "locBtn"
@@ -1880,11 +1901,12 @@ Window {
     // ---- 设置面板（右侧） ----
     SettingsPanel {
         id: settings
+        objectName: "settingsPanel"
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.margins: win.gap
-        width: win.w900 ? win.width - 2 * win.gap : Math.min(Theme.px(430), win.width - 28)   // ≤ 900 占满宽度（S-15）
+        width: win.w900 ? win.width - 2 * win.gap : Math.min(Theme.px(760), win.width - 28)   // ≤ 900 占满宽度（S-15）；0.12.3 放宽，放侧边栏
         anchors.topMargin: win.topH + 4   // 0.8.8：停在顶栏下面（Electron 右边面板 top: --mf-top + 4），顶栏的 ↩ 一直看得到
         z: 30
         open: win.settingsOpen
@@ -2572,6 +2594,7 @@ Window {
         else if (shotPage === "ui-ext" || shotPage === "ui-ext-dirty") extCard.forced = true
         else if (shotPage === "ui-closefail") closeFailDialog.open = true
         else if (shotPage === "ui-closefail-error") { closeFailDialog.conflict = false; closeFailDialog.error = qsTr("拒绝访问。"); closeFailDialog.open = true }
+        else if (shotPage.startsWith("ui-settings-") && shotPage !== "ui-settings-photos") goPage("settings")
         else if (shotPage === "ui-settings" || shotPage === "ui-backup" || shotPage === "ui-backup-running" || shotPage === "ui-devtools") goPage("settings")
         else if (shotPage === "ui-firstrun") dataChoice.forced = "firstRun"
         else if (shotPage === "ui-missing") dataChoice.forced = "missing"

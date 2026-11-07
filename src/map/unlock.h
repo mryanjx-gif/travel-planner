@@ -62,6 +62,8 @@ public:
     enum class Sub { Country, China, WholeCountry };
     Sub unitSub(int i) const;
     QString country(int i) const { return i >= 0 && i < m_units.size() ? m_units[i].country : QString(); }
+    QString adm0(int i) const { return i >= 0 && i < m_units.size() ? m_units[i].adm0 : QString(); }
+    int unitCount() const { return int(m_units.size()); }
     bool sameUnit(int a, int b) const;
     // 同一个单位的全部省（组的每一块；普通省就是它自己）
     QVector<int> unitMembers(int i) const;

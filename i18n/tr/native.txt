@@ -969,3 +969,69 @@ HEIC 照片能导入；这台电脑没装 HEIF / HEVC 扩展，暂时显示不�
 当前：标准 · 动效设成了减少动效（或系统关了动画）	Current: standard · motion is reduced (here or in Windows)
 当前：标准 · 显卡带不动，已自动换成标准玻璃，改一次这里的设置或下次启动时重试	Current: standard · the graphics card couldn't keep up, so it switched automatically. Change a setting here or restart to retry
 当前：实色 · 透明效果关了	Current: solid · transparency is off
+# 0.12.3
+这个功能还在做	This feature isn't ready yet
+AI 助手	AI assistant
+导入 .trip	Import .trip
+导出	Export
+导出行程单 PDF	Export itinerary PDF
+导出行程单长图	Export itinerary image
+导出日历文件 .ics	Export calendar file (.ics)
+导出计划文件 .trip	Export trip file (.trip)
+导出分享版	Export shareable version
+导出信息卡	Export info card
+批量导出	Export selected
+行程单 PDF	Itinerary PDF
+行程单长图	Itinerary image
+日历文件 .ics	Calendar file (.ics)
+计划文件 .trip	Trip file (.trip)
+分享版	Shareable version
+外观	Appearance
+我	Me
+地图	Map
+日历	Calendar
+窗口	Window
+货币	Currency
+证件	Documents
+AI	AI
+联网	Network
+数据	Data
+快捷键	Shortcuts
+关于	About
+字体	Font
+全部界面统一用这一种。现在显示的是：%1	Used across the whole app. Showing now: %1
+思源宋体	Noto Serif
+微软雅黑	Microsoft YaHei
+等线	DengXian
+楷体	KaiTi
+名字	Name
+右上角头像显示第一个字；分账里的“我”用这个名字。空着也可以	The avatar shows its first letter; bill splitting uses it for "me". Can be left empty
+所在地国家	Home country
+地图上“我的位置”拿不到系统定位、又不在旅行中时，先显示这个国家	Shown by "My location" when system location isn't available and you're not on a trip
+打开时的底图	Base map on start
+“上次用的”= 记住上次在地图上选的	"Last used" remembers what you last picked on the map
+上次用的	Last used
+卫星图	Satellite
+街道图	Street
+已解锁	Unlocked
+打开时的形状	Shape on start
+平面	Flat
+这两项下次打开时生效。现在就想换，用地图右上角的图层按钮。	These two apply next time you open the app. To change now, use the layers button at the top right of the map.
+这一组下一版做。	This section comes in the next version.
+API 密钥	API key
+还没有设置	Not set
+设置…	Set…
+默认模型	Default model
+每月上限	Monthly limit
+搜索或跳转（命令面板）	Search or jump (command palette)
+打开 / 关闭我的旅程	Open / close My Trips
+切换计划、想去、足迹、照片	Switch between Plans, Wishlist, Footprints, Photos
+撤销 / 重做	Undo / redo
+回到地图	Back to map
+后退 / 前进	Back / forward
+切换路线站点	Switch route stops
+放大 / 缩小 / 恢复字号	Larger / smaller / reset text size
+全屏	Full screen
+打开日志文件夹	Open log folder
+退出	Quit
+更新日志、数据来源和授权下一版做。	Changelog, data sources and licenses come in the next version.

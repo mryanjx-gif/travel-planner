@@ -12,6 +12,7 @@ Item {
     property bool bad: false
     property real fontSize: 13.5
     property bool bold: false
+    property int maxLength: 0              // > 0：最多几个字（0.12.3 设置里的名字）
     property bool submitOnEnter: false     // 多行时 Enter 发 accepted()、Shift + Enter 换行（0.10.0 就地改日程）
     readonly property alias text: edit.text
     readonly property bool editing: edit.activeFocus
@@ -58,7 +59,10 @@ Item {
             selectByMouse: true
             selectionColor: Theme.accentSoft
             selectedTextColor: Theme.text
-            onTextChanged: if (activeFocus) root.edited(text)
+            onTextChanged: {
+                if (root.maxLength > 0 && text.length > root.maxLength) { text = text.slice(0, root.maxLength); cursorPosition = text.length; return }
+                if (activeFocus) root.edited(text)
+            }
             onCursorRectangleChanged: flick.ensureVisible(cursorRectangle)
             function enter(e) {
                 if (root.multiline && (!root.submitOnEnter || (e.modifiers & Qt.ShiftModifier))) e.accepted = false

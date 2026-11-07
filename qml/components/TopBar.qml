@@ -369,7 +369,10 @@ Item {
                         border.color: root.menuOpen ? Theme.accentSoft : "#fafcfd"
                         scale: meMa.pressed ? 0.92 : 1
                         Behavior on scale { TpSpring {} }
-                        TpIcon { anchors.centerIn: parent; name: "person"; color: "#ffffff"; width: Theme.px(17); height: Theme.px(17) }
+                        // 0.12.3：有名字显示第一个字，没名字还是人像
+                        readonly property string initial: Array.from(app.greetName.trim())[0] || ""
+                        TpIcon { visible: parent.initial === ""; anchors.centerIn: parent; name: "person"; color: "#ffffff"; width: Theme.px(17); height: Theme.px(17) }
+                        Text { objectName: "meInitial"; visible: parent.initial !== ""; anchors.centerIn: parent; text: parent.initial.toUpperCase(); font.family: serifFamily; font.pixelSize: Theme.px(15); font.bold: true; color: "#ffffff" }
                     }
                     MouseArea { id: meMa; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.menuClicked() }
                 }

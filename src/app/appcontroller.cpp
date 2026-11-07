@@ -171,6 +171,35 @@ void AppController::setSpaceAnim(bool on)
     m_settings->save();
     emit spaceAnimChanged();
 }
+// ---------- 0.12.3 设置改版 ----------
+QString AppController::uiFont() const
+{
+    const QString v = m_settings->value(QStringLiteral("font")).toString();
+    return v == QLatin1String("yahei") || v == QLatin1String("dengxian") || v == QLatin1String("kaiti") ? v : QStringLiteral("serif");
+}
+void AppController::setUiFont(const QString &v)
+{
+    if (v == uiFont()) return;
+    m_settings->setValue(QStringLiteral("font"), v);
+    m_settings->save();
+    emit uiFontChanged();
+}
+void AppController::setPref(const QString &key, const QString &v)
+{
+    if (v == m_settings->value(key).toString()) return;
+    m_settings->setValue(key, v);
+    m_settings->save();
+    emit prefsChanged();
+}
+QString AppController::greetName() const { return m_settings->value(QStringLiteral("greetName")).toString(); }
+void AppController::setGreetName(const QString &v) { setPref(QStringLiteral("greetName"), v.trimmed().left(20)); }
+QString AppController::homeCountry() const { return m_settings->value(QStringLiteral("homeCountry")).toString(); }
+void AppController::setHomeCountry(const QString &v) { setPref(QStringLiteral("homeCountry"), v); }
+QString AppController::startBase() const { return m_settings->value(QStringLiteral("startBase")).toString(); }
+void AppController::setStartBase(const QString &v) { setPref(QStringLiteral("startBase"), v); }
+QString AppController::startProj() const { return m_settings->value(QStringLiteral("startProj")).toString(); }
+void AppController::setStartProj(const QString &v) { setPref(QStringLiteral("startProj"), v); }
+
 void AppController::setWindowTitleExtra(const QString &v)
 {
     if (v.trimmed().left(60) == windowTitleExtra()) return;

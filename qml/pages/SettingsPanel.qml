@@ -1,5 +1,5 @@
-// 设置面板（右侧；PO 2026-11-02 选方案 A：分组卡片，一页往下排，和 Electron 一样）。
-// 0.4.0 只有"通用"和"数据"两节；外观、联网服务、AI、关于等在各自的阶段补，最终视觉在阶段 ⑥。
+// 设置面板（右侧）。0.12.3 改版（PO 选 A，代替 Electron 的分组折叠 T-01）：宽约 760，左边侧边栏，快捷键和关于固定在底部；窄窗口改成顶部横向标签。
+// 货币、证件、联网、关于的内容在 0.12.4、0.12.5；AI 分组是占位，阶段 ⑦ 接功能。
 // 0.5.0：数据里加"备份"（BackupSection，方案 B）和开发版的"测试改动"。
 import QtQuick
 import TPApp
@@ -25,10 +25,22 @@ GlassPanel {
     transform: Translate { x: root.open || !Theme.motion ? 0 : Theme.px(24) }
     Behavior on opacity { TpAnim { shown: root.open } }
 
+    // 现在看哪一组。截图页直接打开对应分组
+    property string section: ({ "ui-backup": "data", "ui-backup-running": "data", "ui-devtools": "data", "ui-settings-photos": "data", "ui-settings-data": "data",
+                                "calendar-settings": "cal", "ui-settings-me": "me", "ui-settings-ai": "ai", "ui-settings-keys": "keys" })[shotPage] || "look"
+    readonly property bool narrow: width < Theme.px(640)
+    readonly property var mainSections: [
+        { key: "look", text: qsTr("外观") }, { key: "me", text: qsTr("我") }, { key: "map", text: qsTr("地图") }, { key: "cal", text: qsTr("日历") }, { key: "win", text: qsTr("窗口") },
+        { key: "money", text: qsTr("货币") }, { key: "docs", text: qsTr("证件") }, { key: "ai", text: qsTr("AI") }, { key: "net", text: qsTr("联网") }, { key: "data", text: qsTr("数据") }
+    ]
+    readonly property var footSections: [{ key: "keys", text: qsTr("快捷键") }, { key: "about", text: qsTr("关于") }]
+    readonly property string sectionName: { const x = mainSections.concat(footSections).find(i => i.key === section); return x ? x.text : "" }
+    onSectionChanged: { flick.contentY = 0; if (section === "me") mapc.needUnlockCount() }
+
     function refresh() { history = app.historyList() }
     // 开发版：故意制造一个 QML 里的 JS 错误（0.5.1）
     function devThrow() { const nothing = null; return nothing.boom }
-    onOpenChanged: if (open) { refresh(); photos.refreshCacheSize(); forceActiveFocus() }
+    onOpenChanged: if (open) { refresh(); photos.refreshCacheSize(); forceActiveFocus(); if (section === "me") mapc.needUnlockCount() }
     Connections { target: app; function onDataChanged() { if (root.open) root.refresh() } }
     Keys.onEscapePressed: closeClicked()
     MouseArea { anchors.fill: parent; onWheel: (w) => w.accepted = false }
@@ -61,6 +73,7 @@ GlassPanel {
             anchors.verticalCenter: parent.verticalCenter
             width: Theme.px(36)
             compact: true
+            objectName: "settingsClose"
             kind: "ghost"
             text: "×"
             Accessible.name: qsTr("关闭设置")
@@ -68,11 +81,109 @@ GlassPanel {
         }
     }
 
-    Flickable {
-        id: flick
+    // 侧边栏或顶部标签的一项
+    component NavItem: Rectangle {
+        id: navRoot
+        property string label: ""
+        property bool on: false
+        signal picked()
+        implicitWidth: navText.implicitWidth + Theme.px(24)
+        implicitHeight: Theme.px(34)
+        radius: Theme.radiusControl
+        color: on ? Theme.accentSoft : navMa.containsMouse ? Qt.rgba(45 / 255, 95 / 255, 139 / 255, 0.06) : "transparent"
+        Behavior on color { ColorAnimation { duration: Theme.motion ? 120 : 0 } }
+        activeFocusOnTab: true
+        Accessible.role: Accessible.PageTab
+        Accessible.name: label
+        Keys.onSpacePressed: picked()
+        Keys.onReturnPressed: picked()
+        FocusRing { target: navRoot }
+        Text {
+            id: navText
+            x: Theme.px(12)
+            anchors.verticalCenter: parent.verticalCenter
+            text: navRoot.label
+            font.family: serifFamily; font.pixelSize: Theme.px(14); font.bold: navRoot.on
+            color: navRoot.on ? Theme.accentInk : Theme.textSoft
+        }
+        MouseArea { id: navMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: navRoot.picked() }
+    }
+
+    // 宽：左边侧边栏，快捷键和关于固定在底部
+    Item {
+        id: side
+        visible: !root.narrow
         anchors.top: head.bottom
         anchors.bottom: parent.bottom
-        width: parent.width
+        anchors.bottomMargin: Theme.px(14)
+        x: Theme.px(14)
+        width: Theme.px(112)
+        Column {
+            width: parent.width
+            spacing: Theme.px(2)
+            Repeater {
+                model: root.mainSections
+                delegate: NavItem {
+                    required property var modelData
+                    objectName: "setNav-" + modelData.key
+                    width: side.width
+                    label: modelData.text
+                    on: root.section === modelData.key
+                    onPicked: root.section = modelData.key
+                }
+            }
+        }
+        Column {
+            anchors.bottom: parent.bottom
+            width: parent.width
+            spacing: Theme.px(2)
+            Repeater {
+                model: root.footSections
+                delegate: NavItem {
+                    required property var modelData
+                    objectName: "setNav-" + modelData.key
+                    width: side.width
+                    label: modelData.text
+                    on: root.section === modelData.key
+                    onPicked: root.section = modelData.key
+                }
+            }
+        }
+    }
+    // 窄：顶部横向标签，放不下时左右拖
+    Flickable {
+        id: tabs
+        visible: root.narrow
+        anchors.top: head.bottom
+        x: Theme.px(12)
+        width: parent.width - 2 * x
+        height: visible ? Theme.px(42) : 0
+        contentWidth: tabRow.width
+        flickableDirection: Flickable.HorizontalFlick
+        boundsBehavior: Flickable.StopAtBounds
+        clip: true
+        Row {
+            id: tabRow
+            spacing: Theme.px(2)
+            Repeater {
+                model: root.mainSections.concat(root.footSections)
+                delegate: NavItem {
+                    required property var modelData
+                    objectName: "setTab-" + modelData.key
+                    label: modelData.text
+                    on: root.section === modelData.key
+                    onPicked: root.section = modelData.key
+                }
+            }
+        }
+    }
+
+    Flickable {
+        id: flick
+        anchors.top: root.narrow ? tabs.bottom : head.bottom
+        anchors.bottom: parent.bottom
+        anchors.right: parent.right
+        anchors.left: root.narrow ? parent.left : side.right
         clip: true
         contentHeight: body.implicitHeight + Theme.px(16)
         boundsBehavior: Flickable.StopAtBounds
@@ -89,10 +200,12 @@ GlassPanel {
             width: flick.width - 2 * x
             spacing: Theme.px(12)
 
-            // ---------- 通用 ----------
+            // ---------- 外观（T-02）----------
             SettingsCard {
+                objectName: "setCard-look"
+                visible: root.section === "look"
                 width: parent.width
-                title: qsTr("通用")
+                title: qsTr("外观")
 
                 SettingsRow {
                     width: parent.width
@@ -101,6 +214,27 @@ GlassPanel {
                         options: [{ key: "zh", text: "中文" }, { key: "en", text: "English" }]
                         current: app.lang
                         onPicked: (k) => app.lang = k
+                    }
+                }
+                SettingsRow {
+                    width: parent.width
+                    label: qsTr("字体")
+                    sub: qsTr("全部界面统一用这一种。现在显示的是：%1").arg(serifFamily)
+                    TpSelect {
+                        objectName: "uiFontSel"
+                        width: Theme.px(150)
+                        options: [{ key: "serif", text: qsTr("思源宋体") }, { key: "yahei", text: qsTr("微软雅黑") }, { key: "dengxian", text: qsTr("等线") }, { key: "kaiti", text: qsTr("楷体") }]
+                        current: app.uiFont
+                        onPicked: (k) => app.uiFont = k
+                    }
+                }
+                SettingsRow {
+                    width: parent.width
+                    label: qsTr("字号")
+                    Segmented {
+                        options: [{ key: "s", text: qsTr("小") }, { key: "m", text: qsTr("中") }, { key: "l", text: qsTr("大") }, { key: "xl", text: qsTr("超大") }]
+                        current: app.fontSize
+                        onPicked: (k) => app.fontSize = k
                     }
                 }
                 Column {
@@ -155,6 +289,125 @@ GlassPanel {
                         font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
                     }
                 }
+                Text {
+                    objectName: "backendStatus"
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    text: qsTr("图形后端：") + backendApi + (backendReason !== "" ? " · " + qsTr("没用 Vulkan 的原因：") + win.trReason(backendReason) : "")
+                    font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
+                }
+            }
+
+            // ---------- 我（T-03）----------
+            SettingsCard {
+                objectName: "setCard-me"
+                visible: root.section === "me"
+                width: parent.width
+                title: qsTr("我")
+
+                SettingsRow {
+                    width: parent.width
+                    label: qsTr("名字")
+                    sub: qsTr("右上角头像显示第一个字；分账里的“我”用这个名字。空着也可以")
+                    TpField {
+                        objectName: "greetField"
+                        width: Theme.px(200)
+                        maxLength: 20
+                        value: app.greetName
+                        onEdited: (t) => app.greetName = t
+                    }
+                }
+                SettingsRow {
+                    width: parent.width
+                    label: qsTr("所在地国家")
+                    sub: qsTr("地图上“我的位置”拿不到系统定位、又不在旅行中时，先显示这个国家")
+                    TpSelect {
+                        id: countrySel
+                        objectName: "homeCountrySel"
+                        width: Theme.px(200)
+                        current: app.homeCountry || locator.homeCountry()
+                        options: mapc.unlockReady ? mapc.countryOptions() : [{ key: current, text: current }]
+                        onPicked: (k) => app.homeCountry = k
+                    }
+                }
+            }
+
+            // ---------- 地图（T-04）----------
+            SettingsCard {
+                objectName: "settingsMap"
+                visible: root.section === "map"
+                width: parent.width
+                title: qsTr("地图")
+
+                SettingsRow {
+                    width: parent.width
+                    label: qsTr("打开时的底图")
+                    sub: qsTr("“上次用的”= 记住上次在地图上选的")
+                    TpSelect {
+                        objectName: "startBaseSel"
+                        width: Theme.px(150)
+                        options: [{ key: "", text: qsTr("上次用的") }, { key: "卫星图", text: qsTr("卫星图") }, { key: "街道图", text: qsTr("街道图") }, { key: "已解锁", text: qsTr("已解锁") }]
+                        current: app.startBase
+                        onPicked: (k) => app.startBase = k
+                    }
+                }
+                SettingsRow {
+                    width: parent.width
+                    label: qsTr("打开时的形状")
+                    TpSelect {
+                        objectName: "startProjSel"
+                        width: Theme.px(150)
+                        options: [{ key: "", text: qsTr("上次用的") }, { key: "globe", text: qsTr("地球") }, { key: "mercator", text: qsTr("平面") }]
+                        current: app.startProj
+                        onPicked: (k) => app.startProj = k
+                    }
+                }
+                Text {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    text: qsTr("这两项下次打开时生效。现在就想换，用地图右上角的图层按钮。")
+                    font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
+                }
+                SettingsRow {
+                    width: parent.width
+                    label: qsTr("星空动画")
+                    sub: qsTr("地球后面的星星闪烁、偶尔有流星。电脑比较慢时可以关掉")
+                    Segmented {
+                        objectName: "spaceAnimSeg"
+                        options: [{ key: "off", text: qsTr("关") }, { key: "on", text: qsTr("开") }]
+                        current: app.spaceAnim ? "on" : "off"
+                        onPicked: (k) => app.spaceAnim = k === "on"
+                    }
+                }
+            }
+
+            // ---------- 日历（T-05）----------
+            SettingsCard {
+                objectName: "setCard-cal"
+                visible: root.section === "cal"
+                width: parent.width
+                title: qsTr("日历")
+
+                SettingsRow {
+                    width: parent.width
+                    label: qsTr("一周从哪天开始")
+                    sub: qsTr("日历和选日期的小日历")
+                    Segmented {
+                        objectName: "weekStartSeg"
+                        options: [{ key: "1", text: qsTr("周一") }, { key: "0", text: qsTr("周日") }]
+                        current: String(calendar.weekStart)
+                        onPicked: (k) => calendar.weekStart = +k
+                    }
+                }
+            }
+
+            // ---------- 窗口（T-06）----------
+            SettingsCard {
+                objectName: "setCard-win"
+                visible: root.section === "win"
+                width: parent.width
+                title: qsTr("窗口")
+
                 Column {
                     width: parent.width
                     spacing: Theme.px(7)
@@ -178,26 +431,6 @@ GlassPanel {
                 }
                 SettingsRow {
                     width: parent.width
-                    label: qsTr("字号")
-                    Segmented {
-                        options: [{ key: "s", text: qsTr("小") }, { key: "m", text: qsTr("中") }, { key: "l", text: qsTr("大") }, { key: "xl", text: qsTr("超大") }]
-                        current: app.fontSize
-                        onPicked: (k) => app.fontSize = k
-                    }
-                }
-                SettingsRow {
-                    width: parent.width
-                    label: qsTr("一周从哪天开始")
-                    sub: qsTr("日历和选日期的小日历")
-                    Segmented {
-                        objectName: "weekStartSeg"
-                        options: [{ key: "1", text: qsTr("周一") }, { key: "0", text: qsTr("周日") }]
-                        current: String(calendar.weekStart)
-                        onPicked: (k) => calendar.weekStart = +k
-                    }
-                }
-                SettingsRow {
-                    width: parent.width
                     label: qsTr("窗口标题")
                     sub: app.windowTitleExtra === "" ? qsTr("旅行计划") + " v" + app.version + qsTr("（没有自定义文字）")
                                                      : qsTr("旅行计划") + " v" + app.version + "  " + app.windowTitleExtra
@@ -205,27 +438,111 @@ GlassPanel {
                 }
             }
 
-            // ---------- 地图（0.9.3：先只有星空动画；打开时的底图 / 形状等在阶段 ⑥）----------
+            // ---------- 货币、证件、联网：内容在 0.12.4、0.12.5 ----------
             SettingsCard {
-                objectName: "settingsMap"
+                objectName: "setCard-later"
+                visible: ["money", "docs", "net"].indexOf(root.section) >= 0
                 width: parent.width
-                title: qsTr("地图")
+                title: root.sectionName
+                Text {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    text: qsTr("这一组下一版做。")
+                    font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted
+                }
+            }
+
+            // ---------- AI（占位，阶段 ⑦ 接功能）：显示但不能改，点了提示还在做 ----------
+            SettingsCard {
+                objectName: "setCard-ai"
+                visible: root.section === "ai"
+                width: parent.width
+                title: qsTr("AI 助手")
 
                 SettingsRow {
                     width: parent.width
-                    label: qsTr("星空动画")
-                    sub: qsTr("地球后面的星星闪烁、偶尔有流星。电脑比较慢时可以关掉")
-                    Segmented {
-                        objectName: "spaceAnimSeg"
-                        options: [{ key: "off", text: qsTr("关") }, { key: "on", text: qsTr("开") }]
-                        current: app.spaceAnim ? "on" : "off"
-                        onPicked: (k) => app.spaceAnim = k === "on"
+                    label: qsTr("API 密钥")
+                    sub: qsTr("还没有设置")
+                    TpButton { objectName: "aiKey"; text: qsTr("设置…"); compact: true; onClicked: win.notReady() }
+                }
+                SettingsRow {
+                    width: parent.width
+                    label: qsTr("默认模型")
+                    TpSelect {
+                        objectName: "aiModel"
+                        width: Theme.px(180)
+                        options: [{ key: "sonnet", text: "Claude Sonnet 5.5" }]
+                        current: "sonnet"
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.notReady() }
                     }
+                }
+                SettingsRow {
+                    width: parent.width
+                    label: qsTr("每月上限")
+                    TpSelect {
+                        objectName: "aiCap"
+                        width: Theme.px(180)
+                        options: [{ key: "5", text: "$5" }]
+                        current: "5"
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.notReady() }
+                    }
+                }
+            }
+
+            // ---------- 快捷键（T-12，只读）----------
+            SettingsCard {
+                objectName: "setCard-keys"
+                visible: root.section === "keys"
+                width: parent.width
+                title: qsTr("快捷键")
+
+                Repeater {
+                    model: [
+                        { t: qsTr("搜索或跳转（命令面板）"), k: "Ctrl + K" },
+                        { t: qsTr("打开 / 关闭我的旅程"), k: "Ctrl + B" },
+                        { t: qsTr("切换计划、想去、足迹、照片"), k: "Ctrl + 1–4" },
+                        { t: qsTr("撤销 / 重做"), k: "Ctrl + Z / Y" },
+                        { t: qsTr("回到地图"), k: "Esc" },
+                        { t: qsTr("后退 / 前进"), k: "Alt + ← / →" },
+                        { t: qsTr("切换路线站点"), k: "← / →" },
+                        { t: qsTr("放大 / 缩小 / 恢复字号"), k: "Ctrl + + / − / 0" },
+                        { t: qsTr("全屏"), k: "F11" },
+                        { t: qsTr("打开日志文件夹"), k: "F12" },
+                        { t: qsTr("退出"), k: "Ctrl + Q" }
+                    ]
+                    delegate: SettingsRow {
+                        id: keyRow
+                        required property var modelData
+                        width: parent ? parent.width : 0
+                        label: modelData.t
+                        Text { text: keyRow.modelData.k; font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft }
+                    }
+                }
+            }
+
+            // ---------- 关于：内容在 0.12.5 ----------
+            SettingsCard {
+                objectName: "setCard-about"
+                visible: root.section === "about"
+                width: parent.width
+                title: qsTr("关于")
+                Text {
+                    width: parent.width
+                    text: qsTr("旅行计划") + " v" + app.version
+                    font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.text
+                }
+                Text {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    text: qsTr("更新日志、数据来源和授权下一版做。")
+                    font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted
                 }
             }
 
             // ---------- 数据 ----------
             SettingsCard {
+                objectName: "setCard-data"
+                visible: root.section === "data"
                 width: parent.width
                 title: qsTr("数据")
 
@@ -357,7 +674,7 @@ GlassPanel {
             }
             // ---------- 开发版：测试改动（打包版没有） ----------
             SettingsCard {
-                visible: app.devTools
+                visible: app.devTools && root.section === "data"
                 width: parent.width
                 title: qsTr("开发版测试")
                 SettingsRow {
@@ -391,13 +708,6 @@ GlassPanel {
                         TpButton { compact: true; text: qsTr("崩溃（后台线程）"); kind: "dangerOutline"; onClicked: app.devTrigger("crash-thread") }
                     }
                 }
-            }
-            Text {
-                width: parent.width
-                wrapMode: Text.Wrap
-                horizontalAlignment: Text.AlignHCenter
-                text: qsTr("外观、联网服务、AI 助手、关于等设置会在之后的版本加上。")
-                font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.faint
             }
         }
     }

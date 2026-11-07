@@ -26,7 +26,7 @@ ModalLayer {
         open = false
     }
     function add() {
-        const e = planPage.addPerson(addName, qsTr("我"))
+        const e = planPage.addPerson(addName, app.greetName || qsTr("我"))
         if (e === "emptyName") return
         note = e === "dupName" ? qsTr("已经有“%1”了").arg(addName.trim()) : ""
         if (e === "") { addName = ""; addField.clear() }

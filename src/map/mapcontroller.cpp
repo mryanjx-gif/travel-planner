@@ -200,6 +200,16 @@ void MapController::setup(const QString &assetsDir, const QString &cacheDir, tp:
         }
         if (m_base != QLatin1String("unlock")) m_tileBase = m_base;
     }
+    // 0.12.3 打开时的底图、形状（Electron startBase / startProj，空 = 上次用的）。截图、自检不读（m_persistBase 为假）
+    if (m_settings && m_persistBase) {
+        const QString sb = m_settings->value(QStringLiteral("startBase")).toString();
+        if (m_startBase.isEmpty())
+            m_startBase = sb == QStringLiteral("卫星图") ? QStringLiteral("sat") : sb == QStringLiteral("街道图") ? QStringLiteral("street")
+                        : sb == QStringLiteral("已解锁") ? QStringLiteral("unlock") : QString();
+        const QString sp = m_settings->value(QStringLiteral("startProj")).toString();
+        if (sp == QLatin1String("globe")) m_globeLayer = true;
+        else if (sp == QLatin1String("mercator")) m_globeLayer = false;
+    }
     if (isBase(migrateBase(m_startBase))) {
         m_startBase = migrateBase(m_startBase);
         m_base = m_startBase;

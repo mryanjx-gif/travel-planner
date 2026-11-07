@@ -162,6 +162,33 @@ static bool imagesLoading(const QQuickItem *it)
     return std::any_of(kids.begin(), kids.end(), [](const QQuickItem *c) { return imagesLoading(c); });
 }
 
+// 打包的思源宋体（assets/fonts，完整字库，常规和粗体）。文件不在时返回空，用系统字体。
+// 只在真要用时加载一次，选了别的字体不占启动时间
+static QString bundledSerif()
+{
+    static const QString family = [] {
+        const QString dir = QCoreApplication::applicationDirPath() + QStringLiteral("/assets/fonts/");
+        const int id = QFontDatabase::addApplicationFont(dir + QStringLiteral("NotoSerifCJKsc-Regular.otf"));
+        if (id < 0) return QString();
+        QFontDatabase::addApplicationFont(dir + QStringLiteral("NotoSerifCJKsc-Bold.otf"));
+        return QFontDatabase::applicationFontFamilies(id).value(0);
+    }();
+    return family;
+}
+// 设置 font 的取值（Electron prefs.js FONTS）→ 实际字体名；这台电脑上没有时退到宋体
+static QString uiFamily(const QString &key)
+{
+    QStringList want;
+    if (key == QLatin1String("yahei")) want = { QStringLiteral("Microsoft YaHei UI"), QStringLiteral("Microsoft YaHei") };
+    else if (key == QLatin1String("dengxian")) want = { QStringLiteral("DengXian") };
+    else if (key == QLatin1String("kaiti")) want = { QStringLiteral("KaiTi"), QStringLiteral("STKaiti") };
+    else if (const QString b = bundledSerif(); !b.isEmpty()) return b;
+    want << QStringLiteral("Noto Serif SC") << QStringLiteral("Noto Serif CJK SC") << QStringLiteral("Source Han Serif SC") << QStringLiteral("Songti SC");
+    for (const QString &f : want)
+        if (QFontDatabase::hasFamily(f)) return f;
+    return QStringLiteral("SimSun");
+}
+
 int main(int argc, char *argv[])
 {
     QGuiApplication::setApplicationName(QStringLiteral("TravelPlannerNative"));
@@ -256,10 +283,8 @@ int main(int argc, char *argv[])
     if (tempData.isEmpty() && testRun) tempData = QStringLiteral(TP_SOURCE_DIR "/testdata/travel.json");
 #endif
     if (!tempData.isEmpty() && !QFileInfo(tempData).isDir()) tempData = QFileInfo(tempData).absolutePath();
-    // 字体：思源宋体优先（Electron 版默认字体；原生版打包字体在阶段 ⑥），没有就退到系统宋体
-    QString serif = QStringLiteral("SimSun");
-    for (const char *f : { "Noto Serif SC", "Noto Serif CJK SC", "Source Han Serif SC", "Songti SC", "SimSun" })
-        if (QFontDatabase::hasFamily(QString::fromUtf8(f))) { serif = QString::fromUtf8(f); break; }
+    // 字体（0.12.3）：跟设置走，见 uiFamily
+    const QString serif = uiFamily(settings.value(QStringLiteral("font")).toString());
     // 地图标记的图标字体（0.8.2）：Material Symbols Rounded 子集（Apache 2.0，assets/fonts），打包在程序里
     {
         const int fid = QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/MaterialSymbolsRounded.ttf"));
@@ -380,6 +405,12 @@ int main(int argc, char *argv[])
     QQmlContext *ctx = engine.rootContext();
     ctx->setContextProperty("tpVersion", QStringLiteral(TP_VERSION_STRING));
     ctx->setContextProperty("serifFamily", serif);
+    // 换字体马上生效：改上下文属性，所有绑了 serifFamily 的文字重新取值。地图标记图片上的自定义文字下次生成时才换（图片按内容缓存）
+    QObject::connect(&ctl, &tp::app::AppController::uiFontChanged, &engine, [&ctl, ctx] {
+        const QString f = uiFamily(ctl.uiFont());
+        ctx->setContextProperty("serifFamily", f);
+        tp::map::MarkerImages::setFonts(f, tp::map::MarkerImages::iconFamily());
+    });
     ctx->setContextProperty("iconFamily", tp::map::MarkerImages::iconFamily());   // 0.8.9 样式选择器的图标格子
     ctx->setContextProperty("mapc", &mapc);
     ctx->setContextProperty("app", &ctl);

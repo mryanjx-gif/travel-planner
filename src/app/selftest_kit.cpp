@@ -201,6 +201,25 @@ void runKit(Report &r, AppController *app, QQuickWindow *win, PlanPageController
     tripList->setProperty("contentY", tripList->property("originY").toReal() + tripList->property("contentHeight").toReal() - tripList->height());
     waitFrames(win, 3);
     pause(700);   // 差异清单 #26：同一块地方连点太快，第二下可能不生效
+    // 0.12.3 占位：紧急信息卡旁边、⋯ 菜单里的导出（信号直接发，不靠滚动位置）
+    {
+        QQuickItem *t = item(QStringLiteral("toast"));
+        const auto isStub = [t] { return t && t->property("showing").toBool() && t->property("message").toString().size() > 0; };
+        t->setProperty("showing", false);
+        click(win, item(QStringLiteral("kitExportCard")));
+        r.check(waitFor(isStub, 800), QStringLiteral("紧急信息卡旁边的导出信息卡：提示还在做"));
+        QStringList missing;
+        for (const char *k : { "Pdf", "Image", "Ics", "Trip", "Share", "Card" }) {
+            QQuickItem *row = item(QStringLiteral("tripExport") + QLatin1String(k));
+            t->setProperty("showing", false);
+            if (row) QMetaObject::invokeMethod(row, "clicked");
+            if (!row || !waitFor(isStub, 500)) missing << QLatin1String(k);
+        }
+        r.check(missing.isEmpty(), QStringLiteral("⋯ 菜单 6 个导出入口：提示还在做"), missing.join(QLatin1Char(' ')));
+        r.check(item(QStringLiteral("tripInCalendar")) != nullptr, QStringLiteral("⋯ 菜单的在日历里看还在"));
+        t->setProperty("showing", false);
+        pause(700);
+    }
     click(win, item(QStringLiteral("kitEditGlobal")));
     r.check(waitFor([&] { return emDlg->property("open").toBool() && emDlg->property("mode").toString() == QLatin1String("global"); }, 1000), QStringLiteral("改保险和联系人是弹出表单"));
     QMetaObject::invokeMethod(emDlg, "set", Q_ARG(QVariant, QStringLiteral("insurer")), Q_ARG(QVariant, QStringLiteral("Allianz")));

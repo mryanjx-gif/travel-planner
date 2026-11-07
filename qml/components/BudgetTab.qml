@@ -112,6 +112,7 @@ Column {
                         id: trAmount
                         anchors.right: parent.right
                         text: Fmt.money(parent.modelData.amount, root.settle.cur)
+                        font.features: Theme.tnum
                         font.family: serifFamily; font.pixelSize: Theme.px(14); font.bold: true; color: Theme.text
                     }
                 }
@@ -140,12 +141,13 @@ Column {
                         id: netRow
                         required property var modelData
                         Text { width: setCol.width - 3 * Theme.px(78); elide: Text.ElideRight; text: netRow.modelData.name; font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.text }
-                        Text { width: Theme.px(78); horizontalAlignment: Text.AlignRight; text: root.money2(netRow.modelData.paid); font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft }
-                        Text { width: Theme.px(78); horizontalAlignment: Text.AlignRight; text: root.money2(netRow.modelData.share); font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft }
+                        Text { width: Theme.px(78); horizontalAlignment: Text.AlignRight; text: root.money2(netRow.modelData.paid); font.features: Theme.tnum; font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft }
+                        Text { width: Theme.px(78); horizontalAlignment: Text.AlignRight; text: root.money2(netRow.modelData.share); font.features: Theme.tnum; font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft }
                         Text {
                             objectName: "settleNet"
                             width: Theme.px(78); horizontalAlignment: Text.AlignRight
                             text: root.signed(netRow.modelData.net)
+                            font.features: Theme.tnum
                             font.family: serifFamily; font.pixelSize: Theme.px(13); font.bold: true
                             color: netRow.modelData.net > 0 ? "#2b8a3e" : netRow.modelData.net < 0 ? Theme.danger : Theme.textSoft
                         }
@@ -414,6 +416,7 @@ Column {
                     anchors.rightMargin: Theme.px(root.readOnly || row.modelData.fromBooking ? 12 : 42)
                     anchors.verticalCenter: parent.verticalCenter
                     text: Fmt.money(row.modelData.amount, row.modelData.foreign ? row.modelData.cur : "") + (row.refund ? " " + qsTr("退款") : "")
+                    font.features: Theme.tnum
                     font.family: serifFamily; font.pixelSize: Theme.px(14); font.bold: true; color: row.refund ? "#2b8a3e" : Theme.text
                 }
                 Item {

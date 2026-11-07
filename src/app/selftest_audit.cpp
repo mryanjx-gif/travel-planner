@@ -264,6 +264,7 @@ void runAudit(Report &r, AppController *app, map::MapController *mapc, QQuickWin
         QQuickItem *dlg = win->findChild<QQuickItem *>(QStringLiteral("wishDialog"));
         // 一周从周日开始时小日历也跟着（设置页真点，见下面）：先走设置页
         goPage(QStringLiteral("settings"));
+        if (QQuickItem *panel = m.item(QStringLiteral("settingsPanel"))) panel->setProperty("section", QStringLiteral("cal"));   // 0.12.3 分组了
         QQuickItem *seg = nullptr;
         waitFor([&] { seg = m.item(QStringLiteral("weekStartSeg-0")); return seg != nullptr; }, 2500);
         waitStill(m.item(QStringLiteral("weekStartSeg")), 1500);

@@ -8,6 +8,7 @@ Item {
     property color iconColor: Theme.text
     property bool on: false            // 选中 / 打开时图标用强调色
     property string tip: ""
+    property string label: ""          // 不用图标，显示一两个字（AI 泡泡）
     signal clicked()
     width: Theme.px(40)
     height: width
@@ -22,9 +23,17 @@ Item {
         scale: ma.pressed ? 0.9 : 1
         Behavior on scale { TpSpring {} }
         TpIcon {
+            visible: root.label === ""
             anchors.centerIn: parent
             name: root.icon
             color: root.on ? Theme.accent : root.iconColor
+        }
+        Text {
+            visible: root.label !== ""
+            anchors.centerIn: parent
+            text: root.label
+            font.family: serifFamily; font.pixelSize: Theme.px(15); font.bold: true
+            color: root.iconColor
         }
     }
     MouseArea {

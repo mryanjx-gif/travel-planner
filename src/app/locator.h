@@ -55,7 +55,7 @@ public:
     // 系统可用的定位来源（自检报告用）
     static QStringList sources();
     // 所在国家（三字母）：settings 的 homeCountry → Windows 区域设置 → AUS
-    QString homeCountry() const;
+    Q_INVOKABLE QString homeCountry() const;
     static QString iso3FromIso2(const QString &iso2);
 
 signals:

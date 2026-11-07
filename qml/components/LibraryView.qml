@@ -1,6 +1,6 @@
 // 计划库（0.11.0，L-01–L-08）："我的旅程"列表展开后的内容。照 Electron pages-library.js：三种视图（画廊 / 表格 / 按区域，记住选择）、
 // 搜索、状态和类型筛选、排序、置顶、在列表里隐藏、批量（选择模式：改状态、隐藏、删除）。数据是 plans.library（C++ plans::libraryInfo）。
-// 原生版：鼠标放到哪个计划，地图上那条高亮、其余变淡（O1）；点一个打开完整计划页。新建用顶栏一直在的按钮；"导入 .trip"和批量导出到阶段 ⑧。
+// 原生版：鼠标放到哪个计划，地图上那条高亮、其余变淡（O1）；点一个打开完整计划页。新建用顶栏一直在的按钮；"导入 .trip"和批量导出是占位，阶段 ⑧ 接功能。
 import QtQuick
 import TPApp
 
@@ -212,6 +212,12 @@ Item {
             compact: true
             text: root.selMode ? qsTr("取消选择") : qsTr("选择")
             onClicked: { if (root.selMode) root.leaveSel(); else root.selMode = true }
+        }
+        TpButton {
+            objectName: "libImportTrip"
+            compact: true
+            text: qsTr("导入 .trip")
+            onClicked: win.notReady()
         }
     }
     Flow {
@@ -454,7 +460,7 @@ Item {
         }
     }
 
-    // ---- 批量操作条（Electron selBarHtml；导出到阶段 ⑧） ----
+    // ---- 批量操作条（Electron selBarHtml；导出是占位，阶段 ⑧ 接功能） ----
     TpCard {
         id: selBar
         objectName: "libSelBar"
@@ -503,6 +509,13 @@ Item {
                 enabled: root.selIds.length > 0
                 text: root.allHid ? qsTr("取消隐藏") : qsTr("隐藏")
                 onClicked: root.keep(() => plans.setListHidden(root.selIds, !root.allHid))
+            }
+            TpButton {
+                objectName: "libSelExport"
+                compact: true
+                enabled: root.selIds.length > 0
+                text: qsTr("批量导出")
+                onClicked: win.notReady()
             }
             TpButton {
                 objectName: "libSelDelete"

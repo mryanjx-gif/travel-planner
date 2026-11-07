@@ -5,6 +5,8 @@ import TPApp
 
 Rectangle {
     id: root
+    objectName: "toast"
+    readonly property string message: label.text
     property bool error: false
     property string actionText: ""
     property var action: null

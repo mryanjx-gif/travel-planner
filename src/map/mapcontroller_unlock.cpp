@@ -6,6 +6,7 @@
 #include "settings.h"
 #include "tileserver.h"
 
+#include <QCollator>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
@@ -61,6 +62,21 @@ bool MapController::editable()
     if (!m_store) return false;
     if (m_store->isReadOnly()) { emit toast(trd("现在是只读模式，不能改。"), true); return false; }
     return true;
+}
+
+QVariantList MapController::countryOptions() const
+{
+    QHash<QString, QString> names;
+    for (int i = 0; i < m_unlockModel.unitCount(); ++i) {
+        const QString code = m_unlockModel.adm0(i);
+        if (!code.isEmpty() && !names.contains(code)) names.insert(code, m_unlockModel.country(i));
+    }
+    QStringList codes = names.keys();
+    QCollator zh{ QLocale(QLocale::Chinese, QLocale::China) };
+    std::sort(codes.begin(), codes.end(), [&](const QString &a, const QString &b) { return zh.compare(names[a], names[b]) < 0; });
+    QVariantList out;
+    for (const QString &c : codes) out << QVariantMap{ { QStringLiteral("key"), c }, { QStringLiteral("text"), names[c] } };
+    return out;
 }
 
 QVariantList MapController::unlockRows(const QString &q) const

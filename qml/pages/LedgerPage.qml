@@ -170,6 +170,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             horizontalAlignment: Text.AlignRight
                             text: root.whole(yearRow.modelData.v)
+                            font.features: Theme.tnum
                             font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.textSoft
                         }
                     }
@@ -247,12 +248,13 @@ Item {
                             anchors.rightMargin: Theme.px(12)
                             anchors.verticalCenter: parent.verticalCenter
                             Text { visible: !root.narrow; width: root.colDays; horizontalAlignment: Text.AlignRight; text: tripRow.modelData.days > 0 ? tripRow.modelData.days : "—"; font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft }
-                            Text { visible: !root.narrow; width: root.colBudget; horizontalAlignment: Text.AlignRight; text: root.budgetText(tripRow.modelData); font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft }
+                            Text { visible: !root.narrow; width: root.colBudget; horizontalAlignment: Text.AlignRight; text: root.budgetText(tripRow.modelData); font.features: Theme.tnum; font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft }
                             Text {
                                 objectName: "ledgerSpent"
                                 width: root.colSpent
                                 horizontalAlignment: Text.AlignRight
                                 text: root.whole(tripRow.modelData.spent)
+                                font.features: Theme.tnum
                                 font.family: serifFamily; font.pixelSize: Theme.px(14); font.bold: tripRow.modelData.done
                                 color: !tripRow.modelData.done ? Theme.textSoft : tripRow.modelData.budget > 0 && tripRow.modelData.budgetMain >= 0 && tripRow.modelData.spent > tripRow.modelData.budgetMain ? Theme.danger : Theme.text
                             }

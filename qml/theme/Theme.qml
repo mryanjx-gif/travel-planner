@@ -17,6 +17,8 @@ QtObject {
     property Item glassSource: null   // 全窗口共用的玻璃背景（Main.qml 给）
 
     function px(n) { return Math.round(n * scale) }
+    // 金额列的等宽数字（0.12.3）：font.features: Theme.tnum。思源宋体没有 tnum 特性（实测 1111 比 0000 窄），要用 hwid（半角）；雅黑、等线、楷体数字本来就等宽
+    readonly property var tnum: ({ "tnum": 1, "hwid": 1 })
 
     // 颜色
     function seasonColor(k) { return k === "best" ? "#3f9a5a" : k === "nice" ? "#5b93c9" : k === "meh" ? "#e0b23f" : k === "bad" ? "#b9b2a7" : line }   // 季节条（计划页、想去）

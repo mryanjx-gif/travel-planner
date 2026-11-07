@@ -3,7 +3,7 @@
 # 规则（PO 2026-11-02）：大更新改第一位，中等更新改第二位，小修改改第三位；正式版之前是 0.x.y，正式版 1.0.0。
 cmake_minimum_required(VERSION 3.24)
 
-set(TP_VERSION "0.12.2")
+set(TP_VERSION "0.12.3")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TP_VERSION_NUMERIC "${TP_VERSION}")
 
 project(TravelPlannerNative
@@ -349,7 +349,11 @@ add_custom_command(TARGET TravelPlanner POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets/admin" "$<TARGET_FILE_DIR:TravelPlanner>/assets/admin"
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets/app" "$<TARGET_FILE_DIR:TravelPlanner>/assets/app"
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets/nightlights" "$<TARGET_FILE_DIR:TravelPlanner>/assets/nightlights"
+    # 0.12.3：字体目录整个复制：思源宋体两个文件（NotoSerifCJKsc-Regular.otf、-Bold.otf）放进去就带上，没放也不会让编译失败
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets/fonts" "$<TARGET_FILE_DIR:TravelPlanner>/assets/fonts"
     VERBATIM)
+# 安装目录也要带上（OPTIONAL：文件不存在时跳过，不报错）
+install(FILES "${CMAKE_SOURCE_DIR}/assets/fonts/NotoSerifCJKsc-Regular.otf" "${CMAKE_SOURCE_DIR}/assets/fonts/NotoSerifCJKsc-Bold.otf" OPTIONAL DESTINATION assets/fonts)
 
 # 以后各模块（src/services …）按阶段加进来；
 # 逻辑单元测试放在 tests/，用 Qt Test（qtbase 自带，LGPL-3；只用于测试，不打包），打开 TP_BUILD_TESTS 时编译。

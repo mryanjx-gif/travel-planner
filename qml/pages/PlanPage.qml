@@ -1048,7 +1048,7 @@ Item {
         onClicked: root.closeRequested()
     }
 
-    // ---- ⋯ 菜单（"导出"在阶段 ⑧）----
+    // ---- ⋯ 菜单（"导出"是占位，阶段 ⑧ 接功能）----
     Rectangle {
         objectName: "tripMenu"
         visible: root.menuOpen
@@ -1085,6 +1085,23 @@ Item {
                 objectName: "tripInCalendar"
                 text: qsTr("在日历里看")
                 onClicked: { root.menuOpen = false; root.calendarRequested() }
+            }
+            Text {
+                x: Theme.px(12)
+                height: Theme.px(26)
+                verticalAlignment: Text.AlignBottom
+                text: qsTr("导出")
+                font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
+            }
+            Repeater {
+                model: [{ key: "Pdf", text: qsTr("行程单 PDF") }, { key: "Image", text: qsTr("行程单长图") }, { key: "Ics", text: qsTr("日历文件 .ics") },
+                        { key: "Trip", text: qsTr("计划文件 .trip") }, { key: "Share", text: qsTr("分享版") }, { key: "Card", text: qsTr("导出信息卡") }]
+                delegate: MenuRow {
+                    required property var modelData
+                    objectName: "tripExport" + modelData.key
+                    text: modelData.text
+                    onClicked: { root.menuOpen = false; win.notReady() }
+                }
             }
         }
     }

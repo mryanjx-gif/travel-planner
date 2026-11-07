@@ -206,6 +206,8 @@ public:
     int manualCount() const { return int(m_trips.manualRegions().size()); }
     // 面板列表：q 为空 = 已经手动标记的；否则按名字搜索。每行 { id, name, sub, byPlan, plans, manual, year }
     Q_INVOKABLE QVariantList unlockRows(const QString &q) const;
+    // 设置"所在地国家"的选项（0.12.3，Electron fillCountries）：[{ key: 三字母代码, text: 国家名 }]，按中文排序。省界没载入时是空的
+    Q_INVOKABLE QVariantList countryOptions() const;
     // 打勾 / 取消（Electron setManual）；被计划点亮的不能手动取消。返回是否改了
     Q_INVOKABLE bool setManual(const QString &id, bool on);
     // 年份（Electron .u-year onchange）：四位数字才记，否则删掉；返回最后记下的（空 = 没有）

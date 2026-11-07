@@ -44,6 +44,12 @@ class AppController : public QObject
     Q_PROPERTY(QString glassMode READ glassMode WRITE setGlassMode NOTIFY appearanceChanged)
     Q_PROPERTY(bool systemMotion READ systemMotion CONSTANT)   // Windows 的"显示动画"，启动时读一次
     Q_PROPERTY(bool spaceAnim READ spaceAnim WRITE setSpaceAnim NOTIFY spaceAnimChanged)   // 0.9.3 星空动画
+    // 0.12.3 设置改版。键名和取值同 Electron prefs.js：font、greetName、homeCountry、startBase、startProj
+    Q_PROPERTY(QString uiFont READ uiFont WRITE setUiFont NOTIFY uiFontChanged)
+    Q_PROPERTY(QString greetName READ greetName WRITE setGreetName NOTIFY prefsChanged)
+    Q_PROPERTY(QString homeCountry READ homeCountry WRITE setHomeCountry NOTIFY prefsChanged)
+    Q_PROPERTY(QString startBase READ startBase WRITE setStartBase NOTIFY prefsChanged)
+    Q_PROPERTY(QString startProj READ startProj WRITE setStartProj NOTIFY prefsChanged)
 
     Q_PROPERTY(QString dataDir READ dataDir NOTIFY dataChanged)
     Q_PROPERTY(bool dataDirIsDefault READ dataDirIsDefault NOTIFY dataChanged)
@@ -113,6 +119,16 @@ public:
     void setGlassMode(const QString &v);
     bool systemMotion() const;
     bool spaceAnim() const;
+    QString uiFont() const;             // serif（默认）/ yahei / dengxian / kaiti
+    void setUiFont(const QString &v);
+    QString greetName() const;          // 最多 20 字
+    void setGreetName(const QString &v);
+    QString homeCountry() const;        // 三字母代码；空 = 按 Windows 区域设置猜（Locator）
+    void setHomeCountry(const QString &v);
+    QString startBase() const;          // '' 上次用的 / 卫星图 / 街道图 / 已解锁，下次打开时生效
+    void setStartBase(const QString &v);
+    QString startProj() const;          // '' 上次用的 / globe / mercator，下次打开时生效
+    void setStartProj(const QString &v);
     void setSpaceAnim(bool on);
     void setWindowTitleExtra(const QString &v);
 
@@ -224,6 +240,8 @@ signals:
     void windowTitleExtraChanged();
     void appearanceChanged();
     void spaceAnimChanged();
+    void uiFontChanged();
+    void prefsChanged();
     void dataChanged();
     void docReplaced();       // 撤销 / 重做换了一版数据（0.7.0，照片页跟着刷新）
     void dirtyChanged();
@@ -248,6 +266,7 @@ protected:
     bool eventFilter(QObject *obj, QEvent *ev) override;
 
 private:
+    void setPref(const QString &key, const QString &v);
     void loadFolder(const QString &dir, bool remember);
     bool doSave(bool force, bool quiet);   // 保存并处理结果（冲突 → 弹框一次；失败 → 提示）。返回 true = 保存成功
     void autoSave();                       // SaveScheduler 到点

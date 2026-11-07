@@ -1,6 +1,11 @@
 // 自检：0.8.8 顶栏、⋯ 泡泡、头像菜单、我的旅程列表、Ctrl K、前进 / 后退、Esc 层级。
 // 尽量走真的路径：快捷键用窗口系统的按键事件（和真的按键一样经过 Shortcut），鼠标侧键用鼠标事件；
 // 界面上的东西按 objectName 找。会改数据副本里的"下次出发"，最后改回去。
+#include "settings.h"
+
+#include <QFont>
+#include <QFontDatabase>
+#include <QFontMetricsF>
 #include "selftest_util.h"
 
 #include "appcontroller.h"
@@ -398,6 +403,124 @@ void runShell(Report &r, AppController *app, map::MapController *mapc, QQuickWin
                                                    : QStringList{ QStringLiteral("palette"), QStringLiteral("menu"), QStringLiteral("layers"), QStringLiteral("filter"), QStringLiteral("sheet"), QStringLiteral("list") };
         r.check(seq == want, QStringLiteral("Esc 一层一层关：命令面板 → 头像菜单 → 图层泡泡 → 筛选下拉 → 简易面板 → 我的旅程"),
                 seq.join(QStringLiteral(" → ")));
+    }
+
+    // ---- 0.12.3 占位入口、设置改版 ----
+    r.section(QStringLiteral("占位入口、设置改版（0.12.3）"));
+    {
+        QQuickItem *t = item(win, "toast");
+        const auto isStub = [t] {
+            const QString m = t ? t->property("message").toString() : QString();
+            return t && t->property("showing").toBool() && (m == QStringLiteral("这个功能还在做") || m == QLatin1String("This feature isn't ready yet"));
+        };
+        const auto stub = [&](QQuickItem *it, const QString &what) {
+            if (t) t->setProperty("showing", false);
+            click(win, it);
+            const bool ok = waitFor(isStub, 800);
+            r.check(ok, what, ok ? QString() : whereStr(win, it));
+            pause(300);
+        };
+        nav->go(QStringLiteral("plan"));
+        waitFor([win] { return shown(item(win, "aiBtn")); }, 1500);
+        stub(item(win, "aiBtn"), QStringLiteral("AI 泡泡点了提示还在做"));
+        click(win, item(win, "meBtn"));
+        waitFor([win] { QQuickItem *m = item(win, "avatarMenu"); return m && m->property("open").toBool(); }, 800);
+        pause(250);
+        stub(item(win, "menu-importTrip"), QStringLiteral("头像菜单的导入 .trip"));
+
+        int stubs = 0;
+        for (const QVariant &v : call(win, "paletteItems").toList())
+            if (v.toMap().value(QStringLiteral("key")) == QLatin1String("notReady")) ++stubs;
+        if (t) t->setProperty("showing", false);
+        call(win, "runCommand", QVariantMap{ { QStringLiteral("kind"), QStringLiteral("act") }, { QStringLiteral("key"), QStringLiteral("notReady") } });
+        r.check(stubs == 9 && waitFor(isStub, 800), QStringLiteral("Ctrl K 搜得到 9 个占位入口，选了提示还在做"), QString::number(stubs));
+
+        call(win, "pickPage", QStringLiteral("library"));
+        waitFor([win] { return shown(item(win, "libImportTrip")); }, 2000);
+        pause(400);
+        stub(item(win, "libImportTrip"), QStringLiteral("计划库顶部的导入 .trip"));
+        click(win, item(win, "libSelect"));
+        waitFor([win] { return shown(item(win, "libSelExport")); }, 1000);
+        click(win, item(win, "libSelAll"));
+        pause(200);
+        stub(item(win, "libSelExport"), QStringLiteral("计划库多选后的批量导出"));
+        click(win, item(win, "libSelect"));
+        for (int i = 0; i < 9 && !call(win, "escOnce").toString().isEmpty(); ++i) pause(80);
+
+        nav->go(QStringLiteral("settings"));
+        QQuickItem *panel = item(win, "settingsPanel");
+        waitFor([win] { return win->property("settingsOpen").toBool(); }, 800);
+        pause(500);
+        r.check(panel && !panel->property("narrow").toBool() && panel->width() > 600, QStringLiteral("设置面板放宽到约 760，有侧边栏"), panel ? QString::number(panel->width()) : QString());
+        QStringList badNav;
+        for (const char *k : { "me", "map", "cal", "win", "money", "docs", "ai", "net", "data", "keys", "about", "look" }) {
+            click(win, item(win, QString(QStringLiteral("setNav-") + QLatin1String(k))));
+            if (!waitFor([&] { return panel->property("section").toString() == QLatin1String(k); }, 500)) badNav << QString::fromLatin1(k);
+            pause(120);
+        }
+        r.check(badNav.isEmpty() && shown(item(win, "setCard-look")), QStringLiteral("侧边栏 12 组都点得到"), badNav.join(QLatin1Char(' ')));
+
+        click(win, item(win, "setNav-ai"));
+        waitFor([win] { return shown(item(win, "aiKey")); }, 500);
+        stub(item(win, "aiKey"), QStringLiteral("AI 分组：密钥占位"));
+        stub(item(win, "aiModel"), QStringLiteral("AI 分组：默认模型占位"));
+        stub(item(win, "aiCap"), QStringLiteral("AI 分组：月上限占位"));
+
+        // 新设置项写进 settings.json 并读回；字体真生效；头像第一个字
+        const QString oFont = app->uiFont(), oName = app->greetName(), oHome = app->homeCountry(), oBase = app->startBase(), oProj = app->startProj();
+        QQmlContext *rootCtx = QQmlEngine::contextForObject(win);
+        app->setUiFont(QStringLiteral("kaiti"));
+        app->setGreetName(QStringLiteral("小明") + QString(30, QLatin1Char('x')));
+        app->setHomeCountry(QStringLiteral("JPN"));
+        app->setStartBase(QStringLiteral("街道图"));
+        app->setStartProj(QStringLiteral("mercator"));
+        Settings back;
+        back.load(settingsObj()->path());
+        r.check(back.value(QStringLiteral("font")).toString() == QLatin1String("kaiti") && back.value(QStringLiteral("greetName")).toString().size() == 20
+                    && back.value(QStringLiteral("homeCountry")).toString() == QLatin1String("JPN") && back.value(QStringLiteral("startBase")).toString() == QStringLiteral("街道图")
+                    && back.value(QStringLiteral("startProj")).toString() == QLatin1String("mercator"),
+                QStringLiteral("字体、名字（截到 20 字）、国家、打开时的底图和形状写进 settings.json 并读回"));
+        waitFrames(win, 2);
+        QQuickItem *gs = item(win, "glassStatus");
+        const QString fam = rootCtx ? rootCtx->contextProperty(QStringLiteral("serifFamily")).toString() : QString();
+        r.check(fam == QLatin1String("KaiTi") && gs && gs->property("font").value<QFont>().family() == fam, QStringLiteral("选楷体后界面文字真的换了字体"), fam);
+        QQuickItem *ini = item(win, "meInitial");
+        r.check(ini && ini->isVisible() && ini->property("text").toString() == QStringLiteral("小"), QStringLiteral("头像显示名字第一个字"));
+        app->setUiFont(oFont); app->setGreetName(oName); app->setHomeCountry(oHome); app->setStartBase(oBase); app->setStartProj(oProj);
+        waitFrames(win, 2);
+        r.check(!item(win, "meInitial")->isVisible() || !oName.isEmpty(), QStringLiteral("没名字时还是人像图标"));
+
+        // 等宽数字：实测（每种字体 1111 和 0000 一样宽 = 生效）
+        for (const QString &f : { QStringLiteral("Noto Serif SC"), QStringLiteral("Noto Serif CJK SC"), QStringLiteral("Microsoft YaHei UI"), QStringLiteral("DengXian"), QStringLiteral("KaiTi") }) {
+            QFont a(f); a.setPixelSize(40);
+            QFont b = a; b.setFeature(QFont::Tag("tnum"), 1); b.setFeature(QFont::Tag("hwid"), 1);
+            const QFontMetricsF ma(a), mb(b);
+            r.info(QStringLiteral("等宽数字实测 %1%2：普通 1111=%3 0000=%4；tnum + hwid 1111=%5 0000=%6").arg(f, QFontDatabase::hasFamily(f) ? QString() : QStringLiteral("（这台电脑没有）"))
+                       .arg(ma.horizontalAdvance(QStringLiteral("1111"))).arg(ma.horizontalAdvance(QStringLiteral("0000")))
+                       .arg(mb.horizontalAdvance(QStringLiteral("1111"))).arg(mb.horizontalAdvance(QStringLiteral("0000"))));
+        }
+
+        {
+            QFont b(rootCtx ? rootCtx->contextProperty(QStringLiteral("serifFamily")).toString() : QString());
+            b.setPixelSize(40); b.setFeature(QFont::Tag("tnum"), 1); b.setFeature(QFont::Tag("hwid"), 1);
+            const QFontMetricsF mb(b);
+            r.check(mb.horizontalAdvance(QStringLiteral("1111")) == mb.horizontalAdvance(QStringLiteral("0000")), QStringLiteral("现在的字体上金额数字等宽"), b.family());
+        }
+
+        // 窄窗口：顶部横向标签
+        const int oldW = win->width();
+        win->setWidth(620);
+        const bool nar = waitFor([panel] { return panel->property("narrow").toBool(); }, 1000);
+        waitFrames(win, 2);
+        r.check(nar && shown(item(win, "setTab-look")), QStringLiteral("窄窗口改成顶部横向标签"));
+        click(win, item(win, "setTab-me"));
+        r.check(waitFor([panel] { return panel->property("section").toString() == QLatin1String("me"); }, 500), QStringLiteral("顶部标签点得到"));
+        win->setWidth(oldW);
+        waitFor([panel] { return !panel->property("narrow").toBool(); }, 1000);
+        panel->setProperty("section", QStringLiteral("look"));
+        waitFrames(win, 2);
+        click(win, item(win, "settingsClose"));
+        r.check(waitFor([win] { return !win->property("settingsOpen").toBool(); }, 800), QStringLiteral("× 关闭设置面板"));
     }
 
     // 收尾：下次出发改回去
