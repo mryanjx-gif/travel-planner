@@ -1,6 +1,7 @@
 #include "datafolder.h"
 
 #include "atomicfile.h"
+#include "electronimport.h"
 #include "jsonio.h"
 #include "nativeformat.h"
 #include "trdata.h"
@@ -60,7 +61,39 @@ QString readElectronDataDir(const QString &file)
     return isElectron(dir) ? QDir::toNativeSeparators(dir) : QString();
 }
 
-bool createEmpty(const QString &dir, const QString &appVersion, QString *error)
+// 打包的 Electron 模板（assets/templates，资源 :/templates/）
+static Value readTemplate(const QString &name)
+{
+    QFile f(QStringLiteral(":/templates/") + name);
+    if (!f.open(QIODevice::ReadOnly)) {
+        qWarning("读不了模板 %s", qUtf8Printable(name));
+        return {};
+    }
+    json::ParseError pe;
+    const Value v = json::parse(QString::fromUtf8(f.readAll()), &pe);
+    return pe.ok ? v : Value();
+}
+
+// 新数据（D-19）：季节表；sampleLang 不空时加一个示例计划。
+// 模板是 Electron 的格式，示例计划走和导入同一个转换（站点去 order、去下一站合成 leg 等）。
+static Value newDoc(const QString &appVersion, const QString &sampleLang)
+{
+    const QDateTime now = QDateTime::currentDateTime();
+    Value doc = data::nativefmt::emptyDoc(appVersion, now);
+    const Value season = readTemplate(QStringLiteral("season-guide.json"));
+    if (season.isObject()) doc.mutObject().set(QStringLiteral("seasonGuide"), season);
+    if (sampleLang.isEmpty()) return doc;
+    const Value sample = readTemplate(sampleLang == QLatin1String("en") ? QStringLiteral("sample-plan-en.json") : QStringLiteral("sample-plan.json"));
+    if (!sample.isObject()) return doc;
+    json::Object electron;
+    electron.set(QStringLiteral("version"), Value(4));
+    electron.set(QStringLiteral("plans"), Value(json::Array{ sample }));
+    const auto conv = data::ElectronImport::convert(Value(std::move(electron)), now, appVersion, [](const QString &) { return false; });
+    doc.mutObject().set(QStringLiteral("plans"), conv.doc[QStringLiteral("plans")]);
+    return doc;
+}
+
+bool createEmpty(const QString &dir, const QString &appVersion, QString *error, const QString &sampleLang)
 {
     if (isElectron(dir) && !isValid(dir)) {
         if (error) *error = data::trd("这是 Electron 版的数据文件夹。原生版不在这里写东西，可以把它导入到原生版的数据文件夹。");
@@ -71,10 +104,9 @@ bool createEmpty(const QString &dir, const QString &appVersion, QString *error)
         return false;
     }
     if (!isValid(dir)) {
-        // 示例计划和季节表模板在阶段 ⑥ 随欢迎页加
         const QString path = QDir(dir).filePath(data::nativefmt::dataFileName());
         const auto w = platform::writeViaTemp(path, QDir(dir).filePath(data::nativefmt::tmpFileName()),
-                                              data::nativefmt::serialize(data::nativefmt::emptyDoc(appVersion, QDateTime::currentDateTime())));
+                                              data::nativefmt::serialize(newDoc(appVersion, sampleLang)));
         if (!w.ok) {
             if (error) *error = data::trd("写不了 travel.json：%1").arg(w.error);
             return false;

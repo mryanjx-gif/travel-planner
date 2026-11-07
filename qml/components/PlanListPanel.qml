@@ -28,6 +28,8 @@ Item {
     signal eyeClicked(string id, bool hidden)
     signal libraryOpenPlan(string id)
     signal newWishClicked()
+    signal newPlanClicked()
+    signal newFootClicked()
     signal libraryDelete(var ids)
     signal wishStart(string id)
     signal wishSeason(string id)
@@ -230,6 +232,7 @@ Item {
                 objectName: "libraryView"
                 onOpenPlan: (id) => root.libraryOpenPlan(id)
                 onDeleteRequested: (ids) => root.libraryDelete(ids)
+                onNewPlan: root.newPlanClicked()
             }
         }
     }
@@ -440,14 +443,28 @@ Item {
     onFlatChanged: capLater.restart()
     onOpenChanged: if (open) capLater.restart()
 
-    // 没有计划 / 当前筛选下没有计划
+    // 这个模式一个计划都没有（0.12.7 空状态）/ 当前筛选下没有计划
+    readonly property int modeCount: wishMode ? (info.wish || 0) : footMode ? (info.completed || 0) : (info.total || 0)
+    EmptyState {
+        objectName: root.wishMode ? "emptyWish" : root.footMode ? "emptyFoot" : "emptyPlanList"
+        visible: root.rows.length === 0 && !root.expanded && !root.photoMode && root.modeCount === 0
+        x: Theme.px(16); y: list.y + Theme.px(28)
+        width: root.width - Theme.px(32)
+        art: root.wishMode ? "wish" : root.footMode ? "foot" : "plan"
+        title: root.wishMode ? qsTr("还没有想去的地方") : root.footMode ? qsTr("还没有走过的足迹") : qsTr("还没有计划")
+        detail: root.wishMode ? qsTr("看到喜欢的目的地，先记在这里，以后再排日期。")
+              : root.footMode ? qsTr("旅程完成后，路线和去过的地方都会留在这里。")
+              : qsTr("把想走的路线记下来：站点、日期、预算和行李都放在一个计划里。")
+        action: root.wishMode ? qsTr("添加想去的地方") : root.footMode ? qsTr("记一趟走过的旅程") : qsTr("新建计划")
+        onActed: root.wishMode ? root.newWishClicked() : root.footMode ? root.newFootClicked() : root.newPlanClicked()
+    }
     Text {
-        visible: root.rows.length === 0 && !root.expanded && !root.photoMode
+        visible: root.rows.length === 0 && !root.expanded && !root.photoMode && root.modeCount > 0
         x: Theme.px(20); y: list.y + Theme.px(16)
         width: root.width - Theme.px(40)
         wrapMode: Text.Wrap
         lineHeight: 1.4
-        text: (root.info.total || 0) > 0 ? qsTr("当前筛选下没有计划。") + "\n" + qsTr("可以在「筛选」里点「全选」恢复。") : qsTr("还没有计划。")
+        text: qsTr("当前筛选下没有计划。") + "\n" + qsTr("可以在「筛选」里点「全选」恢复。")
         font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted
     }
 

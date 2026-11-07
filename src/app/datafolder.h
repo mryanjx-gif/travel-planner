@@ -40,9 +40,9 @@ Startup decide(const StartupInput &in);
 // 读 Electron 版 settings.json 里的 dataDir；文件不存在、读不出来或那个文件夹里没有 data.js 时返回空
 QString readElectronDataDir(const QString &electronSettingsFile);
 
-// 在 dir 里新建空数据：travel.json（nativeformat emptyDoc）和 photos\。
+// 在 dir 里新建数据：travel.json（nativeformat emptyDoc + 季节表）和 photos\。sampleLang = zh / en 时多一个示例计划（欢迎页，D-19）。
 // dir 里已经有 travel.json 时不动它，直接返回 true。dir 是 Electron 版的数据文件夹时不写，返回 false。失败时 error 是原因。
-bool createEmpty(const QString &dir, const QString &appVersion, QString *error = nullptr);
+bool createEmpty(const QString &dir, const QString &appVersion, QString *error = nullptr, const QString &sampleLang = {});
 
 // 两个路径是否指同一个文件夹（Windows 不分大小写）
 bool samePath(const QString &a, const QString &b);

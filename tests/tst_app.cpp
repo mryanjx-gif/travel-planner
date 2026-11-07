@@ -194,6 +194,50 @@ private slots:
         QCOMPARE(DataFolder::readElectronDataDir(file), QString());
     }
 
+    // 欢迎页新建的数据（0.12.7，D-19）：季节表 + 一个示例计划；往返不变；删掉示例计划和普通计划一样
+    void createSampleData_data()
+    {
+        QTest::addColumn<QString>("lang");
+        QTest::addColumn<QString>("nameHas");
+        QTest::newRow("zh") << "zh" << QString::fromUtf8("示例");
+        QTest::newRow("en") << "en" << "Sample";
+    }
+    void createSampleData()
+    {
+        QFETCH(QString, lang);
+        QFETCH(QString, nameHas);
+        QTemporaryDir tmp;
+        const QString dir = tmp.filePath("d");
+        QString err;
+        QVERIFY2(DataFolder::createEmpty(dir, "0.12.7", &err, lang), qPrintable(err));
+        QVERIFY(QFileInfo(dir + "/photos").isDir());
+        data::DataStore store;
+        QVERIFY(store.load(dir));
+        QVERIFY(!store.isReadOnly());
+        const json::Value root = store.data();
+        const auto &plans = root["plans"].asArray();
+        QCOMPARE(int(plans.size()), 1);
+        const json::Value plan = plans[0];
+        QVERIFY2(plan["name"].toString().contains(nameHas), qPrintable(plan["name"].toString()));
+        QCOMPARE(plan["status"].toString(), QString("planning"));
+        const auto &stops = plan["stops"].asArray();
+        QVERIFY(stops.size() >= 4);
+        for (const json::Value &s : stops) QVERIFY(!s.asObject().contains("order"));   // 原生格式：数组顺序就是站点顺序
+        QVERIFY(stops[0]["leg"].isObject());   // legMode 合成 leg
+        QVERIFY(root["seasonGuide"]["rows"].asArray().size() > 10);
+        QVERIFY(root["photos"].asArray().empty());
+        // 往返不变：读进来、原样保存，内容一样
+        QVERIFY(store.save().ok);
+        data::DataStore again;
+        QVERIFY(again.load(dir));
+        QCOMPARE(json::stringify(again.data()["plans"], 2), json::stringify(root["plans"], 2));
+        QCOMPARE(json::stringify(again.data()["seasonGuide"], 2), json::stringify(root["seasonGuide"], 2));
+        // 已经有数据的文件夹：不写示例
+        const QByteArray before = readText(dir + "/travel.json");
+        QVERIFY(DataFolder::createEmpty(dir, "0.12.7", &err, lang));
+        QCOMPARE(readText(dir + "/travel.json"), before);
+    }
+
     void createEmptyData()
     {
         QTemporaryDir tmp;
@@ -207,7 +251,7 @@ private slots:
         QVERIFY(bytes.endsWith("}\n"));
         QVERIFY(!bytes.contains('\r'));
         QVERIFY(!bytes.startsWith("\xEF\xBB\xBF"));
-        QVERIFY(bytes.contains("\"plans\": [],\n  \"photos\": [],\n  \"journal\": [],\n  \"documents\": [],\n  \"visitedRegions\": []\n}\n"));
+        QVERIFY(bytes.contains("\"plans\": [],\n  \"photos\": [],\n  \"journal\": [],\n  \"documents\": [],\n  \"visitedRegions\": [],\n  \"seasonGuide\": {"));
         // 数据仓库能正常打开、能保存
         data::DataStore store;
         QVERIFY(store.load(dir));

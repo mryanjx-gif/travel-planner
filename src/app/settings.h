@@ -37,6 +37,7 @@ public:
     void setCloseAction(const QString &v);
 
     QString lang() const;               // 'zh'（默认）/ 'en'
+    bool hasLang() const;               // 选过语言（或命令行给了）；第一次用时才按系统猜
     void setLang(const QString &v);
 
     // 星空动画（0.9.3，功能清单 G-03 / T-04）：地球后面的星星闪烁、流星。键名和 Electron prefs.js 一样，默认开

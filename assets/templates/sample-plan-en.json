@@ -1,0 +1,120 @@
+{
+  "id": "sample_abc",
+  "name": "Sample · Annapurna Base Camp trek, Nepal",
+  "type": "route",
+  "status": "planning",
+  "startDate": "",
+  "endDate": "",
+  "days": 9,
+  "icon": "hiking",
+  "notes": "This is a sample plan: edit it into your own, or delete it like any other plan. No dates yet; the round trip takes about 7–10 days, mostly back the same way.",
+  "coverPhoto": "",
+  "todos": [
+    {
+      "id": "sa_t1",
+      "text": "Get trekking permits (check the latest permit and guide rules before you go)",
+      "done": false
+    },
+    {
+      "id": "sa_t2",
+      "text": "Buy travel insurance that covers high-altitude rescue",
+      "done": false
+    }
+  ],
+  "packing": [
+    {
+      "id": "sa_k1",
+      "text": "Hiking boots",
+      "done": false
+    },
+    {
+      "id": "sa_k2",
+      "text": "Warm down jacket",
+      "done": false
+    },
+    {
+      "id": "sa_k3",
+      "text": "Head torch",
+      "done": false
+    },
+    {
+      "id": "sa_k4",
+      "text": "Water purification tablets / filter",
+      "done": false
+    },
+    {
+      "id": "sa_k5",
+      "text": "Sunscreen and sunglasses",
+      "done": false
+    }
+  ],
+  "guide": "## Altitude\n\n- Above 3000 m, don't climb too much in one day; stop and rest if you get a headache or nausea, and go down at once if it gets worse.\n\n## Seasons\n\n- October–November and March–May are generally considered the best months; June–September is monsoon season, with slippery trails and the mountains often hidden.",
+  "stops": [
+    {
+      "id": "sa_s1",
+      "name": "Pokhara",
+      "lat": 28.2096,
+      "lng": 83.9856,
+      "tz": "Asia/Kathmandu",
+      "arriveDate": "",
+      "departDate": "",
+      "photos": [],
+      "legMode": "drive",
+      "schedule": [
+        {
+          "text": "Day 1: drive from Pokhara to the trailhead and start walking"
+        },
+        {
+          "text": "Last day: back to Pokhara to rest"
+        }
+      ]
+    },
+    {
+      "id": "sa_s2",
+      "name": "Ghandruk",
+      "lat": 28.377,
+      "lng": 83.807,
+      "tz": "Asia/Kathmandu",
+      "arriveDate": "",
+      "departDate": "",
+      "photos": [],
+      "legMode": "walk",
+      "schedule": [
+        {
+          "text": "A stone-built Gurung village; on a clear day you can see Machapuchare (Fishtail)"
+        }
+      ]
+    },
+    {
+      "id": "sa_s3",
+      "name": "Chhomrong",
+      "lat": 28.4184,
+      "lng": 83.818,
+      "tz": "Asia/Kathmandu",
+      "arriveDate": "",
+      "departDate": "",
+      "photos": [],
+      "legMode": "walk",
+      "schedule": [
+        {
+          "text": "Then up the Modi Khola valley: Bamboo → Deurali → Machapuchare Base Camp (MBC)"
+        }
+      ]
+    },
+    {
+      "id": "sa_s4",
+      "name": "Annapurna Base Camp",
+      "lat": 28.53,
+      "lng": 83.878,
+      "tz": "Asia/Kathmandu",
+      "arriveDate": "",
+      "departDate": "",
+      "photos": [],
+      "schedule": [
+        {
+          "text": "Annapurna Base Camp, about 4130 m; watch the sunrise next morning, then head back down"
+        }
+      ]
+    }
+  ]
+}

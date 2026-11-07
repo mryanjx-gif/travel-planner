@@ -15,6 +15,8 @@ target_link_libraries(tst_app PRIVATE tp_core Qt6::Test Qt6::Gui Qt6::Quick)
 target_compile_definitions(tst_app PRIVATE TP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 set_target_properties(tst_app PROPERTIES WIN32_EXECUTABLE OFF AUTOMOC ON)
 add_test(NAME tst_app COMMAND tst_app)
+qt_add_resources(tst_app "tst_app_templates" PREFIX "/templates" BASE "${CMAKE_SOURCE_DIR}/assets/templates"
+    FILES ${CMAKE_SOURCE_DIR}/assets/templates/sample-plan.json ${CMAKE_SOURCE_DIR}/assets/templates/sample-plan-en.json ${CMAKE_SOURCE_DIR}/assets/templates/season-guide.json)
 
 # 照片（0.7.0）：EXIF、缩略图、旋转、导入、清理。测试照片在 tests/photos/（tools/claude-kit/gen_photo_fixtures.py 生成）
 qt_add_executable(tst_photo tst_photo.cpp)

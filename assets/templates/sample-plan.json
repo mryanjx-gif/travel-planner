@@ -1,0 +1,120 @@
+{
+  "id": "sample_abc",
+  "name": "示例·尼泊尔 ABC 徒步（安纳普尔纳大本营）",
+  "type": "route",
+  "status": "planning",
+  "startDate": "",
+  "endDate": "",
+  "days": 9,
+  "icon": "hiking",
+  "notes": "这是一个示例计划：可以照着改成你自己的，也可以像普通计划一样删除。日期还没定；往返大约 7–10 天，下山基本原路返回。",
+  "coverPhoto": "",
+  "todos": [
+    {
+      "id": "sa_t1",
+      "text": "办好徒步许可证（出发前查一下最新的许可证和向导规定）",
+      "done": false
+    },
+    {
+      "id": "sa_t2",
+      "text": "买含高海拔救援的旅行保险",
+      "done": false
+    }
+  ],
+  "packing": [
+    {
+      "id": "sa_k1",
+      "text": "登山鞋",
+      "done": false
+    },
+    {
+      "id": "sa_k2",
+      "text": "保暖羽绒服",
+      "done": false
+    },
+    {
+      "id": "sa_k3",
+      "text": "头灯",
+      "done": false
+    },
+    {
+      "id": "sa_k4",
+      "text": "净水片 / 滤水壶",
+      "done": false
+    },
+    {
+      "id": "sa_k5",
+      "text": "防晒霜和墨镜",
+      "done": false
+    }
+  ],
+  "guide": "## 高反\n\n- 海拔 3000 米以上，每天别爬升太多；头痛、恶心就停下休息，症状加重立刻往下走。\n\n## 季节\n\n- 一般认为 10–11 月和 3–5 月天气最好；6–9 月是雨季，路滑，也常常看不到山。",
+  "stops": [
+    {
+      "id": "sa_s1",
+      "name": "Pokhara",
+      "lat": 28.2096,
+      "lng": 83.9856,
+      "tz": "Asia/Kathmandu",
+      "arriveDate": "",
+      "departDate": "",
+      "photos": [],
+      "legMode": "drive",
+      "schedule": [
+        {
+          "text": "第 1 天：从 Pokhara 坐车去徒步起点，开始徒步"
+        },
+        {
+          "text": "最后一天：下山后回到 Pokhara 休息"
+        }
+      ]
+    },
+    {
+      "id": "sa_s2",
+      "name": "Ghandruk",
+      "lat": 28.377,
+      "lng": 83.807,
+      "tz": "Asia/Kathmandu",
+      "arriveDate": "",
+      "departDate": "",
+      "photos": [],
+      "legMode": "walk",
+      "schedule": [
+        {
+          "text": "古隆族的石头村，天气好时能看到鱼尾峰"
+        }
+      ]
+    },
+    {
+      "id": "sa_s3",
+      "name": "Chhomrong",
+      "lat": 28.4184,
+      "lng": 83.818,
+      "tz": "Asia/Kathmandu",
+      "arriveDate": "",
+      "departDate": "",
+      "photos": [],
+      "legMode": "walk",
+      "schedule": [
+        {
+          "text": "之后沿 Modi Khola 河谷往上：Bamboo → Deurali → 鱼尾峰大本营（MBC）"
+        }
+      ]
+    },
+    {
+      "id": "sa_s4",
+      "name": "Annapurna Base Camp",
+      "lat": 28.53,
+      "lng": 83.878,
+      "tz": "Asia/Kathmandu",
+      "arriveDate": "",
+      "departDate": "",
+      "photos": [],
+      "schedule": [
+        {
+          "text": "安纳普尔纳大本营，海拔约 4130 米；第二天看完日出原路下山"
+        }
+      ]
+    }
+  ]
+}

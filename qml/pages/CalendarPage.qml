@@ -10,6 +10,7 @@ Item {
     property bool shown: false
     signal openPlan(string id, string tab)
     signal toast(string text, bool warn)
+    signal newPlan()
 
     readonly property bool narrow: width < Theme.px(760)
     readonly property bool isYear: calendar.view === "year"
@@ -24,6 +25,7 @@ Item {
     readonly property var wishes: side.wish || []
     readonly property var hiddenRows: side.hidden || []
     readonly property int undatedCount: planning.length + wishes.length
+    readonly property bool noDated: (plans.list.total || 0) === undatedCount   // 没有一个计划定了日期（已完成的不会在"还没定日期"里）
     readonly property real gutter: Theme.px(16)
     readonly property real sideW: Theme.px(250)
     // 窄窗口：右边盖在日历上，默认收起（这时点开不改记住的值）
@@ -254,6 +256,28 @@ Item {
         }
     }
 
+    // 没有一个计划定了日期（0.12.7 空状态）：叠在主体上，不挡从右边拖计划进来；拖的时候让开。季节表不受影响
+    Rectangle {
+        z: 5
+        visible: root.noDated && !root.isSeason && !root.dragging
+        anchors.centerIn: mainCard
+        width: emptyCal.width + Theme.px(40)
+        height: emptyCal.height + Theme.px(32)
+        radius: Theme.radius
+        color: Theme.panel
+        EmptyState {
+            id: emptyCal
+            objectName: "emptyCalendar"
+            anchors.centerIn: parent
+            width: Math.min(mainCard.width - Theme.px(64), Theme.px(360))
+            art: "calendar"
+            title: qsTr("日历上还没有行程")
+            detail: qsTr("计划定了日期，就会排在这里。还没定的在右边，可以拖进来。")
+            action: qsTr("新建计划")
+            onActed: root.newPlan()
+        }
+    }
+
     // ==================== 主体 ====================
     TpCard {
         id: mainCard
@@ -383,7 +407,7 @@ Item {
                     }
                     Text {
                         objectName: "calYearEmpty"
-                        visible: (root.yearInfo.bars || []).length === 0
+                        visible: (root.yearInfo.bars || []).length === 0 && !root.noDated
                         anchors.centerIn: parent
                         width: Math.min(parent.width - Theme.px(32), Theme.px(420))
                         horizontalAlignment: Text.AlignHCenter

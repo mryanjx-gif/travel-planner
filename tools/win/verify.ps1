@@ -32,6 +32,7 @@ $Log = Join-Path $Root '验证-结果.txt'
 # |hide：截完先把窗口藏起来再退出（等于从托盘退出；0.8.0 检查退出时地图释放得对不对）
 $AllPages = @(
     'street|zh',
+    'ui-welcome|zh', 'ui-welcome|en', 'empty-plan|zh', 'empty-plan|en', 'empty-wish|zh', 'empty-wish|en', 'empty-foot|zh', 'empty-album|zh', 'empty-calendar|zh', 'empty-ledger|zh',
     'ui-settings|zh', 'ui-settings|en', 'ui-settings-narrow|zh', 'ui-settings-me|zh', 'ui-settings-ai|zh', 'ui-settings-ai|en', 'ui-settings-keys|zh', 'ui-settings-keys|en', 'ui-settings-data|zh', 'ui-settings-money|zh', 'ui-settings-money|en', 'ui-settings-docs|zh', 'ui-settings-docs|en', 'ui-settings-doc-form|zh', 'ui-settings-doc-form|en', 'ui-settings-net|zh', 'ui-settings-net|en', 'ui-settings-net-off|zh', 'ui-settings-about|zh', 'ui-settings-about|en', 'ui-settings-about-end|zh', 'ui-settings-log|zh', 'ui-settings-log|en',
     'trip|zh', 'trip|en', 'trip-today|zh', 'trip-scroll|zh', 'trip-edit|zh', 'trip-edit|en', 'trip-single|zh', 'trip-sketch|zh', 'trip-narrow|zh',
     'trip-bookings|zh', 'trip-bookings|en', 'trip-budget|zh', 'trip-budget|en', 'trip-booking-form|zh', 'trip-booking-form|en', 'trip-expense-form|zh', 'trip-stopbooks|zh',

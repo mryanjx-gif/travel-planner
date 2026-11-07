@@ -199,6 +199,10 @@ public:
     Q_INVOKABLE QVariantMap useDefaultData();       // 软件文件夹里的 data\（没有就新建）
     // 第一次用：在软件文件夹里新建数据，然后从 Electron 版导入
     Q_INVOKABLE QVariantMap firstRunImport();
+    // 欢迎页（0.12.7，S-16）：在 dir 里新建数据（季节表 + 示例计划）并打开；已经有数据就直接打开
+    Q_INVOKABLE QVariantMap welcomeStart(const QString &dir);
+    Q_INVOKABLE QString welcomeFolder(const QVariant &picked) const;   // "更改"选的文件夹 → 实际放数据的位置
+    Q_INVOKABLE QString guessCurrency() const;                         // 按系统地区猜主货币
     // 从 Electron 版导入（0.6.0）：src = Electron 的数据文件夹，mode = "add"（只加新的）/ "replace"（替换全部）。
     // 在后台做，完成时发 importFinished(报告)。返回 { ok, error }（ok = 已经开始）
     Q_INVOKABLE QVariantMap importElectron(const QString &src, const QString &mode);

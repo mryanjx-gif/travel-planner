@@ -1,0 +1,3688 @@
+{
+  "source": "原有 31 行：用户提供的旅行季节表截图（小红书 @小企鹅p酱），2026-10-17 转录。2026-10-18（v4.1.3）：Claude 按常见的气候和旅游季节常识补了原有行里空着的月份，另加 52 个国家 / 地区，并给所有行加了英文（countryEn、textEn）和国家代码（iso）。补充部分没有逐条查证，只是大致参考，出发前以当地最新信息为准。 2026-10-18（v5.1.0）：Claude 按常见气候常识加了中国大陆 9 个气候区（iso 写成 CN-xx，\"去过\"按省份判断），没有逐条查证。",
+  "kinds": {
+    "best": "最适合",
+    "nice": "不错 / 有特色",
+    "meh": "有点热 / 人多",
+    "bad": "不推荐（雨季、极端天气等）"
+  },
+  "rows": [
+    {
+      "group": "日韩",
+      "country": "日本",
+      "spans": [
+        {
+          "from": 12,
+          "to": 12,
+          "kind": "nice",
+          "text": "北海道",
+          "textEn": "Hokkaido"
+        },
+        {
+          "from": 3,
+          "to": 5,
+          "kind": "best",
+          "text": "樱花、富士山",
+          "textEn": "Cherry blossoms, Mt Fuji"
+        },
+        {
+          "from": 6,
+          "to": 8,
+          "kind": "nice",
+          "text": "冲绳、花火大会",
+          "textEn": "Okinawa, fireworks"
+        },
+        {
+          "from": 10,
+          "to": 11,
+          "kind": "best",
+          "text": "枫叶季",
+          "textEn": "Autumn leaves"
+        },
+        {
+          "from": 1,
+          "to": 2,
+          "kind": "nice",
+          "text": "滑雪、北海道雪景",
+          "textEn": "Skiing, snowy Hokkaido"
+        },
+        {
+          "from": 9,
+          "to": 9,
+          "kind": "meh",
+          "text": "台风季",
+          "textEn": "Typhoon season"
+        }
+      ],
+      "countryEn": "Japan",
+      "iso": [
+        "JPN"
+      ]
+    },
+    {
+      "group": "日韩",
+      "country": "韩国",
+      "spans": [
+        {
+          "from": 3,
+          "to": 6,
+          "kind": "best",
+          "text": "春季",
+          "textEn": "Spring"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "best",
+          "text": "秋季",
+          "textEn": "Autumn"
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "meh",
+          "text": "闷热、雨多",
+          "textEn": "Hot, humid, rainy"
+        },
+        {
+          "from": 11,
+          "to": 11,
+          "kind": "nice",
+          "text": "晚秋、人少",
+          "textEn": "Late autumn, quiet"
+        },
+        {
+          "from": 12,
+          "to": 2,
+          "kind": "meh",
+          "text": "冷，可滑雪",
+          "textEn": "Cold; skiing"
+        }
+      ],
+      "countryEn": "South Korea",
+      "iso": [
+        "KOR"
+      ]
+    },
+    {
+      "group": "亚洲其他",
+      "country": "土耳其",
+      "spans": [
+        {
+          "from": 5,
+          "to": 6,
+          "kind": "best",
+          "text": ""
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "meh",
+          "text": "有点热",
+          "textEn": "A bit hot"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "best",
+          "text": ""
+        },
+        {
+          "from": 11,
+          "to": 3,
+          "kind": "meh",
+          "text": "冬季，卡帕多奇亚雪景",
+          "textEn": "Winter; snowy Cappadocia"
+        },
+        {
+          "from": 4,
+          "to": 4,
+          "kind": "nice",
+          "text": "郁金香节",
+          "textEn": "Tulip festival"
+        }
+      ],
+      "countryEn": "Turkey",
+      "iso": [
+        "TUR"
+      ],
+      "ramadan": true
+    },
+    {
+      "group": "亚洲其他",
+      "country": "马尔代夫",
+      "spans": [
+        {
+          "from": 12,
+          "to": 2,
+          "kind": "best",
+          "text": ""
+        },
+        {
+          "from": 5,
+          "to": 10,
+          "kind": "bad",
+          "text": "雨季",
+          "textEn": "Rainy season"
+        },
+        {
+          "from": 11,
+          "to": 11,
+          "kind": "best",
+          "text": ""
+        },
+        {
+          "from": 3,
+          "to": 4,
+          "kind": "best",
+          "text": "旱季",
+          "textEn": "Dry season"
+        }
+      ],
+      "countryEn": "Maldives",
+      "iso": [
+        "MDV"
+      ],
+      "ramadan": true
+    },
+    {
+      "group": "亚洲其他",
+      "country": "阿联酋",
+      "spans": [
+        {
+          "from": 12,
+          "to": 3,
+          "kind": "best",
+          "text": ""
+        },
+        {
+          "from": 6,
+          "to": 8,
+          "kind": "bad",
+          "text": "去了变烤小猪",
+          "textEn": "You will be roasted"
+        },
+        {
+          "from": 4,
+          "to": 5,
+          "kind": "meh",
+          "text": "开始热",
+          "textEn": "Getting hot"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "meh",
+          "text": "仍很热",
+          "textEn": "Still very hot"
+        },
+        {
+          "from": 11,
+          "to": 11,
+          "kind": "best",
+          "text": "凉快起来",
+          "textEn": "Cooling down"
+        }
+      ],
+      "countryEn": "UAE",
+      "iso": [
+        "ARE"
+      ],
+      "ramadan": true
+    },
+    {
+      "group": "大洋洲",
+      "country": "新西兰",
+      "spans": [
+        {
+          "from": 12,
+          "to": 2,
+          "kind": "best",
+          "text": "夏季",
+          "textEn": "Summer"
+        },
+        {
+          "from": 3,
+          "to": 5,
+          "kind": "nice",
+          "text": "秋景",
+          "textEn": "Autumn colours"
+        },
+        {
+          "from": 9,
+          "to": 11,
+          "kind": "nice",
+          "text": "春季，天气多变",
+          "textEn": "Spring, changeable weather"
+        },
+        {
+          "from": 6,
+          "to": 8,
+          "kind": "nice",
+          "text": "滑雪季",
+          "textEn": "Ski season"
+        }
+      ],
+      "countryEn": "New Zealand",
+      "iso": [
+        "NZL"
+      ]
+    },
+    {
+      "group": "大洋洲",
+      "country": "澳大利亚",
+      "spans": [
+        {
+          "from": 12,
+          "to": 2,
+          "kind": "best",
+          "text": "夏季",
+          "textEn": "Summer"
+        },
+        {
+          "from": 3,
+          "to": 5,
+          "kind": "nice",
+          "text": "秋景",
+          "textEn": "Autumn colours"
+        },
+        {
+          "from": 9,
+          "to": 11,
+          "kind": "nice",
+          "text": "春季，天气多变",
+          "textEn": "Spring, changeable weather"
+        },
+        {
+          "from": 6,
+          "to": 8,
+          "kind": "nice",
+          "text": "北部旱季、南部滑雪",
+          "textEn": "Dry season up north; skiing down south"
+        }
+      ],
+      "countryEn": "Australia",
+      "iso": [
+        "AUS"
+      ]
+    },
+    {
+      "group": "大洋洲",
+      "country": "斐济",
+      "spans": [
+        {
+          "from": 12,
+          "to": 3,
+          "kind": "bad",
+          "text": "雨季",
+          "textEn": "Rainy season"
+        },
+        {
+          "from": 4,
+          "to": 10,
+          "kind": "best",
+          "text": ""
+        },
+        {
+          "from": 11,
+          "to": 11,
+          "kind": "bad",
+          "text": ""
+        }
+      ],
+      "countryEn": "Fiji",
+      "iso": [
+        "FJI"
+      ]
+    },
+    {
+      "group": "欧洲",
+      "country": "俄罗斯",
+      "spans": [
+        {
+          "from": 12,
+          "to": 2,
+          "kind": "best",
+          "text": "雪景很美，但是超冷",
+          "textEn": "Beautiful snow, but freezing"
+        },
+        {
+          "from": 5,
+          "to": 9,
+          "kind": "nice",
+          "text": "夏季白天很长，5-7月多雨",
+          "textEn": "Long summer days; rainy May–Jul"
+        },
+        {
+          "from": 10,
+          "to": 11,
+          "kind": "best",
+          "text": "10月开始有极光",
+          "textEn": "Aurora from October"
+        },
+        {
+          "from": 3,
+          "to": 4,
+          "kind": "meh",
+          "text": "冰雪消融、泥泞",
+          "textEn": "Thaw, slushy"
+        }
+      ],
+      "countryEn": "Russia",
+      "iso": [
+        "RUS"
+      ]
+    },
+    {
+      "group": "欧洲",
+      "country": "瑞士",
+      "spans": [
+        {
+          "from": 3,
+          "to": 4,
+          "kind": "bad",
+          "text": "雨季",
+          "textEn": "Rainy season"
+        },
+        {
+          "from": 5,
+          "to": 5,
+          "kind": "meh",
+          "text": "维修",
+          "textEn": "Maintenance closures"
+        },
+        {
+          "from": 6,
+          "to": 10,
+          "kind": "best",
+          "text": ""
+        },
+        {
+          "from": 11,
+          "to": 11,
+          "kind": "bad",
+          "text": "维修",
+          "textEn": "Maintenance closures"
+        },
+        {
+          "from": 12,
+          "to": 2,
+          "kind": "nice",
+          "text": "滑雪、圣诞集市",
+          "textEn": "Skiing, Christmas markets"
+        }
+      ],
+      "countryEn": "Switzerland",
+      "iso": [
+        "CHE"
+      ]
+    },
+    {
+      "group": "欧洲",
+      "country": "意大利",
+      "spans": [
+        {
+          "from": 4,
+          "to": 5,
+          "kind": "nice",
+          "text": "西西里岛",
+          "textEn": "Sicily"
+        },
+        {
+          "from": 6,
+          "to": 8,
+          "kind": "meh",
+          "text": "有点热",
+          "textEn": "A bit hot"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "best",
+          "text": ""
+        },
+        {
+          "from": 11,
+          "to": 2,
+          "kind": "meh",
+          "text": "湿冷、人少",
+          "textEn": "Damp and cold, quiet"
+        },
+        {
+          "from": 3,
+          "to": 3,
+          "kind": "nice",
+          "text": "早春、人少",
+          "textEn": "Early spring, quiet"
+        }
+      ],
+      "countryEn": "Italy",
+      "iso": [
+        "ITA"
+      ]
+    },
+    {
+      "group": "欧洲",
+      "country": "奥匈捷",
+      "spans": [
+        {
+          "from": 4,
+          "to": 8,
+          "kind": "best",
+          "text": ""
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "nice",
+          "text": "秋景、降水少",
+          "textEn": "Autumn colours, little rain"
+        },
+        {
+          "from": 11,
+          "to": 12,
+          "kind": "nice",
+          "text": "圣诞集市",
+          "textEn": "Christmas markets"
+        },
+        {
+          "from": 1,
+          "to": 3,
+          "kind": "meh",
+          "text": "冷、日照短",
+          "textEn": "Cold, short days"
+        }
+      ],
+      "countryEn": "Austria / Hungary / Czechia",
+      "iso": [
+        "AUT",
+        "HUN",
+        "CZE"
+      ]
+    },
+    {
+      "group": "欧洲",
+      "country": "北欧四国",
+      "spans": [
+        {
+          "from": 12,
+          "to": 12,
+          "kind": "best",
+          "text": "极光",
+          "textEn": "Aurora"
+        },
+        {
+          "from": 1,
+          "to": 2,
+          "kind": "bad",
+          "text": "易极端天气",
+          "textEn": "Prone to extreme weather"
+        },
+        {
+          "from": 3,
+          "to": 3,
+          "kind": "nice",
+          "text": "峡湾",
+          "textEn": "Fjords"
+        },
+        {
+          "from": 6,
+          "to": 8,
+          "kind": "nice",
+          "text": "夏景",
+          "textEn": "Summer scenery"
+        },
+        {
+          "from": 11,
+          "to": 11,
+          "kind": "best",
+          "text": ""
+        },
+        {
+          "from": 4,
+          "to": 5,
+          "kind": "nice",
+          "text": "春天、人少",
+          "textEn": "Spring, quiet"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "nice",
+          "text": "秋色、极光开始",
+          "textEn": "Autumn colours, aurora begins"
+        }
+      ],
+      "countryEn": "Nordics (NO / SE / FI / DK)",
+      "iso": [
+        "NOR",
+        "SWE",
+        "FIN",
+        "DNK"
+      ]
+    },
+    {
+      "group": "欧洲",
+      "country": "法国",
+      "spans": [
+        {
+          "from": 3,
+          "to": 5,
+          "kind": "nice",
+          "text": "人少",
+          "textEn": "Fewer crowds"
+        },
+        {
+          "from": 6,
+          "to": 10,
+          "kind": "best",
+          "text": "7-8月蔚蓝海岸季节最佳",
+          "textEn": "Côte d’Azur best in Jul–Aug"
+        },
+        {
+          "from": 11,
+          "to": 2,
+          "kind": "meh",
+          "text": "湿冷；阿尔卑斯可滑雪",
+          "textEn": "Damp and cold; Alpine skiing"
+        }
+      ],
+      "countryEn": "France",
+      "iso": [
+        "FRA"
+      ]
+    },
+    {
+      "group": "欧洲",
+      "country": "克罗地亚",
+      "spans": [
+        {
+          "from": 3,
+          "to": 10,
+          "kind": "best",
+          "text": ""
+        },
+        {
+          "from": 11,
+          "to": 2,
+          "kind": "meh",
+          "text": "淡季，很多店关门",
+          "textEn": "Off-season, many places closed"
+        }
+      ],
+      "countryEn": "Croatia",
+      "iso": [
+        "HRV"
+      ]
+    },
+    {
+      "group": "欧洲",
+      "country": "塞波黑",
+      "spans": [
+        {
+          "from": 3,
+          "to": 5,
+          "kind": "best",
+          "text": ""
+        },
+        {
+          "from": 6,
+          "to": 8,
+          "kind": "meh",
+          "text": "人多",
+          "textEn": "Crowded"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "best",
+          "text": ""
+        },
+        {
+          "from": 11,
+          "to": 2,
+          "kind": "meh",
+          "text": "冷、多雨雪",
+          "textEn": "Cold, rain and snow"
+        }
+      ],
+      "countryEn": "Serbia / Bosnia & Herzegovina",
+      "iso": [
+        "SRB",
+        "BIH"
+      ]
+    },
+    {
+      "group": "欧洲",
+      "country": "西葡",
+      "spans": [
+        {
+          "from": 3,
+          "to": 4,
+          "kind": "bad",
+          "text": "雨季",
+          "textEn": "Rainy season"
+        },
+        {
+          "from": 5,
+          "to": 6,
+          "kind": "best",
+          "text": ""
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "meh",
+          "text": "有点热",
+          "textEn": "A bit hot"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "best",
+          "text": ""
+        },
+        {
+          "from": 11,
+          "to": 2,
+          "kind": "meh",
+          "text": "淡季多雨，南部温和",
+          "textEn": "Wet off-season; mild in the south"
+        }
+      ],
+      "countryEn": "Spain / Portugal",
+      "iso": [
+        "ESP",
+        "PRT"
+      ]
+    },
+    {
+      "group": "欧洲",
+      "country": "英国",
+      "spans": [
+        {
+          "from": 1,
+          "to": 3,
+          "kind": "bad",
+          "text": "冷、日照短",
+          "textEn": "Cold, short days"
+        },
+        {
+          "from": 4,
+          "to": 10,
+          "kind": "best",
+          "text": "4-5月淡季人少，7、8月晴天多",
+          "textEn": "Quiet Apr–May; sunniest Jul–Aug"
+        },
+        {
+          "from": 11,
+          "to": 12,
+          "kind": "meh",
+          "text": "湿冷；12月有圣诞氛围",
+          "textEn": "Damp and cold; Christmas in Dec"
+        }
+      ],
+      "countryEn": "UK",
+      "iso": [
+        "GBR"
+      ]
+    },
+    {
+      "group": "欧洲",
+      "country": "冰岛",
+      "spans": [
+        {
+          "from": 12,
+          "to": 12,
+          "kind": "best",
+          "text": "极光",
+          "textEn": "Aurora"
+        },
+        {
+          "from": 1,
+          "to": 2,
+          "kind": "bad",
+          "text": "易极端天气",
+          "textEn": "Prone to extreme weather"
+        },
+        {
+          "from": 3,
+          "to": 4,
+          "kind": "best",
+          "text": ""
+        },
+        {
+          "from": 5,
+          "to": 10,
+          "kind": "nice",
+          "text": ""
+        },
+        {
+          "from": 11,
+          "to": 11,
+          "kind": "best",
+          "text": "极光",
+          "textEn": "Aurora"
+        }
+      ],
+      "countryEn": "Iceland",
+      "iso": [
+        "ISL"
+      ]
+    },
+    {
+      "group": "东南亚",
+      "country": "新加坡",
+      "spans": [
+        {
+          "from": 12,
+          "to": 2,
+          "kind": "bad",
+          "text": "雨季",
+          "textEn": "Rainy season"
+        },
+        {
+          "from": 3,
+          "to": 6,
+          "kind": "nice",
+          "text": ""
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "nice",
+          "text": ""
+        },
+        {
+          "from": 11,
+          "to": 11,
+          "kind": "bad",
+          "text": "雨季",
+          "textEn": "Rainy season"
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "nice",
+          "text": "相对少雨",
+          "textEn": "Drier"
+        }
+      ],
+      "countryEn": "Singapore",
+      "iso": [
+        "SGP"
+      ]
+    },
+    {
+      "group": "东南亚",
+      "country": "印尼",
+      "spans": [
+        {
+          "from": 12,
+          "to": 3,
+          "kind": "bad",
+          "text": "雨季",
+          "textEn": "Rainy season"
+        },
+        {
+          "from": 5,
+          "to": 6,
+          "kind": "best",
+          "text": "火山、巴厘岛",
+          "textEn": "Volcanoes, Bali"
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "meh",
+          "text": "有点热",
+          "textEn": "A bit hot"
+        },
+        {
+          "from": 9,
+          "to": 9,
+          "kind": "best",
+          "text": ""
+        },
+        {
+          "from": 10,
+          "to": 11,
+          "kind": "bad",
+          "text": "雨季",
+          "textEn": "Rainy season"
+        },
+        {
+          "from": 4,
+          "to": 4,
+          "kind": "nice",
+          "text": "雨季刚结束",
+          "textEn": "Rains just ended"
+        }
+      ],
+      "countryEn": "Indonesia",
+      "iso": [
+        "IDN"
+      ],
+      "ramadan": true
+    },
+    {
+      "group": "东南亚",
+      "country": "马来西亚",
+      "spans": [
+        {
+          "from": 12,
+          "to": 2,
+          "kind": "bad",
+          "text": "雨季",
+          "textEn": "Rainy season"
+        },
+        {
+          "from": 3,
+          "to": 5,
+          "kind": "nice",
+          "text": "会有阵雨",
+          "textEn": "Showers"
+        },
+        {
+          "from": 6,
+          "to": 8,
+          "kind": "best",
+          "text": "榴莲季",
+          "textEn": "Durian season"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "nice",
+          "text": "可能有雨",
+          "textEn": "Possible rain"
+        },
+        {
+          "from": 11,
+          "to": 11,
+          "kind": "bad",
+          "text": "雨季",
+          "textEn": "Rainy season"
+        }
+      ],
+      "countryEn": "Malaysia",
+      "iso": [
+        "MYS"
+      ],
+      "ramadan": true
+    },
+    {
+      "group": "东南亚",
+      "country": "泰国",
+      "spans": [
+        {
+          "from": 12,
+          "to": 3,
+          "kind": "nice",
+          "text": ""
+        },
+        {
+          "from": 4,
+          "to": 5,
+          "kind": "best",
+          "text": "4月泼水节",
+          "textEn": "Songkran in April"
+        },
+        {
+          "from": 6,
+          "to": 10,
+          "kind": "bad",
+          "text": "雨季",
+          "textEn": "Rainy season"
+        },
+        {
+          "from": 11,
+          "to": 11,
+          "kind": "best",
+          "text": "天灯节",
+          "textEn": "Lantern festival"
+        }
+      ],
+      "countryEn": "Thailand",
+      "iso": [
+        "THA"
+      ]
+    },
+    {
+      "group": "东南亚",
+      "country": "菲律宾",
+      "spans": [
+        {
+          "from": 12,
+          "to": 2,
+          "kind": "best",
+          "text": "凉季",
+          "textEn": "Cool season"
+        },
+        {
+          "from": 3,
+          "to": 5,
+          "kind": "meh",
+          "text": "旱季",
+          "textEn": "Hot dry season"
+        },
+        {
+          "from": 6,
+          "to": 10,
+          "kind": "bad",
+          "text": "雨季、台风",
+          "textEn": "Rain and typhoons"
+        },
+        {
+          "from": 11,
+          "to": 11,
+          "kind": "nice",
+          "text": "雨季尾声",
+          "textEn": "End of the rains"
+        }
+      ],
+      "countryEn": "Philippines",
+      "iso": [
+        "PHL"
+      ]
+    },
+    {
+      "group": "东南亚",
+      "country": "越南",
+      "spans": [
+        {
+          "from": 12,
+          "to": 4,
+          "kind": "best",
+          "text": ""
+        },
+        {
+          "from": 5,
+          "to": 10,
+          "kind": "bad",
+          "text": "雨季",
+          "textEn": "Rainy season"
+        },
+        {
+          "from": 11,
+          "to": 11,
+          "kind": "nice",
+          "text": "中部仍多雨",
+          "textEn": "Central coast still wet"
+        }
+      ],
+      "countryEn": "Vietnam",
+      "iso": [
+        "VNM"
+      ]
+    },
+    {
+      "group": "美洲及南极",
+      "country": "南极",
+      "spans": [
+        {
+          "from": 12,
+          "to": 2,
+          "kind": "best",
+          "text": "气候稳定，适合登岛",
+          "textEn": "Stable weather, good for landings"
+        },
+        {
+          "from": 3,
+          "to": 3,
+          "kind": "nice",
+          "text": "看鲸、季末",
+          "textEn": "Whales, end of season"
+        },
+        {
+          "from": 4,
+          "to": 10,
+          "kind": "bad",
+          "text": "冬季，没有游轮",
+          "textEn": "Winter, no cruises"
+        },
+        {
+          "from": 11,
+          "to": 11,
+          "kind": "nice",
+          "text": "企鹅求偶、冰景",
+          "textEn": "Penguin courtship, pristine ice"
+        }
+      ],
+      "countryEn": "Antarctica",
+      "iso": [
+        "ATA"
+      ]
+    },
+    {
+      "group": "美洲及南极",
+      "country": "塞班岛",
+      "spans": [
+        {
+          "from": 12,
+          "to": 6,
+          "kind": "best",
+          "text": ""
+        },
+        {
+          "from": 7,
+          "to": 11,
+          "kind": "bad",
+          "text": "雨季",
+          "textEn": "Rainy season"
+        }
+      ],
+      "countryEn": "Saipan",
+      "iso": [
+        "MNP"
+      ]
+    },
+    {
+      "group": "美洲及南极",
+      "country": "阿根廷",
+      "spans": [
+        {
+          "from": 12,
+          "to": 2,
+          "kind": "nice",
+          "text": "夏季旺季",
+          "textEn": "Peak summer season"
+        },
+        {
+          "from": 3,
+          "to": 5,
+          "kind": "best",
+          "text": ""
+        },
+        {
+          "from": 9,
+          "to": 11,
+          "kind": "best",
+          "text": ""
+        },
+        {
+          "from": 6,
+          "to": 8,
+          "kind": "meh",
+          "text": "冬季，南部严寒",
+          "textEn": "Winter; very cold in the south"
+        }
+      ],
+      "countryEn": "Argentina",
+      "iso": [
+        "ARG"
+      ]
+    },
+    {
+      "group": "美洲及南极",
+      "country": "墨西哥",
+      "spans": [
+        {
+          "from": 12,
+          "to": 3,
+          "kind": "nice",
+          "text": ""
+        },
+        {
+          "from": 4,
+          "to": 9,
+          "kind": "bad",
+          "text": "雨季",
+          "textEn": "Rainy season"
+        },
+        {
+          "from": 10,
+          "to": 11,
+          "kind": "nice",
+          "text": "亡灵节",
+          "textEn": "Day of the Dead"
+        }
+      ],
+      "countryEn": "Mexico",
+      "iso": [
+        "MEX"
+      ]
+    },
+    {
+      "group": "非洲",
+      "country": "埃及",
+      "spans": [
+        {
+          "from": 12,
+          "to": 12,
+          "kind": "nice",
+          "text": ""
+        },
+        {
+          "from": 1,
+          "to": 4,
+          "kind": "best",
+          "text": ""
+        },
+        {
+          "from": 5,
+          "to": 9,
+          "kind": "bad",
+          "text": "晒成木乃伊",
+          "textEn": "You will be mummified"
+        },
+        {
+          "from": 10,
+          "to": 11,
+          "kind": "nice",
+          "text": ""
+        }
+      ],
+      "ramadan": true,
+      "countryEn": "Egypt",
+      "iso": [
+        "EGY"
+      ]
+    },
+    {
+      "group": "非洲",
+      "country": "肯尼亚/坦桑尼亚",
+      "spans": [
+        {
+          "from": 1,
+          "to": 2,
+          "kind": "nice",
+          "text": "产仔季",
+          "textEn": "Calving season"
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "best",
+          "text": "动物大迁徙",
+          "textEn": "Great Migration"
+        },
+        {
+          "from": 3,
+          "to": 5,
+          "kind": "bad",
+          "text": "长雨季",
+          "textEn": "Long rains"
+        },
+        {
+          "from": 6,
+          "to": 6,
+          "kind": "nice",
+          "text": "旱季开始",
+          "textEn": "Dry season begins"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "nice",
+          "text": "旱季、看动物",
+          "textEn": "Dry season, game viewing"
+        },
+        {
+          "from": 11,
+          "to": 12,
+          "kind": "meh",
+          "text": "短雨季",
+          "textEn": "Short rains"
+        }
+      ],
+      "countryEn": "Kenya / Tanzania",
+      "iso": [
+        "KEN",
+        "TZA"
+      ]
+    },
+    {
+      "group": "中国",
+      "country": "香港",
+      "countryEn": "Hong Kong",
+      "region": "中国",
+      "iso": [
+        "HKG"
+      ],
+      "spans": [
+        {
+          "from": 1,
+          "to": 2,
+          "kind": "nice",
+          "text": "凉爽",
+          "textEn": "Cool"
+        },
+        {
+          "from": 3,
+          "to": 4,
+          "kind": "meh",
+          "text": "潮湿、回南天",
+          "textEn": "Humid and muggy"
+        },
+        {
+          "from": 5,
+          "to": 9,
+          "kind": "bad",
+          "text": "炎热、台风",
+          "textEn": "Hot, typhoons"
+        },
+        {
+          "from": 10,
+          "to": 12,
+          "kind": "best",
+          "text": "秋高气爽",
+          "textEn": "Crisp autumn"
+        }
+      ]
+    },
+    {
+      "group": "中国",
+      "country": "澳门",
+      "countryEn": "Macau",
+      "region": "中国",
+      "iso": [
+        "MAC"
+      ],
+      "spans": [
+        {
+          "from": 1,
+          "to": 2,
+          "kind": "nice",
+          "text": "凉爽",
+          "textEn": "Cool"
+        },
+        {
+          "from": 3,
+          "to": 4,
+          "kind": "meh",
+          "text": "潮湿",
+          "textEn": "Humid"
+        },
+        {
+          "from": 5,
+          "to": 9,
+          "kind": "bad",
+          "text": "炎热、台风",
+          "textEn": "Hot, typhoons"
+        },
+        {
+          "from": 10,
+          "to": 12,
+          "kind": "best",
+          "text": "秋冬舒适",
+          "textEn": "Pleasant autumn and winter"
+        }
+      ]
+    },
+    {
+      "group": "中国",
+      "country": "台湾",
+      "countryEn": "Taiwan",
+      "region": "中国",
+      "iso": [
+        "TWN"
+      ],
+      "spans": [
+        {
+          "from": 1,
+          "to": 2,
+          "kind": "nice",
+          "text": "赏梅、温泉",
+          "textEn": "Plum blossoms, hot springs"
+        },
+        {
+          "from": 3,
+          "to": 4,
+          "kind": "best",
+          "text": "春季、阿里山樱花",
+          "textEn": "Spring, Alishan cherry blossoms"
+        },
+        {
+          "from": 5,
+          "to": 6,
+          "kind": "meh",
+          "text": "梅雨",
+          "textEn": "Plum rains"
+        },
+        {
+          "from": 7,
+          "to": 9,
+          "kind": "bad",
+          "text": "炎热、台风",
+          "textEn": "Hot, typhoons"
+        },
+        {
+          "from": 10,
+          "to": 12,
+          "kind": "best",
+          "text": "秋季舒适",
+          "textEn": "Pleasant autumn"
+        }
+      ]
+    },
+    {
+      "group": "中国",
+      "country": "东北",
+      "countryEn": "Northeast China",
+      "region": "中国",
+      "iso": [
+        "CN-NE"
+      ],
+      "spans": [
+        {
+          "from": 1,
+          "to": 2,
+          "kind": "best",
+          "text": "冰雪季，哈尔滨冰雪大世界、雪乡",
+          "textEn": "Ice and snow season: Harbin festival, Snow Town"
+        },
+        {
+          "from": 3,
+          "to": 4,
+          "kind": "meh",
+          "text": "化雪，春寒",
+          "textEn": "Thaw, chilly spring"
+        },
+        {
+          "from": 5,
+          "to": 6,
+          "kind": "nice",
+          "text": "春暖花开",
+          "textEn": "Spring blossoms"
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "best",
+          "text": "凉爽避暑，长白山",
+          "textEn": "Cool summer, Changbai Mountain"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "best",
+          "text": "秋色，五花山",
+          "textEn": "Autumn colours"
+        },
+        {
+          "from": 11,
+          "to": 12,
+          "kind": "nice",
+          "text": "初雪，滑雪季开始",
+          "textEn": "First snow, ski season starts"
+        }
+      ]
+    },
+    {
+      "group": "中国",
+      "country": "华北",
+      "countryEn": "North China",
+      "region": "中国",
+      "iso": [
+        "CN-N"
+      ],
+      "spans": [
+        {
+          "from": 1,
+          "to": 2,
+          "kind": "meh",
+          "text": "寒冷干燥",
+          "textEn": "Cold and dry"
+        },
+        {
+          "from": 3,
+          "to": 3,
+          "kind": "meh",
+          "text": "风沙",
+          "textEn": "Dusty winds"
+        },
+        {
+          "from": 4,
+          "to": 5,
+          "kind": "best",
+          "text": "春季，赏花",
+          "textEn": "Spring blossoms"
+        },
+        {
+          "from": 6,
+          "to": 8,
+          "kind": "meh",
+          "text": "炎热多雨",
+          "textEn": "Hot and rainy"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "best",
+          "text": "秋高气爽",
+          "textEn": "Crisp autumn"
+        },
+        {
+          "from": 11,
+          "to": 12,
+          "kind": "nice",
+          "text": "冷，人少",
+          "textEn": "Cold, fewer crowds"
+        }
+      ]
+    },
+    {
+      "group": "中国",
+      "country": "西北·黄土高原",
+      "countryEn": "Northwest (Loess Plateau)",
+      "region": "中国",
+      "iso": [
+        "CN-NW"
+      ],
+      "spans": [
+        {
+          "from": 1,
+          "to": 2,
+          "kind": "meh",
+          "text": "寒冷",
+          "textEn": "Cold"
+        },
+        {
+          "from": 3,
+          "to": 4,
+          "kind": "nice",
+          "text": "杏花，春寒",
+          "textEn": "Apricot blossoms, chilly"
+        },
+        {
+          "from": 5,
+          "to": 6,
+          "kind": "best",
+          "text": "春末初夏",
+          "textEn": "Late spring"
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "nice",
+          "text": "白天热，早晚凉，偶有暴雨",
+          "textEn": "Hot days, cool nights, storms"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "best",
+          "text": "秋色、胡杨",
+          "textEn": "Autumn colours, poplars"
+        },
+        {
+          "from": 11,
+          "to": 12,
+          "kind": "meh",
+          "text": "冷",
+          "textEn": "Cold"
+        }
+      ]
+    },
+    {
+      "group": "中国",
+      "country": "新疆",
+      "countryEn": "Xinjiang",
+      "region": "中国",
+      "iso": [
+        "CN-XJ"
+      ],
+      "spans": [
+        {
+          "from": 1,
+          "to": 3,
+          "kind": "nice",
+          "text": "阿勒泰滑雪",
+          "textEn": "Skiing in Altay"
+        },
+        {
+          "from": 4,
+          "to": 5,
+          "kind": "nice",
+          "text": "伊犁杏花，南疆春季",
+          "textEn": "Ili apricot blossoms, southern spring"
+        },
+        {
+          "from": 6,
+          "to": 6,
+          "kind": "best",
+          "text": "草原花开",
+          "textEn": "Grassland flowers"
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "best",
+          "text": "北疆盛夏，独库公路通车",
+          "textEn": "Northern summer, Duku Highway open"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "best",
+          "text": "喀纳斯秋色、胡杨",
+          "textEn": "Kanas autumn, poplars"
+        },
+        {
+          "from": 11,
+          "to": 12,
+          "kind": "meh",
+          "text": "寒冷，山路封闭",
+          "textEn": "Cold, mountain roads closed"
+        }
+      ]
+    },
+    {
+      "group": "中国",
+      "country": "青藏高原",
+      "countryEn": "Tibetan Plateau",
+      "region": "中国",
+      "iso": [
+        "CN-TIB"
+      ],
+      "spans": [
+        {
+          "from": 1,
+          "to": 2,
+          "kind": "bad",
+          "text": "严寒，部分路段封闭",
+          "textEn": "Bitter cold, some roads closed"
+        },
+        {
+          "from": 3,
+          "to": 4,
+          "kind": "nice",
+          "text": "林芝桃花",
+          "textEn": "Nyingchi peach blossoms"
+        },
+        {
+          "from": 5,
+          "to": 6,
+          "kind": "best",
+          "text": "春末，珠峰季",
+          "textEn": "Late spring, Everest season"
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "nice",
+          "text": "雨季，草原最美但路况差",
+          "textEn": "Rainy season: green but rough roads"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "best",
+          "text": "秋季，天气稳定",
+          "textEn": "Autumn, stable weather"
+        },
+        {
+          "from": 11,
+          "to": 12,
+          "kind": "meh",
+          "text": "寒冷，人少",
+          "textEn": "Cold, quiet"
+        }
+      ]
+    },
+    {
+      "group": "中国",
+      "country": "川西·滇西北高原",
+      "countryEn": "Western Sichuan / NW Yunnan",
+      "region": "中国",
+      "iso": [
+        "CN-WSC"
+      ],
+      "spans": [
+        {
+          "from": 1,
+          "to": 2,
+          "kind": "meh",
+          "text": "冷，雪山清晰",
+          "textEn": "Cold, clear snow peaks"
+        },
+        {
+          "from": 3,
+          "to": 4,
+          "kind": "nice",
+          "text": "春季，杜鹃",
+          "textEn": "Spring, rhododendrons"
+        },
+        {
+          "from": 5,
+          "to": 6,
+          "kind": "best",
+          "text": "高山花海",
+          "textEn": "Alpine flowers"
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "meh",
+          "text": "雨季，塌方风险",
+          "textEn": "Rainy season, landslide risk"
+        },
+        {
+          "from": 9,
+          "to": 11,
+          "kind": "best",
+          "text": "秋色，天晴",
+          "textEn": "Autumn colours, clear skies"
+        },
+        {
+          "from": 12,
+          "to": 12,
+          "kind": "meh",
+          "text": "冷",
+          "textEn": "Cold"
+        }
+      ]
+    },
+    {
+      "group": "中国",
+      "country": "西南",
+      "countryEn": "Southwest China",
+      "region": "中国",
+      "iso": [
+        "CN-SW"
+      ],
+      "spans": [
+        {
+          "from": 1,
+          "to": 2,
+          "kind": "nice",
+          "text": "云南暖冬",
+          "textEn": "Mild winter in Yunnan"
+        },
+        {
+          "from": 3,
+          "to": 5,
+          "kind": "best",
+          "text": "春季，油菜花",
+          "textEn": "Spring, rapeseed flowers"
+        },
+        {
+          "from": 6,
+          "to": 8,
+          "kind": "meh",
+          "text": "雨季，闷热",
+          "textEn": "Rainy and muggy"
+        },
+        {
+          "from": 9,
+          "to": 11,
+          "kind": "best",
+          "text": "秋季",
+          "textEn": "Autumn"
+        },
+        {
+          "from": 12,
+          "to": 12,
+          "kind": "nice",
+          "text": "冬季，盆地阴冷",
+          "textEn": "Winter, damp in the basin"
+        }
+      ]
+    },
+    {
+      "group": "中国",
+      "country": "江南·长江中下游",
+      "countryEn": "Jiangnan / Lower Yangtze",
+      "region": "中国",
+      "iso": [
+        "CN-E"
+      ],
+      "spans": [
+        {
+          "from": 1,
+          "to": 2,
+          "kind": "meh",
+          "text": "湿冷",
+          "textEn": "Damp cold"
+        },
+        {
+          "from": 3,
+          "to": 5,
+          "kind": "best",
+          "text": "春季，赏花",
+          "textEn": "Spring blossoms"
+        },
+        {
+          "from": 6,
+          "to": 6,
+          "kind": "bad",
+          "text": "梅雨",
+          "textEn": "Plum rains"
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "bad",
+          "text": "酷暑",
+          "textEn": "Scorching summer"
+        },
+        {
+          "from": 9,
+          "to": 11,
+          "kind": "best",
+          "text": "秋季，桂花、红叶",
+          "textEn": "Autumn: osmanthus, red leaves"
+        },
+        {
+          "from": 12,
+          "to": 12,
+          "kind": "nice",
+          "text": "冬季人少",
+          "textEn": "Quiet winter"
+        }
+      ]
+    },
+    {
+      "group": "中国",
+      "country": "华南",
+      "countryEn": "South China",
+      "region": "中国",
+      "iso": [
+        "CN-S"
+      ],
+      "spans": [
+        {
+          "from": 10,
+          "to": 2,
+          "kind": "best",
+          "text": "秋冬舒适，海南旺季",
+          "textEn": "Pleasant autumn and winter, Hainan peak season"
+        },
+        {
+          "from": 3,
+          "to": 4,
+          "kind": "meh",
+          "text": "回南天，潮湿",
+          "textEn": "Humid spring"
+        },
+        {
+          "from": 5,
+          "to": 9,
+          "kind": "bad",
+          "text": "炎热、台风",
+          "textEn": "Hot, typhoons"
+        }
+      ]
+    },
+    {
+      "group": "东亚",
+      "country": "蒙古",
+      "countryEn": "Mongolia",
+      "region": "东亚",
+      "iso": [
+        "MNG"
+      ],
+      "spans": [
+        {
+          "from": 1,
+          "to": 2,
+          "kind": "bad",
+          "text": "极寒",
+          "textEn": "Bitter cold"
+        },
+        {
+          "from": 3,
+          "to": 5,
+          "kind": "meh",
+          "text": "风大、多沙尘",
+          "textEn": "Windy, dusty"
+        },
+        {
+          "from": 6,
+          "to": 8,
+          "kind": "best",
+          "text": "草原、那达慕",
+          "textEn": "Grasslands, Naadam"
+        },
+        {
+          "from": 9,
+          "to": 9,
+          "kind": "nice",
+          "text": "秋色、人少",
+          "textEn": "Autumn, quiet"
+        },
+        {
+          "from": 10,
+          "to": 12,
+          "kind": "bad",
+          "text": "入冬、很冷",
+          "textEn": "Winter sets in, very cold"
+        }
+      ]
+    },
+    {
+      "group": "东南亚",
+      "country": "柬埔寨",
+      "countryEn": "Cambodia",
+      "region": "东南亚",
+      "iso": [
+        "KHM"
+      ],
+      "spans": [
+        {
+          "from": 11,
+          "to": 2,
+          "kind": "best",
+          "text": "凉季、旱季",
+          "textEn": "Cool dry season"
+        },
+        {
+          "from": 3,
+          "to": 5,
+          "kind": "meh",
+          "text": "酷热",
+          "textEn": "Scorching"
+        },
+        {
+          "from": 6,
+          "to": 10,
+          "kind": "bad",
+          "text": "雨季",
+          "textEn": "Rainy season"
+        }
+      ]
+    },
+    {
+      "group": "东南亚",
+      "country": "老挝",
+      "countryEn": "Laos",
+      "region": "东南亚",
+      "iso": [
+        "LAO"
+      ],
+      "spans": [
+        {
+          "from": 11,
+          "to": 2,
+          "kind": "best",
+          "text": "凉爽干燥",
+          "textEn": "Cool and dry"
+        },
+        {
+          "from": 3,
+          "to": 5,
+          "kind": "meh",
+          "text": "炎热、烧荒烟霾",
+          "textEn": "Hot, burning-season haze"
+        },
+        {
+          "from": 6,
+          "to": 10,
+          "kind": "bad",
+          "text": "雨季",
+          "textEn": "Rainy season"
+        }
+      ]
+    },
+    {
+      "group": "东南亚",
+      "country": "缅甸",
+      "countryEn": "Myanmar",
+      "region": "东南亚",
+      "iso": [
+        "MMR"
+      ],
+      "spans": [
+        {
+          "from": 11,
+          "to": 2,
+          "kind": "best",
+          "text": "凉季",
+          "textEn": "Cool season"
+        },
+        {
+          "from": 3,
+          "to": 5,
+          "kind": "meh",
+          "text": "酷热",
+          "textEn": "Scorching"
+        },
+        {
+          "from": 6,
+          "to": 10,
+          "kind": "bad",
+          "text": "雨季",
+          "textEn": "Rainy season"
+        }
+      ]
+    },
+    {
+      "group": "西亚/中亚",
+      "country": "印度",
+      "countryEn": "India",
+      "region": "西亚/中亚",
+      "iso": [
+        "IND"
+      ],
+      "spans": [
+        {
+          "from": 10,
+          "to": 3,
+          "kind": "best",
+          "text": "凉季",
+          "textEn": "Cool season"
+        },
+        {
+          "from": 4,
+          "to": 6,
+          "kind": "bad",
+          "text": "酷热",
+          "textEn": "Extreme heat"
+        },
+        {
+          "from": 7,
+          "to": 9,
+          "kind": "meh",
+          "text": "季风雨季，拉达克正好",
+          "textEn": "Monsoon; Ladakh is ideal"
+        }
+      ]
+    },
+    {
+      "group": "西亚/中亚",
+      "country": "尼泊尔",
+      "countryEn": "Nepal",
+      "region": "西亚/中亚",
+      "iso": [
+        "NPL"
+      ],
+      "spans": [
+        {
+          "from": 10,
+          "to": 11,
+          "kind": "best",
+          "text": "徒步旺季，天空通透",
+          "textEn": "Peak trekking season, clear skies"
+        },
+        {
+          "from": 12,
+          "to": 2,
+          "kind": "nice",
+          "text": "冷，低海拔可徒步",
+          "textEn": "Cold; lower treks fine"
+        },
+        {
+          "from": 3,
+          "to": 5,
+          "kind": "best",
+          "text": "杜鹃花季",
+          "textEn": "Rhododendron season"
+        },
+        {
+          "from": 6,
+          "to": 9,
+          "kind": "bad",
+          "text": "雨季、云多",
+          "textEn": "Monsoon, cloudy"
+        }
+      ]
+    },
+    {
+      "group": "西亚/中亚",
+      "country": "斯里兰卡",
+      "countryEn": "Sri Lanka",
+      "region": "西亚/中亚",
+      "iso": [
+        "LKA"
+      ],
+      "spans": [
+        {
+          "from": 12,
+          "to": 3,
+          "kind": "best",
+          "text": "西南海岸旱季",
+          "textEn": "Dry on the southwest coast"
+        },
+        {
+          "from": 4,
+          "to": 4,
+          "kind": "nice",
+          "text": "僧伽罗新年",
+          "textEn": "Sinhala New Year"
+        },
+        {
+          "from": 5,
+          "to": 9,
+          "kind": "meh",
+          "text": "西南季风；东海岸最好",
+          "textEn": "SW monsoon; east coast best"
+        },
+        {
+          "from": 10,
+          "to": 11,
+          "kind": "bad",
+          "text": "季风交替、多雨",
+          "textEn": "Inter-monsoon rains"
+        }
+      ]
+    },
+    {
+      "group": "西亚/中亚",
+      "country": "不丹",
+      "countryEn": "Bhutan",
+      "region": "西亚/中亚",
+      "iso": [
+        "BTN"
+      ],
+      "spans": [
+        {
+          "from": 3,
+          "to": 5,
+          "kind": "best",
+          "text": "春季、杜鹃",
+          "textEn": "Spring, rhododendrons"
+        },
+        {
+          "from": 6,
+          "to": 8,
+          "kind": "bad",
+          "text": "雨季",
+          "textEn": "Monsoon"
+        },
+        {
+          "from": 9,
+          "to": 11,
+          "kind": "best",
+          "text": "秋季、节庆",
+          "textEn": "Autumn, festivals"
+        },
+        {
+          "from": 12,
+          "to": 2,
+          "kind": "nice",
+          "text": "冷，天空晴朗",
+          "textEn": "Cold, clear skies"
+        }
+      ]
+    },
+    {
+      "group": "西亚/中亚",
+      "country": "约旦",
+      "countryEn": "Jordan",
+      "region": "西亚/中亚",
+      "iso": [
+        "JOR"
+      ],
+      "spans": [
+        {
+          "from": 3,
+          "to": 5,
+          "kind": "best",
+          "text": "春季",
+          "textEn": "Spring"
+        },
+        {
+          "from": 6,
+          "to": 8,
+          "kind": "meh",
+          "text": "炎热",
+          "textEn": "Hot"
+        },
+        {
+          "from": 9,
+          "to": 11,
+          "kind": "best",
+          "text": "秋季",
+          "textEn": "Autumn"
+        },
+        {
+          "from": 12,
+          "to": 2,
+          "kind": "nice",
+          "text": "冷，佩特拉人少",
+          "textEn": "Cold; quiet Petra"
+        }
+      ],
+      "ramadan": true
+    },
+    {
+      "group": "西亚/中亚",
+      "country": "以色列",
+      "countryEn": "Israel",
+      "region": "西亚/中亚",
+      "iso": [
+        "ISR"
+      ],
+      "spans": [
+        {
+          "from": 3,
+          "to": 5,
+          "kind": "best",
+          "text": "春季",
+          "textEn": "Spring"
+        },
+        {
+          "from": 6,
+          "to": 8,
+          "kind": "meh",
+          "text": "炎热",
+          "textEn": "Hot"
+        },
+        {
+          "from": 9,
+          "to": 11,
+          "kind": "best",
+          "text": "秋季",
+          "textEn": "Autumn"
+        },
+        {
+          "from": 12,
+          "to": 2,
+          "kind": "nice",
+          "text": "雨季，红海温暖",
+          "textEn": "Rainy; Red Sea warm"
+        }
+      ]
+    },
+    {
+      "group": "西亚/中亚",
+      "country": "阿曼",
+      "countryEn": "Oman",
+      "region": "西亚/中亚",
+      "iso": [
+        "OMN"
+      ],
+      "spans": [
+        {
+          "from": 10,
+          "to": 3,
+          "kind": "best",
+          "text": "凉爽",
+          "textEn": "Pleasant"
+        },
+        {
+          "from": 4,
+          "to": 5,
+          "kind": "meh",
+          "text": "开始热",
+          "textEn": "Heating up"
+        },
+        {
+          "from": 6,
+          "to": 9,
+          "kind": "bad",
+          "text": "酷热；佐法尔绿季",
+          "textEn": "Scorching; green Dhofar monsoon"
+        }
+      ],
+      "ramadan": true
+    },
+    {
+      "group": "西亚/中亚",
+      "country": "沙特阿拉伯",
+      "countryEn": "Saudi Arabia",
+      "region": "西亚/中亚",
+      "iso": [
+        "SAU"
+      ],
+      "spans": [
+        {
+          "from": 11,
+          "to": 3,
+          "kind": "best",
+          "text": "凉爽",
+          "textEn": "Pleasant"
+        },
+        {
+          "from": 4,
+          "to": 5,
+          "kind": "meh",
+          "text": "变热",
+          "textEn": "Getting hot"
+        },
+        {
+          "from": 6,
+          "to": 9,
+          "kind": "bad",
+          "text": "酷热",
+          "textEn": "Scorching"
+        },
+        {
+          "from": 10,
+          "to": 10,
+          "kind": "meh",
+          "text": "仍热",
+          "textEn": "Still hot"
+        }
+      ],
+      "ramadan": true
+    },
+    {
+      "group": "西亚/中亚",
+      "country": "卡塔尔",
+      "countryEn": "Qatar",
+      "region": "西亚/中亚",
+      "iso": [
+        "QAT"
+      ],
+      "spans": [
+        {
+          "from": 11,
+          "to": 3,
+          "kind": "best",
+          "text": "凉爽",
+          "textEn": "Pleasant"
+        },
+        {
+          "from": 4,
+          "to": 5,
+          "kind": "meh",
+          "text": "变热",
+          "textEn": "Getting hot"
+        },
+        {
+          "from": 6,
+          "to": 9,
+          "kind": "bad",
+          "text": "酷热",
+          "textEn": "Scorching"
+        },
+        {
+          "from": 10,
+          "to": 10,
+          "kind": "meh",
+          "text": "仍热",
+          "textEn": "Still hot"
+        }
+      ],
+      "ramadan": true
+    },
+    {
+      "group": "西亚/中亚",
+      "country": "格鲁吉亚",
+      "countryEn": "Georgia",
+      "region": "西亚/中亚",
+      "iso": [
+        "GEO"
+      ],
+      "spans": [
+        {
+          "from": 3,
+          "to": 4,
+          "kind": "nice",
+          "text": "春季",
+          "textEn": "Spring"
+        },
+        {
+          "from": 5,
+          "to": 6,
+          "kind": "best",
+          "text": "春末初夏",
+          "textEn": "Late spring"
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "nice",
+          "text": "高加索徒步",
+          "textEn": "Caucasus hiking"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "best",
+          "text": "秋色、葡萄酒季",
+          "textEn": "Autumn, wine harvest"
+        },
+        {
+          "from": 11,
+          "to": 2,
+          "kind": "meh",
+          "text": "冷，可滑雪",
+          "textEn": "Cold; skiing"
+        }
+      ]
+    },
+    {
+      "group": "西亚/中亚",
+      "country": "乌兹别克斯坦",
+      "countryEn": "Uzbekistan",
+      "region": "西亚/中亚",
+      "iso": [
+        "UZB"
+      ],
+      "spans": [
+        {
+          "from": 4,
+          "to": 5,
+          "kind": "best",
+          "text": "春季",
+          "textEn": "Spring"
+        },
+        {
+          "from": 6,
+          "to": 8,
+          "kind": "bad",
+          "text": "酷热",
+          "textEn": "Scorching"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "best",
+          "text": "秋季、瓜果季",
+          "textEn": "Autumn, melon season"
+        },
+        {
+          "from": 11,
+          "to": 3,
+          "kind": "meh",
+          "text": "冷",
+          "textEn": "Cold"
+        }
+      ]
+    },
+    {
+      "group": "西亚/中亚",
+      "country": "哈萨克斯坦",
+      "countryEn": "Kazakhstan",
+      "region": "西亚/中亚",
+      "iso": [
+        "KAZ"
+      ],
+      "spans": [
+        {
+          "from": 4,
+          "to": 4,
+          "kind": "meh",
+          "text": "回暖、泥泞",
+          "textEn": "Thaw, muddy"
+        },
+        {
+          "from": 5,
+          "to": 6,
+          "kind": "best",
+          "text": "草原、湖泊",
+          "textEn": "Steppe, lakes"
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "nice",
+          "text": "山区正好、城市热",
+          "textEn": "Mountains great, cities hot"
+        },
+        {
+          "from": 9,
+          "to": 9,
+          "kind": "best",
+          "text": "秋色",
+          "textEn": "Autumn colours"
+        },
+        {
+          "from": 10,
+          "to": 10,
+          "kind": "meh",
+          "text": "转冷",
+          "textEn": "Cooling"
+        },
+        {
+          "from": 11,
+          "to": 3,
+          "kind": "bad",
+          "text": "严寒",
+          "textEn": "Harsh cold"
+        }
+      ]
+    },
+    {
+      "group": "西亚/中亚",
+      "country": "吉尔吉斯斯坦",
+      "countryEn": "Kyrgyzstan",
+      "region": "西亚/中亚",
+      "iso": [
+        "KGZ"
+      ],
+      "spans": [
+        {
+          "from": 5,
+          "to": 5,
+          "kind": "meh",
+          "text": "春季泥泞",
+          "textEn": "Muddy spring"
+        },
+        {
+          "from": 6,
+          "to": 6,
+          "kind": "nice",
+          "text": "初夏、山口陆续开放",
+          "textEn": "Early summer, passes opening"
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "best",
+          "text": "徒步、游牧季",
+          "textEn": "Trekking, nomad season"
+        },
+        {
+          "from": 9,
+          "to": 9,
+          "kind": "nice",
+          "text": "秋色、转凉",
+          "textEn": "Autumn, cooling"
+        },
+        {
+          "from": 10,
+          "to": 4,
+          "kind": "bad",
+          "text": "严寒、山区封路",
+          "textEn": "Harsh cold, mountain roads closed"
+        }
+      ]
+    },
+    {
+      "group": "西亚/中亚",
+      "country": "巴基斯坦",
+      "countryEn": "Pakistan",
+      "region": "西亚/中亚",
+      "iso": [
+        "PAK"
+      ],
+      "spans": [
+        {
+          "from": 3,
+          "to": 4,
+          "kind": "nice",
+          "text": "罕萨杏花",
+          "textEn": "Hunza apricot blossoms"
+        },
+        {
+          "from": 5,
+          "to": 6,
+          "kind": "nice",
+          "text": "北部山区开放",
+          "textEn": "Northern valleys open"
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "best",
+          "text": "喀喇昆仑登山季",
+          "textEn": "Karakoram climbing season"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "best",
+          "text": "罕萨秋色",
+          "textEn": "Hunza autumn colours"
+        },
+        {
+          "from": 11,
+          "to": 2,
+          "kind": "meh",
+          "text": "北部严寒，平原舒适",
+          "textEn": "North freezing; plains pleasant"
+        }
+      ],
+      "ramadan": true
+    },
+    {
+      "group": "欧洲",
+      "country": "德国",
+      "countryEn": "Germany",
+      "region": "欧洲",
+      "iso": [
+        "DEU"
+      ],
+      "spans": [
+        {
+          "from": 1,
+          "to": 3,
+          "kind": "meh",
+          "text": "冷、日照短",
+          "textEn": "Cold, short days"
+        },
+        {
+          "from": 4,
+          "to": 4,
+          "kind": "nice",
+          "text": "春季",
+          "textEn": "Spring"
+        },
+        {
+          "from": 5,
+          "to": 8,
+          "kind": "best",
+          "text": "夏季",
+          "textEn": "Summer"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "best",
+          "text": "秋色、啤酒节",
+          "textEn": "Autumn, Oktoberfest"
+        },
+        {
+          "from": 11,
+          "to": 12,
+          "kind": "nice",
+          "text": "圣诞集市",
+          "textEn": "Christmas markets"
+        }
+      ]
+    },
+    {
+      "group": "欧洲",
+      "country": "希腊",
+      "countryEn": "Greece",
+      "region": "欧洲",
+      "iso": [
+        "GRC"
+      ],
+      "spans": [
+        {
+          "from": 4,
+          "to": 6,
+          "kind": "best",
+          "text": "春末初夏",
+          "textEn": "Late spring"
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "meh",
+          "text": "炎热、人多",
+          "textEn": "Hot, crowded"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "best",
+          "text": "海水仍暖",
+          "textEn": "Sea still warm"
+        },
+        {
+          "from": 11,
+          "to": 3,
+          "kind": "meh",
+          "text": "淡季，海岛冷清",
+          "textEn": "Off-season, islands quiet"
+        }
+      ]
+    },
+    {
+      "group": "欧洲",
+      "country": "荷兰",
+      "countryEn": "Netherlands",
+      "region": "欧洲",
+      "iso": [
+        "NLD"
+      ],
+      "spans": [
+        {
+          "from": 4,
+          "to": 5,
+          "kind": "best",
+          "text": "郁金香",
+          "textEn": "Tulips"
+        },
+        {
+          "from": 6,
+          "to": 9,
+          "kind": "nice",
+          "text": "夏季",
+          "textEn": "Summer"
+        },
+        {
+          "from": 10,
+          "to": 3,
+          "kind": "meh",
+          "text": "湿冷多雨",
+          "textEn": "Damp, cold, rainy"
+        }
+      ]
+    },
+    {
+      "group": "欧洲",
+      "country": "比利时",
+      "countryEn": "Belgium",
+      "region": "欧洲",
+      "iso": [
+        "BEL"
+      ],
+      "spans": [
+        {
+          "from": 1,
+          "to": 3,
+          "kind": "meh",
+          "text": "湿冷",
+          "textEn": "Damp and cold"
+        },
+        {
+          "from": 4,
+          "to": 9,
+          "kind": "nice",
+          "text": "春夏",
+          "textEn": "Spring and summer"
+        },
+        {
+          "from": 10,
+          "to": 11,
+          "kind": "meh",
+          "text": "多雨",
+          "textEn": "Rainy"
+        },
+        {
+          "from": 12,
+          "to": 12,
+          "kind": "nice",
+          "text": "圣诞集市",
+          "textEn": "Christmas markets"
+        }
+      ]
+    },
+    {
+      "group": "欧洲",
+      "country": "爱尔兰",
+      "countryEn": "Ireland",
+      "region": "欧洲",
+      "iso": [
+        "IRL"
+      ],
+      "spans": [
+        {
+          "from": 3,
+          "to": 4,
+          "kind": "nice",
+          "text": "春季、圣帕特里克节",
+          "textEn": "Spring, St Patrick’s Day"
+        },
+        {
+          "from": 5,
+          "to": 9,
+          "kind": "best",
+          "text": "白天长、较暖",
+          "textEn": "Long, milder days"
+        },
+        {
+          "from": 10,
+          "to": 10,
+          "kind": "nice",
+          "text": "秋色",
+          "textEn": "Autumn colours"
+        },
+        {
+          "from": 11,
+          "to": 2,
+          "kind": "meh",
+          "text": "湿冷、风大",
+          "textEn": "Wet, cold, windy"
+        }
+      ]
+    },
+    {
+      "group": "欧洲",
+      "country": "波兰",
+      "countryEn": "Poland",
+      "region": "欧洲",
+      "iso": [
+        "POL"
+      ],
+      "spans": [
+        {
+          "from": 1,
+          "to": 3,
+          "kind": "meh",
+          "text": "严寒",
+          "textEn": "Freezing"
+        },
+        {
+          "from": 4,
+          "to": 4,
+          "kind": "nice",
+          "text": "春季",
+          "textEn": "Spring"
+        },
+        {
+          "from": 5,
+          "to": 9,
+          "kind": "best",
+          "text": "夏季",
+          "textEn": "Summer"
+        },
+        {
+          "from": 10,
+          "to": 10,
+          "kind": "nice",
+          "text": "金秋",
+          "textEn": "Golden autumn"
+        },
+        {
+          "from": 11,
+          "to": 11,
+          "kind": "meh",
+          "text": "阴冷",
+          "textEn": "Grey and cold"
+        },
+        {
+          "from": 12,
+          "to": 12,
+          "kind": "nice",
+          "text": "圣诞集市",
+          "textEn": "Christmas markets"
+        }
+      ]
+    },
+    {
+      "group": "欧洲",
+      "country": "斯洛文尼亚",
+      "countryEn": "Slovenia",
+      "region": "欧洲",
+      "iso": [
+        "SVN"
+      ],
+      "spans": [
+        {
+          "from": 4,
+          "to": 4,
+          "kind": "nice",
+          "text": "春季",
+          "textEn": "Spring"
+        },
+        {
+          "from": 5,
+          "to": 6,
+          "kind": "best",
+          "text": "春末",
+          "textEn": "Late spring"
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "nice",
+          "text": "湖区人多",
+          "textEn": "Busy at the lakes"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "best",
+          "text": "秋色",
+          "textEn": "Autumn colours"
+        },
+        {
+          "from": 11,
+          "to": 3,
+          "kind": "meh",
+          "text": "冷，可滑雪",
+          "textEn": "Cold; skiing"
+        }
+      ]
+    },
+    {
+      "group": "欧洲",
+      "country": "黑山",
+      "countryEn": "Montenegro",
+      "region": "欧洲",
+      "iso": [
+        "MNE"
+      ],
+      "spans": [
+        {
+          "from": 4,
+          "to": 4,
+          "kind": "nice",
+          "text": "春季",
+          "textEn": "Spring"
+        },
+        {
+          "from": 5,
+          "to": 6,
+          "kind": "best",
+          "text": "初夏",
+          "textEn": "Early summer"
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "meh",
+          "text": "炎热、人多",
+          "textEn": "Hot, crowded"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "best",
+          "text": "海水仍暖",
+          "textEn": "Sea still warm"
+        },
+        {
+          "from": 11,
+          "to": 3,
+          "kind": "meh",
+          "text": "淡季多雨",
+          "textEn": "Wet off-season"
+        }
+      ]
+    },
+    {
+      "group": "欧洲",
+      "country": "阿尔巴尼亚",
+      "countryEn": "Albania",
+      "region": "欧洲",
+      "iso": [
+        "ALB"
+      ],
+      "spans": [
+        {
+          "from": 4,
+          "to": 4,
+          "kind": "nice",
+          "text": "春季",
+          "textEn": "Spring"
+        },
+        {
+          "from": 5,
+          "to": 6,
+          "kind": "best",
+          "text": "初夏",
+          "textEn": "Early summer"
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "meh",
+          "text": "炎热、人多",
+          "textEn": "Hot, crowded"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "best",
+          "text": "海水仍暖",
+          "textEn": "Sea still warm"
+        },
+        {
+          "from": 11,
+          "to": 3,
+          "kind": "meh",
+          "text": "淡季多雨",
+          "textEn": "Wet off-season"
+        }
+      ]
+    },
+    {
+      "group": "欧洲",
+      "country": "马耳他",
+      "countryEn": "Malta",
+      "region": "欧洲",
+      "iso": [
+        "MLT"
+      ],
+      "spans": [
+        {
+          "from": 4,
+          "to": 6,
+          "kind": "best",
+          "text": "春末初夏",
+          "textEn": "Late spring"
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "meh",
+          "text": "炎热、人多",
+          "textEn": "Hot, crowded"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "best",
+          "text": "海水仍暖",
+          "textEn": "Sea still warm"
+        },
+        {
+          "from": 11,
+          "to": 3,
+          "kind": "nice",
+          "text": "温和、人少",
+          "textEn": "Mild, quiet"
+        }
+      ]
+    },
+    {
+      "group": "欧洲",
+      "country": "波罗的海三国",
+      "countryEn": "Baltic states",
+      "region": "欧洲",
+      "iso": [
+        "EST",
+        "LVA",
+        "LTU"
+      ],
+      "spans": [
+        {
+          "from": 1,
+          "to": 3,
+          "kind": "bad",
+          "text": "严寒、日照短",
+          "textEn": "Freezing, short days"
+        },
+        {
+          "from": 4,
+          "to": 4,
+          "kind": "meh",
+          "text": "回暖",
+          "textEn": "Warming up"
+        },
+        {
+          "from": 5,
+          "to": 9,
+          "kind": "best",
+          "text": "白夜、夏季",
+          "textEn": "White nights, summer"
+        },
+        {
+          "from": 10,
+          "to": 10,
+          "kind": "nice",
+          "text": "秋色",
+          "textEn": "Autumn colours"
+        },
+        {
+          "from": 11,
+          "to": 11,
+          "kind": "meh",
+          "text": "阴冷",
+          "textEn": "Grey and cold"
+        },
+        {
+          "from": 12,
+          "to": 12,
+          "kind": "nice",
+          "text": "圣诞集市",
+          "textEn": "Christmas markets"
+        }
+      ]
+    },
+    {
+      "group": "非洲",
+      "country": "摩洛哥",
+      "countryEn": "Morocco",
+      "region": "非洲",
+      "iso": [
+        "MAR"
+      ],
+      "spans": [
+        {
+          "from": 3,
+          "to": 5,
+          "kind": "best",
+          "text": "春季",
+          "textEn": "Spring"
+        },
+        {
+          "from": 6,
+          "to": 8,
+          "kind": "meh",
+          "text": "内陆炎热",
+          "textEn": "Hot inland"
+        },
+        {
+          "from": 9,
+          "to": 11,
+          "kind": "best",
+          "text": "秋季、沙漠舒适",
+          "textEn": "Autumn, desert pleasant"
+        },
+        {
+          "from": 12,
+          "to": 2,
+          "kind": "nice",
+          "text": "冷，阿特拉斯山有雪",
+          "textEn": "Cool; snow in the Atlas"
+        }
+      ],
+      "ramadan": true
+    },
+    {
+      "group": "非洲",
+      "country": "突尼斯",
+      "countryEn": "Tunisia",
+      "region": "非洲",
+      "iso": [
+        "TUN"
+      ],
+      "spans": [
+        {
+          "from": 4,
+          "to": 6,
+          "kind": "best",
+          "text": "春末初夏",
+          "textEn": "Late spring"
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "meh",
+          "text": "炎热",
+          "textEn": "Hot"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "best",
+          "text": "秋季",
+          "textEn": "Autumn"
+        },
+        {
+          "from": 11,
+          "to": 3,
+          "kind": "nice",
+          "text": "温和，沙漠舒适",
+          "textEn": "Mild; desert pleasant"
+        }
+      ],
+      "ramadan": true
+    },
+    {
+      "group": "非洲",
+      "country": "南非",
+      "countryEn": "South Africa",
+      "region": "非洲",
+      "iso": [
+        "ZAF"
+      ],
+      "spans": [
+        {
+          "from": 12,
+          "to": 2,
+          "kind": "nice",
+          "text": "开普敦夏季、人多",
+          "textEn": "Cape Town summer, busy"
+        },
+        {
+          "from": 3,
+          "to": 4,
+          "kind": "best",
+          "text": "秋季",
+          "textEn": "Autumn"
+        },
+        {
+          "from": 5,
+          "to": 8,
+          "kind": "nice",
+          "text": "旱季看动物、赏鲸",
+          "textEn": "Dry-season safaris, whales"
+        },
+        {
+          "from": 9,
+          "to": 11,
+          "kind": "best",
+          "text": "春季、花季",
+          "textEn": "Spring, wildflowers"
+        }
+      ]
+    },
+    {
+      "group": "非洲",
+      "country": "纳米比亚",
+      "countryEn": "Namibia",
+      "region": "非洲",
+      "iso": [
+        "NAM"
+      ],
+      "spans": [
+        {
+          "from": 5,
+          "to": 10,
+          "kind": "best",
+          "text": "旱季、看动物",
+          "textEn": "Dry season, game viewing"
+        },
+        {
+          "from": 11,
+          "to": 4,
+          "kind": "meh",
+          "text": "炎热、有雨",
+          "textEn": "Hot, some rain"
+        }
+      ]
+    },
+    {
+      "group": "非洲",
+      "country": "津巴布韦/赞比亚",
+      "countryEn": "Zimbabwe / Zambia",
+      "region": "非洲",
+      "iso": [
+        "ZWE",
+        "ZMB"
+      ],
+      "spans": [
+        {
+          "from": 3,
+          "to": 5,
+          "kind": "best",
+          "text": "维多利亚瀑布水量大",
+          "textEn": "Victoria Falls in full flow"
+        },
+        {
+          "from": 6,
+          "to": 10,
+          "kind": "best",
+          "text": "旱季看动物",
+          "textEn": "Dry-season safaris"
+        },
+        {
+          "from": 11,
+          "to": 2,
+          "kind": "meh",
+          "text": "雨季、炎热",
+          "textEn": "Rainy and hot"
+        }
+      ]
+    },
+    {
+      "group": "非洲",
+      "country": "马达加斯加",
+      "countryEn": "Madagascar",
+      "region": "非洲",
+      "iso": [
+        "MDG"
+      ],
+      "spans": [
+        {
+          "from": 4,
+          "to": 11,
+          "kind": "best",
+          "text": "旱季",
+          "textEn": "Dry season"
+        },
+        {
+          "from": 12,
+          "to": 3,
+          "kind": "bad",
+          "text": "雨季、气旋",
+          "textEn": "Rains, cyclones"
+        }
+      ]
+    },
+    {
+      "group": "非洲",
+      "country": "毛里求斯",
+      "countryEn": "Mauritius",
+      "region": "非洲",
+      "iso": [
+        "MUS"
+      ],
+      "spans": [
+        {
+          "from": 5,
+          "to": 12,
+          "kind": "best",
+          "text": "凉爽干燥",
+          "textEn": "Cool and dry"
+        },
+        {
+          "from": 1,
+          "to": 4,
+          "kind": "meh",
+          "text": "炎热、气旋季",
+          "textEn": "Hot, cyclone season"
+        }
+      ]
+    },
+    {
+      "group": "非洲",
+      "country": "塞舌尔",
+      "countryEn": "Seychelles",
+      "region": "非洲",
+      "iso": [
+        "SYC"
+      ],
+      "spans": [
+        {
+          "from": 4,
+          "to": 5,
+          "kind": "best",
+          "text": "季风交替、海面平静",
+          "textEn": "Calm seas between monsoons"
+        },
+        {
+          "from": 6,
+          "to": 9,
+          "kind": "nice",
+          "text": "东南季风，较凉",
+          "textEn": "SE trades, cooler"
+        },
+        {
+          "from": 10,
+          "to": 11,
+          "kind": "best",
+          "text": "海面平静",
+          "textEn": "Calm seas"
+        },
+        {
+          "from": 12,
+          "to": 3,
+          "kind": "meh",
+          "text": "湿热多雨",
+          "textEn": "Hot and wet"
+        }
+      ]
+    },
+    {
+      "group": "大洋洲",
+      "country": "大溪地",
+      "countryEn": "Tahiti (French Polynesia)",
+      "region": "大洋洲",
+      "iso": [
+        "PYF"
+      ],
+      "spans": [
+        {
+          "from": 5,
+          "to": 10,
+          "kind": "best",
+          "text": "旱季",
+          "textEn": "Dry season"
+        },
+        {
+          "from": 11,
+          "to": 4,
+          "kind": "meh",
+          "text": "湿热多雨",
+          "textEn": "Hot and wet"
+        }
+      ]
+    },
+    {
+      "group": "大洋洲",
+      "country": "帕劳",
+      "countryEn": "Palau",
+      "region": "大洋洲",
+      "iso": [
+        "PLW"
+      ],
+      "spans": [
+        {
+          "from": 11,
+          "to": 4,
+          "kind": "best",
+          "text": "旱季、潜水",
+          "textEn": "Dry season, diving"
+        },
+        {
+          "from": 5,
+          "to": 10,
+          "kind": "meh",
+          "text": "雨季",
+          "textEn": "Rainy season"
+        }
+      ]
+    },
+    {
+      "group": "北美洲",
+      "country": "美国",
+      "countryEn": "USA",
+      "region": "北美洲",
+      "iso": [
+        "USA"
+      ],
+      "spans": [
+        {
+          "from": 4,
+          "to": 6,
+          "kind": "best",
+          "text": "春末初夏，国家公园",
+          "textEn": "Late spring, national parks"
+        },
+        {
+          "from": 7,
+          "to": 8,
+          "kind": "nice",
+          "text": "暑假人多",
+          "textEn": "Summer holidays, busy"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "best",
+          "text": "秋色",
+          "textEn": "Autumn colours"
+        },
+        {
+          "from": 11,
+          "to": 3,
+          "kind": "meh",
+          "text": "冬季，南部温暖",
+          "textEn": "Winter; warm in the south"
+        }
+      ]
+    },
+    {
+      "group": "北美洲",
+      "country": "加拿大",
+      "countryEn": "Canada",
+      "region": "北美洲",
+      "iso": [
+        "CAN"
+      ],
+      "spans": [
+        {
+          "from": 12,
+          "to": 3,
+          "kind": "nice",
+          "text": "滑雪、冬景",
+          "textEn": "Skiing, winter scenery"
+        },
+        {
+          "from": 4,
+          "to": 5,
+          "kind": "meh",
+          "text": "融雪、泥泞",
+          "textEn": "Thaw, muddy"
+        },
+        {
+          "from": 6,
+          "to": 8,
+          "kind": "best",
+          "text": "夏季、落基山",
+          "textEn": "Summer, the Rockies"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "best",
+          "text": "枫叶季",
+          "textEn": "Fall colours"
+        },
+        {
+          "from": 11,
+          "to": 11,
+          "kind": "meh",
+          "text": "阴冷",
+          "textEn": "Grey and cold"
+        }
+      ]
+    },
+    {
+      "group": "北美洲",
+      "country": "古巴",
+      "countryEn": "Cuba",
+      "region": "北美洲",
+      "iso": [
+        "CUB"
+      ],
+      "spans": [
+        {
+          "from": 12,
+          "to": 4,
+          "kind": "best",
+          "text": "旱季",
+          "textEn": "Dry season"
+        },
+        {
+          "from": 5,
+          "to": 6,
+          "kind": "meh",
+          "text": "开始湿热",
+          "textEn": "Getting humid"
+        },
+        {
+          "from": 7,
+          "to": 10,
+          "kind": "bad",
+          "text": "飓风季",
+          "textEn": "Hurricane season"
+        },
+        {
+          "from": 11,
+          "to": 11,
+          "kind": "nice",
+          "text": "雨季结束",
+          "textEn": "Rains end"
+        }
+      ]
+    },
+    {
+      "group": "北美洲",
+      "country": "哥斯达黎加",
+      "countryEn": "Costa Rica",
+      "region": "北美洲",
+      "iso": [
+        "CRI"
+      ],
+      "spans": [
+        {
+          "from": 12,
+          "to": 4,
+          "kind": "best",
+          "text": "旱季",
+          "textEn": "Dry season"
+        },
+        {
+          "from": 5,
+          "to": 11,
+          "kind": "meh",
+          "text": "绿季，午后有雨",
+          "textEn": "Green season, afternoon rain"
+        }
+      ]
+    },
+    {
+      "group": "南美洲",
+      "country": "秘鲁",
+      "countryEn": "Peru",
+      "region": "南美洲",
+      "iso": [
+        "PER"
+      ],
+      "spans": [
+        {
+          "from": 12,
+          "to": 3,
+          "kind": "bad",
+          "text": "雨季，2月古道关闭",
+          "textEn": "Rainy; Inca Trail shut in Feb"
+        },
+        {
+          "from": 4,
+          "to": 4,
+          "kind": "nice",
+          "text": "雨季刚结束",
+          "textEn": "Rains just ended"
+        },
+        {
+          "from": 5,
+          "to": 9,
+          "kind": "best",
+          "text": "旱季、印加古道",
+          "textEn": "Dry season, Inca Trail"
+        },
+        {
+          "from": 10,
+          "to": 11,
+          "kind": "nice",
+          "text": "旱季尾声",
+          "textEn": "End of the dry season"
+        }
+      ]
+    },
+    {
+      "group": "南美洲",
+      "country": "智利",
+      "countryEn": "Chile",
+      "region": "南美洲",
+      "iso": [
+        "CHL"
+      ],
+      "spans": [
+        {
+          "from": 11,
+          "to": 3,
+          "kind": "best",
+          "text": "巴塔哥尼亚夏季",
+          "textEn": "Patagonian summer"
+        },
+        {
+          "from": 4,
+          "to": 5,
+          "kind": "nice",
+          "text": "秋色",
+          "textEn": "Autumn colours"
+        },
+        {
+          "from": 6,
+          "to": 8,
+          "kind": "meh",
+          "text": "冬季，可滑雪",
+          "textEn": "Winter; skiing"
+        },
+        {
+          "from": 9,
+          "to": 10,
+          "kind": "nice",
+          "text": "春季、阿塔卡马花开",
+          "textEn": "Spring, Atacama blooms"
+        }
+      ]
+    },
+    {
+      "group": "南美洲",
+      "country": "巴西",
+      "countryEn": "Brazil",
+      "region": "南美洲",
+      "iso": [
+        "BRA"
+      ],
+      "spans": [
+        {
+          "from": 12,
+          "to": 3,
+          "kind": "nice",
+          "text": "夏季、狂欢节",
+          "textEn": "Summer, Carnival"
+        },
+        {
+          "from": 4,
+          "to": 5,
+          "kind": "best",
+          "text": "人少、气候舒适",
+          "textEn": "Quieter, pleasant"
+        },
+        {
+          "from": 6,
+          "to": 9,
+          "kind": "best",
+          "text": "潘塔纳尔旱季",
+          "textEn": "Pantanal dry season"
+        },
+        {
+          "from": 10,
+          "to": 11,
+          "kind": "nice",
+          "text": "春季",
+          "textEn": "Spring"
+        }
+      ]
+    },
+    {
+      "group": "南美洲",
+      "country": "玻利维亚",
+      "countryEn": "Bolivia",
+      "region": "南美洲",
+      "iso": [
+        "BOL"
+      ],
+      "spans": [
+        {
+          "from": 12,
+          "to": 3,
+          "kind": "nice",
+          "text": "天空之镜（雨季）",
+          "textEn": "Salt-flat mirror (wet season)"
+        },
+        {
+          "from": 4,
+          "to": 4,
+          "kind": "nice",
+          "text": "雨季末",
+          "textEn": "End of the rains"
+        },
+        {
+          "from": 5,
+          "to": 10,
+          "kind": "best",
+          "text": "旱季、盐湖",
+          "textEn": "Dry season, salt flats"
+        },
+        {
+          "from": 11,
+          "to": 11,
+          "kind": "nice",
+          "text": "开始有雨",
+          "textEn": "Rains begin"
+        }
+      ]
+    },
+    {
+      "group": "南美洲",
+      "country": "厄瓜多尔",
+      "countryEn": "Ecuador (Galápagos)",
+      "region": "南美洲",
+      "iso": [
+        "ECU"
+      ],
+      "spans": [
+        {
+          "from": 12,
+          "to": 5,
+          "kind": "best",
+          "text": "温暖、海面平静",
+          "textEn": "Warm, calm seas"
+        },
+        {
+          "from": 6,
+          "to": 11,
+          "kind": "nice",
+          "text": "凉爽、海洋生物多",
+          "textEn": "Cooler, abundant marine life"
+        }
+      ]
+    },
+    {
+      "group": "南美洲",
+      "country": "哥伦比亚",
+      "countryEn": "Colombia",
+      "region": "南美洲",
+      "iso": [
+        "COL"
+      ],
+      "spans": [
+        {
+          "from": 12,
+          "to": 3,
+          "kind": "best",
+          "text": "旱季",
+          "textEn": "Dry season"
+        },
+        {
+          "from": 4,
+          "to": 5,
+          "kind": "meh",
+          "text": "雨季",
+          "textEn": "Rainy season"
+        },
+        {
+          "from": 6,
+          "to": 8,
+          "kind": "nice",
+          "text": "小旱季",
+          "textEn": "Short dry season"
+        },
+        {
+          "from": 9,
+          "to": 11,
+          "kind": "meh",
+          "text": "雨季",
+          "textEn": "Rainy season"
+        }
+      ]
+    }
+  ]
+}

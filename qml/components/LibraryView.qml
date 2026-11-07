@@ -8,6 +8,7 @@ Item {
     id: root
     signal openPlan(string id)
     signal deleteRequested(var ids)
+    signal newPlan()
 
     readonly property var lib: plans.library
     readonly property var rows: lib.rows || []
@@ -263,8 +264,20 @@ Item {
         width: parent.width - Theme.px(16)
         height: parent.height - y - (selBar.visible ? selBar.height + Theme.px(8) : 0) - Theme.px(8)
 
+        EmptyState {
+            objectName: "emptyLibrary"
+            z: 2   // 在画廊上面，不然点不到按钮
+            visible: (root.lib.total || 0) === 0
+            anchors.centerIn: parent
+            width: parent.width - Theme.px(32)
+            art: "plan"
+            title: qsTr("还没有计划")
+            detail: qsTr("把想走的路线记下来：站点、日期、预算和行李都放在一个计划里。")
+            action: qsTr("新建计划")
+            onActed: root.newPlan()
+        }
         Text {
-            visible: root.rows.length === 0
+            visible: root.rows.length === 0 && (root.lib.total || 0) > 0
             x: Theme.px(12); y: Theme.px(16)
             text: qsTr("没有符合条件的计划。")
             font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted

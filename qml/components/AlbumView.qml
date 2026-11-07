@@ -421,17 +421,29 @@ Item {
         }
     }
 
-    // 空状态（照 Electron 的文案）
+    // 一张照片都没有（0.12.7 空状态）
+    EmptyState {
+        objectName: "emptyAlbum"
+        visible: grid.count === 0 && root.album.total === 0
+        x: grid.x + Theme.px(8)
+        y: grid.y + Math.max(Theme.px(16), (grid.height - height) / 2)
+        width: grid.width - Theme.px(16)
+        art: "album"
+        title: qsTr("还没有照片")
+        detail: qsTr("导入照片后，会按拍摄日期和位置自动归到计划里。")
+        action: qsTr("导入照片")
+        onActed: root.importClicked()
+    }
+    // 这个视图里没有（照 Electron 的文案）
     Text {
         objectName: "albumEmpty"
-        visible: grid.count === 0
+        visible: grid.count === 0 && root.album.total !== 0
         x: grid.x + Theme.px(4)
         y: grid.y + Theme.px(14)
         width: grid.width - Theme.px(8)
         wrapMode: Text.Wrap
         lineHeight: 1.4
-        text: root.album.total === 0 ? qsTr("还没有照片。点右上角“导入照片”，会按拍摄日期和位置自动归到计划里。")
-            : root.album.view === "fav" ? qsTr("还没有精选。鼠标放在照片上，点右上角的星星。")
+        text: root.album.view === "fav" ? qsTr("还没有精选。鼠标放在照片上，点右上角的星星。")
             : root.album.view === "inbox" ? qsTr("没有未归类的照片。导入时认不出属于哪个计划的照片会放在这里。")
             : qsTr("还没有归到计划的照片。")
         font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted

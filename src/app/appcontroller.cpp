@@ -26,6 +26,7 @@
 #include <QDesktopServices>
 #include <QDir>
 #include <QFileInfo>
+#include <QHash>
 #include <QGuiApplication>
 #include <QLocale>
 #include <QQmlEngine>
@@ -248,14 +249,9 @@ void AppController::startup(const QString &tempDataDir)
         loadFolder(def, true);
         break;
     case DataFolder::Startup::CreateDefault: {
-        QString err;
-        if (DataFolder::createEmpty(def, version(), &err)) {
-            qInfo("第一次使用：在软件文件夹里新建了空数据 %s", qUtf8Printable(QDir::toNativeSeparators(def)));
-            loadFolder(def, true);
-        } else {
-            qWarning("新建默认数据失败：%s", qUtf8Printable(err));
-            m_startupChoice = QStringLiteral("missing");   // 让用户自己选
-        }
+        // 第一次用（0.12.7，S-16）：先显示欢迎页，点"开始"才写文件；语言按系统猜（可以在欢迎页改）
+        if (!m_settings->hasLang()) setLang(QLocale::system().name().startsWith(QLatin1String("zh")) ? QStringLiteral("zh") : QStringLiteral("en"));
+        m_startupChoice = QStringLiteral("welcome");
         break;
     }
     case DataFolder::Startup::AskFirstRun:
@@ -338,6 +334,37 @@ QVariantMap AppController::useDefaultData()
     if (!DataFolder::createEmpty(def, version(), &err)) return result(false, err);
     loadFolder(def, true);
     return result(true);
+}
+
+QVariantMap AppController::welcomeStart(const QString &dirIn)
+{
+    const QString dir = localPath(dirIn);
+    if (dir.isEmpty()) return result(false, tp::tr("没有选文件夹"));
+    QString err;
+    if (!DataFolder::createEmpty(dir, version(), &err, lang())) return result(false, err);
+    loadFolder(dir, true);
+    return result(true);
+}
+
+QString AppController::welcomeFolder(const QVariant &picked) const
+{
+    // 照 Electron welcome:pick：选的文件夹里已经有数据就用它；否则在里面建一个「旅行计划数据」，不把文件撒在用户选的文件夹里
+    const QString dir = localPath(picked);
+    if (dir.isEmpty() || DataFolder::isValid(dir) || DataFolder::isElectron(dir)) return dir;
+    const QString name = QStringLiteral("旅行计划数据");
+    return QFileInfo(dir).fileName() == name ? dir : QDir::toNativeSeparators(QDir(dir).filePath(name));
+}
+
+QString AppController::guessCurrency() const
+{
+    // 照 Electron welcome.html：按系统地区猜主货币，以后在设置里改
+    static const QHash<QString, QString> cur = {
+        { "CN", "CNY" }, { "AU", "AUD" }, { "US", "USD" }, { "GB", "GBP" }, { "NZ", "NZD" }, { "HK", "HKD" }, { "TW", "TWD" }, { "JP", "JPY" },
+        { "KR", "KRW" }, { "SG", "SGD" }, { "CA", "CAD" }, { "DE", "EUR" }, { "FR", "EUR" }, { "IT", "EUR" }, { "ES", "EUR" }, { "NL", "EUR" },
+        { "CH", "CHF" }, { "MY", "MYR" }, { "TH", "THB" },
+    };
+    const QLocale sys = QLocale::system();
+    return cur.value(QLocale::territoryToCode(sys.territory()), sys.name().startsWith(QLatin1String("zh")) ? QStringLiteral("CNY") : QStringLiteral("USD"));
 }
 
 QVariantMap AppController::firstRunImport()

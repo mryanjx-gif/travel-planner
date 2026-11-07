@@ -1162,3 +1162,25 @@ Windows 自带，不随程序分发。	Come with Windows; not distributed with t
 除了上面列出的，图标、按钮和装饰都是程序绘制的原创素材，没有第三方授权问题。	Apart from the items above, icons, buttons and decoration are original and drawn by the app, with no third-party licensing.
 地图瓦片缓存上限	Map tile cache limit
 超过时自动删掉最旧的。调低后马上按新上限删。	The oldest are removed automatically above this. Lowering it removes them right away.
+旅行计划	Travel Planner
+把每一趟旅行画在地球上	Every trip, drawn on the globe
+你的计划和照片存在这里	Your plans and photos are kept here
+更改	Change
+已经有数据？打开数据文件夹	Already have data? Open your data folder
+选一个文件夹放数据	Choose a folder for your data
+出错了	Something went wrong
+还没有计划	No plans yet
+把想走的路线记下来：站点、日期、预算和行李都放在一个计划里。	Write down the route you have in mind. Stops, dates, budget and packing all live in one plan.
+还没有想去的地方	Nothing on your wishlist yet
+看到喜欢的目的地，先记在这里，以后再排日期。	Found somewhere you like? Note it here and pick dates later.
+添加想去的地方	Add a place
+还没有走过的足迹	No footprints yet
+旅程完成后，路线和去过的地方都会留在这里。	When a trip is completed, its route and places stay here.
+记一趟走过的旅程	Add a past trip
+还没有照片	No photos yet
+导入照片后，会按拍摄日期和位置自动归到计划里。	Imported photos are sorted into your plans by date and location.
+日历上还没有行程	Nothing on the calendar yet
+计划定了日期，就会排在这里。还没定的在右边，可以拖进来。	Plans with dates appear here. Undated ones are on the right, and you can drag them in.
+还没有花费	No spending yet
+在计划的“消费”或“交通住宿”里记下来，这里就会汇总。	Add it under Expenses or Bookings in a plan and it adds up here.
+打开计划库	Open library

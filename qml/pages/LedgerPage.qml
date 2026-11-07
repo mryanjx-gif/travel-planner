@@ -8,6 +8,7 @@ Item {
     property bool shown: false
     property string sortBy: "spent"
     signal openPlan(string id)
+    signal openLibrary()
     readonly property var info: planPage.ledger
     readonly property var trips: info.trips || []
     readonly property var sorted: sortBy === "spent" ? trips
@@ -178,13 +179,15 @@ Item {
             }
 
             // ---- 每趟一行 ----
-            Text {
+            EmptyState {
                 objectName: "ledgerEmptyAll"
                 visible: root.trips.length === 0
                 width: parent.width
-                wrapMode: Text.Wrap
-                text: qsTr("还没有花费。在计划的“消费”或“交通住宿”里记下来，这里就会汇总。")
-                font.family: serifFamily; font.pixelSize: Theme.px(14); color: Theme.muted
+                art: "ledger"
+                title: qsTr("还没有花费")
+                detail: qsTr("在计划的“消费”或“交通住宿”里记下来，这里就会汇总。")
+                action: qsTr("打开计划库")
+                onActed: root.openLibrary()
             }
             Segmented {
                 objectName: "ledgerSort"

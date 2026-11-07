@@ -82,6 +82,7 @@ void Settings::setCloseAction(const QString &v)
     if (v == QLatin1String("quit") || v == QLatin1String("tray") || v == QLatin1String("taskbar")) setValue(QStringLiteral("closeAction"), v);
 }
 
+bool Settings::hasLang() const { return !m_langOverride.isEmpty() || !str(QStringLiteral("lang")).isEmpty(); }
 QString Settings::lang() const
 {
     if (!m_langOverride.isEmpty()) return m_langOverride;

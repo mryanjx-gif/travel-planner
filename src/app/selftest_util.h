@@ -70,6 +70,7 @@ QColor colorAt(const QImage &img, QQuickWindow *win, double x, double y);
 double colorDiff(const QColor &a, const QColor &b);
 
 void runMap(Report &r, AppController *app, map::MapController *mapc, QQuickWindow *win);
+void runWelcome(Report &r, AppController *app, QQuickWindow *win);
 void runMarkers(Report &r, map::MapController *mapc, QQuickWindow *win);
 void runRoutes(Report &r, AppController *app, map::MapController *mapc, QQuickWindow *win, services::RoadRouter *roads, services::NetClient *net);
 void runTiles(Report &r, map::MapController *mapc, QQuickWindow *win, services::NetClient *net, services::TileServer *ts, services::TileCache *cache);

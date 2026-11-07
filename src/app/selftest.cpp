@@ -141,6 +141,7 @@ void runAll(Report &r, AppController *app, PhotoController *photos, map::MapCont
     if (want("week")) runCalendarWeek(r, app, mapc, win);
     if (want("journal")) runJournal(r, app, win);
     if (want("audit")) runAudit(r, app, mapc, win, photos);
+    if (want("welcome")) runWelcome(r, app, win);   // 0.12.7（中途换到临时数据，最后换回来）
     if (only.contains(QLatin1String("thumbs1000"))) runThumbs1000(r, photos, dir);
     mapc->fitAll(false);
     if (!want("photos")) return;

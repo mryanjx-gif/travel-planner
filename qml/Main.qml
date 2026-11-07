@@ -100,6 +100,7 @@ Window {
         // 编辑器开着时不换模式（换过去这条计划可能不在地图上）
         if (editor.open && win.modeKeys.indexOf(p) >= 0 && p !== plans.mode) { toast.show(qsTr("请先完成或放弃当前编辑"), false); return }
         nav.go(p)
+        Qt.callLater(win.openListIfEmpty)
     }
     function modeName(k) { const it = win.navPages.find(x => x.key === k); return it ? it.name : k }
     property bool newerDismissed: false
@@ -1091,6 +1092,8 @@ Window {
         onEyeClicked: (id, hidden) => plans.setHidden(id, hidden)
         onLibraryOpenPlan: (id) => win.openTrip(id, -1)
         onNewWishClicked: win.newWish()
+        onNewPlanClicked: win.newPlan()
+        onNewFootClicked: win.newFoot()
         onLibraryDelete: (ids) => {
             if (editor.open) { toast.show(qsTr("请先完成或放弃当前编辑"), false); return }
             bulkConfirm.ask(ids)
@@ -1287,6 +1290,16 @@ Window {
         const was = editor.open
         win.newPlan()
         if (!was && editor.open) editor.setField("status", "wish")
+    }
+    // 0.12.7 这个模式一个计划都没有：把列表打开，空状态才看得见（有计划时不动，保留用户收起的状态）
+    function openListIfEmpty() {
+        if (win.modeKeys.indexOf(nav.page) >= 0 && !win.photoMode && (planList.info.rows || []).length === 0 && planList.modeCount === 0) win.listOpen = true
+    }
+    // 0.12.7 足迹的空状态：记一趟走过的旅程（状态直接是已完成）
+    function newFoot() {
+        const was = editor.open
+        win.newPlan()
+        if (!was && editor.open) editor.setField("status", "completed")
     }
     // 0.9.7（B4）：从地球打开编辑器：记下地球的镜头，原地摊平（编辑在平面上做），关掉后卷回地球
     function leaveGlobeForEditor(then) {
@@ -1942,6 +1955,7 @@ Window {
         z: 20
         shown: nav.page === "ledger"
         onOpenPlan: (id) => { win.tripTab = "budget"; win.openTrip(id, -1) }
+        onOpenLibrary: win.openLibrary()
     }
     // ---- 0.11.2 日历、游记 ----
     CalendarPage {
@@ -1954,6 +1968,7 @@ Window {
         shown: nav.page === "calendar"
         onOpenPlan: (id, tab) => { win.tripTab = tab; win.openTrip(id, -1) }
         onToast: (t, warn) => toast.show(t, warn)
+        onNewPlan: win.newPlan()
     }
     JournalPage {
         id: journalPage
@@ -2069,7 +2084,7 @@ Window {
         id: dataChoice
         property string forced: ""
         readonly property string mode: forced !== "" ? forced : app.startupChoice
-        open: mode !== ""
+        open: mode !== "" && mode !== "welcome"
         title: mode === "missing" ? qsTr("找不到数据文件夹") : qsTr("数据放在哪？")
         message: mode === "missing"
                  ? (app.missingDir !== "" ? qsTr("上次用的数据文件夹不见了：") + app.missingDir : qsTr("还没有可用的数据文件夹。"))
@@ -2090,6 +2105,15 @@ Window {
             if (!r.ok) toast.show(r.error, true)
             else forced = ""
         }
+    }
+
+    // 第一次用（0.12.7，S-16）。盖住整个窗口；下面的弹框（选了没数据的文件夹等）要在它上面，所以放在它们前面、z 由声明顺序定
+    WelcomePage {
+        id: welcomePage
+        objectName: "welcomePage"
+        z: 900
+        onOpenExisting: { win.pickFromStartup = true; folderDialog.open() }
+        onStarted: rates.main = app.guessCurrency()
     }
 
     // 选的文件夹里还没有旅行计划的数据（travel.json）
@@ -2456,7 +2480,7 @@ Window {
         function onToast(text, warn) { toast.show(text, warn) }
     }
     // 撤销 / 重做（0.5.0，D-13）：光标在输入框里时不拦截（交给输入框自己的撤销），有弹框时也不拦截
-    readonly property bool modalOpen: dataChoice.open || noDataDialog.open || conflictDialog.open || closeFailDialog.open
+    readonly property bool modalOpen: welcomePage.visible || dataChoice.open || noDataDialog.open || conflictDialog.open || closeFailDialog.open
                                       || restoreDialog.open || titleDialog.open || crashDialog.open || electronFolderDialog.open
                                       || importDialog.open || importProgressDialog.open || importReportDialog.open || takeOverDialog.open
                                       || photoReview.open || cleanupDialog.open || planConfirm.open || bulkConfirm.open || wishDialog.open || editorDialog.open
@@ -2620,6 +2644,8 @@ Window {
         else if (shotPage.startsWith("ui-settings-") && shotPage !== "ui-settings-photos") goPage("settings")
         else if (shotPage === "ui-settings" || shotPage === "ui-backup" || shotPage === "ui-backup-running" || shotPage === "ui-devtools") goPage("settings")
         else if (shotPage === "ui-firstrun") dataChoice.forced = "firstRun"
+        else if (shotPage === "ui-welcome") welcomePage.forced = true
+        else if (shotPage.startsWith("empty-")) emptyShot.start()
         else if (shotPage === "ui-missing") dataChoice.forced = "missing"
         else if (shotPage === "ui-nodata") { noDataDialog.dir = "D:\\新文件夹"; noDataDialog.open = true }
         else if (shotPage === "ui-restore") { restoreDialog.entry = { name: "travel-2026-10-30.json", date: "2026-10-30", plans: 51, size: 1300000 }; restoreDialog.open = true }
@@ -2659,10 +2685,24 @@ Window {
 
     // 截图的步骤走完没有（0.10.5，main.cpp 的就绪判断调用）：步骤定时器、相机飞行、地图样式
     function shotBusy() {
-        for (const t of [frameNextTimer, planShot, tripShot, tripShot2, shellShot, editShot, modeShot, pagesShot, pagesShot2, libShot, searchShot, styleShot, markerShot, markerTip, lineShot, lineTip, layersShot, unlockShot, unlockTip])
+        for (const t of [emptyShot, frameNextTimer, planShot, tripShot, tripShot2, shellShot, editShot, modeShot, pagesShot, pagesShot2, libShot, searchShot, styleShot, markerShot, markerTip, lineShot, lineTip, layersShot, unlockShot, unlockTip])
             if (t.running) return true
         if (shotPage.startsWith("calendar-season") && !(calendar.info.season || {}).ready) return true   // 等"去过"算好
         return mapc.moving || win.mapLive && mapLoader.status !== Loader.Error && !(win.map && win.map.styleLoaded)
+    }
+
+    // 截图（0.12.7）：empty-plan / wish / foot / album / calendar / ledger = 换到一份全新的空数据（副本旁边），打开那一页
+    Timer {
+        id: emptyShot
+        interval: 1500
+        onTriggered: {
+            app.switchDataFolder(app.dataDir + "-empty", true)
+            mapc.base = "street"
+            const p = shotPage.substring(6)
+            if (p === "plan") win.openLibrary()
+            else if (p === "album") { win.goPage("photo"); win.listOpen = true; win.albumOpen = true }
+            else { win.goPage(p); if (p === "wish" || p === "foot") win.listOpen = true }
+        }
     }
 
     // 截图（0.8.7）：now = 一条带日期的路线设为下次出发、假装今天是第 3 天、打开"此刻"卡片；
