@@ -34,7 +34,7 @@ Item {
     signal editExpense(var row)
     signal deleteExpense(var row)
     signal budgetRequested()
-    signal editPerson(var person)
+    signal peopleRequested()
     signal notice(string text)              // 0.10.4 行李与待办的小提示
     signal saveTemplateRequested()
     signal editLocalEmergency()
@@ -114,6 +114,7 @@ Item {
         list.headerItem.packing.paste(t)
         shotBottom.start()
     }
+    function bottomForShot() { shotBottom.start() }
     Timer { id: shotBottom; interval: 200; onTriggered: list.contentY = list.originY + list.contentHeight - list.height }
     function scrollInGuide(y, animate) {
         const h = list.headerItem
@@ -539,7 +540,7 @@ Item {
                 onRemove: (row) => root.deleteExpense(row)
                 onMore: (draft) => root.addExpense(draft)
                 onBudgetRequested: root.budgetRequested()
-                onPersonClicked: (p) => root.editPerson(p)
+                onPeopleRequested: root.peopleRequested()
             }
             PackingTab {
                 id: packingTab

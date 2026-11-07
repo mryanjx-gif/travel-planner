@@ -1620,7 +1620,7 @@ Window {
         onAddExpense: (draft) => expenseDialog.show(null, draft)
         onEditExpense: (row) => expenseDialog.show(row, null)
         onDeleteExpense: (row) => moneyDialog.ask("expense", row)
-        onEditPerson: (p) => personDialog.show(p)
+        onPeopleRequested: peopleDialog.show()
         onNotice: (t) => toast.show(t, false)
         onSaveTemplateRequested: {
             tplDialog.paragraphs = [qsTr("用这份清单（%1 项）替换原来的模板，以后别的计划可以“从模板添加”。").arg(planPage.info.kit.packing.length)]
@@ -1724,61 +1724,14 @@ Window {
         }
     }
     BookingDialog { id: bookingDialog; objectName: "bookingDialog"; backdrop: scene; currency: (planPage.info.money || {}).currency || "" }
-    ExpenseDialog { id: expenseDialog; objectName: "expenseDialog"; backdrop: scene; planCurrency: (planPage.info.money || {}).currency || ""; today: plans.today; people: (planPage.info.money || {}).people || [] }
-    // 同行人改名、删除（0.10.2，Electron editPerson：有消费用到时不能删）
-    ModalLayer {
-        id: personDialog
-        objectName: "personDialog"
+    ExpenseDialog { id: expenseDialog; objectName: "expenseDialog"; backdrop: scene; planCurrency: (planPage.info.money || {}).currency || ""; today: plans.today; people: (planPage.info.money || {}).people || []; onPeopleRequested: peopleDialog.show() }
+    // 同行人（0.11.5）：放在记一笔后面，从那里打开时盖在上面
+    PeopleDialog {
+        id: peopleDialog
+        objectName: "peopleDialog"
         backdrop: scene
-        cardWidth: 380
-        property var person: ({})
-        property string name: ""
-        property bool del: false
-        onDismissed: open = false
-        function show(p) {
-            person = p
-            name = p.name
-            del = false
-            personField.clear()
-            open = true
-            personField.focusAll()
-        }
-        function save() {
-            planPage.editPerson(person.id, name, del)
-            open = false
-        }
-        Text { text: qsTr("同行人"); font.family: serifFamily; font.pixelSize: Theme.px(19); font.bold: true; color: Theme.text }
-        TpField {
-            id: personField
-            objectName: "personName"
-            width: parent.width
-            placeholder: qsTr("名字")
-            value: personDialog.name
-            onEdited: (t) => { personDialog.name = t }
-            onAccepted: personDialog.save()
-            onEscaped: personDialog.open = false
-        }
-        TpCheck {
-            objectName: "personDel"
-            visible: !personDialog.person.used
-            text: qsTr("删除这个人")
-            checked: personDialog.del
-            onToggled: (c) => { personDialog.del = c }
-        }
-        Text {
-            objectName: "personUsed"
-            visible: !!personDialog.person.used
-            width: parent.width
-            wrapMode: Text.Wrap
-            text: qsTr("有消费用到这个人，不能删除。")
-            font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.muted
-        }
-        Row {
-            anchors.right: parent.right
-            spacing: Theme.px(8)
-            TpButton { text: qsTr("取消"); onClicked: personDialog.open = false }
-            TpButton { objectName: "personOk"; kind: "primary"; text: qsTr("保存"); onClicked: personDialog.save() }
-        }
+        money: planPage.info.money || ({})
+        onOpenChanged: if (!open && expenseDialog.open) expenseDialog.takeFocus()
     }
     ModalLayer {
         id: budgetDialog
@@ -2459,7 +2412,7 @@ Window {
                                       || importDialog.open || importProgressDialog.open || importReportDialog.open || takeOverDialog.open
                                       || photoReview.open || cleanupDialog.open || planConfirm.open || bulkConfirm.open || wishDialog.open || editorDialog.open
                                       || daysDialog.open || startDialog.open
-                                      || bookingDialog.open || expenseDialog.open || budgetDialog.open || moneyDialog.open || personDialog.open
+                                      || bookingDialog.open || expenseDialog.open || budgetDialog.open || moneyDialog.open || peopleDialog.open
                                       || emergencyDialog.open || guideLinkDialog.open || photoPickDialog.open || tplDialog.open
                                       || journalDeleteDialog.open || journalPhotoPick.open || journalLinkDialog.open
                                       || lightbox.open || photoCaptionDialog.open || photoRemoveDialog.open || coverPickDialog.open
@@ -2680,7 +2633,7 @@ Window {
     // 截图（0.10.1）：trip-bookings = 交通住宿（含没订住宿的提醒）；trip-budget = 消费；trip-booking-form / trip-expense-form = 弹出表单；
     // trip-stopbooks = 站点卡片上当天的交通住宿。在数据副本上加几条示例
     // 0.10.2：trip-settle = 有同行人的消费页和结算；trip-split-form = 分账表单（按金额分）；trip-split-narrow = 500 宽的分账表单
-    readonly property bool moneyShot: ["trip-bookings", "trip-budget", "trip-booking-form", "trip-expense-form", "trip-stopbooks", "trip-settle", "trip-split-form", "trip-split-narrow"].indexOf(shotPage) >= 0
+    readonly property bool moneyShot: ["trip-bookings", "trip-budget", "trip-booking-form", "trip-expense-form", "trip-stopbooks", "trip-settle", "trip-split-form", "trip-split-narrow", "trip-share-people", "trip-share-rows", "trip-share-on", "trip-share-off", "trip-share-edited"].indexOf(shotPage) >= 0
     // 0.10.5：trip-photos = 照片标签（有封面）；trip-lightbox = 看大图；trip-lightbox-zoom = 放大（原图）；*-narrow = 500 宽；editor-photos、editor-cover = 编辑器的照片、封面
     readonly property bool photosShot: ["trip-photos", "trip-photos-narrow", "trip-lightbox", "trip-lightbox-zoom"].indexOf(shotPage) >= 0
     function runPhotosShot() {
@@ -2725,12 +2678,24 @@ Window {
              + "# 准备\n- [ ] 买转换插头\n- [x] 订第一晚的酒店\n- [ ] 下载离线地图\n\n## 吃的\n[市场](https://example.com/market) 早上去。\n\n## 住的\n老城区走路方便。"
     }
     function seedSplit() {
+        if (((planPage.info.money || {}).people || []).length > 0) return   // 前一张截图已经加过（几张截图用同一份副本）
         const a = plans.today
-        const ids = ["pp_shotme", "pp_shotw", "pp_shotl"]
-        if (((planPage.info.money || {}).people || []).length === 0)
-            planPage.saveExpense("", { title: "Dinner", amount: "240", cat: "food", date: a, newPeople: [{ id: ids[0], name: qsTr("我") }, { id: ids[1], name: "小王" }, { id: ids[2], name: "小李" }], paidBy: ids[0], split: [] })
+        planPage.addPerson("小王", qsTr("我"))
+        planPage.addPerson("小李", qsTr("我"))
+        const ids = planPage.info.money.people.map(p => p.id)
+        planPage.saveExpense("", { title: "Dinner", amount: "240", cat: "food", date: a, paidBy: ids[0], split: [] })
         planPage.saveExpense("", { title: "Tickets", amount: "90", cat: "ticket", date: a, paidBy: ids[1], split: [{ who: ids[0] }, { who: ids[1] }] })
         planPage.saveExpense("", { title: "Taxi", amount: "100", currency: "USD", cat: "transport", date: a, paidBy: ids[2], split: [{ who: ids[0], amount: "60" }, { who: ids[2], amount: "40" }] })
+        planPage.saveExpense("", { title: "Coffee", amount: "12", cat: "food", date: a, paidBy: ids[1], split: [{ who: ids[1] }] })
+    }
+    // 0.11.5：trip-share-people = 同行人窗口；-rows = 消费行的每人金额；-on / -off = 单笔窗口开和关；-edited = 改了金额
+    function runShareShot() {
+        if (shotPage === "trip-share-people") { peopleDialog.show(); return }
+        if (shotPage === "trip-share-rows") { planPanel.bottomForShot(); return }
+        const rows = planPage.info.money.rows
+        const row = rows.find(x => x.title === (shotPage === "trip-share-off" ? "Coffee" : "Dinner"))
+        expenseDialog.show(row, null)
+        if (shotPage === "trip-share-edited") expenseDialog.setAmount(row.among[1], "100")
     }
     function seedMoney() {
         if ((planPage.info.money || {}).budget === 3000) return   // 前一张截图已经加过（几张截图用同一份副本）
@@ -2781,7 +2746,7 @@ Window {
             if (win.kitShot || win.photosShot) tripShot2.start()
             if (win.moneyShot) {
                 win.seedMoney()
-                if (shotPage === "trip-settle" || shotPage.startsWith("trip-split")) win.seedSplit()
+                if (shotPage === "trip-settle" || shotPage.startsWith("trip-split") || shotPage.startsWith("trip-share")) win.seedSplit()
                 tripShot2.start()
             }
         }
@@ -2798,6 +2763,7 @@ Window {
                 planPanel.openTab(shotPage === "trip-bookings" || shotPage === "trip-booking-form" ? "bookings" : shotPage === "trip-stopbooks" ? "itinerary" : "budget")
                 if (shotPage === "trip-booking-form") bookingDialog.show(null, "hotel")
                 if (shotPage === "trip-expense-form") expenseDialog.show(null, { title: "", cat: "food" })
+                if (shotPage.startsWith("trip-share")) win.runShareShot()
                 if (shotPage.startsWith("trip-split")) {
                     for (const x of planPage.info.money.rows) if (x.custom) { expenseDialog.show(x, null); break }
                 }

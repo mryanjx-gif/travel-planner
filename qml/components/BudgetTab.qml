@@ -1,7 +1,7 @@
 // 计划页的"消费"标签（0.10.1，P-11、P-12；照 Electron pages-plan.js budgetHtml）。PO 选：1A 交通住宿的费用合在一起算、分开显示，
 // 3A 页头直接选主货币，J3 一行快记。每笔一行，宽窄窗口同一种版式（点一行改，弹出表单 ExpenseDialog）。
 // money = planPage.info.money（plans::spendInfo）。
-// 0.10.2 分账（P-13；PO 选 5A：每笔一行，结算放最上面；点一行照 2B 弹出表单）：两个人以上才显示结算、同行人和每笔的"谁付、怎么分"。
+// 0.10.2 分账（P-13；PO 选 5A：每笔一行，结算放最上面；点一行照 2B 弹出表单）：两个人以上才显示结算和每笔的"谁付、怎么分"。0.11.5 同行人的入口放到合计卡片的按钮（PeopleDialog）。
 import QtQuick
 import TPApp
 
@@ -13,7 +13,7 @@ Column {
     signal remove(var row)
     signal more(var draft)              // "展开更多"：把一行快记里已经填的带到完整表单
     signal budgetRequested()
-    signal personClicked(var person)
+    signal peopleRequested()
     spacing: Theme.px(12)
 
     readonly property string cur: money.currency || ""
@@ -40,7 +40,12 @@ Column {
     readonly property bool multi: !!money.multi
     readonly property var settle: money.settle || ({})
     readonly property var people: money.people || []
-    function signed(v) { return (v > 0 ? "+" : "") + Fmt.money(v) }
+    // 结算表三列统一两位小数（Fmt.money 会去掉末尾的 0，一列里位数不齐）
+    function money2(v) {
+        const x = Math.round((+v || 0) * 100) / 100
+        return (x < 0 ? "−" : "") + Math.abs(x).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+    }
+    function signed(v) { return (v > 0 ? "+" : "") + money2(v) }
     // K1：一段可以发到群里的文字
     function settleText() {
         const list = settle.transfers || []
@@ -49,8 +54,10 @@ Column {
     }
     function splitText(r) {
         if (!multi || r.fromBooking || !r.payerName) return ""
-        const n = (r.among || []).length
-        const how = r.custom ? qsTr("按金额分 · %1 人").arg(n) : n === 1 ? qsTr("只算 %1").arg(r.onlyName) : qsTr("%1 人平摊").arg(n)
+        const among = r.among || []
+        const how = r.custom ? qsTr("按金额")
+                  : among.length !== 1 ? qsTr("每人 %1").arg(Fmt.money(r.amount / among.length, r.cur))
+                  : among[0] === r.payer ? qsTr("不 A") : qsTr("只算 %1").arg(r.onlyName)
         return qsTr("%1付").arg(r.payerName) + " · " + how
     }
     function catOptions() { return ["transport", "stay", "food", "ticket", "shop", "other"].map(k => ({ key: k, text: Fmt.catLabel(k) })) }
@@ -133,8 +140,8 @@ Column {
                         id: netRow
                         required property var modelData
                         Text { width: setCol.width - 3 * Theme.px(78); elide: Text.ElideRight; text: netRow.modelData.name; font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.text }
-                        Text { width: Theme.px(78); horizontalAlignment: Text.AlignRight; text: Fmt.money(netRow.modelData.paid); font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft }
-                        Text { width: Theme.px(78); horizontalAlignment: Text.AlignRight; text: Fmt.money(netRow.modelData.share); font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft }
+                        Text { width: Theme.px(78); horizontalAlignment: Text.AlignRight; text: root.money2(netRow.modelData.paid); font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft }
+                        Text { width: Theme.px(78); horizontalAlignment: Text.AlignRight; text: root.money2(netRow.modelData.share); font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft }
                         Text {
                             objectName: "settleNet"
                             width: Theme.px(78); horizontalAlignment: Text.AlignRight
@@ -272,12 +279,22 @@ Column {
                                         : rates.failed ? qsTr("还没拿到汇率，联网后重新打开计划试试") : qsTr("正在取汇率…")
                 font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
             }
-            TpButton {
-                objectName: "moneyBudgetBtn"
+            Flow {
                 visible: !root.readOnly
-                compact: true
-                text: (root.money.budget || 0) > 0 ? qsTr("修改预算 / 币种") : qsTr("设预算 / 币种")
-                onClicked: root.budgetRequested()
+                width: parent.width
+                spacing: Theme.px(6)
+                TpButton {
+                    objectName: "moneyBudgetBtn"
+                    compact: true
+                    text: (root.money.budget || 0) > 0 ? qsTr("修改预算 / 币种") : qsTr("设预算 / 币种")
+                    onClicked: root.budgetRequested()
+                }
+                TpButton {
+                    objectName: "moneyPeopleBtn"
+                    compact: true
+                    text: root.multi ? qsTr("同行人 · %1 人").arg(root.people.length) : qsTr("同行人 · 只有我")
+                    onClicked: root.peopleRequested()
+                }
             }
         }
     }
@@ -350,26 +367,8 @@ Column {
         visible: root.rows.length === 0
         width: parent.width
         wrapMode: Text.Wrap
-        text: qsTr("还没有记账。旅途中随手记，回来就知道钱花在哪了。和别人一起出去时，在“展开更多”里添加同行人，就能分账。")
+        text: qsTr("还没有记账。旅途中随手记，回来就知道钱花在哪了。和别人一起出去时，点上面的“同行人”添加，就能分账。")
         font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.muted
-    }
-
-    // ---- 同行人（点了改名或删除）----
-    Flow {
-        objectName: "moneyPeople"
-        visible: root.multi && !root.readOnly
-        width: parent.width
-        spacing: Theme.px(6)
-        Text { height: Theme.px(28); verticalAlignment: Text.AlignVCenter; text: qsTr("同行人"); font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.muted }
-        Repeater {
-            model: root.people
-            delegate: TpChip {
-                required property var modelData
-                objectName: "personChip"
-                text: modelData.name
-                onClicked: root.personClicked(modelData)
-            }
-        }
     }
 
     // ---- 每笔一行 ----

@@ -349,6 +349,13 @@ QString PlanPageController::setBudget(const QString &text, const QString &curren
     return applyPlan([&](Value &p) { return plans::setBudget(p, text, currency); });
 }
 
+QString PlanPageController::addPerson(const QString &name, const QString &meName)
+{
+    const QString err = applyPlan([&](Value &p) { return plans::addPerson(p, name, meName); });
+    if (err.isEmpty()) m_app->noteChanged(true);   // 马上保存，撤销是一步（和下一次改动分开）
+    return err;
+}
+
 QString PlanPageController::editPerson(const QString &id, const QString &name, bool remove)
 {
     return applyPlan([&](Value &p) { return plans::editPerson(p, id, name, remove); });

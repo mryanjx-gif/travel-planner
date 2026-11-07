@@ -135,14 +135,16 @@ QVector<const Value *> splitOf(const QVector<Person> &ps, const Value &x)
     return out;
 }
 
+// 旧数据：付款人和 split 都没写（只算付款人自己）
+bool isLegacy(const Value &x) { return str(x, "paidBy").isEmpty() && !x.asObject().contains(kSplit); }
+
 // 这一笔分摊给谁：写了 split 就是那几个人；有付款人时所有人；旧数据（两个都没写）只算付款人自己
 QStringList amongOf(const QVector<Person> &ps, const Value &x)
 {
     QStringList out;
     for (const Value *s : splitOf(ps, x)) out << str(*s, "who");
     if (!out.isEmpty()) return out;
-    const bool legacy = str(x, "paidBy").isEmpty() && !x.asObject().contains(kSplit);
-    if (legacy && !ps.isEmpty()) return { payerOf(ps, x) };
+    if (isLegacy(x) && !ps.isEmpty()) return { payerOf(ps, x) };
     for (const Person &p : ps) out << p.id;
     return out;
 }
@@ -165,6 +167,51 @@ QHash<QString, double> shares(const QVector<Person> &ps, const Value &x)
 }
 
 double round2(double v) { return std::round(v * 100) / 100; }
+
+// 交通住宿记一笔到消费（第一个同行人付、所有人平摊）。b 可能就在 plan 里，先读完再动 plan
+void recordBooking(Value &plan, const Value &b)
+{
+    const QVector<Person> ps = peopleOf(plan);
+    json::Object e;
+    e.set(QStringLiteral("id"), Value(newId("ex")));
+    e.set(QStringLiteral("date"), Value(str(b, "start").left(10)));
+    e.set(QStringLiteral("cat"), Value(catOfKind(str(b, "kind"))));
+    e.set(QStringLiteral("title"), Value(str(b, "title")));
+    e.set(QStringLiteral("amount"), Value(num(b, "cost")));
+    e.set(QStringLiteral("bookingId"), Value(str(b, "id")));
+    if (!ps.isEmpty()) e.set(kPaidBy, Value(ps.first().id));
+    mutList(plan, kExpenses).push_back(Value(std::move(e)));
+}
+
+// 两个人以上：旧数据改成第一个人付、所有人平摊；有费用还没记到消费的交通住宿记一笔。写了 split 的不动（单独改过）
+void shareAll(Value &plan)
+{
+    const QVector<Person> ps = peopleOf(plan);
+    if (ps.size() < 2) return;
+    QSet<QString> recorded;
+    if (plan[kExpenses].isArray())
+        for (Value &x : mutList(plan, kExpenses)) {
+            if (!x.isObject()) continue;
+            recorded.insert(str(x, "bookingId"));
+            if (isLegacy(x)) x.mutObject().set(kPaidBy, Value(ps.first().id));
+        }
+    const json::Array bookings = plan[kBookings].asArray();
+    for (const Value &b : bookings)
+        if (b.isObject() && num(b, "cost") != 0 && !recorded.contains(str(b, "id"))) recordBooking(plan, b);
+}
+
+// 这个人付过钱、或者被单独写进 split 的那几笔（全员平摊的不算，以后删了人自动少算一份）
+QVariantList usesOf(const QVector<Person> &ps, const Value &plan, const QString &id)
+{
+    QVariantList out;
+    for (const Value &x : plan[kExpenses].asArray()) {
+        if (!x.isObject()) continue;
+        bool hit = payerOf(ps, x) == id;
+        for (const Value &s : x[kSplit].asArray()) if (str(s, "who") == id) hit = true;
+        if (hit) out << QVariantMap{ { QStringLiteral("title"), str(x, "title") }, { QStringLiteral("cat"), catOf(str(x, "cat")) }, { QStringLiteral("date"), str(x, "date") } };
+    }
+    return out;
+}
 
 // 分类合计 → 色条（小于等于 0 的不进）
 QVariantList catsOut(const QHash<QString, double> &byCat)
@@ -306,9 +353,9 @@ QVariantMap spendInfo(const Value &plan, const QString &main, const Rates &rates
             const auto nameOf = [&](const QString &id) { for (const Person &p : ps) if (p.id == id) return p.name; return QString(); };
             const QStringList among = amongOf(ps, *x);
             const QVector<const Value *> list = splitOf(ps, *x);
-            const bool custom = !list.isEmpty() && std::all_of(list.begin(), list.end(), [](const Value *s) { return hasAmount(*s); });
-            QVariantMap amounts;
-            if (custom) for (const Value *s : list) amounts.insert(str(*s, "who"), num(*s, "amount"));
+            const bool custom = std::any_of(list.begin(), list.end(), [](const Value *s) { return hasAmount(*s); });
+            QVariantMap amounts;   // 只有写了金额的人
+            for (const Value *s : list) if (hasAmount(*s)) amounts.insert(str(*s, "who"), num(*s, "amount"));
             row.insert(QStringLiteral("payer"), payer);
             row.insert(QStringLiteral("payerName"), nameOf(payer));
             row.insert(QStringLiteral("among"), among);
@@ -338,12 +385,11 @@ QVariantMap settleInfo(const Value &plan, const QString &main, const Rates &rate
     QStringList missing;
     QVector<QPair<QString, double>> used;
     int count = 0;
-    QSet<QString> usedIds;
+    int shareCount = 0;
     for (const Value &x : plan[kExpenses].asArray()) {
         if (!x.isObject()) continue;
         ++count;
-        usedIds.insert(str(x, "paidBy"));
-        for (const Value &s : x[kSplit].asArray()) usedIds.insert(str(s, "who"));
+        if (x[kSplit].asArray().empty()) ++shareCount;
         if (ps.isEmpty()) continue;
         const QString cur = str(x, "currency").isEmpty() ? planCur : str(x, "currency");
         const double k = perMain(rates, main, cur);
@@ -357,7 +403,8 @@ QVariantMap settleInfo(const Value &plan, const QString &main, const Rates &rate
     struct Bal { QString name; double v; };
     QVector<Bal> cred, debt;
     for (const Person &p : ps) {
-        people << QVariantMap{ { QStringLiteral("id"), p.id }, { QStringLiteral("name"), p.name }, { QStringLiteral("used"), usedIds.contains(p.id) } };
+        const QVariantList uses = usesOf(ps, plan, p.id);
+        people << QVariantMap{ { QStringLiteral("id"), p.id }, { QStringLiteral("name"), p.name }, { QStringLiteral("uses"), uses }, { QStringLiteral("used"), !uses.isEmpty() } };
         const double a = round2(paid.value(p.id)), b = round2(share.value(p.id)), net = round2(paid.value(p.id) - share.value(p.id));
         rows << QVariantMap{ { QStringLiteral("id"), p.id }, { QStringLiteral("name"), p.name }, { QStringLiteral("paid"), a }, { QStringLiteral("share"), b }, { QStringLiteral("net"), net } };
         if (net > 0.005) cred.push_back({ p.name, net });
@@ -379,8 +426,9 @@ QVariantMap settleInfo(const Value &plan, const QString &main, const Rates &rate
     QVariantList usedOut;
     for (const auto &u : std::as_const(used)) usedOut << QVariantMap{ { QStringLiteral("cur"), u.first }, { QStringLiteral("per"), u.second } };
     double bookingOnly = 0;
-    for (const SpendRow &r : spendRows(plan)) if (r.fromBooking) bookingOnly += std::abs(r.amount);
-    return { { QStringLiteral("people"), people }, { QStringLiteral("multi"), ps.size() >= 2 }, { QStringLiteral("expenseCount"), count }, { QStringLiteral("bookingOnly"), bookingOnly },
+    int bookingCount = 0;
+    for (const SpendRow &r : spendRows(plan)) if (r.fromBooking) { bookingOnly += std::abs(r.amount); ++bookingCount; }
+    return { { QStringLiteral("people"), people }, { QStringLiteral("multi"), ps.size() >= 2 }, { QStringLiteral("expenseCount"), count }, { QStringLiteral("bookingOnly"), bookingOnly }, { QStringLiteral("shareCount"), shareCount }, { QStringLiteral("bookingCount"), bookingCount },
              { QStringLiteral("settle"), QVariantMap{ { QStringLiteral("cur"), main }, { QStringLiteral("rows"), rows }, { QStringLiteral("transfers"), transfers },
                                                      { QStringLiteral("missing"), missing }, { QStringLiteral("rates"), usedOut }, { QStringLiteral("date"), rates.date } } } };
 }
@@ -612,17 +660,10 @@ QString putBooking(Value &plan, const QString &id, const QVariantMap &f)
                 if (!text("title").isEmpty()) e.set(QStringLiteral("title"), Value(text("title")));
             }
     }
-    if (!recorded && f.value(QStringLiteral("toExp")).toBool() && cost != 0) {   // Electron "同时记到消费"
-        const QVector<Person> ps = peopleOf(plan);
-        json::Object e;
-        e.set(QStringLiteral("id"), Value(newId("ex")));
-        e.set(QStringLiteral("date"), Value(start.left(10)));
-        e.set(QStringLiteral("cat"), Value(catOfKind(kind)));
-        e.set(QStringLiteral("title"), Value(text("title")));
-        e.set(QStringLiteral("amount"), Value(cost));
-        e.set(QStringLiteral("bookingId"), Value(useId));
-        if (!ps.isEmpty()) e.set(kPaidBy, Value(ps.first().id));
-        mutList(plan, kExpenses).push_back(Value(std::move(e)));
+    // Electron "同时记到消费"；两个人以上不用勾，总是记（费用才进结算）
+    if (!recorded && cost != 0 && (f.value(QStringLiteral("toExp")).toBool() || peopleOf(plan).size() >= 2)) {
+        const Value booking = *b;
+        recordBooking(plan, booking);
     }
     return {};
 }
@@ -650,35 +691,29 @@ QString putExpense(Value &plan, const QString &id, const QVariantMap &f)
     if (!ok) return QStringLiteral("badAmount");
     if (!text("date").isEmpty() && !okDate(text("date"))) return QStringLiteral("badDate");
 
-    // 分账字段先算好、先查（按金额分时加起来要等于这一笔）
+    // 分账字段先算好、先查：没填金额的人不写 amount 键（平分剩下的）；固定的加起来不能超过这一笔，全都固定时要正好等于
     const bool hasPaid = f.contains(kPaidBy);
     json::Array split;
     double fixedSum = 0;
-    bool allFixed = true;
+    bool anyFixed = false, allFixed = true;
     for (const QVariant &v : f.value(kSplit).toList()) {
         const QVariantMap m = v.toMap();
         json::Object o;
         o.set(QStringLiteral("who"), Value(m.value(QStringLiteral("who")).toString()));
-        if (m.contains(QStringLiteral("amount"))) {
+        const QString t = m.value(QStringLiteral("amount")).toString();
+        if (t.trimmed().isEmpty()) {
+            allFixed = false;
+        } else {
             bool amtOk = true;
-            const QString t = m.value(QStringLiteral("amount")).toString();
-            const double a = t.trimmed().isEmpty() ? 0 : parseNum(t, &amtOk);
+            const double a = parseNum(t, &amtOk);
             if (!amtOk) return QStringLiteral("badSplit");
             o.set(QStringLiteral("amount"), Value(a));
             fixedSum += a;
-        } else {
-            allFixed = false;
+            anyFixed = true;
         }
         split.push_back(Value(std::move(o)));
     }
-    if (!split.empty() && allFixed && std::abs(fixedSum - amount) > 0.005) return QStringLiteral("badSplit");
-    for (const QVariant &v : f.value(QStringLiteral("newPeople")).toList()) {
-        const QVariantMap m = v.toMap();
-        json::Object o;
-        o.set(QStringLiteral("id"), Value(m.value(QStringLiteral("id")).toString()));
-        o.set(QStringLiteral("name"), Value(m.value(QStringLiteral("name")).toString().trimmed().left(20)));
-        mutList(plan, kPeople).push_back(Value(std::move(o)));
-    }
+    if (anyFixed && (allFixed ? std::abs(fixedSum - amount) > 0.005 : std::abs(fixedSum) > std::abs(amount) + 0.005)) return QStringLiteral("badSplit");
     const QVector<Person> ps = peopleOf(plan);
 
     json::Array &list = mutList(plan, kExpenses);
@@ -722,14 +757,30 @@ bool removeExpense(Value &plan, const QString &id)
     return true;
 }
 
+QString addPerson(Value &plan, const QString &name0, const QString &meName)
+{
+    const QString name = name0.trimmed().left(20);
+    if (name.isEmpty()) return QStringLiteral("emptyName");
+    const QVector<Person> ps = peopleOf(plan);
+    if (std::any_of(ps.begin(), ps.end(), [&](const Person &p) { return p.name == name; })) return QStringLiteral("dupName");
+    const auto push = [&](const QString &n) {
+        json::Object o;
+        o.set(QStringLiteral("id"), Value(newId("pp")));
+        o.set(QStringLiteral("name"), Value(n));
+        mutList(plan, kPeople).push_back(Value(std::move(o)));
+    };
+    if (ps.isEmpty() && name != meName) push(meName.left(20));   // 第一次加别人：先放"我"，以前的账都算"我"付的
+    push(name);
+    shareAll(plan);
+    return {};
+}
+
 QString editPerson(Value &plan, const QString &id, const QString &name, bool remove)
 {
-    if (!isPerson(peopleOf(plan), id)) return QStringLiteral("gone");
+    const QVector<Person> ps = peopleOf(plan);
+    if (!isPerson(ps, id)) return QStringLiteral("gone");
     if (remove) {
-        for (const Value &x : plan[kExpenses].asArray()) {
-            if (str(x, "paidBy") == id) return QStringLiteral("used");
-            for (const Value &s : x[kSplit].asArray()) if (str(s, "who") == id) return QStringLiteral("used");
-        }
+        if (!usesOf(ps, plan, id).isEmpty()) return QStringLiteral("used");
         json::Array &list = mutList(plan, kPeople);
         list.erase(std::remove_if(list.begin(), list.end(), [&](const Value &p) { return str(p, "id") == id; }), list.end());
         if (list.empty()) plan.mutObject().remove(kPeople);

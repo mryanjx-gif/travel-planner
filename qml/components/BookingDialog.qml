@@ -146,7 +146,7 @@ ModalLayer {
             }
             TpCheck {
                 objectName: "bookToExp"
-                visible: !root.linked   // 改旧的也能勾：要分摊就得先记到消费（0.10.2）
+                visible: !root.linked && !(planPage.info.money || {}).multi   // 改旧的也能勾：要分摊就得先记到消费（0.10.2）；有同行人时自动记（0.11.5）
                 text: root.isNew ? qsTr("同时单独记一笔到“消费”（可以单独改）") : qsTr("记一笔到“消费”（可以单独改、分摊）")
                 checked: root.toExp
                 onToggled: (c) => { root.toExp = c }

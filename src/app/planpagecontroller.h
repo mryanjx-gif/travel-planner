@@ -48,6 +48,7 @@ public:
     Q_INVOKABLE QString saveExpense(const QString &id, const QVariantMap &fields);
     Q_INVOKABLE bool deleteExpense(const QString &id);
     Q_INVOKABLE QString setBudget(const QString &text, const QString &currency);
+    Q_INVOKABLE QString addPerson(const QString &name, const QString &meName);   // 0.11.5 一次加人（含自动平摊）算一步撤销（plans::addPerson）
     Q_INVOKABLE QString editPerson(const QString &id, const QString &name, bool remove);   // 0.10.2 同行人改名、删除（plans::editPerson）
     Q_INVOKABLE void showLedger(bool on);                // 账本页打开 / 关上
     Q_INVOKABLE QString setElev(int k, const QString &text);   // 0.10.3 空 = 去掉并重新取；否则是原因的键（plans::setStopElev）

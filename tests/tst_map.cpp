@@ -2478,7 +2478,7 @@ void TestMap::moneySplit()
     QCOMPARE(rows["e2"].value("among").toStringList(), QStringList({ "a", "b" }));
     QVERIFY(rows["e3"].value("custom").toBool());
     QCOMPARE(rows["e3"].value("amounts").toMap().value("a").toDouble(), 70.0);
-    QVERIFY(!rows["e4"].value("custom").toBool());     // 只写了一部分金额
+    QVERIFY(rows["e4"].value("custom").toBool());      // 只写了一部分金额也算按金额
     QCOMPARE(rows["e6"].value("among").toStringList(), QStringList{ "a" });   // 旧数据只算付款人自己
     QCOMPARE(rows["e6"].value("onlyName").toString(), QStringLiteral("我"));
     QCOMPARE(rows["e9"].value("payer").toString(), QStringLiteral("a"));      // 不认识的付款人退回第一个
@@ -2501,8 +2501,11 @@ void TestMap::moneySplit()
     // 退款也能按金额分
     const QVariantList back{ QVariantMap{ { "who", "a" }, { "amount", "-7" } }, QVariantMap{ { "who", "b" }, { "amount", "-3" } } };
     QCOMPARE(putExpense(p, "e", { { "amount", "-10" }, { "paidBy", "a" }, { "split", back } }), QString());
-    // 新加：默认第一个人付、所有人平摊；同时加人
-    QCOMPARE(putExpense(p, "", { { "amount", "5" }, { "title", "n" }, { "newPeople", QVariantList{ QVariantMap{ { "id", "c" }, { "name", "  李  " } } } } }), QString());
+    // 加人，新加一笔：默认第一个人付、所有人平摊
+    QCOMPARE(addPerson(p, "  李  ", "我"), QString());
+    QCOMPARE(addPerson(p, "李", "我"), QStringLiteral("dupName"));
+    QCOMPARE(addPerson(p, "   ", "我"), QStringLiteral("emptyName"));
+    QCOMPARE(putExpense(p, "", { { "amount", "5" }, { "title", "n" } }), QString());
     QCOMPARE(int(p["people"].asArray().size()), 3);
     QCOMPARE(p["people"].asArray()[2]["name"].toString(), QStringLiteral("李"));
     QCOMPARE(p["people"].asArray()[0]["x"].toNumber(), 1.0);   // 同行人不认识的键保留
@@ -2516,7 +2519,8 @@ void TestMap::moneySplit()
     QCOMPARE(editPerson(p, "没有", "x", false), QStringLiteral("gone"));
     QCOMPARE(editPerson(p, "b", "", true), QStringLiteral("used"));   // split 里用到
     QCOMPARE(editPerson(p, "a", "", true), QStringLiteral("used"));   // 付款人
-    QCOMPARE(editPerson(p, "c", "", true), QString());
+    const QString liId = p["people"].asArray()[2]["id"].toString();
+    QCOMPARE(editPerson(p, liId, "", true), QString());   // 只在全员平摊的笔里：能删
     QCOMPARE(int(p["people"].asArray().size()), 2);
     tp::json::Value lone = parseJson(R"({"people":[{"id":"z","name":"Z"}]})");
     QCOMPARE(editPerson(lone, "z", "", true), QString());
@@ -2532,6 +2536,102 @@ void TestMap::moneySplit()
     QCOMPARE(q["expenses"].asArray()[0]["paidBy"].toString(), QStringLiteral("a"));
     QCOMPARE(settleInfo(q, "CNY", t).value("bookingOnly").toDouble(), 0.0);
     QCOMPARE(rowsOf(settleInfo(q, "CNY", t))["A"].value("net").toDouble(), 50.0);
+
+    // ---- 0.11.5 加人时自动平摊 ----
+    tp::json::Value a = parseJson(R"({"currency":"AUD","mystery":{"k":1},
+      "bookings":[{"id":"b1","kind":"hotel","title":"H","cost":100,"start":"2026-12-01T15:00","z":1},{"id":"b2","kind":"train","title":"T","cost":40},{"id":"b3","kind":"bus","title":"没费用"}],
+      "expenses":[{"id":"old","amount":30,"title":"旧","keep":1},{"id":"lnk","amount":40,"bookingId":"b2"}]})");
+    QVERIFY(settleInfo(a, "AUD", t).value("people").toList().isEmpty());
+    QCOMPARE(settleInfo(a, "AUD", t).value("shareCount").toInt(), 2);    // 预告：已有 2 笔
+    QCOMPARE(settleInfo(a, "AUD", t).value("bookingCount").toInt(), 1);  // b1；b2 已关联，b3 没费用
+    const double total0 = spendInfo(a, "AUD", t).value("total").toDouble();
+    QCOMPARE(addPerson(a, "小王", "我"), QString());
+    QCOMPARE(a["people"].asArray()[0]["name"].toString(), QStringLiteral("我"));
+    const QString me = a["people"].asArray()[0]["id"].toString();
+    const auto ex = [](const tp::json::Value &pl, const QString &id) -> tp::json::Value { for (const tp::json::Value &x : pl["expenses"].asArray()) if (x["id"].toString() == id) return x; return {}; };
+    QCOMPARE(ex(a, "old")["paidBy"].toString(), me);                      // legacy 改写：我付
+    QVERIFY(!ex(a, "old").asObject().contains("split"));                  // split 不写 = 全员平摊
+    QCOMPARE(ex(a, "old")["keep"].toNumber(), 1.0);                       // 未知字段保留
+    QCOMPARE(a["mystery"]["k"].toNumber(), 1.0);
+    QCOMPARE(a["bookings"].asArray()[0]["z"].toNumber(), 1.0);
+    QCOMPARE(int(a["expenses"].asArray().size()), 3);                     // b1 记一笔；b2 不重复；b3 没费用不记
+    const tp::json::Value rec = a["expenses"].asArray().back();
+    QCOMPARE(rec["bookingId"].toString(), QStringLiteral("b1"));
+    QCOMPARE(rec["paidBy"].toString(), me);
+    QCOMPARE(rec["date"].toString(), QStringLiteral("2026-12-01"));
+    QCOMPARE(rec["cat"].toString(), QStringLiteral("stay"));
+    QVERIFY(!rec.asObject().contains("split"));
+    QCOMPARE(spendInfo(a, "AUD", t).value("total").toDouble(), total0);   // 合计不重复算
+    QCOMPARE(settleInfo(a, "AUD", t).value("bookingOnly").toDouble(), 0.0);
+    // 再加人：不重复记、不改写；全员平摊的自然跟着变；已写 split 的不动
+    QCOMPARE(putExpense(a, "old", { { "amount", "30" }, { "paidBy", me }, { "split", QVariantList{ QVariantMap{ { "who", me } } } } }), QString());   // 不 A
+    const tp::json::Value single = ex(a, "old");
+    QCOMPARE(addPerson(a, "小李", "我"), QString());
+    QCOMPARE(int(a["expenses"].asArray().size()), 3);
+    QVERIFY(ex(a, "old") == single);
+    QCOMPARE(rowsOf(settleInfo(a, "AUD", t))["小李"].value("share").toDouble(), 46.67);   // (40 + 100) / 3，结算保留两位
+    // 新存一条有费用的交通住宿：有同行人时自动记，再存不重复
+    const QVariantMap car{ { "kind", "car" }, { "title", "车" }, { "startDate", "2026-12-02" }, { "cost", "60" } };
+    QCOMPARE(putBooking(a, "", car), QString());
+    QCOMPARE(int(a["expenses"].asArray().size()), 4);
+    const QString carId = a["bookings"].asArray().back()["id"].toString();
+    QCOMPARE(putBooking(a, carId, car), QString());
+    QCOMPARE(int(a["expenses"].asArray().size()), 4);
+    QCOMPARE(a["expenses"].asArray().back()["paidBy"].toString(), me);
+    // 只有一个人时不自动记（要勾）
+    tp::json::Value solo = parseJson(R"({"people":[{"id":"z","name":"我"}],"expenses":[{"id":"l","amount":1}]})");
+    QCOMPARE(putBooking(solo, "", car), QString());
+    QCOMPARE(int(solo["expenses"].asArray().size()), 1);
+    // 只加"我"自己：一个人，不改写
+    tp::json::Value mine = parseJson(R"({"expenses":[{"id":"l","amount":1}]})");
+    QCOMPARE(addPerson(mine, "我", "我"), QString());
+    QCOMPARE(int(mine["people"].asArray().size()), 1);
+    QVERIFY(!mine["expenses"].asArray()[0].asObject().contains("paidBy"));
+
+    // 部分固定：固定的按金额，没写的人平分剩下的；保存时不写 amount 键
+    tp::json::Value c = parseJson(R"({"currency":"AUD","people":[{"id":"a","name":"A"},{"id":"b","name":"B"},{"id":"c","name":"C"}],"expenses":[{"id":"e","amount":100,"paidBy":"a"}]})");
+    const QVariantList part{ QVariantMap{ { "who", "a" }, { "amount", "" } }, QVariantMap{ { "who", "b" }, { "amount", "40" } }, QVariantMap{ { "who", "c" } } };
+    QCOMPARE(putExpense(c, "e", { { "amount", "100" }, { "paidBy", "a" }, { "split", part } }), QString());
+    const tp::json::Array sp = ex(c, "e")["split"].asArray();
+    QVERIFY(!sp[0].asObject().contains("amount"));
+    QCOMPARE(sp[1]["amount"].toNumber(), 40.0);
+    QVERIFY(!sp[2].asObject().contains("amount"));
+    QCOMPARE(rowsOf(settleInfo(c, "AUD", t))["B"].value("share").toDouble(), 40.0);
+    QCOMPARE(rowsOf(settleInfo(c, "AUD", t))["C"].value("share").toDouble(), 30.0);
+    QHash<QString, QVariantMap> cr;
+    for (const QVariant &v : spendInfo(c, "AUD", t).value("rows").toList()) cr.insert(v.toMap().value("id").toString(), v.toMap());
+    QVERIFY(cr["e"].value("custom").toBool());
+    QCOMPARE(cr["e"].value("amounts").toMap().size(), 1);
+    QCOMPARE(cr["e"].value("among").toStringList().size(), 3);
+    // 校验：超过总额（退款按绝对值）、全都填了却不相等；对不上不动数据
+    const tp::json::Value before = c;
+    const auto split2 = [](const char *x, const char *y) { return QVariantList{ QVariantMap{ { "who", "a" }, { "amount", x } }, QVariantMap{ { "who", "b" } } , QVariantMap{ { "who", "c" }, { "amount", y } } }; };
+    QCOMPARE(putExpense(c, "e", { { "amount", "100" }, { "paidBy", "a" }, { "split", split2("70", "40") } }), QStringLiteral("badSplit"));
+    QCOMPARE(putExpense(c, "e", { { "amount", "-100" }, { "paidBy", "a" }, { "split", split2("-70", "-40") } }), QStringLiteral("badSplit"));
+    QCOMPARE(putExpense(c, "e", { { "amount", "100" }, { "paidBy", "a" }, { "split", QVariantList{ QVariantMap{ { "who", "a" }, { "amount", "abc" } } } } }), QStringLiteral("badSplit"));
+    QVERIFY(c == before);
+    QCOMPARE(putExpense(c, "e", { { "amount", "-100" }, { "paidBy", "a" }, { "split", split2("-70", "-30") } }), QString());   // 正好等于：另一个人分 0
+    // 往返不变：旧的按金额数据原样再存一遍
+    tp::json::Value rt = parseJson(R"({"currency":"AUD","people":[{"id":"a","name":"A"},{"id":"b","name":"B"}],"expenses":[{"id":"e","date":"2026-12-01","cat":"food","title":"t","amount":10,"paidBy":"a","split":[{"who":"a","amount":7},{"who":"b","amount":3}],"keep":{"x":[1]}}]})");
+    const tp::json::Value rt0 = rt;
+    QCOMPARE(putExpense(rt, "e", { { "title", "t" }, { "amount", "10" }, { "cat", "food" }, { "date", "2026-12-01" }, { "paidBy", "a" },
+                                   { "split", QVariantList{ QVariantMap{ { "who", "a" }, { "amount", "7" } }, QVariantMap{ { "who", "b" }, { "amount", "3" } } } } }), QString());
+    QVERIFY(rt == rt0);
+
+    // 删人：全员平摊不算用到；付过钱、写进 split 的不能删，说清哪几笔
+    tp::json::Value d = parseJson(R"({"currency":"AUD","people":[{"id":"a","name":"A"},{"id":"b","name":"B"},{"id":"c","name":"C"},{"id":"e","name":"E"}],
+      "expenses":[{"id":"1","title":"全员","amount":90,"paidBy":"a"},{"id":"2","title":"写进","amount":10,"paidBy":"a","split":[{"who":"b"}]},{"id":"3","title":"付过","amount":10,"paidBy":"c","split":[{"who":"a"}]}]})");
+    QHash<QString, QVariantMap> who;
+    for (const QVariant &v : settleInfo(d, "AUD", t).value("people").toList()) who.insert(v.toMap().value("id").toString(), v.toMap());
+    QVERIFY(who["b"].value("used").toBool());
+    QCOMPARE(who["b"].value("uses").toList().first().toMap().value("title").toString(), QStringLiteral("写进"));
+    QCOMPARE(who["c"].value("uses").toList().first().toMap().value("title").toString(), QStringLiteral("付过"));
+    QCOMPARE(who["a"].value("uses").toList().size(), 3);
+    QVERIFY(!who["e"].value("used").toBool());
+    QCOMPARE(editPerson(d, "b", "", true), QStringLiteral("used"));
+    QCOMPARE(editPerson(d, "c", "", true), QStringLiteral("used"));
+    QCOMPARE(editPerson(d, "e", "", true), QString());
+    QCOMPARE(rowsOf(settleInfo(d, "AUD", t))["B"].value("share").toDouble(), 40.0);   // 90 / 3 + 10
 }
 
 void TestMap::moneyLedger()

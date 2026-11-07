@@ -413,9 +413,10 @@ void PlanController::refreshNow()
 {
     const QString oldToday = m_today;
     m_today = m_todayOverride.isEmpty() ? QDate::currentDate().toString(QStringLiteral("yyyy-MM-dd")) : m_todayOverride;
-    if (m_today != oldToday) refreshList();   // 0.11.0 "现在去正好"看今天
+    const bool dayChanged = m_today != oldToday;
+    if (dayChanged) refreshList();   // 0.11.0 "现在去正好"看今天
     const QVariantMap n = plans::nowInfo(m_store->data(), m_today);
-    if (n == m_now) return;
+    if (n == m_now && !dayChanged) return;   // today 也靠 nowChanged 通知：now 内容没变、日子变了也要发（账本、kit 都看今天）
     m_now = n;
     emit nowChanged();
 }

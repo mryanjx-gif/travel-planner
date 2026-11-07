@@ -933,3 +933,24 @@ HEIC 照片能导入；这台电脑没装 HEIF / HEVC 扩展，暂时显示不�
 斋月约 %1	Ramadan ~%1
 斋月约 %1（按乌姆库拉历推算，各国看月可能差一两天）	Ramadan ~%1 (from the Umm al-Qura calendar; moon sighting may shift it a day or two by country)
 ：	:
+同行人 · %1 人	Companions · %1 people
+同行人 · 只有我	Companions · just me
+管理同行人	Manage companions
+恢复平摊 ×	Reset ×
+和大家 A 钱	Split with everyone
+不 A	Not split
+按金额	By amount
+自动	auto
+恢复平摊	Back to even split
+每个人都填了：加起来 %1，总额 %2，差 %3	Everyone has an amount: they add up to %1, the total is %2, off by %3
+填的金额加起来 %1，超过总额 %2，多了 %3	The amounts add up to %1, over the total of %2 by %3
+已经有“%1”了	"%1" is already here
+%1 等 %2 笔	%1 and others (%2 in all)
+%1 付过钱或被单独写进了这几笔，先改了才能删：%2	%1 paid for or is named in these, so change them first: %2
+再加一个人，已有的 %1 笔和交通住宿的 %2 笔，会变成 %3 人平摊。	Add one more person and %1 expenses and %2 bookings will be split among %3 people.
+再加一个人，已有的 %1 笔会变成 %2 人平摊。	Add one more person and %1 expenses will be split among %2 people.
+再加一个人，交通住宿的 %1 笔会变成 %2 人平摊。	Add one more person and %1 bookings will be split among %2 people.
+单独改过分摊的不变。	Ones you split by hand stay as they are.
+第一次加别人时会自动带上“我”。	"Me" is added automatically with the first person.
+添加同行人的名字，回车	Type a companion's name, press Enter
+还没有记账。旅途中随手记，回来就知道钱花在哪了。和别人一起出去时，点上面的“同行人”添加，就能分账。	Nothing recorded yet. Jot things down as you go and you'll know where the money went. Traveling with others? Add them with "Companions" above to split costs.
