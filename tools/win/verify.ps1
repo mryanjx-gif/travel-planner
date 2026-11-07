@@ -45,6 +45,8 @@ $AllPages = @(
     'mode-photo|zh', 'mode-photo|en', 'photo-trip|zh', 'photo-lightbox|zh', 'photo-lightbox|en',
     'album|zh', 'album|en', 'album-year|zh', 'album-fav|zh', 'album-inbox|zh', 'album-inbox|en', 'album-narrow|zh',
     'calendar|zh', 'calendar|en', 'calendar-month|zh', 'calendar-month|en', 'calendar-card|zh', 'calendar-card|en', 'calendar-drag|zh', 'calendar-notice|zh', 'calendar-notice|en', 'calendar-picker|zh', 'calendar-narrow|zh',
+    'calendar-week|zh', 'calendar-week|en', 'calendar-week-sun|zh', 'calendar-week-events|zh', 'calendar-week-drag|zh', 'calendar-week-narrow|zh', 'calendar-month-sun|zh', 'calendar-settings|zh', 'calendar-settings|en',
+    'calendar-season|zh', 'calendar-season|en', 'calendar-season-2030|zh', 'calendar-season-2030|en', 'calendar-season-narrow|zh',
     'journal|zh', 'journal|en', 'journal-empty|zh', 'journal-empty|en', 'journal-read|zh', 'journal-edit|zh', 'journal-edit|en', 'journal-edit-narrow|zh',
     'heic-album|zh', 'heic-lightbox|zh', 'heic-off-album|zh', 'heic-off-album|en', 'heic-off-lightbox|zh', 'heic-off-lightbox|en',
     'street|zh|hide'

@@ -153,6 +153,46 @@ int UnlockModel::findAdmin(double lng, double lat) const
     return best;
 }
 
+QSet<QString> UnlockModel::visitedCodes(const QVector<PlanStops> &completed, const QVector<Manual> &manual) const
+{
+    // 中国大陆 9 个气候区（Electron CN_ZONE、cnZones）。内蒙古、四川、云南跨区：有站点坐标按经纬度分，只有省份（手动标记）几个区都算
+    static const QHash<QString, QString> zones = [] {
+        QHash<QString, QString> h;
+        const auto put = [&h](const char *zone, std::initializer_list<const char *> names) { for (const char *n : names) h.insert(QString::fromUtf8(n), QString::fromLatin1(zone)); };
+        put("CN-NE", { "黑龙江省", "吉林省", "辽宁省" });
+        put("CN-N", { "北京市", "天津市", "河北省", "山西省", "山东省", "河南省" });
+        put("CN-NW", { "陕西省", "甘肃省", "宁夏回族自治区" });
+        put("CN-XJ", { "新疆维吾尔自治区" });
+        put("CN-TIB", { "西藏自治区", "青海省" });
+        put("CN-SW", { "重庆市", "贵州省" });
+        put("CN-E", { "上海市", "江苏省", "浙江省", "安徽省", "江西省", "湖北省", "湖南省" });
+        put("CN-S", { "福建省", "广东省", "广西壮族自治区", "海南省", "西沙群岛" });
+        return h;
+    }();
+    QSet<QString> out;
+    const auto add = [&](int i, const geo::LatLng *at) {
+        if (i < 0) return;
+        const Unit &u = m_units[i];
+        if (!u.adm0.isEmpty()) out.insert(u.adm0);
+        if (!u.grp.isEmpty()) out.insert(u.grp);
+        if (u.adm0 != QLatin1String("CHN")) return;
+        if (u.name == QStringLiteral("内蒙古自治区")) {
+            if (at) out.insert(at->lng >= 115 ? QStringLiteral("CN-NE") : at->lng >= 110 ? QStringLiteral("CN-N") : QStringLiteral("CN-NW"));
+            else out += { QStringLiteral("CN-NE"), QStringLiteral("CN-N"), QStringLiteral("CN-NW") };
+        } else if (u.name == QStringLiteral("四川省")) {
+            if (at) out.insert(at->lng < 102.4 ? QStringLiteral("CN-WSC") : QStringLiteral("CN-SW"));
+            else out += { QStringLiteral("CN-WSC"), QStringLiteral("CN-SW") };
+        } else if (u.name == QStringLiteral("云南省")) {
+            if (at) out.insert(at->lat >= 26.3 && at->lng < 101 ? QStringLiteral("CN-WSC") : QStringLiteral("CN-SW"));
+            else out += { QStringLiteral("CN-WSC"), QStringLiteral("CN-SW") };
+        } else if (const auto z = zones.constFind(u.name); z != zones.constEnd()) out.insert(*z);
+    };
+    for (const PlanStops &p : completed)
+        for (const geo::LatLng &s : p.stops) add(findAdmin(s.lng, s.lat), &s);
+    for (const Manual &m : manual) add(indexOf(m.id), nullptr);
+    return out;
+}
+
 UnlockModel::Result UnlockModel::compute(const QVector<PlanStops> &completed, const QVector<Manual> &manual) const
 {
     struct Visit {

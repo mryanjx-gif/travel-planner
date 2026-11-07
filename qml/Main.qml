@@ -54,10 +54,11 @@ Window {
     property string tripId: ""
     property int tripStop: -1
     property string tripTab: ""            // 打开时直接到哪个标签（quick = 消费标签的一行快记）
+    property string tripTabPlan: ""        // 只对这个计划算（从游记退回计划页）；空 = 下一个打开的就是
     // 窗口太窄、计划页盖满时地图不让位，± 和图层也藏起来
     readonly property bool tripRoom: win.width - planPanel.width - 2 * win.gap >= Theme.px(260)
     function openTrip(id, stop) {
-        if (editor.open) { toast.show(qsTr("请先完成或放弃当前编辑"), false); return }
+        if (editor.open) { win.tripTab = ""; toast.show(qsTr("请先完成或放弃当前编辑"), false); return }
         win.nowOpen = false
         win.tripStop = stop === undefined ? -1 : stop
         nav.go("trip", { id: id })
@@ -80,8 +81,9 @@ Window {
             mapc.markers.selectPlan(id, stop, false)
             mapc.flyToPlan(id)
             if (stop >= 0) planPanel.jumpTo(stop)
-            if (win.tripTab !== "") planPanel.openTab(win.tripTab)
+            if (win.tripTab !== "" && (win.tripTabPlan === "" || win.tripTabPlan === id)) planPanel.openTab(win.tripTab)
             win.tripTab = ""
+            win.tripTabPlan = ""
         } else if (old !== "") {
             if (win.onMapPage && !editor.open && plans.mode !== "photo") win.revealToast(plans.openPlan(old, false))   // 照片模式从相册打开的：回相册
             else mapc.markers.clearSelection()
@@ -389,6 +391,7 @@ Window {
     Connections {
         target: nav
         function onChanged() {
+            if (nav.page !== "trip" && nav.page !== "journal") { win.tripTab = ""; win.tripTabPlan = "" }   // 从游记没退回去、去了别处：不留着
             win.syncTrip()
             if (!win.onMapPage || nav.page === plans.mode) return
             if (editor.open) { toast.show(qsTr("请先完成或放弃当前编辑"), false); nav.go(plans.mode); return }
@@ -1634,8 +1637,8 @@ Window {
         onPhotoRemoveRequested: (ph) => photoRemoveDialog.ask(planPage.planId, ph)
         onPhotoViewRequested: (l, i) => lightbox.show(l, i)
         // 退回来还在游记标签
-        onJournalWriteRequested: { win.tripTab = "journal"; journalPage.writeNew(planPage.planId) }
-        onJournalOpenRequested: (id) => { win.tripTab = "journal"; nav.go("journal", { id: id }) }
+        onJournalWriteRequested: { win.tripTab = "journal"; win.tripTabPlan = planPage.planId; journalPage.writeNew(planPage.planId) }
+        onJournalOpenRequested: (id) => { win.tripTab = "journal"; win.tripTabPlan = planPage.planId; nav.go("journal", { id: id }) }
         onCalendarRequested: win.showInCalendar(planPage.planId, planPage.info.startDate || planPage.info.endDate || "")
         onBudgetRequested: {
             budgetDialog.budget = planPage.info.money.budget > 0 ? String(planPage.info.money.budget) : ""
@@ -2640,6 +2643,7 @@ Window {
     function shotBusy() {
         for (const t of [frameNextTimer, planShot, tripShot, tripShot2, shellShot, editShot, modeShot, pagesShot, pagesShot2, libShot, searchShot, styleShot, markerShot, markerTip, lineShot, lineTip, layersShot, unlockShot, unlockTip])
             if (t.running) return true
+        if (shotPage.startsWith("calendar-season") && !(calendar.info.season || {}).ready) return true   // 等"去过"算好
         return mapc.moving || win.mapLive && mapLoader.status !== Loader.Error && !(win.map && win.map.styleLoaded)
     }
 
@@ -2910,10 +2914,28 @@ Window {
         interval: 400
         onTriggered: {
             if (shotPage.endsWith("-narrow")) win.width = 620
+            if (shotPage === "calendar-settings") {   // 设置页：一周从哪天开始
+                win.goPage("settings")
+                pagesShot2.start()
+                return
+            }
             if (shotPage.startsWith("calendar")) {
                 plans.setTestAllStatuses(false)
                 win.goPage("calendar")
-                if (shotPage === "calendar-month" || shotPage === "calendar-narrow") calendar.showDate("2026-12-05")
+                if (shotPage === "calendar-month" || shotPage === "calendar-narrow" || shotPage === "calendar-month-sun") calendar.showDate("2026-12-05")
+                if (shotPage.endsWith("-sun")) calendar.weekStart = 0
+                if (shotPage.startsWith("calendar-week")) {   // 周视图：路线的第 3 天，假装那天是今天（有当前时间线）
+                    const wd = plans.demo()
+                    if (wd.today) { plans.setTodayOverride(wd.today); calendar.showWeek(wd.today) }
+                    else calendar.view = "week"
+                }
+                if (shotPage === "calendar-season-2030") plans.setTodayOverride("2030-06-15")   // 一年两段斋月（T1）
+                if (shotPage.startsWith("calendar-season")) calendar.view = "season"
+                if (shotPage === "calendar-season-2030") {   // 只留有斋月的两组，一屏看得到
+                    calendar.setAllSeasonGroups(true)
+                    calendar.setSeasonGroupClosed("东南亚", false)
+                    calendar.setSeasonGroupClosed("西亚/中亚", false)
+                }
             } else {
                 win.goPage("journal")
                 if (shotPage === "journal-empty") for (const id of (journal.page.rows || []).map(r => r.id)) journal.remove(id)   // 几张截图用同一份副本
@@ -2930,6 +2952,9 @@ Window {
             const busy = bars.filter(b => !b.done && !b.narrow)
             const any = bars.filter(b => !b.done)
             const pick = busy.length ? busy[0] : any.length ? any[0] : null
+            if (shotPage === "calendar-week-events") calendarPage.scrollWeekForShot()
+            const wkBars = ((calendar.info.week || {}).bars || []).filter(b => b.kind === "plan")
+            if (shotPage === "calendar-week-drag" && wkBars.length) calendarPage.dragForShot(wkBars[0].id, Fmt.addDays(wkBars[0].start > calendar.weekFirst ? wkBars[0].start : calendar.weekFirst, 2), wkBars[0].start > calendar.weekFirst ? wkBars[0].start : calendar.weekFirst, 620, 300)
             if (shotPage === "calendar-card" && pick) calendarPage.showCardAt(pick.id, 320, 170)
             if (shotPage === "calendar-picker") calendarPage.showPickerAt(320, 60)
             if (shotPage === "calendar-drag" && pick) calendarPage.dragForShot(pick.id, Fmt.addDays(pick.start, 1), pick.start, 480, 260)

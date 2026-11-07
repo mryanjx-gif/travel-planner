@@ -439,7 +439,47 @@ QString MapController::stopsJson() const { return compact(m_trips.stopsGeoJson()
 
 MapController::~MapController()
 {
+    if (m_visitedThread) { m_visitedThread->wait(); delete m_visitedThread; }
     if (m_unlockThread) { m_unlockThread->wait(); delete m_unlockThread; }
+}
+
+const QSet<QString> *MapController::visitedCodes()
+{
+    // 只有已完成计划的站点和手动标记变了才重算
+    const QVector<UnlockModel::PlanStops> completed = m_trips.completedStops();
+    const QVector<UnlockModel::Manual> manual = m_trips.manualRegions();
+    QString key;
+    for (const UnlockModel::PlanStops &p : completed)
+        for (const geo::LatLng &s : p.stops) key += QStringLiteral("%1,%2|").arg(s.lat, 0, 'f', 6).arg(s.lng, 0, 'f', 6);
+    for (const UnlockModel::Manual &m : manual) key += m.id + QLatin1Char('|');
+    if (m_visitedValid && key == m_visitedKey) return &m_visited;
+    if (m_visitedThread) return nullptr;   // 算完回来再对一次 key
+    // 省界模型还在后台建：建好了再来（没人建过就现在开始建）
+    if (!m_unlockModel.isLoaded() && !m_unlockThread && !m_unlockTried) preloadUnlock();
+    if (m_unlockThread && !m_unlockThread->isFinished()) {
+        connect(m_unlockThread, &QThread::finished, this, &MapController::visitedCodesChanged, Qt::UniqueConnection);
+        return nullptr;
+    }
+    const std::shared_ptr<UnlockModel> model = m_unlockModel.isLoaded() ? std::make_shared<UnlockModel>(m_unlockModel) : m_unlockPre;
+    if (!model || !model->isLoaded()) {   // 省界读不出来：都算没去过（Electron 同样），错误在"已解锁"那边报
+        m_visited.clear();
+        m_visitedKey = key;
+        m_visitedValid = true;
+        return &m_visited;
+    }
+    auto result = std::make_shared<QSet<QString>>();
+    m_visitedThread = QThread::create([model, completed, manual, result] { *result = model->visitedCodes(completed, manual); });
+    connect(m_visitedThread, &QThread::finished, this, [this, key, result] {
+        m_visitedThread->wait();
+        delete m_visitedThread;
+        m_visitedThread = nullptr;
+        m_visited = *result;
+        m_visitedKey = key;
+        m_visitedValid = true;
+        emit visitedCodesChanged();
+    });
+    m_visitedThread->start(QThread::LowPriority);
+    return nullptr;
 }
 
 void MapController::preloadUnlock()

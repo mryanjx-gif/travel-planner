@@ -5,24 +5,31 @@
 #include "appcontroller.h"
 #include "calendarcontroller.h"
 #include "datastore.h"
+#include "framestats.h"
 #include "journalcontroller.h"
 #include "jsonio.h"
+#include "mapcontroller.h"
 #include "navhistory.h"
+#include "perf.h"
 #include "photocontroller.h"
 #include "plancal.h"
 #include "planpagecontroller.h"
 #include "plancontroller.h"
 #include "plans.h"
+#include "settings.h"
 
 #include <QDate>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QQmlContext>
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QTemporaryDir>
+#include <QTimer>
 #include <qpa/qwindowsysteminterface.h>
 
 #include <algorithm>
+#include <cmath>
 
 namespace tp::app::selftest {
 
@@ -404,6 +411,318 @@ void runCalendar(Report &r, AppController *app, QQuickWindow *win)
     waitFor([&] { return !c.shown(QStringLiteral("calendarPage")); }, 1000);
     c.saved();
     r.check(noTime(store->data()) == noTime(before), QStringLiteral("日历这一节结束：数据和开始时完全一样"));
+}
+
+// 0.11.3：周视图（拖动和撤销的往返，一周从周一、周日开始都走一遍）、一周起始、季节表、去过、斋月，开头修的两项
+void runCalendarWeek(Report &r, AppController *app, map::MapController *mapc, QQuickWindow *win)
+{
+    r.section(QStringLiteral("日历（0.11.3）：周视图、一周起始、季节表、去过、斋月"));
+    data::DataStore *store = app->store();
+    NavHistory *nav = navCtl();
+    PlanController *pc = plansCtl();
+    auto *cal = ctxObject<CalendarController>(win, "calendar");
+    if (!r.check(cal, QStringLiteral("拿到日历控制器"))) return;
+    Ctx c{ win, app, store, nav };
+    const auto goPage = [&](const QString &p) { QMetaObject::invokeMethod(win, "goPage", Q_ARG(QVariant, p)); };
+    goPage(QStringLiteral("calendar"));
+    waitFor([&] { return c.shown(QStringLiteral("calendarPage")); }, 2000);
+    QString pid;
+    for (const Value &p : store->data()[QStringLiteral("plans")].asArray())
+        if (plans::statusOf(p) == QLatin1String("planning") && plans::okDate(str(p, "startDate")) && plans::datedBookings(p) > 0) { pid = str(p, "id"); break; }
+    if (!r.check(!pid.isEmpty(), QStringLiteral("数据里有定了日期、带交通住宿的计划"))) return;
+    const Value before = store->data();
+    const Value p0 = c.plan(pid);
+    const QString start0 = str(p0, "startDate"), end0 = str(p0, "endDate");
+    const auto weekMap = [&] { return cal->info().value(QStringLiteral("week")).toMap(); };
+
+    // ---- 月视图点日期跳到那周 ----
+    cal->setView(QStringLiteral("month"));
+    cal->goTo(start0.left(4).toInt(), start0.mid(5, 2).toInt());
+    QQuickItem *num = nullptr;
+    waitFor([&] { num = c.item(QStringLiteral("calDayNum-") + start0); return visibleChain(num); }, 1500);
+    waitFrames(win);
+    c.click(num);
+    r.check(waitFor([&] { return cal->view() == QLatin1String("week"); }, 800) && cal->weekFirst() == plans::weekStartOf(start0, 1), QStringLiteral("月视图点日期：跳到那一周"), cal->weekFirst());
+    r.check(noTime(store->data()) == noTime(before), QStringLiteral("跳过去不改数据"));
+    QQuickItem *flick = c.item(QStringLiteral("calWeekFlick"));
+    r.check(waitFor([&] { return flick && flick->property("contentY").toDouble() > 0; }, 800), QStringLiteral("时间轴滚到最早的事件或 7 点附近"), flick ? flick->property("contentY").toString() : QString());
+    r.info(QStringLiteral("一小时 %1 px（44 px 乘字号比例）").arg(flick ? flick->property("contentHeight").toDouble() / 24 : 0));
+
+    // ---- 翻页：一周一周 ----
+    const QString ws0 = cal->weekFirst();
+    c.click(QStringLiteral("calNext"));
+    r.check(cal->weekFirst() == plans::addDays(ws0, 7), QStringLiteral("周视图 › 翻 7 天"), cal->weekFirst());
+    c.click(QStringLiteral("calPrev"));
+    r.check(cal->weekFirst() == ws0, QStringLiteral("‹ 翻回来"));
+
+    // ---- 拖动和撤销：周一、周日开始各走一遍（必须过）----
+    for (int ws : { 1, 0 }) {
+        cal->setWeekStart(ws);
+        const QString tag = ws == 1 ? QStringLiteral("周一开始") : QStringLiteral("周日开始");
+        cal->showWeek(start0);
+        r.check(cal->weekFirst() == plans::weekStartOf(start0, ws) && weekMap().value(QStringLiteral("days")).toList().value(0).toMap().value(QStringLiteral("wd")).toInt() == ws % 7,
+                tag + QStringLiteral("：这一周的第一天对"), cal->weekFirst());
+        QQuickItem *bar = nullptr;
+        waitFor([&] { bar = c.item(QStringLiteral("calWeekBar-") + pid); return visibleChain(bar); }, 1500);
+        waitFrames(win);
+        QQuickItem *cols = c.item(QStringLiteral("calWeekCols"));
+        if (!r.check(bar && cols, tag + QStringLiteral("：有横条"))) continue;
+        const double colW = cols->width() / 7;
+        const int undo0 = app->undoCount();
+        // 按住横条最左边一格（那天 = 计划开始或这周第一天），往右 2 列
+        const QPointF from = bar->mapToScene(QPointF(colW / 2 - 3, bar->height() / 2));
+        // 横条在周末那两列时往左拖（往右就拖到右边的列表上了）
+        const int step = bar->mapToItem(cols, QPointF(0, 0)).x() > colW * 4 ? -2 : 2;
+        c.dragTo(from, from + QPointF(colW * step, 200), [&] {
+            QQuickItem *when = c.item(QStringLiteral("calGhostWhen"));
+            r.check(c.shown(QStringLiteral("calGhost")) && when && !when->property("text").toString().isEmpty(), tag + QStringLiteral("：拖到时间轴上也有影子和落点日期"), when ? when->property("text").toString() : QString());
+        });
+        const Value moved = c.plan(pid);
+        r.check(str(moved, "startDate") == plans::addDays(start0, step) && str(moved, "endDate") == plans::addDays(end0, step), tag + QStringLiteral("：拖 2 列，开始和结束都挪 2 天"), str(moved, "startDate") + QStringLiteral(" ~ ") + str(moved, "endDate"));
+        r.check(moved[QStringLiteral("bookings")] == p0[QStringLiteral("bookings")], tag + QStringLiteral("：交通住宿不跟"));
+        r.check(c.saved() && app->undoCount() == std::min(undo0 + 1, data::UndoStack::kMaxSteps), tag + QStringLiteral("：马上保存，撤销里只多一步"));
+        r.check(onDisk(store) == noTime(store->data()), tag + QStringLiteral("：磁盘上是挪过的"));
+        c.click(QStringLiteral("calNoticeUndo"));
+        r.check(waitFor([&] { return !store->isDirty() && noTime(store->data()) == noTime(before); }, 3000), tag + QStringLiteral("：一步撤销，数据和原来完全一样（含 updatedAt）"));
+        r.check(onDisk(store) == noTime(before), tag + QStringLiteral("：磁盘上也和原来完全一样"));
+        // 月视图：这一格的日期跟着周首走，拖过去落点对，撤销也回来
+        cal->setView(QStringLiteral("month"));
+        cal->goTo(start0.left(4).toInt(), start0.mid(5, 2).toInt());
+        const QVariantList weeks = cal->info().value(QStringLiteral("month")).toMap().value(QStringLiteral("weeks")).toList();
+        r.check(!weeks.isEmpty() && QDate::fromString(weeks[0].toMap().value(QStringLiteral("start")).toString(), Qt::ISODate).dayOfWeek() % 7 == ws % 7, tag + QStringLiteral("：月视图每周从这天开始"));
+        QQuickItem *cellA = nullptr, *cellB = nullptr, *mbar = nullptr;
+        const QString toDay = plans::addDays(start0, 3);
+        waitFor([&] { cellA = c.item(QStringLiteral("calDay-") + start0); cellB = c.item(QStringLiteral("calDay-") + toDay); return visibleChain(cellA) && visibleChain(cellB); }, 1000);
+        waitFor([&] { mbar = nullptr; for (int w = 0; w < 6 && !mbar; ++w) mbar = c.item(QStringLiteral("calBar-%1-%2").arg(pid).arg(w)); return visibleChain(mbar); }, 800);
+        waitFrames(win);
+        if (cellA && cellB && mbar) {
+            c.dragTo(QPointF(cellA->mapToScene(QPointF(cellA->width() / 2, 0)).x(), mbar->mapToScene(QPointF(0, mbar->height() / 2)).y()), c.center(cellB));
+            r.check(str(c.plan(pid), "startDate") == toDay, tag + QStringLiteral("：月视图拖 3 天，按住哪天，那天落到鼠标下"), str(c.plan(pid), "startDate"));
+            c.saved();
+            app->undo();
+            c.saved();
+            r.check(noTime(store->data()) == noTime(before) && onDisk(store) == noTime(before), tag + QStringLiteral("：月视图拖动撤销后内存和磁盘都完全一样"));
+        }
+    }
+    // 没定日期的拖进周视图（从周日开始时）：放好、状态回得来
+    {
+        cal->setWeekStart(0);
+        cal->setSideOpen(true);
+        cal->showWeek(start0);
+        QString wid;
+        for (const Value &p : store->data()[QStringLiteral("plans")].asArray())
+            if (plans::statusOf(p) == QLatin1String("wish") && str(p, "startDate").isEmpty() && str(p, "endDate").isEmpty()) { wid = str(p, "id"); break; }
+        QQuickItem *row = wid.isEmpty() ? nullptr : c.item(QStringLiteral("calUndated-") + wid);
+        waitFor([&] { row = c.item(QStringLiteral("calUndated-") + wid); return visibleChain(row); }, 800);
+        c.revealInSide(row);
+        QQuickItem *col = c.item(QStringLiteral("calWeekCol-") + plans::addDays(cal->weekFirst(), 4));
+        QQuickItem *flick2 = c.item(QStringLiteral("calWeekFlick"));
+        if (row && col && flick2) {
+            const QPointF to(col->mapToScene(QPointF(col->width() / 2, 0)).x(), flick2->mapToScene(QPointF(0, flick2->height() / 2)).y());
+            c.dragTo(c.center(row), to);
+            r.check(str(c.plan(wid), "startDate") == plans::addDays(cal->weekFirst(), 4), QStringLiteral("没定日期的拖到周视图某一列：从那天开始"), str(c.plan(wid), "startDate"));
+            c.saved();
+            app->undo();
+            c.saved();
+            r.check(noTime(store->data()) == noTime(before) && onDisk(store) == noTime(before), QStringLiteral("撤销后内存和磁盘都完全一样（状态也回来）"));
+        }
+        // 改周首：这一周对齐到新的周首，不改数据
+        const QString sun = cal->weekFirst();
+        cal->setWeekStart(1);
+        r.check(cal->weekFirst() == plans::weekStartOf(sun, 1), QStringLiteral("设置里改周首：对齐到新的周首"), cal->weekFirst());
+        r.check(noTime(store->data()) == noTime(before), QStringLiteral("改周首不改 travel.json 的内容"));
+        cal->setWeekStart(0);
+        QTemporaryDir tmp;
+        cal->reopenForTest(tmp.filePath(QStringLiteral("s.json")));
+        r.check(cal->weekStart() == 0, QStringLiteral("一周起始记在设置里，读回来还是周日"));
+        Settings back;
+        back.load(tmp.filePath(QStringLiteral("s.json")));
+        r.check(back.value(QStringLiteral("weekStart")).toNumber() == 0, QStringLiteral("设置的新键 weekStart"));
+        cal->setWeekStart(1);
+    }
+
+    // ---- 周视图的内容：路线的第 3 天那一周 ----
+    {
+        const QVariantMap demo = pc->demo();
+        const QString today = demo.value(QStringLiteral("today")).toString();
+        pc->setTodayOverride(today);
+        cal->showWeek(today);
+        waitFor([&] { return weekMap().value(QStringLiteral("start")).toString() == cal->weekFirst(); }, 800);
+        const QVariantMap w = weekMap();
+        r.check(!w.value(QStringLiteral("bars")).toList().isEmpty(), QStringLiteral("全天区有横条"), QString::number(w.value(QStringLiteral("bars")).toList().size()));
+        int stops = 0, events = 0;
+        for (const QVariant &v : w.value(QStringLiteral("stops")).toList()) stops += int(v.toList().size());
+        for (const QVariant &v : w.value(QStringLiteral("events")).toList()) events += int(v.toList().size());
+        r.check(stops > 0, QStringLiteral("每天写着在哪一站"), QString::number(stops));
+        r.info(QStringLiteral("这一周 %1 个站、%2 个有时间的事件").arg(stops).arg(events));
+        QQuickItem *todayCol = c.item(QStringLiteral("calWeekCol-") + today);
+        bool nowLine = false;
+        if (todayCol) for (QQuickItem *k : todayCol->childItems()) nowLine = nowLine || (k->objectName() == QLatin1String("calWeekNow") && k->isVisible());
+        r.check(nowLine, QStringLiteral("今天那一列有当前时间线"));
+        pc->setTodayOverride(QString());
+    }
+
+    // ---- 季节表 ----
+    cal->setAllSeasonGroups(false);
+    cal->setView(QStringLiteral("season"));
+    r.check(waitFor([&] { return c.shown(QStringLiteral("calSeasonList")); }, 1500), QStringLiteral("季节表是日历第 4 个视图"));
+    r.check(!c.shown(QStringLiteral("calPrev")) && !c.shown(QStringLiteral("calSide")), QStringLiteral("季节表没有翻页和右边的列表"));
+    const auto seasonRows = [&] { return cal->info().value(QStringLiteral("season")).toMap().value(QStringLiteral("rows")).toList(); };
+    r.check(waitFor([&] { return cal->info().value(QStringLiteral("season")).toMap().value(QStringLiteral("ready")).toBool(); }, 15000), QStringLiteral("去过：后台算好了"));
+    const QVariantList all = seasonRows();
+    int nRows = 0, nHead = 0, nVisited = 0;
+    QStringList visitedNames;
+    for (const QVariant &v : all) {
+        const QVariantMap m = v.toMap();
+        if (m.value(QStringLiteral("head")).toBool()) { ++nHead; continue; }
+        ++nRows;
+        if (m.value(QStringLiteral("visited")).toBool()) { ++nVisited; visitedNames << m.value(QStringLiteral("key")).toString(); }
+    }
+    r.check(nRows >= 92 && nHead >= 9, QStringLiteral("第一次全部展开：区域分组、92 行都在（俄罗斯可能在两组）"), QStringLiteral("%1 行，%2 组").arg(nRows).arg(nHead));
+    r.check(nVisited > 0, QStringLiteral("有去过的国家打勾"), visitedNames.join(QStringLiteral("、")));
+    QQuickItem *list = c.item(QStringLiteral("calSeasonList"));
+    QQuickItem *content = list ? list->property("contentItem").value<QQuickItem *>() : nullptr;
+    const int built = content ? int(content->childItems().size()) : -1;
+    r.check(built > 0 && built < 60, QStringLiteral("只建屏幕上的行"), QString::number(built));
+    // 滚动的帧时间（UHD 620 上量，写进版本记录）
+    if (list) {
+        FrameStats *fs = frameStats();
+        const double maxY = list->property("contentHeight").toDouble() - list->height();
+        const double t0 = perf::nowMs();
+        QElapsedTimer t;
+        t.start();
+        QTimer timer;
+        timer.setTimerType(Qt::PreciseTimer);
+        timer.setInterval(16);
+        QObject::connect(&timer, &QTimer::timeout, &timer, [&] { list->setProperty("contentY", maxY * (0.5 - 0.5 * std::cos(t.elapsed() / 3000.0 * 2 * M_PI))); });
+        timer.start();
+        waitFor([&] { return t.elapsed() >= 3000; }, 6000);
+        timer.stop();
+        const double t1 = perf::nowMs();
+        r.info(QStringLiteral("滚季节表 %1 行：%2").arg(nRows).arg(fs ? fs->summary(t0 + 100, t1).text() : QStringLiteral("（没有每帧计时）")));
+        list->setProperty("contentY", 0);
+        waitFrames(win);
+    }
+    // 折叠：记住
+    {
+        const QString g = all[0].toMap().value(QStringLiteral("group")).toString();
+        QQuickItem *head = nullptr;
+        waitFor([&] { head = c.item(QStringLiteral("calSeasonGroup-") + g); return visibleChain(head); }, 800);
+        c.click(head);
+        r.check(waitFor([&] { return seasonRows().size() < all.size(); }, 800), QStringLiteral("点区域：折叠"), QString::number(seasonRows().size()));
+        QTemporaryDir tmp;
+        cal->reopenForTest(tmp.filePath(QStringLiteral("s.json")));
+        r.check(cal->view() == QLatin1String("season") && seasonRows().size() < all.size(), QStringLiteral("折叠和视图都记住了"));
+        cal->setAllSeasonGroups(false);
+        r.check(seasonRows().size() == all.size(), QStringLiteral("全部展开"));
+        cal->setAllSeasonGroups(true);
+        r.check(seasonRows().size() == nHead, QStringLiteral("全部收起"));
+        cal->setAllSeasonGroups(false);
+    }
+    // 相关计划：点开
+    {
+        QString chipPlan;
+        for (const QVariant &v : all) { const QVariantList ps = v.toMap().value(QStringLiteral("plans")).toList(); if (!ps.isEmpty()) { chipPlan = ps[0].toMap().value(QStringLiteral("id")).toString(); break; } }
+        r.check(!chipPlan.isEmpty(), QStringLiteral("有行写着相关计划"), chipPlan);
+    }
+    // 去过：完成一个计划就重算，只改名不重算（缓存）
+    {
+        QString wishId;
+        QString rowKey;
+        for (const Value &p : store->data()[QStringLiteral("plans")].asArray()) {
+            const QString ref = str(p, "seasonRef");
+            if (ref.isEmpty() || plans::statusOf(p) == QLatin1String("completed") || visitedNames.contains(ref) || plans::validStops(p).isEmpty()) continue;
+            wishId = str(p, "id"); rowKey = ref; break;
+        }
+        const auto rowVisited = [&](const QString &key) {
+            for (const QVariant &v : seasonRows()) if (v.toMap().value(QStringLiteral("key")).toString() == key) return v.toMap().value(QStringLiteral("visited")).toBool();
+            return false;
+        };
+        store->modify([&](Value &d) { plans::mutPlan(d, pid)->mutObject().set(QStringLiteral("name"), Value(QStringLiteral("改个名字"))); });
+        app->noteChanged(false);
+        pause(150);
+        r.check(mapc->visitedCodes() != nullptr, QStringLiteral("只改计划名：去过不重算，马上有"));
+        store->modify([&before](Value &d) { d = before; });
+        app->noteChanged(false);
+        pause(150);
+        if (!wishId.isEmpty()) {
+            store->modify([&](Value &d) { plans::mutPlan(d, wishId)->mutObject().set(QStringLiteral("status"), Value(QStringLiteral("completed"))); });
+            app->noteChanged(false);
+            const bool on = waitFor([&] { return rowVisited(rowKey); }, 5000);
+            r.info(QStringLiteral("把「%1」（%2）标成已完成：%3").arg(str(c.plan(wishId), "name"), rowKey, on ? QStringLiteral("这一行打勾了") : QStringLiteral("这一行没打勾（站点不在这个国家？）")));
+            store->modify([&before](Value &d) { d = before; });
+            app->noteChanged(false);
+            r.check(waitFor([&] { return !rowVisited(rowKey); }, 5000), QStringLiteral("改回去：勾也去掉"));
+        }
+    }
+    // 斋月：今年一段；2030 年画两段（T1）
+    {
+        pc->setTodayOverride(QStringLiteral("2030-06-15"));
+        const auto ramOf = [&] {
+            for (const QVariant &v : seasonRows()) if (!v.toMap().value(QStringLiteral("ram")).toList().isEmpty()) return v.toMap();
+            return QVariantMap();
+        };
+        r.check(waitFor([&] { return ramOf().value(QStringLiteral("ram")).toList().size() == 2; }, 1500), QStringLiteral("2030 年：标了斋月的行有两段"), ramOf().value(QStringLiteral("key")).toString());
+        const QVariantList ram = ramOf().value(QStringLiteral("ram")).toList();
+        if (ram.size() == 2) {
+            r.check(ram[0].toMap().value(QStringLiteral("a")).toString() == QLatin1String("2030-01-05") && ram[1].toMap().value(QStringLiteral("b")).toString() == QLatin1String("2031-01-23"), QStringLiteral("日期对，跨年的写完整"), ram[1].toMap().value(QStringLiteral("a")).toString() + QStringLiteral(" ~ ") + ram[1].toMap().value(QStringLiteral("b")).toString());
+            r.check(ram[1].toMap().value(QStringLiteral("r")).toDouble() == 1.0, QStringLiteral("跨年的画到这一年底"));
+            const QString key = ramOf().value(QStringLiteral("key")).toString();
+            QQuickItem *ramItem = nullptr;
+            list->setProperty("contentY", 0);
+            for (double y = 0; y < list->property("contentHeight").toDouble() && !ramItem; y += list->height() / 2) {
+                list->setProperty("contentY", y);
+                waitFrames(win);
+                ramItem = c.item(QStringLiteral("calSeasonRam-%1-1").arg(key));
+            }
+            QQuickItem *txt = nullptr;
+            if (ramItem) for (QQuickItem *k : ramItem->childItems()) if (k->objectName() == QLatin1String("calSeasonRamText")) txt = k;
+            r.check(txt && txt->property("text").toString().contains(QStringLiteral("约")), QStringLiteral("界面写\"约\""), txt ? txt->property("text").toString() : QString());
+            list->setProperty("contentY", 0);
+        }
+        pc->setTodayOverride(QString());
+        r.check(c.shown(QStringLiteral("calSeasonRamNote")), QStringLiteral("图例说明按各国看月可能差一两天"));
+    }
+    cal->setView(QStringLiteral("year"));
+    cal->goToday();
+
+    // ---- 开头修的两项 ----
+    {
+        QQuickItem *panel = c.item(QStringLiteral("planPage"));
+        QString other;
+        for (const Value &p : store->data()[QStringLiteral("plans")].asArray())
+            if (str(p, "id") != pid && !plans::validStops(p).isEmpty()) { other = str(p, "id"); break; }
+        // 计划页游记标签打开全文（发同一个信号）→ 去地图 → 打开另一个计划：不留在游记标签
+        QMetaObject::invokeMethod(win, "openTrip", Q_ARG(QVariant, pid), Q_ARG(QVariant, -1));
+        waitFor([&] { return nav->page() == QLatin1String("trip"); }, 1500);
+        win->setProperty("tripTab", QStringLiteral("journal"));
+        win->setProperty("tripTabPlan", pid);
+        nav->go(QStringLiteral("journal"), {});
+        waitFor([&] { return nav->page() == QLatin1String("journal"); }, 1000);
+        goPage(QStringLiteral("map"));
+        waitFor([&] { return nav->page() != QLatin1String("journal"); }, 1000);
+        r.check(win->property("tripTab").toString().isEmpty(), QStringLiteral("从游记去了别处：tripTab 清掉"));
+        win->setProperty("tripTab", QStringLiteral("journal"));
+        win->setProperty("tripTabPlan", pid);
+        QMetaObject::invokeMethod(win, "openTrip", Q_ARG(QVariant, other), Q_ARG(QVariant, -1));
+        r.check(waitFor([&] { return nav->page() == QLatin1String("trip") && panel->property("tab").toString() == QLatin1String("itinerary"); }, 1500), QStringLiteral("打开另一个计划：不跳到游记标签"), panel->property("tab").toString());
+        // 攻略写的时候：标签那一行不被收起的页头压住
+        QMetaObject::invokeMethod(panel, "openTab", Q_ARG(QVariant, QStringLiteral("guide")));
+        QMetaObject::invokeMethod(panel, "guideBeginEdit");
+        pause(500);
+        waitFrames(win);
+        QQuickItem *tabs = c.item(QStringLiteral("tripTabs")), *compact = c.item(QStringLiteral("tripCompact"));
+        if (tabs && compact) {
+            const double tabsTop = tabs->mapToScene(QPointF(0, 0)).y(), compactBottom = compact->mapToScene(QPointF(0, compact->height())).y();
+            r.check(!compact->isVisible() || tabsTop >= compactBottom - 1, QStringLiteral("攻略写的时候：标签整行露在页头下面"), QStringLiteral("标签顶 %1，页头底 %2").arg(tabsTop).arg(compactBottom));
+        }
+        QMetaObject::invokeMethod(panel, "openTab", Q_ARG(QVariant, QStringLiteral("itinerary")));
+        nav->back();
+    }
+    goPage(QStringLiteral("map"));
+    waitFor([&] { return !c.shown(QStringLiteral("calendarPage")); }, 1000);
+    c.saved();
+    r.check(noTime(store->data()) == noTime(before), QStringLiteral("这一节结束：数据和开始时完全一样"));
 }
 
 void runJournal(Report &r, AppController *app, QQuickWindow *win)

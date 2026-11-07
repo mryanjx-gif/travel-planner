@@ -914,3 +914,22 @@ HEIC 照片能导入；这台电脑没装 HEIF / HEVC 扩展，暂时显示不�
 删除这篇游记？	Delete this entry?
 「%1」\n正文里插入的照片不会被删除。	"%1"\nPhotos inserted in the text won't be deleted.
 已删除	Deleted
+# 0.11.3
+季节	Seasons
+全天	All day
+这一周没有安排	Nothing this week
+%1 等 %2 条	%1 and %2 in all
+什么时候去哪里合适	When to go where
+一周从哪天开始	Week starts on
+日历的月视图和周视图	Month and week views in the calendar
+表里没写	Not in the table
+✓ 去过	✓ Visited
+✓ 去过（正在计算…）	✓ Visited (working it out…)
+去过 %1	Visited %1
+斋月是约数：按乌姆库拉历推算，各国看月可能差一两天	Ramadan dates are approximate: from the Umm al-Qura calendar; moon sighting may shift them a day or two by country
+全部展开	Expand all
+全部收起	Collapse all
+相关计划	Plans
+斋月约 %1	Ramadan ~%1
+斋月约 %1（按乌姆库拉历推算，各国看月可能差一两天）	Ramadan ~%1 (from the Umm al-Qura calendar; moon sighting may shift it a day or two by country)
+：	:

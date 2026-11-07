@@ -2,6 +2,7 @@
 
 #include "appcontroller.h"
 #include "datastore.h"
+#include "mapcontroller.h"
 #include "plancal.h"
 #include "plancontroller.h"
 #include "plans.h"
@@ -16,15 +17,22 @@ namespace plans = map::plans;
 
 namespace {
 const QString kKey = QStringLiteral("calendarView");
+const QString kWeekStart = QStringLiteral("weekStart");
 QString str(const Value &o, const char *key) { return o[QString::fromLatin1(key)].toString(); }
 }
 
-CalendarController::CalendarController(AppController *app, PlanController *pc, Settings *settings, data::DataStore *store, QObject *parent)
-    : QObject(parent), m_app(app), m_plans(pc), m_settings(settings), m_store(store)
+QDate CalendarController::weekOf(const QDate &d) const { return QDate::fromString(plans::weekStartOf(d.toString(Qt::ISODate), m_weekStart), Qt::ISODate); }
+QString CalendarController::weekFirst() const { return m_ws.toString(Qt::ISODate); }
+
+CalendarController::CalendarController(AppController *app, PlanController *pc, Settings *settings, data::DataStore *store, map::MapController *mapc, QObject *parent)
+    : QObject(parent), m_app(app), m_plans(pc), m_settings(settings), m_store(store), m_map(mapc)
 {
     const QDate now = QDate::currentDate();
     m_y = now.year(); m_m = now.month();
     load(*settings);
+    m_ws = weekOf(now);
+    connect(mapc, &map::MapController::dataChanged, this, &CalendarController::refresh);   // 去过的计算看地图那边的数据（比 contentChanged 晚一点）
+    connect(mapc, &map::MapController::visitedCodesChanged, this, &CalendarController::refresh);
     connect(store, &data::DataStore::contentChanged, this, &CalendarController::refresh);
     connect(app, &AppController::dataChanged, this, &CalendarController::refresh);
     connect(pc, &PlanController::nowChanged, this, [this] { refresh(); });
@@ -34,11 +42,15 @@ void CalendarController::load(const Settings &s)
 {
     const Value &v = s.value(kKey);
     const QString view = v[QStringLiteral("view")].toString();
-    m_view = view == QLatin1String("month") ? view : QStringLiteral("year");   // 记着 0.11.3 的周、季节时也回到年
+    m_view = view == QLatin1String("month") || view == QLatin1String("week") || view == QLatin1String("season") ? view : QStringLiteral("year");
     const Value &side = v[QStringLiteral("side")];
     m_side = side.isBool() ? side.toBool() : true;
     m_hidden.clear();
     for (const Value &h : v[QStringLiteral("hidden")].asArray()) m_hidden.insert(h.toString());
+    m_seasonClosed.clear();
+    for (const Value &h : v[QStringLiteral("seasonClosed")].asArray()) m_seasonClosed.insert(h.toString());
+    const Value &ws = s.value(kWeekStart);
+    m_weekStart = ws.isNumber() && ws.toNumber() == 0 ? 0 : 1;
 }
 
 void CalendarController::save()
@@ -52,7 +64,13 @@ void CalendarController::save()
     sorted.sort();
     for (const QString &h : sorted) hid.push_back(Value(h));
     o.set(QStringLiteral("hidden"), Value(std::move(hid)));
+    json::Array closed;
+    QStringList closedSorted(m_seasonClosed.begin(), m_seasonClosed.end());
+    closedSorted.sort();
+    for (const QString &g : closedSorted) closed.push_back(Value(g));
+    o.set(QStringLiteral("seasonClosed"), Value(std::move(closed)));
     m_settings->setValue(kKey, Value(std::move(o)));
+    m_settings->setValue(kWeekStart, Value(double(m_weekStart)));
     m_settings->save();
 }
 
@@ -63,6 +81,9 @@ void CalendarController::setPersist(bool on)
     m_view = QStringLiteral("year");
     m_side = true;
     m_hidden.clear();
+    m_seasonClosed.clear();
+    m_weekStart = 1;
+    m_ws = weekOf(QDate::currentDate());
 }
 
 void CalendarController::reopenForTest(const QString &settingsFile)
@@ -77,6 +98,8 @@ void CalendarController::reopenForTest(const QString &settingsFile)
     m_view = QStringLiteral("year");
     m_side = true;
     m_hidden.clear();
+    m_seasonClosed.clear();
+    m_weekStart = 1;
     Settings back;
     back.load(settingsFile);
     load(back);
@@ -96,7 +119,12 @@ void CalendarController::setActive(bool on)
 
 void CalendarController::setView(const QString &v)
 {
-    if (v == m_view || (v != QLatin1String("year") && v != QLatin1String("month"))) return;
+    if (v == m_view || (v != QLatin1String("year") && v != QLatin1String("month") && v != QLatin1String("week") && v != QLatin1String("season"))) return;
+    // 换到周视图：看 y 年 m 月的第一周；如果是这个月，就看这一周（Electron goTo）
+    if (v == QLatin1String("week")) {
+        const QDate t = QDate::fromString(m_plans->today(), Qt::ISODate);
+        m_ws = weekOf(t.isValid() && t.year() == m_y && t.month() == m_m ? t : QDate(m_y, m_m, 1));
+    }
     m_view = v;
     save();
     emit stateChanged();
@@ -111,10 +139,57 @@ void CalendarController::setSideOpen(bool on)
     emit stateChanged();
 }
 
+void CalendarController::setWeekStart(int v)
+{
+    v = v == 0 ? 0 : 1;
+    if (v == m_weekStart) return;
+    m_weekStart = v;
+    m_ws = weekOf(m_ws);   // 对齐到新的周首
+    save();
+    emit stateChanged();
+    refresh();
+}
+
+void CalendarController::setSeasonGroupClosed(const QString &group, bool closed)
+{
+    if (closed == m_seasonClosed.contains(group)) return;
+    if (closed) m_seasonClosed.insert(group);
+    else m_seasonClosed.remove(group);
+    save();
+    refresh();
+}
+
+void CalendarController::setAllSeasonGroups(bool closed)
+{
+    m_seasonClosed.clear();
+    if (closed) {
+        const QStringList all = plans::calSeason(m_store->data(), m_y, nullptr, {}).value(QStringLiteral("groups")).toStringList();
+        m_seasonClosed = QSet<QString>(all.begin(), all.end());
+    }
+    save();
+    refresh();
+}
+
+void CalendarController::showWeek(const QString &date)
+{
+    const QDate d = QDate::fromString(date, Qt::ISODate);
+    if (!d.isValid()) return;
+    m_ws = weekOf(d);
+    m_y = m_ws.year(); m_m = m_ws.month();
+    m_view = QStringLiteral("week");
+    save();
+    emit stateChanged();
+    refresh();
+}
+
 void CalendarController::goTo(int y, int m)
 {
     const QDate d(y, m, 1);
-    if (!d.isValid() || (d.year() == m_y && d.month() == m_m)) return;
+    if (!d.isValid()) return;
+    if (m_view == QLatin1String("week")) {   // 选的是这个月 → 这一周，否则这个月第一周
+        const QDate t = QDate::fromString(m_plans->today(), Qt::ISODate);
+        m_ws = weekOf(t.isValid() && t.year() == y && t.month() == m ? t : d);
+    } else if (d.year() == m_y && d.month() == m_m) return;
     m_y = d.year(); m_m = d.month();
     emit stateChanged();
     refresh();
@@ -122,6 +197,13 @@ void CalendarController::goTo(int y, int m)
 
 void CalendarController::step(int dir)
 {
+    if (m_view == QLatin1String("week")) {
+        m_ws = m_ws.addDays(7 * dir);
+        m_y = m_ws.year(); m_m = m_ws.month();
+        emit stateChanged();
+        refresh();
+        return;
+    }
     const QDate d = QDate(m_y, m_m, 1).addMonths((m_view == QLatin1String("year") ? 6 : 1) * dir);
     goTo(d.year(), d.month());
 }
@@ -137,6 +219,8 @@ void CalendarController::showDate(const QString &date)
 {
     const QDate d = QDate::fromString(date, Qt::ISODate);
     if (!d.isValid()) return;
+    m_ws = weekOf(d);
+    if (m_view == QLatin1String("week")) { showWeek(date); return; }
     goTo(d.year(), d.month());
     setView(QStringLiteral("month"));
 }
@@ -148,7 +232,12 @@ void CalendarController::refresh()
     if (!m_active) return;
     const Value &d = m_store->data();
     QVariantMap m{ { QStringLiteral("side"), plans::calSide(d, m_hidden) } };
-    if (m_view == QLatin1String("month")) m.insert(QStringLiteral("month"), plans::calMonth(d, m_hidden, m_y, m_m, m_plans->today()));
+    if (m_view == QLatin1String("month")) m.insert(QStringLiteral("month"), plans::calMonth(d, m_hidden, m_y, m_m, m_plans->today(), m_weekStart));
+    else if (m_view == QLatin1String("week")) m.insert(QStringLiteral("week"), plans::calWeek(d, m_hidden, weekFirst(), m_plans->today()));
+    else if (m_view == QLatin1String("season")) {
+        const QDate t = QDate::fromString(m_plans->today(), Qt::ISODate);
+        m.insert(QStringLiteral("season"), plans::calSeason(d, t.isValid() ? t.year() : QDate::currentDate().year(), m_map->visitedCodes(), m_seasonClosed));
+    }
     else m.insert(QStringLiteral("year"), plans::calYear(d, m_hidden, m_y, m_m, m_plans->today()));
     if (m == m_info) return;
     m_info = m;

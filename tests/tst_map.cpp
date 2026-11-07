@@ -80,6 +80,11 @@ private slots:
     void calRoundTrip();
     void calUnplace();
     void calOverlapAndViews();
+    void calWeekStart();      // 0.11.3
+    void calWeekView();
+    void calRamadan();
+    void calSeasonTable();
+    void visitedCodes();
     void journalPageCrud();
     void kitGuide();
     void moneyRates();
@@ -3074,6 +3079,215 @@ void TestMap::calOverlapAndViews()
     const QVariantMap pk = calPicker(root, {});
     QCOMPARE(pk["years"].toList().size(), 2);
     QCOMPARE(pk["counts"].toMap()["2027-01"].toList().size(), 2);
+}
+
+void TestMap::calWeekStart()
+{
+    using namespace tp::map::plans;
+    const tp::json::Value root = parseJson(kCalRoot);
+    QCOMPARE(weekStartOf("2026-11-07", 1), QStringLiteral("2026-11-02"));   // 周六
+    QCOMPARE(weekStartOf("2026-11-07", 0), QStringLiteral("2026-11-01"));
+    QCOMPARE(weekStartOf("2026-11-08", 1), QStringLiteral("2026-11-02"));   // 周日：周一开始时算前一周
+    QCOMPARE(weekStartOf("2026-11-08", 0), QStringLiteral("2026-11-08"));
+    QCOMPARE(weekStartOf("2026-11-09", 1), QStringLiteral("2026-11-09"));
+    // 2027 年 1 月：1 号周五；周日开始时第一周从 2026-12-27 起，甲（12-28 起）在第一周占第 1–6 格
+    const QVariantList weeks = calMonth(root, {}, 2027, 1, "2027-01-02", 0)["weeks"].toList();
+    QCOMPARE(weeks[0].toMap()["start"].toString(), QStringLiteral("2026-12-27"));
+    const QVariantMap bar = weeks[0].toMap()["bars"].toList()[0].toMap();
+    QCOMPARE(bar["a"].toInt(), 1);
+    QCOMPARE(bar["b"].toInt(), 6);
+    QCOMPARE(weeks[0].toMap()["days"].toList()[6].toMap()["today"].toBool(), true);   // 1 月 2 日周六是最后一格
+    QCOMPARE(weeks[1].toMap()["bars"].toList()[0].toMap()["b"].toInt(), 0);           // 甲 1 月 3 日周日结束，第二周第一格
+    // 月份从周日开始正好是第一天（2026 年 11 月 1 日周日）：没有上月的格子
+    const QVariantList nov = calMonth(root, {}, 2026, 11, "", 0)["weeks"].toList();
+    QCOMPARE(nov[0].toMap()["start"].toString(), QStringLiteral("2026-11-01"));
+    QCOMPARE(nov[0].toMap()["days"].toList()[0].toMap()["out"].toBool(), false);
+}
+
+void TestMap::calWeekView()
+{
+    using namespace tp::map::plans;
+    const tp::json::Value root = parseJson(R"({"plans":[
+      {"id":"a","name":"甲","type":"route","status":"planning","startDate":"2027-03-01","endDate":"2027-03-10",
+       "stops":[{"id":"s1","name":"一","lat":1,"lng":2,"arriveDate":"2027-03-01","departDate":"2027-03-03",
+                 "schedule":[{"date":"2027-03-02","time":"09:00","end":"10:30","text":"早市\n第二行"},{"date":"2027-03-02","time":"10:00","text":"重叠"},{"date":"2027-03-02","text":"没时间"},{"time":"11:00","text":"多天的站没写日期"},
+                             {"date":"2027-03-03","time":"23:30","end":"01:00","text":"跨午夜"}]},
+                {"id":"s2","name":"二","lat":3,"lng":4,"color":"#123456","arriveDate":"2027-03-04","departDate":"2027-03-04","schedule":[{"time":"06:00","text":"单天的站"}]},
+                {"id":"s3","name":"没坐标","arriveDate":"2027-03-04"}],
+       "bookings":[{"id":"f","kind":"flight","title":"QF1","start":"2027-03-05T22:00","end":"2027-03-06T02:00","from":"甲地","to":"乙地"},
+                   {"id":"h","kind":"hotel","title":"旅馆","start":"2027-03-01T15:00","end":"2027-03-03T10:00"},
+                   {"id":"n","kind":"train","title":"没时间","start":"2027-03-02"}]},
+      {"id":"b","name":"隐藏的","status":"planning","startDate":"2027-03-01","endDate":"2027-03-02"}]})");
+    const QVariantMap w = calWeek(root, { "b" }, "2027-03-01", "2027-03-02");
+    QCOMPARE(w["start"].toString(), QStringLiteral("2027-03-01"));
+    QCOMPARE(w["days"].toList()[1].toMap()["today"].toBool(), true);
+    QCOMPARE(w["days"].toList()[0].toMap()["wd"].toInt(), 1);
+    // 全天：计划一条（后面还有，右边切开）+ 住宿一条（住到退房前一晚：3 月 1–2 日）
+    const QVariantList bars = w["bars"].toList();
+    QCOMPARE(bars.size(), 2);
+    QCOMPARE(bars[0].toMap()["kind"].toString(), QStringLiteral("plan"));
+    QCOMPARE(bars[0].toMap()["cutR"].toBool(), true);
+    QCOMPARE(bars[1].toMap()["kind"].toString(), QStringLiteral("hotel"));
+    QCOMPARE(bars[1].toMap()["b"].toInt(), 1);
+    QCOMPARE(bars[1].toMap()["lane"].toInt(), 1);
+    // 当天的站：路线有序号；没写时间的日程跟着；没坐标的不算
+    const QVariantList stops = w["stops"].toList();
+    QCOMPARE(stops[1].toList().size(), 1);
+    QCOMPARE(stops[1].toList()[0].toMap()["n"].toInt(), 1);
+    QVERIFY(stops[1].toList()[0].toMap()["loose"].toStringList().contains(QStringLiteral("没时间")));
+    QCOMPARE(stops[3].toList().size(), 1);
+    QCOMPARE(stops[3].toList()[0].toMap()["color"].toString(), QStringLiteral("#123456"));
+    QCOMPARE(stops[4].toList().size(), 0);
+    // 事件：3 月 2 日两个重叠的并排（早的在左）；多天的站没写日期不进时间轴；只取第一行
+    const QVariantList evs = w["events"].toList();
+    const QVariantList d2 = evs[1].toList();
+    QCOMPARE(d2.size(), 2);
+    QCOMPARE(d2[0].toMap()["title"].toString(), QStringLiteral("早市"));
+    QCOMPARE(d2[0].toMap()["a"].toInt(), 540);
+    QCOMPARE(d2[0].toMap()["b"].toInt(), 630);
+    QCOMPARE(d2[0].toMap()["n"].toInt(), 2);
+    QCOMPARE(d2[1].toMap()["col"].toInt(), 1);
+    QCOMPARE(d2[1].toMap()["b"].toInt(), 660);   // 没写结束算 1 小时
+    // 跨午夜：3 月 3 日 23:30–24:00 + 3 月 4 日 0:00–1:00
+    QCOMPARE(evs[2].toList()[0].toMap()["b"].toInt(), 1440);
+    const QVariantList d4 = evs[3].toList();
+    QCOMPARE(d4.size(), 2);
+    QCOMPARE(d4[0].toMap()["a"].toInt(), 0);
+    QCOMPARE(d4[0].toMap()["b"].toInt(), 60);
+    QCOMPARE(d4[1].toMap()["title"].toString(), QStringLiteral("单天的站"));
+    // 机票跨午夜：两段，交通住宿标签
+    QCOMPARE(evs[4].toList()[0].toMap()["a"].toInt(), 1320);
+    QCOMPARE(evs[4].toList()[0].toMap()["b"].toInt(), 1440);
+    QCOMPARE(evs[5].toList()[0].toMap()["b"].toInt(), 120);
+    QCOMPARE(evs[5].toList()[0].toMap()["tab"].toString(), QStringLiteral("bookings"));
+    QCOMPARE(evs[5].toList()[0].toMap()["sub"].toString(), QStringLiteral("甲地 → 乙地"));
+    // 滚到最早的事件（0:00 的段）
+    QCOMPARE(w["first"].toInt(), 0);
+    // 周日开始：同一个计划，列跟着变
+    const QVariantMap sun = calWeek(root, { "b" }, weekStartOf("2027-03-02", 0), "");
+    QCOMPARE(sun["start"].toString(), QStringLiteral("2027-02-28"));
+    QCOMPARE(sun["bars"].toList()[0].toMap()["a"].toInt(), 1);
+    QCOMPARE(sun["days"].toList()[0].toMap()["wd"].toInt(), 0);
+    // 没安排的一周：7 点
+    const QVariantMap none = calWeek(root, {}, "2030-01-07", "");
+    QCOMPARE(none["empty"].toBool(), true);
+    QCOMPARE(none["first"].toInt(), 420);
+    // 这个计划拖过去再撤销由自检走真实鼠标；这里确认周视图是只读的
+    tp::json::Value copy = root;
+    calWeek(copy, {}, "2027-03-01", "");
+    QVERIFY(copy == root);
+}
+
+void TestMap::calRamadan()
+{
+    using namespace tp::map::plans;
+    const auto has = [](int y, const char *a, const char *b) {
+        for (const RamadanSpan &s : ramadanSpans(y)) if (QLatin1String(s.a) == QLatin1String(a) && QLatin1String(s.b) == QLatin1String(b)) return true;
+        return false;
+    };
+    QCOMPARE(ramadanSpans(2027).size(), 1);
+    QVERIFY(has(2027, "2027-02-08", "2027-03-08"));
+    // 2030：1 月和 12 月底两段，12 月底那段跨到 2031 年，连起来算
+    QCOMPARE(ramadanSpans(2030).size(), 2);
+    QVERIFY(has(2030, "2030-01-05", "2030-02-03"));
+    QVERIFY(has(2030, "2030-12-26", "2031-01-23"));
+    QVERIFY(has(2031, "2030-12-26", "2031-01-23"));
+    // 2033：1 月初（2032 年 12 月开始那段的尾巴）和年底两段
+    QCOMPARE(ramadanSpans(2033).size(), 2);
+    QVERIFY(has(2033, "2032-12-04", "2033-01-02"));
+    QVERIFY(has(2033, "2033-11-23", "2033-12-22"));
+    QVERIFY(has(2032, "2032-12-04", "2033-01-02"));
+    // 表的范围：2024–2075 每年至少一段，每段 29 或 30 天；表外没有
+    for (int y = 2024; y <= 2075; ++y) {
+        const QVector<RamadanSpan> l = ramadanSpans(y);
+        QVERIFY2(!l.isEmpty(), qPrintable(QString::number(y)));
+        for (const RamadanSpan &s : l) {
+            const int n = days(QString::fromLatin1(s.a), QString::fromLatin1(s.b)) + 1;
+            QVERIFY2(n == 29 || n == 30, s.a);
+        }
+    }
+    QVERIFY(ramadanSpans(2023).isEmpty());
+    QVERIFY(ramadanSpans(2076).isEmpty());
+}
+
+void TestMap::calSeasonTable()
+{
+    using namespace tp::map::plans;
+    const tp::json::Value root = parseJson(R"({"plans":[{"id":"p1","name":"去日本","status":"wish","seasonRef":"日本"},{"id":"p2","name":"别的","status":"planning"}],
+      "seasonGuide":{"rows":[
+        {"country":"日本","countryEn":"Japan","group":"日韩","iso":["JPN"],"spans":[{"from":3,"to":5,"kind":"best","text":"樱花","textEn":"Blossoms"},{"from":6,"to":6,"kind":"best","text":"梅雨前"},{"from":11,"to":2,"kind":"nice","text":"雪"}]},
+        {"country":"俄罗斯","countryEn":"Russia","iso":["RUS"],"spans":[]},
+        {"country":"土耳其","region":"西亚/中亚","ramadan":true,"iso":"TUR","spans":[]},
+        {"country":"某地","group":"未知的组","spans":[]}]}})");
+    const QVariantMap s = calSeason(root, 2030, nullptr, {});
+    QCOMPARE(s["ready"].toBool(), false);
+    QCOMPARE(s["groups"].toStringList(), QStringList({ "东亚", "西亚/中亚", "欧洲", "其他" }));   // REGIONS 的顺序，其他在最后
+    const QVariantList rows = s["rows"].toList();
+    QCOMPARE(rows.size(), 9);   // 4 组头 + 5 行（俄罗斯在东亚、欧洲各一次）
+    QCOMPARE(rows[0].toMap()["head"].toBool(), true);
+    QCOMPARE(rows[0].toMap()["count"].toInt(), 2);
+    const QVariantMap jp = rows[1].toMap();
+    QCOMPARE(jp["nameEn"].toString(), QStringLiteral("Japan"));
+    QCOMPARE(jp["plans"].toList().size(), 1);
+    QCOMPARE(jp["plans"].toList()[0].toMap()["wish"].toBool(), true);
+    // 分段：1–2 月 nice（跨年的 span）、3–6 best 连成一段、7–10 没写、11–12 nice；英文没写的退回中文
+    const QVariantList segs = jp["segs"].toList();
+    QCOMPARE(segs.size(), 4);
+    QCOMPARE(segs[1].toMap()["from"].toInt(), 3);
+    QCOMPARE(segs[1].toMap()["to"].toInt(), 6);
+    QCOMPARE(segs[1].toMap()["text"].toString(), QStringLiteral("樱花；梅雨前"));
+    QCOMPARE(segs[1].toMap()["textEn"].toString(), QStringLiteral("Blossoms; 梅雨前"));
+    QCOMPARE(segs[2].toMap()["kind"].toString(), QStringLiteral("none"));
+    // 斋月：只有标了的行；2030 两段，第二段画到年底、日期写完整、标签靠左放
+    QVERIFY(jp["ram"].toList().isEmpty());
+    const QVariantList ram = rows[4].toMap()["ram"].toList();
+    QCOMPARE(ram.size(), 2);
+    QCOMPARE(ram[1].toMap()["b"].toString(), QStringLiteral("2031-01-23"));
+    QCOMPARE(ram[1].toMap()["r"].toDouble(), 1.0);
+    QCOMPARE(ram[1].toMap()["labelLeft"].toBool(), true);
+    QVERIFY(ram[0].toMap()["l"].toDouble() < 0.02);
+    // 2033 年 1 月初那段：从 0 开始，到 1 月 2 日结束
+    const QVariantList ram33 = calSeason(root, 2033, nullptr, {})["rows"].toList()[4].toMap()["ram"].toList();
+    QCOMPARE(ram33.size(), 2);
+    QCOMPARE(ram33[0].toMap()["l"].toDouble(), 0.0);
+    QVERIFY(ram33[0].toMap()["r"].toDouble() < 0.02);
+    QVERIFY(calSeason(root, 2099, nullptr, {})["rows"].toList()[4].toMap()["ram"].toList().isEmpty());
+    // 去过：行里的 iso（字符串、数组）；老数据没 iso 按国家名；组头数
+    const QSet<QString> visited{ "JPN", "TUR" };
+    const QVariantMap v = calSeason(root, 2030, &visited, {});
+    QCOMPARE(v["ready"].toBool(), true);
+    QCOMPARE(v["rows"].toList()[1].toMap()["visited"].toBool(), true);
+    QCOMPARE(v["rows"].toList()[2].toMap()["visited"].toBool(), false);
+    QCOMPARE(v["rows"].toList()[0].toMap()["visited"].toInt(), 1);
+    // 折叠：只留组头
+    const QVariantMap closed = calSeason(root, 2030, nullptr, { "东亚" });
+    QCOMPARE(closed["rows"].toList().size(), 7);
+    QCOMPARE(closed["rows"].toList()[0].toMap()["closed"].toBool(), true);
+}
+
+void TestMap::visitedCodes()
+{
+    const QByteArray adm1 = readFile(QStringLiteral(TP_SOURCE_DIR "/assets/admin/adm1.geojson"));
+    if (adm1.isEmpty()) QSKIP("缺 assets/admin/adm1.geojson");
+    UnlockModel m;
+    QVERIFY(m.load(adm1));
+    UnlockModel::PlanStops p;
+    p.stops.push_back({ 35.68, 139.76 });    // 东京
+    p.stops.push_back({ 39.9, 116.4 });      // 北京：中国 + 华北
+    p.stops.push_back({ 30.65, 101.0 });     // 四川西部：川西
+    p.stops.push_back({ 22.3, 114.17 });     // 香港：算中国和香港
+    p.stops.push_back({ 0.0, -160.0 });      // 太平洋中间：哪儿也不算
+    const QSet<QString> s = m.visitedCodes({ p }, {});
+    for (const char *c : { "JPN", "CHN", "CN-N", "CN-WSC", "HKG" }) QVERIFY2(s.contains(QString::fromLatin1(c)), c);
+    QVERIFY(!s.contains(QStringLiteral("CN-SW")));
+    QVERIFY(!s.contains(QStringLiteral("USA")));
+    // 手动标记：只有省份，跨区的省几个区都算
+    int sichuan = -1;
+    for (int i = 0; i < m.featureCount() && sichuan < 0; ++i) if (m.unitName(i) == QStringLiteral("四川省")) sichuan = i;
+    QVERIFY(sichuan >= 0);
+    const QSet<QString> manual = m.visitedCodes({}, { { m.unitId(sichuan), 2020 } });
+    QVERIFY(manual.contains(QStringLiteral("CN-WSC")) && manual.contains(QStringLiteral("CN-SW")) && manual.contains(QStringLiteral("CHN")));
+    QVERIFY(m.visitedCodes({}, {}).isEmpty());
 }
 
 void TestMap::journalPageCrud()

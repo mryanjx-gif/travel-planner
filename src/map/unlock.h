@@ -12,6 +12,7 @@
 #include <QHash>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 #include <QVector>
@@ -42,6 +43,10 @@ public:
     };
     // completed：已完成计划（按数据里的顺序），manual：visitedRegions（按顺序）
     Result compute(const QVector<PlanStops> &completed, const QVector<Manual> &manual) const;
+
+    // 季节表"去过"的代码（0.11.3，Electron visitedAdm0）：已完成计划的站点所在省 + 手动标记的省的国家代码（adm0、grp），
+    // 中国大陆再加气候区（CN-NE 等，cnZones）。只读，可以在后台线程上调用
+    QSet<QString> visitedCodes(const QVector<PlanStops> &completed, const QVector<Manual> &manual) const;
 
     // 点在哪个省（Electron findAdmin：先精确判断，没落进任何省时找 0.3° 内最近的边界点）；返回下标，没有 -1
     int findAdmin(double lng, double lat) const;

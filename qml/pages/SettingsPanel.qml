@@ -134,6 +134,17 @@ GlassPanel {
                 }
                 SettingsRow {
                     width: parent.width
+                    label: qsTr("一周从哪天开始")
+                    sub: qsTr("日历的月视图和周视图")
+                    Segmented {
+                        objectName: "weekStartSeg"
+                        options: [{ key: "1", text: qsTr("周一") }, { key: "0", text: qsTr("周日") }]
+                        current: String(calendar.weekStart)
+                        onPicked: (k) => calendar.weekStart = +k
+                    }
+                }
+                SettingsRow {
+                    width: parent.width
                     label: qsTr("窗口标题")
                     sub: app.windowTitleExtra === "" ? qsTr("旅行计划") + " v" + app.version + qsTr("（没有自定义文字）")
                                                      : qsTr("旅行计划") + " v" + app.version + "  " + app.windowTitleExtra

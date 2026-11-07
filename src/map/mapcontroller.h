@@ -162,6 +162,8 @@ public:
     void setDeferRebuild(bool on);
     // 0.9.2：在后台线程先把省界模型建好（PO 电脑上约 0.2 秒），第一次进"已解锁"时就不用等。main 在窗口显示几秒后调用
     void preloadUnlock();
+    // 季节表的"去过"（0.11.3，C-07）：复用省界模型，后台算、缓存，数据变了才重算。还在算返回 nullptr，算好发 visitedCodesChanged
+    const QSet<QString> *visitedCodes();
     // 换底图时记进设置（截图、自检、内存测试不记）
     void setPersistBase(bool on) { m_persistBase = on; }
     // 翻译（tp::tr）由 main 传进来，库本身不依赖翻译类
@@ -345,6 +347,7 @@ signals:
     void baseChanged();
     void dataChanged();
     void unlockChanged();
+    void visitedCodesChanged();
     void styleUrlChanged();
     void nightChanged();
     void probeChanged();
@@ -435,6 +438,10 @@ private:
     // 后台建的省界模型（preloadUnlock）：建好前进"已解锁"就等它
     QThread *m_unlockThread = nullptr;
     std::shared_ptr<UnlockModel> m_unlockPre;
+    QThread *m_visitedThread = nullptr;
+    QString m_visitedKey;
+    QSet<QString> m_visited;
+    bool m_visitedValid = false;
     tp::data::DataStore *m_store = nullptr;
     std::function<QString(const char *)> m_tr;
 

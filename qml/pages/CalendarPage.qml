@@ -1,7 +1,7 @@
 // 日历整页（0.11.2，C-01–C-03、C-08–C-10；照 Electron pages-calendar.js）。数据在 C++（calendar.info，plans::calYear / calMonth / calSide）。
-// 年视图（默认）、月视图、翻页、今天；点横条弹卡（CalPlanCard）；拖动：横条平移（站点日期跟着，交通住宿不跟，PO 第 9 题 A）、
+// 周（0.11.3，C-04）、月、年（默认）、季节（0.11.3，CalSeasonView）四个视图；翻页、今天；点横条弹卡（CalPlanCard）；拖动：横条平移（站点日期跟着，交通住宿不跟，PO 第 9 题 A）、
 // 没定日期的拖到某一天、拖到右边去掉日期，Esc 取消。右边常驻"还没定日期"（PO 第 8 题 A，按状态分组，可以收起并记住）。
-// 改完下面一条提示（notice）：撤销一步、撞期（R2）、交通住宿没跟（"打开交通住宿 / 知道了"）。周视图、季节表在 0.11.3，这版没有入口。
+// 改完下面一条提示（notice）：撤销一步、撞期（R2）、交通住宿没跟（"打开交通住宿 / 知道了"）。
 import QtQuick
 import TPApp
 
@@ -14,6 +14,10 @@ Item {
 
     readonly property bool narrow: width < Theme.px(760)
     readonly property bool isYear: calendar.view === "year"
+    readonly property bool isMonth: calendar.view === "month"
+    readonly property bool isWeek: calendar.view === "week"
+    readonly property bool isSeason: calendar.view === "season"
+    readonly property var weekInfo: calendar.info.week || ({})
     readonly property var yearInfo: calendar.info.year || ({})
     readonly property var monthInfo: calendar.info.month || ({})
     readonly property var side: calendar.info.side || ({})
@@ -25,7 +29,7 @@ Item {
     readonly property real sideW: Theme.px(250)
     // 窄窗口：右边盖在日历上，默认收起（这时点开不改记住的值）
     property bool narrowSide: false
-    readonly property bool sideShown: narrow ? narrowSide : calendar.sideOpen
+    readonly property bool sideShown: !isSeason && (narrow ? narrowSide : calendar.sideOpen)
     function toggleSide() { if (narrow) narrowSide = !narrowSide; else calendar.sideOpen = !calendar.sideOpen }
 
     visible: opacity > 0.01
@@ -36,6 +40,11 @@ Item {
     function periodLabel() {
         const y = calendar.year, m = calendar.month
         if (isYear) { const e = new Date(y, m + 10, 1); return y + "." + m + " – " + e.getFullYear() + "." + (e.getMonth() + 1) }
+        if (isWeek) {
+            const a = Fmt.dt(calendar.weekFirst), b = Fmt.dt(Fmt.addDays(calendar.weekFirst, 6))
+            return Fmt.en ? Fmt.monEn[a.getMonth()] + " " + a.getDate() + " – " + Fmt.monEn[b.getMonth()] + " " + b.getDate() + ", " + a.getFullYear()
+                          : a.getFullYear() + " 年 " + (a.getMonth() + 1) + "/" + a.getDate() + " – " + (b.getMonth() + 1) + "/" + b.getDate()
+        }
         return Fmt.en ? Fmt.monEn[m - 1] + " " + y : y + " 年 " + m + " 月"
     }
 
@@ -97,6 +106,12 @@ Item {
             const f = Math.max(0, Math.min(0.99999, p.x / yearBody.width))
             return Fmt.addDays(yearInfo.start, Math.floor(f * yearInfo.spanDays))
         }
+        if (isWeek) {   // 周视图：按列算，全天区和时间轴都一样
+            if (weekInfo.start === undefined) return ""
+            const q = weekCols.mapFromItem(root, px, py)
+            return Fmt.addDays(weekInfo.start, Math.max(0, Math.min(6, Math.floor(q.x / weekCols.width * 7))))
+        }
+        if (!isMonth) return ""
         for (let i = 0; i < weekRep.count; ++i) {
             const it = weekRep.itemAt(i)
             const p = it.mapFromItem(root, px, py)
@@ -151,6 +166,12 @@ Item {
     function closePopups() { card.open = false; picker.open = false }
     function showCardAt(id, x, y) { card.show(id, x, y, Theme.px(200), Theme.px(32)) }
     function showPickerAt(x, y) { picker.show(x, y) }
+    // 截图：滚到这一周最晚的事件
+    function scrollWeekForShot() {
+        let a = 0
+        for (const l of weekInfo.events || []) for (const e of l) a = Math.max(a, e.a)
+        weekFlick.contentY = Math.min(weekFlick.contentHeight - weekFlick.height, Math.max(0, a / 60 * weekView.hourPx - Theme.px(120)))
+    }
     // 截图：拖到一半的样子
     function dragForShot(id, day, grab, px, py) {
         const f = calendar.planFields(id)
@@ -178,10 +199,18 @@ Item {
             height: Theme.px(36)
             spacing: Theme.px(2)
             Text { anchors.verticalCenter: parent.verticalCenter; rightPadding: Theme.px(10); text: qsTr("日历"); font.family: serifFamily; font.pixelSize: Theme.px(24); font.bold: true; color: Theme.text }
-            NavBtn { objectName: "calPrev"; text: "‹"; onClicked: calendar.step(-1) }
+            Text {
+                objectName: "calSeasonSub"
+                visible: root.isSeason
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("什么时候去哪里合适")
+                font.family: serifFamily; font.pixelSize: Theme.px(14); color: Theme.muted
+            }
+            NavBtn { objectName: "calPrev"; visible: !root.isSeason; text: "‹"; onClicked: calendar.step(-1) }
             Rectangle {
                 id: labelBtn
                 objectName: "calLabel"
+                visible: !root.isSeason
                 anchors.verticalCenter: parent.verticalCenter
                 width: Math.max(labelText.implicitWidth + Theme.px(20), Theme.px(150))
                 height: Theme.px(32)
@@ -196,9 +225,9 @@ Item {
                     onClicked: { const p = labelBtn.mapToItem(root, labelBtn.width / 2, labelBtn.height); picker.show(p.x, p.y) }
                 }
             }
-            NavBtn { objectName: "calNext"; text: "›"; onClicked: calendar.step(1) }
+            NavBtn { objectName: "calNext"; visible: !root.isSeason; text: "›"; onClicked: calendar.step(1) }
             Item { width: Theme.px(6); height: 1 }
-            TpButton { objectName: "calToday"; anchors.verticalCenter: parent.verticalCenter; compact: true; text: qsTr("今天"); onClicked: calendar.goToday() }
+            TpButton { objectName: "calToday"; visible: !root.isSeason; anchors.verticalCenter: parent.verticalCenter; compact: true; text: qsTr("今天"); onClicked: calendar.goToday() }
         }
         Row {
             anchors.right: parent.right
@@ -207,6 +236,7 @@ Item {
             spacing: Theme.px(8)
             TpChip {
                 objectName: "calSideToggle"
+                visible: !root.isSeason
                 anchors.verticalCenter: parent.verticalCenter
                 text: qsTr("还没定日期") + " " + root.undatedCount
                 on: root.sideShown
@@ -215,7 +245,7 @@ Item {
             Segmented {
                 objectName: "calViews"
                 anchors.verticalCenter: parent.verticalCenter
-                options: [{ key: "month", text: qsTr("月") }, { key: "year", text: qsTr("年") }]
+                options: [{ key: "week", text: qsTr("周") }, { key: "month", text: qsTr("月") }, { key: "year", text: qsTr("年") }, { key: "season", text: qsTr("季节") }]
                 current: calendar.view
                 onPicked: (k) => calendar.view = k
             }
@@ -328,7 +358,7 @@ Item {
                                     x: Theme.px(8)
                                     width: parent.width - Theme.px(14)
                                     anchors.verticalCenter: parent.verticalCenter
-                                    elide: Text.ElideRight
+                                    elide: Text.ElideMiddle
                                     text: yb.title
                                     font.family: serifFamily; font.pixelSize: Theme.px(13); font.bold: true; color: "#ffffff"
                                 }
@@ -343,7 +373,7 @@ Item {
                                 height: Theme.px(32)
                                 verticalAlignment: Text.AlignVCenter
                                 horizontalAlignment: yb.modelData.labelLeft ? Text.AlignRight : Text.AlignLeft
-                                elide: yb.modelData.labelLeft ? Text.ElideLeft : Text.ElideRight
+                                elide: Text.ElideMiddle   // 同名前缀多（Plan A / B / C）：留住结尾
                                 text: yb.title
                                 font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: yb.modelData.done ? Theme.muted : Theme.textSoft
                                 BarArea { anchors.fill: parent; bar: yb.modelData; srcItem: sideLabel }
@@ -364,9 +394,262 @@ Item {
             }
         }
 
+        // ---- 周（Electron weekHtml：全天区 + 0–24 时间轴）----
+        Item {
+            id: weekView
+            objectName: "calWeekView"
+            visible: root.isWeek
+            anchors.fill: parent
+            anchors.margins: Theme.px(12)
+            readonly property real gut: Theme.px(44)
+            readonly property real hourPx: Theme.px(44)
+            readonly property var days: root.weekInfo.days || []
+            readonly property real colW: weekCols.width / 7
+            function hit(date) { return root.dropA !== "" && date >= root.dropA && date <= root.dropB }
+            // 打开一周时滚到最早的事件或 7 点；同一周里数据变了不动
+            property string scrolledFor: ""
+            function scrollIfNew() {
+                if (!root.isWeek || root.weekInfo.start === undefined || scrolledFor === root.weekInfo.start) return
+                scrolledFor = root.weekInfo.start
+                Qt.callLater(() => { weekFlick.contentY = Math.min(Math.max(0, weekFlick.contentHeight - weekFlick.height), Math.max(0, root.weekInfo.first - 30) / 60 * hourPx) })
+            }
+            Connections { target: root; function onWeekInfoChanged() { weekView.scrollIfNew() } }
+            onVisibleChanged: { if (!visible) scrolledFor = ""; else scrollIfNew() }
+            // 给拖动算落点、给自检找列：只占位，不画
+            Item { id: weekCols; objectName: "calWeekCols"; x: weekView.gut; width: parent.width - weekView.gut; height: parent.height }
+            Column {
+                anchors.fill: parent
+                Item {   // 表头
+                    width: parent.width
+                    height: Theme.px(44)
+                    Repeater {
+                        model: weekView.days
+                        delegate: Rectangle {
+                            required property var modelData
+                            required property int index
+                            objectName: "calWeekHead-" + modelData.date
+                            x: weekView.gut + index * weekView.colW
+                            width: weekView.colW; height: parent.height
+                            radius: Theme.px(8)
+                            color: weekView.hit(modelData.date) ? Theme.accentSoft : modelData.today ? Theme.panel2 : "transparent"
+                            Column {
+                                anchors.centerIn: parent
+                                Text { anchors.horizontalCenter: parent.horizontalCenter; text: Fmt.en ? Fmt.wdEn[parent.parent.modelData.wd] : "周" + Fmt.wdZh[parent.parent.modelData.wd]; font.family: serifFamily; font.pixelSize: Theme.px(11.5); color: Theme.muted }
+                                Text { anchors.horizontalCenter: parent.horizontalCenter; text: (Fmt.en ? Fmt.monEn[parent.parent.modelData.m - 1] + " " : parent.parent.modelData.m + "/") + parent.parent.modelData.d; font.family: serifFamily; font.pixelSize: Theme.px(14); font.bold: true; color: parent.parent.modelData.today ? Theme.accent : Theme.text }
+                            }
+                        }
+                    }
+                }
+                Item {   // 全天：计划和住宿的横条
+                    id: allDay
+                    width: parent.width
+                    height: Math.max(1, root.weekInfo.lanes || 0) * Theme.px(26) + Theme.px(4)
+                    Text { width: weekView.gut - Theme.px(6); y: Theme.px(5); horizontalAlignment: Text.AlignRight; text: qsTr("全天"); font.family: serifFamily; font.pixelSize: Theme.px(11.5); color: Theme.muted }
+                    Text {
+                        objectName: "calWeekEmpty"
+                        visible: root.weekInfo.empty === true
+                        x: weekView.gut + Theme.px(8); y: Theme.px(5)
+                        text: qsTr("这一周没有安排")
+                        font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted
+                    }
+                    Repeater {
+                        model: root.weekInfo.bars || []
+                        delegate: Rectangle {
+                            id: wb
+                            required property var modelData
+                            readonly property bool hotel: modelData.kind === "hotel"
+                            objectName: hotel ? "calWeekHotel-" + modelData.id + "-" + modelData.a : "calWeekBar-" + modelData.id
+                            x: weekView.gut + modelData.a * weekView.colW + Theme.px(3)
+                            y: Theme.px(2) + modelData.lane * Theme.px(26)
+                            width: (modelData.b - modelData.a + 1) * weekView.colW - Theme.px(6)
+                            height: Theme.px(22)
+                            radius: Theme.px(6)
+                            topLeftRadius: modelData.cutL ? 0 : radius; bottomLeftRadius: topLeftRadius
+                            topRightRadius: modelData.cutR ? 0 : radius; bottomRightRadius: topRightRadius
+                            color: hotel ? Qt.alpha(modelData.color, 0.14) : modelData.color
+                            border.width: hotel ? 1 : 0; border.color: Qt.alpha(modelData.color, 0.5)
+                            opacity: (root.drag && root.drag.id === modelData.id && root.dragging && !hotel ? 0.35 : modelData.done ? 0.62 : 1)
+                            Text {
+                                x: Theme.px(7)
+                                width: parent.width - Theme.px(12)
+                                anchors.verticalCenter: parent.verticalCenter
+                                elide: Text.ElideRight
+                                text: wb.hotel ? qsTr("住宿") + (wb.modelData.name ? " · " + wb.modelData.name : "") : (wb.modelData.name || qsTr("未命名计划"))
+                                font.family: serifFamily; font.pixelSize: Theme.px(12.5); font.bold: !wb.hotel; color: wb.hotel ? Theme.textSoft : "#ffffff"
+                            }
+                            BarArea { visible: !wb.hotel; enabled: !wb.hotel; anchors.fill: parent; bar: wb.modelData; srcItem: wb }
+                            MouseArea { visible: wb.hotel; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.openPlan(wb.modelData.id, "bookings") }
+                        }
+                    }
+                }
+                Item {   // 当天在哪一站（没写时间的日程写在站名下面）
+                    id: stopRow
+                    width: parent.width
+                    height: stopCols.maxH
+                    Item {
+                        id: stopCols
+                        readonly property real maxH: {
+                            let n = 0
+                            for (const l of root.weekInfo.stops || []) {
+                                let h = 0
+                                for (const s of l) h += (s.loose.length ? Theme.px(38) : Theme.px(24)) + Theme.px(2)
+                                n = Math.max(n, h)
+                            }
+                            return n + (n > 0 ? Theme.px(2) : 0)
+                        }
+                        Repeater {
+                            model: root.weekInfo.stops || []
+                            delegate: Column {
+                                required property var modelData
+                                required property int index
+                                x: weekView.gut + index * weekView.colW + Theme.px(3)
+                                width: weekView.colW - Theme.px(6)
+                                spacing: Theme.px(2)
+                                Repeater {
+                                    model: parent.modelData
+                                    delegate: Rectangle {
+                                        id: sc
+                                        required property var modelData
+                                        objectName: "calWeekStop"
+                                        width: parent.width
+                                        height: modelData.loose.length ? Theme.px(38) : Theme.px(24)
+                                        radius: Theme.px(6)
+                                        color: Qt.alpha(modelData.color, 0.1)
+                                        Rectangle { width: Theme.px(3); height: parent.height; radius: width / 2; color: sc.modelData.color }
+                                        Column {
+                                            x: Theme.px(8); width: parent.width - Theme.px(10)
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            Text { width: parent.width; elide: Text.ElideRight; text: (sc.modelData.n ? sc.modelData.n + " " : "") + (sc.modelData.name || qsTr("未命名地点")); font.family: serifFamily; font.pixelSize: Theme.px(12); font.bold: true; color: Theme.text }
+                                            Text {
+                                                visible: sc.modelData.loose.length > 0
+                                                width: parent.width
+                                                elide: Text.ElideRight
+                                                text: sc.modelData.loose.length > 1 ? qsTr("%1 等 %2 条").arg(sc.modelData.loose[0]).arg(sc.modelData.loose.length) : sc.modelData.loose[0] || ""
+                                                font.family: serifFamily; font.pixelSize: Theme.px(11); color: Theme.muted
+                                            }
+                                        }
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: root.openPlan(sc.modelData.id, "")
+                                            onContainsMouseChanged: root.hoverTip(containsMouse, sc, sc.modelData.plan + " · " + sc.modelData.name + (sc.modelData.loose.length ? "\n" + sc.modelData.loose.join("\n") : ""))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Rectangle { width: parent.width; height: 1; color: Theme.lineStrong }
+                Flickable {   // 时间轴
+                    id: weekFlick
+                    objectName: "calWeekFlick"
+                    width: parent.width
+                    height: parent.height - y
+                    contentHeight: 24 * weekView.hourPx
+                    boundsBehavior: Flickable.StopAtBounds
+                    clip: true
+                    interactive: !root.drag
+                    Item {
+                        width: weekFlick.width
+                        height: weekFlick.contentHeight
+                        Repeater {
+                            model: 24
+                            delegate: Item {
+                                required property int index
+                                y: index * weekView.hourPx
+                                width: parent.width
+                                Rectangle { x: weekView.gut; width: parent.width - x; height: 1; color: Theme.line; visible: parent.index > 0 }
+                                Text { visible: parent.index > 0; width: weekView.gut - Theme.px(6); y: -height / 2; horizontalAlignment: Text.AlignRight; text: Fmt.pad(parent.index) + ":00"; font.family: serifFamily; font.pixelSize: Theme.px(11); color: Theme.muted }
+                            }
+                        }
+                        Repeater {
+                            model: weekView.days
+                            delegate: Rectangle {
+                                id: tcol
+                                required property var modelData
+                                required property int index
+                                objectName: "calWeekCol-" + modelData.date
+                                x: weekView.gut + index * weekView.colW
+                                width: weekView.colW
+                                height: parent.height
+                                color: weekView.hit(modelData.date) ? Theme.accentSoft : modelData.today ? Qt.alpha(Theme.accent, 0.04) : "transparent"
+                                Rectangle { width: 1; height: parent.height; color: Theme.line }
+                                Repeater {
+                                    model: (root.weekInfo.events || [])[tcol.index] || []
+                                    delegate: Rectangle {
+                                        id: ev
+                                        required property var modelData
+                                        required property int index
+                                        objectName: "calWeekEvent-" + tcol.modelData.date + "-" + index
+                                        readonly property real h: Math.max(Theme.px(22), (modelData.b - modelData.a) / 60 * weekView.hourPx - 2)
+                                        x: modelData.col / modelData.n * tcol.width + 1
+                                        y: modelData.a / 60 * weekView.hourPx
+                                        width: tcol.width / modelData.n - 3
+                                        height: h
+                                        radius: Theme.px(5)
+                                        clip: true
+                                        color: Qt.tint("#ffffff", Qt.alpha(modelData.color, 0.18))
+                                        Rectangle { width: Theme.px(3); height: parent.height; color: ev.modelData.color }
+                                        Column {
+                                            x: Theme.px(7); y: Theme.px(2)
+                                            width: parent.width - Theme.px(9)
+                                            Text {
+                                                objectName: "calWeekEventTitle"
+                                                width: parent.width
+                                                elide: Text.ElideRight
+                                                text: ev.modelData.kind ? Fmt.kindLabel(ev.modelData.kind) + (ev.modelData.title ? " · " + ev.modelData.title : "") : ev.modelData.title
+                                                font.family: serifFamily; font.pixelSize: Theme.px(12); font.bold: true; color: Theme.text
+                                            }
+                                            Text {
+                                                visible: ev.h > Theme.px(32)
+                                                width: parent.width
+                                                elide: Text.ElideRight
+                                                text: ev.modelData.time + (ev.h > Theme.px(40) ? " · " + ev.modelData.sub : "")
+                                                font.family: serifFamily; font.pixelSize: Theme.px(11); color: Theme.textSoft
+                                            }
+                                        }
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: root.openPlan(ev.modelData.id, ev.modelData.tab)
+                                            onContainsMouseChanged: root.hoverTip(containsMouse, ev, ev.modelData.time + " " + (ev.modelData.title || Fmt.kindLabel(ev.modelData.kind)) + "\n" + ev.modelData.sub + "\n" + ev.modelData.plan)
+                                        }
+                                    }
+                                }
+                                Rectangle {   // 当前时间线
+                                    objectName: "calWeekNow"
+                                    visible: tcol.modelData.today
+                                    y: root.nowMin / 60 * weekView.hourPx
+                                    width: parent.width
+                                    height: Theme.px(2)
+                                    color: Theme.danger
+                                    Rectangle { x: -Theme.px(3); y: -Theme.px(2); width: Theme.px(6); height: width; radius: width / 2; color: Theme.danger }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ---- 季节 ----
+        CalSeasonView {
+            objectName: "calSeasonView"
+            visible: root.isSeason
+            anchors.fill: parent
+            anchors.margins: Theme.px(12)
+            info: calendar.info.season || ({})
+            narrow: root.narrow
+            onOpenPlan: (id) => root.openPlan(id, "")
+            onHoverText: (on, item, text) => root.hoverTip(on, item, text)
+        }
+
         // ---- 月 ----
         Column {
-            visible: !root.isYear
+            visible: root.isMonth
             anchors.fill: parent
             anchors.margins: Theme.px(12)
             Row {
@@ -374,7 +657,7 @@ Item {
                 width: parent.width
                 height: Theme.px(26)
                 Repeater {
-                    model: Fmt.en ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] : ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+                    model: [0, 1, 2, 3, 4, 5, 6].map(i => { const w = (i + calendar.weekStart) % 7; return Fmt.en ? Fmt.wdEn[w] : "周" + Fmt.wdZh[w] })
                     delegate: Text {
                         required property string modelData
                         width: wdHead.width / 7
@@ -434,6 +717,12 @@ Item {
                                             text: parent.modelData.d
                                             font.family: serifFamily; font.pixelSize: Theme.px(12.5)
                                             color: parent.modelData.today ? "#ffffff" : parent.modelData.out ? Theme.faint : Theme.textSoft
+                                            MouseArea {   // 点日期：看这一周
+                                                objectName: "calDayNum-" + parent.parent.modelData.date
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: calendar.showWeek(parent.parent.modelData.date)
+                                            }
                                         }
                                     }
                                 }
@@ -642,6 +931,19 @@ Item {
                 font.family: serifFamily; font.pixelSize: Theme.px(12); font.bold: true; color: Theme.warn
             }
         }
+    }
+
+    // 当前时间线：一分钟走一次
+    property int nowMin: { const d = new Date(); return d.getHours() * 60 + d.getMinutes() }
+    Timer { interval: 60000; repeat: true; running: root.shown && root.isWeek; onTriggered: { const d = new Date(); root.nowMin = d.getHours() * 60 + d.getMinutes() } }
+    // 悬停提示（周视图的事件和站、季节表）
+    function hoverTip(on, item, text) {
+        if (!on || root.drag) { tip.visible = false; return }
+        tip.text = text
+        const p = item.mapToItem(root, 0, item.height + Theme.px(4))
+        tip.x = Math.max(Theme.px(6), Math.min(root.width - tip.width - Theme.px(6), p.x))
+        tip.y = Math.min(root.height - tip.height - Theme.px(6), p.y)
+        tip.visible = true
     }
 
     // ---- 悬停看全名和日期 ----

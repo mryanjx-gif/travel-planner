@@ -117,7 +117,9 @@ Item {
     Timer { id: shotBottom; interval: 200; onTriggered: list.contentY = list.originY + list.contentHeight - list.height }
     function scrollInGuide(y, animate) {
         const h = list.headerItem
-        const to = Math.max(list.originY, Math.min(h.y + h.guide.y + y - compactH - Theme.px(8), list.originY + list.contentHeight - list.height))
+        // y = 0（从头开始写）：标签那一行整行留在收起的页头下面，不被压住；目录跳到标题时才滚过去
+        const top = y > 0 ? h.guide.y + y : h.tabsY
+        const to = Math.max(list.originY, Math.min(h.y + top - compactH - Theme.px(8), list.originY + list.contentHeight - list.height))
         scrollAnim.stop()
         if (!animate || !Theme.motion) { list.contentY = to; return }
         scrollAnim.to = to
@@ -249,6 +251,7 @@ Item {
             id: head
             readonly property real titleBottom: titleRow.y + titleRow.height
             readonly property real navY: navSpace.y
+            readonly property real tabsY: tabsFlick.parent.y
             readonly property alias guide: guideTab
             readonly property alias packing: packingTab
             function focusQuick() { budgetTab.focusQuick() }
@@ -582,7 +585,7 @@ Item {
                 guide: root.info.guide || ""
                 view: root.info.guideView || ({})
                 readOnly: root.readOnly
-                viewH: Math.max(Theme.px(280), list.height - root.compactH - Theme.px(130))
+                viewH: Math.max(Theme.px(280), list.height - root.compactH - Theme.px(172))
                 viewTop: list.contentY - head.y - y + root.compactH
                 onScrollRequested: (yy, animate) => root.scrollInGuide(yy, animate)
                 onLinkRequested: (s) => root.guideLinkRequested(s)
