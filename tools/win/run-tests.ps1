@@ -25,11 +25,20 @@ New-Item -ItemType Directory -Force -Path $Dev | Out-Null
 Set-Content -Path $Log -Value "单元测试  $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -Encoding UTF8
 function Say([string]$m, [string]$color = 'Gray') { Write-Host $m -ForegroundColor $color; Add-Content -Path $Log -Value $m -Encoding UTF8 }
 function Fail([string]$m) { Say "[×] $m" 'Red'; exit 1 }
+# 差异清单 #36：cl 的 /showIncludes 前缀按控制台代码页编码（这台电脑只有中文资源，VSLANG=1033 不管用）。
+# 配置和编译都固定在系统 ANSI 代码页，前缀才和配置时记下的一致，ninja 才记得住头文件依赖；.bat 的 chcp 65001 不影响。
+function Use-AnsiConsole {
+    $acp = (Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Nls\CodePage').ACP
+    try { [Console]::OutputEncoding = [Text.Encoding]::GetEncoding([int]$acp) } catch { Write-Host "  [!] 没能设控制台代码页：$($_.Exception.Message)" -ForegroundColor Yellow }
+}
 function Run([string]$title, [string]$exe, [string[]]$argv) {
     Add-Content -Path $Log -Value "> $exe $($argv -join ' ')" -Encoding UTF8
     $ErrorActionPreference = 'Continue'
+    $cp0 = [Console]::OutputEncoding
+    Use-AnsiConsole
     & $exe @argv 2>&1 | ForEach-Object { $l = "$_"; if ($l -eq 'System.Management.Automation.RemoteException') { return }; Add-Content -Path $Log -Value $l -Encoding UTF8; if ($l -match 'error|错误|FAILED') { Write-Host "  $l" -ForegroundColor Red } }
     $rc = $LASTEXITCODE
+    try { [Console]::OutputEncoding = $cp0 } catch {}
     $ErrorActionPreference = 'Stop'
     if ($rc -ne 0) {
         Write-Host '---- 最后 30 行 ----' -ForegroundColor Yellow

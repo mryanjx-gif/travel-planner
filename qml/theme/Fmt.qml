@@ -10,7 +10,7 @@ QtObject {
     readonly property var monEn: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
     // 英文单数：词典里只有复数（"%1 photos"），n = 1 时拿掉 s
-    function one(s) { return en ? s.replace(/\b1( HEIC)? (photo|plan|booking|day|trip)s\b/g, "1$1 $2") : s }
+    function one(s) { return en ? s.replace(/\b1( HEIC)? (photo|plan|booking|day|trip|stop|region)s\b/g, "1$1 $2") : s }
     function pad(n) { return (n < 10 ? "0" : "") + n }
     function addDays(s, n) { const d = dt(s); d.setDate(d.getDate() + n); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) }
     // 带年份的日期段（年跨过去时不会看错）：2026 · 12.05 — 12.17

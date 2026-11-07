@@ -42,7 +42,7 @@ Item {
     }
     function cardMeta(r) {
         const d = r.startDate || r.endDate ? Fmt.range(r.startDate, r.endDate) : qsTr("未定日期") + (r.estDays >= 1 ? " · " + qsTr("约 %1 天").arg(r.estDays) : "")
-        return d + " · " + (r.type === "route" ? qsTr("%1 站").arg(r.stops) : qsTr("单一目的地"))
+        return d + " · " + (r.type === "route" ? Fmt.one(qsTr("%1 站").arg(r.stops)) : qsTr("单一目的地"))
     }
     // 按区域：已置顶 / 各区域 / 未分类 / 已隐藏（可以折叠）；一个计划经过几个区域就在几组里
     readonly property var regionFlat: {
@@ -182,7 +182,7 @@ Item {
         }
     }
     readonly property real colStatus: Theme.px(Fmt.en ? 84 : 66)
-    readonly property real colRegion: Theme.px(120)
+    readonly property real colRegion: Theme.px(Fmt.en ? 130 : 120)
     readonly property real colDate: Theme.px(150)
     readonly property real colNum: Theme.px(Fmt.en ? 52 : 40)
 
@@ -325,6 +325,7 @@ Item {
                             Text {
                                 anchors.centerIn: parent
                                 visible: coverImg.status === Image.Error || card.r.coverThumb === ""
+                                objectName: "libCoverMissing-" + card.r.id
                                 text: qsTr("照片找不到")
                                 font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
                             }

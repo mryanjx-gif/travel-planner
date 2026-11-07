@@ -105,6 +105,9 @@ void runKit(Report &r, AppController *app, QQuickWindow *win, PlanPageController
 void runPlanPhotos(Report &r, AppController *app, QQuickWindow *win, PlanPageController *page, NavHistory *nav, PhotoController *photos);
 // 0.11.0：计划库、想去、足迹（selftest_library.cpp）
 void runLibrary(Report &r, AppController *app, map::MapController *mapc, QQuickWindow *win);
+// 0.11.4：阶段 ⑤ 总检查补测（selftest_audit.cpp）。分组 audit；thumbs1000 只在点名时跑
+void runAudit(Report &r, AppController *app, map::MapController *mapc, QQuickWindow *win, PhotoController *photos);
+void runThumbs1000(Report &r, PhotoController *photos, const QString &dataDir);
 // 0.11.1：照片模式、相册、看大图、HEIC（selftest_photomode.cpp）
 void runPhotoMode(Report &r, AppController *app, map::MapController *mapc, QQuickWindow *win, PhotoController *photos);
 // 0.11.2：日历、游记（selftest_calendar.cpp）。分组 calendar、journal

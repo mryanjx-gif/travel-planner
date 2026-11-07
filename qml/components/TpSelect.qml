@@ -107,6 +107,7 @@ Item {
             boundsBehavior: Flickable.StopAtBounds
             delegate: Rectangle {
                 id: opt
+                objectName: "selOpt-" + modelData.key
                 required property var modelData
                 required property int index
                 width: list.width

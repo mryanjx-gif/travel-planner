@@ -14,7 +14,7 @@ Item {
     readonly property var rows: info.rows || []
     readonly property bool ready: info.ready === true
     readonly property int curMonth: new Date().getMonth() + 1
-    readonly property real nameW: narrow ? Theme.px(84) : Theme.px(132)
+    readonly property real nameW: narrow ? Theme.px(84) : Theme.px(Fmt.en ? 164 : 132)
     readonly property real plansW: narrow ? 0 : Theme.px(160)
     readonly property real lineW: width - nameW - plansW
     readonly property real rowH: Theme.px(32)

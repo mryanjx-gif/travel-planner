@@ -34,7 +34,7 @@ ModalLayer {
         const b = load(id)
         ref = b.seasonRef || ""
         seasonOptions = [{ key: "", text: qsTr("（不关联）") }].concat(plans.seasonRows().map(r => ({
-            key: r.key, text: (r.group ? r.group + " · " : "") + (Fmt.en && r.nameEn ? r.nameEn : r.name) })))
+            key: r.key, text: Fmt.en && r.nameEn ? r.nameEn : (r.group ? r.group + " · " : "") + r.name })))
         kind = "season"
         open = true
     }

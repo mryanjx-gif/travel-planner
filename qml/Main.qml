@@ -113,6 +113,7 @@ Window {
     function setRhiInfo(name, dev) { rhiName = name; rhiDevice = dev }
     // 自检"性能"（0.9.1）：临时关掉 / 打开透明效果，量玻璃占多少（设置页的开关在阶段 ⑥）
     function setGlassForTest(on) { Theme.glass = on }
+    function setMotionForTest(on) { Theme.motion = on }
     // 图形后端退回原因（C++ 里是中文原文）：整句或"前半句：后半句"分别查词典，查不到的部分（如显卡报的错误）原样显示
     function trReason(r) {
         if (!r) return ""
@@ -979,6 +980,7 @@ Window {
         onUnsetNext: { win.nowOpen = false; plans.setNextTrip(plans.now.planId, false) }
         onOpenLibrary: win.openLibrary()
         onOpenPhotos: (id) => win.openTripPhotos(id)
+        onOpenJournal: (id) => { win.tripTab = "journal"; win.tripTabPlan = id; win.openTrip(id, -1) }
         onMarkDone: (id, name) => { planConfirm.ask("done", id, name) }
     }
 
@@ -1493,7 +1495,7 @@ Window {
     // ---- 左下角：测试信息（图形后端、退回原因、数据、刷新率）；只在开发版显示（0.8.0） ----
     Rectangle {
         id: devInfo
-        visible: app.devTools && !win.drawerPanelOpen   // 0.8.9：窄窗口抽屉开着时不显示（会透到抽屉底下）
+        visible: app.devTools && !win.drawerPanelOpen && !plans.libraryOpen && !win.settingsOpen && !win.tripOpen   // 计划库、设置、计划页开着时地图窄，放不下；0.8.9：窄窗口抽屉开着时不显示（会透到抽屉底下）
         anchors.right: parent.right   // 0.8.7：左下角给状态胶囊，测试信息挪到右下角（简易面板开着时让到它左边）
         anchors.bottom: parent.bottom
         anchors.margins: 14
@@ -2874,6 +2876,7 @@ Window {
                 // album / album-year / album-fav / album-inbox / album-narrow = 相册整页；
                 // heic-album / heic-lightbox = 真的解 HEIC；heic-off-album / heic-off-lightbox = 没装扩展（假装）
                 plans.setTestAllStatuses(false)
+                if (shotPage.startsWith("heic-off")) photos.setHeicTestOff(true)   // 几张图共用一份副本：进相册之前就假装没装，不然先读出缩略图
                 win.goPage("photo")
                 win.listOpen = true
                 photoModeShot.start()
@@ -2929,9 +2932,9 @@ Window {
                     if (wd.today) { plans.setTodayOverride(wd.today); calendar.showWeek(wd.today) }
                     else calendar.view = "week"
                 }
-                if (shotPage === "calendar-season-2030") plans.setTodayOverride("2030-06-15")   // 一年两段斋月（T1）
+                if (shotPage.startsWith("calendar-season-20")) plans.setTodayOverride(shotPage.slice(-4) + "-06-15")   // 一年两段斋月（T1）
                 if (shotPage.startsWith("calendar-season")) calendar.view = "season"
-                if (shotPage === "calendar-season-2030") {   // 只留有斋月的两组，一屏看得到
+                if (shotPage.startsWith("calendar-season-20")) {   // 只留有斋月的两组，一屏看得到
                     calendar.setAllSeasonGroups(true)
                     calendar.setSeasonGroupClosed("东南亚", false)
                     calendar.setSeasonGroupClosed("西亚/中亚", false)
@@ -2999,7 +3002,8 @@ Window {
                 let best = null
                 for (const x of t) if (mapc.photoLayer.pointsOf(x.id).length > (best ? mapc.photoLayer.pointsOf(best.id).length : 0)) best = x
                 if (best) {
-                    if (shotPage === "photo-trip") { album.plan = best.id; win.flyToPhotos(best.id) }
+                    // view 会记在副本里，单截时可能还是上一张留下的未归类
+                    if (shotPage === "photo-trip") { album.view = "trip"; album.plan = best.id; win.flyToPhotos(best.id) }
                     else {
                         const l = []
                         for (const p of lib) if (p.plan === best.id && !p.lat) l.push(p.id)

@@ -72,11 +72,12 @@ Item {
     }
     function dateRange(r) {
         // map-app.js dateRange：start → end（N 天）；只有一个日期就显示它；都没有 = 未定日期
-        if (r.startDate && r.endDate) return r.startDate + " → " + r.endDate + (r.days > 0 ? qsTr("（%1 天）").arg(r.days) : "")
+        if (r.startDate && r.endDate) return r.startDate + " → " + (r.startDate.slice(0, 4) === r.endDate.slice(0, 4) ? r.endDate.slice(5) : r.endDate) + (r.days > 0 && r.days < 100 ? qsTr("（%1 天）").arg(r.days) : "")
         return r.startDate || r.endDate || qsTr("未定日期")
     }
     function metaOf(r) {
-        const kind = r.type === "route" ? qsTr("路线 · %1 站").arg(r.stops) : qsTr("单一目的地")
+        if (root.footMode) return (r.type === "route" ? Fmt.one(qsTr("%1 站").arg(r.stops)) + " · " : "") + dateRange(r)   // 足迹按年分组，一行放得下日期最要紧
+        const kind = r.type === "route" ? Fmt.one(qsTr("路线 · %1 站").arg(r.stops)) : qsTr("单一目的地")
         if (root.wishMode && r.regions && r.regions.length) return kind + " · " + r.regions.map(x => qsTr(x)).join(qsTr("、"))   // Electron 想去卡片：区域 + 路线 · N 站
         return kind + " · " + dateRange(r)
     }
@@ -191,7 +192,7 @@ Item {
         y: head.y + head.height
         width: root.width - Theme.px(36)
         elide: Text.ElideRight
-        text: qsTr("%1 趟").arg(root.info.completed || 0) + (mapc.unlockReady ? " · " + qsTr("%1 个地区").arg(mapc.unlockProvinces) : "")
+        text: Fmt.one(qsTr("%1 趟").arg(root.info.completed || 0) + (mapc.unlockReady ? " · " + qsTr("%1 个地区").arg(mapc.unlockProvinces) : ""))
         font.family: serifFamily; font.pixelSize: Theme.px(13); font.bold: true; color: Theme.accent
         onVisibleChanged: if (visible) mapc.needUnlockCount()
     }

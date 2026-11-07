@@ -135,7 +135,7 @@ GlassPanel {
                 SettingsRow {
                     width: parent.width
                     label: qsTr("一周从哪天开始")
-                    sub: qsTr("日历的月视图和周视图")
+                    sub: qsTr("日历和选日期的小日历")
                     Segmented {
                         objectName: "weekStartSeg"
                         options: [{ key: "1", text: qsTr("周一") }, { key: "0", text: qsTr("周日") }]

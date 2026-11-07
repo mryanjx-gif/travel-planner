@@ -23,6 +23,7 @@ Rectangle {
             model: root.options
             delegate: Item {
                 id: seg
+                objectName: root.objectName ? root.objectName + "-" + modelData.key : ""
                 required property var modelData
                 readonly property bool on: root.current === modelData.key
                 width: root.fill ? (root.width - Theme.px(6) - Theme.px(4) * (root.options.length - 1)) / root.options.length

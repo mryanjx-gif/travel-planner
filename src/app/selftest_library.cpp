@@ -154,7 +154,7 @@ void runLibrary(Report &r, AppController *app, map::MapController *mapc, QQuickW
         click(win, item(win, QStringLiteral("libStatus-wish")));
         bool allWish = !libRows(pc).isEmpty();
         for (const QVariant &v : libRows(pc)) allWish = allWish && v.toMap().value(QStringLiteral("status")).toString() == QLatin1String("wish");
-        r.check(allWish && statusesOnMap(mapc) == QSet<QString>{ QStringLiteral("wish") }, QStringLiteral("点状态\"想去\"：列表和地图都只剩想去"));
+        r.check(allWish && waitFor([&] { return statusesOnMap(mapc) == QSet<QString>{ QStringLiteral("wish") }; }, 1500), QStringLiteral("点状态\"想去\"：列表和地图都只剩想去"));
         click(win, item(win, QStringLiteral("libStatus-all")));
 
         pc->setLibraryPref(QStringLiteral("type"), QStringLiteral("single"));

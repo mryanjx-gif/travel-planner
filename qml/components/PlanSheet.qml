@@ -29,6 +29,7 @@ Item {
     readonly property var stops: sheet.stops || []
     readonly property bool route: sheet.type === "route" && stops.length > 1
     readonly property int shown: route ? focusIndex : (stops.length ? 0 : -1)   // 现在显示哪一站（-1 = 概览）
+    readonly property bool overview: shown < 0 || !route   // 计划的封面和备注：路线在概览时、单一目的地一直显示（想去多半是单一目的地）
     readonly property var stop: shown >= 0 && shown < stops.length ? stops[shown] : null
 
     function statusLabel(s) { return s === "completed" ? qsTr("已完成") : s === "wish" ? qsTr("想去") : qsTr("计划中") }
@@ -203,12 +204,13 @@ Item {
             width: body.width
             spacing: Theme.px(10)
 
-            // 概览（路线、没有聚焦）
+            // 概览（路线没有聚焦；单一目的地这一块也显示，下面接着站点内容）
             Image {
-                visible: root.shown < 0 && (root.sheet.coverThumb || "") !== "" && status !== Image.Error
+                objectName: "sheetCover"
+                visible: root.overview && (root.sheet.coverThumb || "") !== "" && status !== Image.Error
                 width: parent.width
                 height: visible ? Math.round(width * 0.42) : 0
-                source: root.shown < 0 ? (root.sheet.coverThumb || "") : ""
+                source: root.overview ? (root.sheet.coverThumb || "") : ""
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 sourceSize.width: 640
@@ -219,7 +221,7 @@ Item {
                     onClicked: root.photoViewRequested([{ file: root.sheet.coverFile, thumb: root.sheet.coverThumb }], 0)
                 }
             }
-            NotesBlock { visible: root.shown < 0 && (root.sheet.notes || "") !== ""; text: root.sheet.notes || ""; open: root.notesOpen; onToggled: root.notesOpen = !root.notesOpen }
+            NotesBlock { objectName: "sheetNotes"; visible: root.overview && (root.sheet.notes || "") !== ""; text: root.sheet.notes || ""; open: root.notesOpen; onToggled: root.notesOpen = !root.notesOpen }
             Text {
                 visible: root.shown < 0
                 font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.muted

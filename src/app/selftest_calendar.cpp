@@ -446,6 +446,9 @@ void runCalendarWeek(Report &r, AppController *app, map::MapController *mapc, QQ
     r.check(noTime(store->data()) == noTime(before), QStringLiteral("跳过去不改数据"));
     QQuickItem *flick = c.item(QStringLiteral("calWeekFlick"));
     r.check(waitFor([&] { return flick && flick->property("contentY").toDouble() > 0; }, 800), QStringLiteral("时间轴滚到最早的事件或 7 点附近"), flick ? flick->property("contentY").toString() : QString());
+    QQuickItem *weekTop = c.item(QStringLiteral("calWeekTop")), *weekView = c.item(QStringLiteral("calWeekView"));
+    r.check(weekTop && weekView && weekTop->height() <= weekView->height() * 0.4 + 1 && flick->height() >= weekView->height() * 0.4,
+            QStringLiteral("全天区不超过周视图的 40%，时间轴留得够"), weekTop && weekView ? QStringLiteral("%1 / %2 / %3").arg(weekTop->height()).arg(flick->height()).arg(weekView->height()) : QString());
     r.info(QStringLiteral("一小时 %1 px（44 px 乘字号比例）").arg(flick ? flick->property("contentHeight").toDouble() / 24 : 0));
 
     // ---- 翻页：一周一周 ----

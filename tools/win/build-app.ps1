@@ -26,11 +26,20 @@ New-Item -ItemType Directory -Force -Path $Dev | Out-Null
 Set-Content -Path $Log -Value "编译 $BuildType  $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -Encoding UTF8
 function Say([string]$m, [string]$color = 'Gray') { Write-Host $m -ForegroundColor $color; Add-Content -Path $Log -Value $m -Encoding UTF8 }
 function Fail([string]$m) { Say "[×] $m" 'Red'; Say '请把 编译-结果.txt 发给 Claude（或告诉我，我直接读）。' 'Yellow'; exit 1 }
+# 差异清单 #36：cl 的 /showIncludes 前缀按控制台代码页编码（这台电脑只有中文资源，VSLANG=1033 不管用）。
+# 配置和编译都固定在系统 ANSI 代码页，前缀才和配置时记下的一致，ninja 才记得住头文件依赖；.bat 的 chcp 65001 不影响。
+function Use-AnsiConsole {
+    $acp = (Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Nls\CodePage').ACP
+    try { [Console]::OutputEncoding = [Text.Encoding]::GetEncoding([int]$acp) } catch { Write-Host "  [!] 没能设控制台代码页：$($_.Exception.Message)" -ForegroundColor Yellow }
+}
 function Run([string]$title, [string]$exe, [string[]]$argv) {
     Add-Content -Path $Log -Value "> $exe $($argv -join ' ')" -Encoding UTF8
     $ErrorActionPreference = 'Continue'
+    $cp0 = [Console]::OutputEncoding
+    Use-AnsiConsole
     & $exe @argv 2>&1 | ForEach-Object { $l = "$_"; if ($l -eq 'System.Management.Automation.RemoteException') { return }; Add-Content -Path $Log -Value $l -Encoding UTF8; if ($l -match 'error|错误|FAILED') { Write-Host "  $l" -ForegroundColor Red } }
     $rc = $LASTEXITCODE
+    try { [Console]::OutputEncoding = $cp0 } catch {}
     $ErrorActionPreference = 'Stop'
     if ($rc -ne 0) {
         Write-Host '---- 最后 30 行 ----' -ForegroundColor Yellow
@@ -93,6 +102,17 @@ if ((Test-Path (Join-Path $Build 'build.ninja')) -and $sameType -and -not $Recon
 Say '[3/5] 编译…'
 if ($WithTests) { Run '编译' 'cmake' @('--build', $Build) }
 else { Run '编译' 'cmake' @('--build', $Build, '--target', 'TravelPlanner') }
+
+# 差异清单 #36 的保险：有人直接跑 ninja、或编译被杀，依赖记录仍可能丢；丢了的 .obj 删掉重编一次，下次改头文件才会重编
+$ninja = (Get-Command ninja -ErrorAction SilentlyContinue).Source
+if ($ninja) {
+    $lost = @(& $ninja -C $Build -t deps | Where-Object { $_ -match '^(.+\.cpp\.obj): #deps 0' -and $_ -notmatch 'qrc_|mocs_compilation' } | ForEach-Object { $Matches[1] })
+    if ($lost.Count -gt 0) {
+        Say "  [!] $($lost.Count) 个 .cpp 没有头文件依赖记录，重编这些文件" 'Yellow'
+        foreach ($o in $lost) { Remove-Item -LiteralPath (Join-Path $Build $o) -Force -ErrorAction SilentlyContinue }
+        if ($WithTests) { Run '补编' 'cmake' @('--build', $Build) } else { Run '补编' 'cmake' @('--build', $Build, '--target', 'TravelPlanner') }
+    }
+}
 
 Say '[4/5] 放入两套地图库（maplibre\vulkan、maplibre\opengl）…'
 # 0.7.2：地图库没变（按两套 install 目录里最新的文件时间）就不再复制

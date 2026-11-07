@@ -559,7 +559,7 @@ WiFi	Wi-Fi
 第 %1 / %2 站	Stop %1 of %2
 返回（Esc）	Back (Esc)
 开始计划	Start planning
-改成“计划中”	Change to “Planning”
+改成“计划中”	Change to "Planning"
 预计天数	Estimated days
 大约几天（不确定可以留空）	About how many days (leave empty if unsure)
 天数要在 1 到 999 之间	Days must be between 1 and 999
@@ -801,9 +801,9 @@ Enter 记下，日期默认今天	Enter to add; dated today
 # 0.11.1
 没有拍摄时间	No capture time
 未归类	Unsorted
-地图上 %1 张	%1 on the map
+地图上 %1 张	%1 on map
 %1 张未归类	%1 unsorted
-没有位置 %1 张	%1 without a location
+没有位置 %1 张	%1 unplaced
 导入照片	Import photos
 按旅程	By trip
 按年份	By year
@@ -899,7 +899,7 @@ HEIC 照片能导入；这台电脑没装 HEIF / HEVC 扩展，暂时显示不�
 标题	Title
 日期	Date
 （不关联）	(None)
-站点	Stop
+所在站点	Stop
 （整个旅程）	(Whole trip)
 未保存…	Not saved…
 已自动保存	Saved automatically
@@ -921,7 +921,7 @@ HEIC 照片能导入；这台电脑没装 HEIF / HEVC 扩展，暂时显示不�
 %1 等 %2 条	%1 and %2 in all
 什么时候去哪里合适	When to go where
 一周从哪天开始	Week starts on
-日历的月视图和周视图	Month and week views in the calendar
+日历和选日期的小日历	The calendar and date pickers
 表里没写	Not in the table
 ✓ 去过	✓ Visited
 ✓ 去过（正在计算…）	✓ Visited (working it out…)

@@ -5,6 +5,8 @@
 // 极点缩放不抽搐、城市灯光只在最远时显示）。
 #include "selftest_util.h"
 
+#include <cmath>
+
 #include "appcontroller.h"
 #include "globeitem.h"
 #include "flatvehicle.h"
@@ -167,8 +169,17 @@ void runSky(Report &r, AppController *app, QQuickWindow *win, GlobeItem *globe)
         const double R = f * std::tan(std::asin(1.0 / globe->distance()));   // 球在屏幕上的半径（逻辑像素）
         const QPointF mid = globe->mapToScene(QPointF(globe->width() / 2, globe->height() / 2));
         const QImage img = win->grabWindow();
-        const QColor right = avgColor(img, QRectF(mid.x() + R * 1.02, mid.y() - 6, 6, 12), dpr);
-        const QColor left = avgColor(img, QRectF(mid.x() - R * 1.02 - 6, mid.y() - 6, 6, 12), dpr);
+        // 0.11.4：路线的绿色弧线可能正好压在量的那一点上（看截图确认过，全量里因此没过一次）。沿球边量 7 点，取最偏蓝的（蓝减绿最大），绿线、白点都不会被选中
+        const auto limb = [&](double side) {
+            QColor best;
+            for (int k = -3; k <= 3; ++k) {
+                const double t = k * 0.1;
+                const QColor c = avgColor(img, QRectF(mid.x() + side * (R * 1.02 * std::sqrt(1 - t * t) + 3) - 3, mid.y() + t * R * 1.02 - 6, 6, 12), dpr);
+                if (k == -3 || c.blue() - c.green() > best.blue() - best.green()) best = c;
+            }
+            return best;
+        };
+        const QColor right = limb(1), left = limb(-1);
         r.check(right.blue() - left.blue() >= 20, QStringLiteral("大气光晕跟着太阳：白天那一侧亮，夜里那一侧淡"),
                 QStringLiteral("球半径 %1 像素；右（白天）%2，左（夜里）%3").arg(R, 0, 'f', 0).arg(rgbText(right), rgbText(left)));
     }

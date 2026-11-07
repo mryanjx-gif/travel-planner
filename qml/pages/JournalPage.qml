@@ -411,7 +411,7 @@ Item {
                 Row {
                     height: Theme.px(32)
                     spacing: Theme.px(6)
-                    Text { anchors.verticalCenter: parent.verticalCenter; text: qsTr("站点"); font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted }
+                    Text { anchors.verticalCenter: parent.verticalCenter; text: qsTr("所在站点"); font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted }
                     TpSelect {
                         objectName: "journalStop"
                         width: Theme.px(170)

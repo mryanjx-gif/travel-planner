@@ -201,6 +201,7 @@ Column {
             border.width: 1; border.color: Theme.line
             Accessible.name: qsTr("预览")
             Flickable {
+                objectName: root.namePrefix + "PreviewFlick"
                 id: prevFlick
                 x: Theme.px(12); y: Theme.px(10)
                 width: parent.width - Theme.px(24)

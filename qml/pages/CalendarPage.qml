@@ -358,7 +358,7 @@ Item {
                                     x: Theme.px(8)
                                     width: parent.width - Theme.px(14)
                                     anchors.verticalCenter: parent.verticalCenter
-                                    elide: Text.ElideMiddle
+                                    elide: Text.ElideRight
                                     text: yb.title
                                     font.family: serifFamily; font.pixelSize: Theme.px(13); font.bold: true; color: "#ffffff"
                                 }
@@ -373,7 +373,7 @@ Item {
                                 height: Theme.px(32)
                                 verticalAlignment: Text.AlignVCenter
                                 horizontalAlignment: yb.modelData.labelLeft ? Text.AlignRight : Text.AlignLeft
-                                elide: Text.ElideMiddle   // 同名前缀多（Plan A / B / C）：留住结尾
+                                elide: Text.ElideRight
                                 text: yb.title
                                 font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: yb.modelData.done ? Theme.muted : Theme.textSoft
                                 BarArea { anchors.fill: parent; bar: yb.modelData; srcItem: sideLabel }
@@ -401,7 +401,7 @@ Item {
             visible: root.isWeek
             anchors.fill: parent
             anchors.margins: Theme.px(12)
-            readonly property real gut: Theme.px(44)
+            readonly property real gut: Theme.px(Fmt.en ? 50 : 44)
             readonly property real hourPx: Theme.px(44)
             readonly property var days: root.weekInfo.days || []
             readonly property real colW: weekCols.width / 7
@@ -411,7 +411,8 @@ Item {
             function scrollIfNew() {
                 if (!root.isWeek || root.weekInfo.start === undefined || scrolledFor === root.weekInfo.start) return
                 scrolledFor = root.weekInfo.start
-                Qt.callLater(() => { weekFlick.contentY = Math.min(Math.max(0, weekFlick.contentHeight - weekFlick.height), Math.max(0, root.weekInfo.first - 30) / 60 * hourPx) })
+                weekTop.contentY = 0
+                Qt.callLater(() => { weekFlick.contentY = Math.max(0, Math.min(weekFlick.contentHeight - weekFlick.height, root.weekInfo.first / 60 * hourPx - hourPx / 2 - Theme.px(10))) })
             }
             Connections { target: root; function onWeekInfoChanged() { weekView.scrollIfNew() } }
             onVisibleChanged: { if (!visible) scrolledFor = ""; else scrollIfNew() }
@@ -440,105 +441,127 @@ Item {
                         }
                     }
                 }
-                Item {   // 全天：计划和住宿的横条
-                    id: allDay
+                Flickable {   // 全天区 + 站：最多占这一视图的 40%，多的自己滚，时间轴总留得够
+                    id: weekTop
+                    objectName: "calWeekTop"
                     width: parent.width
-                    height: Math.max(1, root.weekInfo.lanes || 0) * Theme.px(26) + Theme.px(4)
-                    Text { width: weekView.gut - Theme.px(6); y: Theme.px(5); horizontalAlignment: Text.AlignRight; text: qsTr("全天"); font.family: serifFamily; font.pixelSize: Theme.px(11.5); color: Theme.muted }
-                    Text {
-                        objectName: "calWeekEmpty"
-                        visible: root.weekInfo.empty === true
-                        x: weekView.gut + Theme.px(8); y: Theme.px(5)
-                        text: qsTr("这一周没有安排")
-                        font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted
-                    }
-                    Repeater {
-                        model: root.weekInfo.bars || []
-                        delegate: Rectangle {
-                            id: wb
-                            required property var modelData
-                            readonly property bool hotel: modelData.kind === "hotel"
-                            objectName: hotel ? "calWeekHotel-" + modelData.id + "-" + modelData.a : "calWeekBar-" + modelData.id
-                            x: weekView.gut + modelData.a * weekView.colW + Theme.px(3)
-                            y: Theme.px(2) + modelData.lane * Theme.px(26)
-                            width: (modelData.b - modelData.a + 1) * weekView.colW - Theme.px(6)
-                            height: Theme.px(22)
-                            radius: Theme.px(6)
-                            topLeftRadius: modelData.cutL ? 0 : radius; bottomLeftRadius: topLeftRadius
-                            topRightRadius: modelData.cutR ? 0 : radius; bottomRightRadius: topRightRadius
-                            color: hotel ? Qt.alpha(modelData.color, 0.14) : modelData.color
-                            border.width: hotel ? 1 : 0; border.color: Qt.alpha(modelData.color, 0.5)
-                            opacity: (root.drag && root.drag.id === modelData.id && root.dragging && !hotel ? 0.35 : modelData.done ? 0.62 : 1)
-                            Text {
-                                x: Theme.px(7)
-                                width: parent.width - Theme.px(12)
-                                anchors.verticalCenter: parent.verticalCenter
-                                elide: Text.ElideRight
-                                text: wb.hotel ? qsTr("住宿") + (wb.modelData.name ? " · " + wb.modelData.name : "") : (wb.modelData.name || qsTr("未命名计划"))
-                                font.family: serifFamily; font.pixelSize: Theme.px(12.5); font.bold: !wb.hotel; color: wb.hotel ? Theme.textSoft : "#ffffff"
-                            }
-                            BarArea { visible: !wb.hotel; enabled: !wb.hotel; anchors.fill: parent; bar: wb.modelData; srcItem: wb }
-                            MouseArea { visible: wb.hotel; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.openPlan(wb.modelData.id, "bookings") }
-                        }
-                    }
-                }
-                Item {   // 当天在哪一站（没写时间的日程写在站名下面）
-                    id: stopRow
-                    width: parent.width
-                    height: stopCols.maxH
-                    Item {
-                        id: stopCols
-                        readonly property real maxH: {
-                            let n = 0
-                            for (const l of root.weekInfo.stops || []) {
-                                let h = 0
-                                for (const s of l) h += (s.loose.length ? Theme.px(38) : Theme.px(24)) + Theme.px(2)
-                                n = Math.max(n, h)
-                            }
-                            return n + (n > 0 ? Theme.px(2) : 0)
+                    height: Math.min(contentHeight, weekView.height * 0.4)
+                    contentWidth: width
+                    contentHeight: allDay.height + stopRow.height
+                    boundsBehavior: Flickable.StopAtBounds
+                    clip: true
+                    interactive: contentHeight > height && !root.drag
+                    Item {   // 全天：计划和住宿的横条
+                        id: allDay
+                        width: weekTop.width
+                        height: Math.max(1, root.weekInfo.lanes || 0) * Theme.px(26) + Theme.px(4)
+                        Text { width: weekView.gut - Theme.px(6); y: Theme.px(5); horizontalAlignment: Text.AlignRight; text: qsTr("全天"); font.family: serifFamily; font.pixelSize: Theme.px(11.5); color: Theme.muted }
+                        Text {
+                            objectName: "calWeekEmpty"
+                            visible: root.weekInfo.empty === true
+                            x: weekView.gut + Theme.px(8); y: Theme.px(5)
+                            text: qsTr("这一周没有安排")
+                            font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted
                         }
                         Repeater {
-                            model: root.weekInfo.stops || []
-                            delegate: Column {
+                            model: root.weekInfo.bars || []
+                            delegate: Rectangle {
+                                id: wb
                                 required property var modelData
-                                required property int index
-                                x: weekView.gut + index * weekView.colW + Theme.px(3)
-                                width: weekView.colW - Theme.px(6)
-                                spacing: Theme.px(2)
-                                Repeater {
-                                    model: parent.modelData
-                                    delegate: Rectangle {
-                                        id: sc
-                                        required property var modelData
-                                        objectName: "calWeekStop"
-                                        width: parent.width
-                                        height: modelData.loose.length ? Theme.px(38) : Theme.px(24)
-                                        radius: Theme.px(6)
-                                        color: Qt.alpha(modelData.color, 0.1)
-                                        Rectangle { width: Theme.px(3); height: parent.height; radius: width / 2; color: sc.modelData.color }
-                                        Column {
-                                            x: Theme.px(8); width: parent.width - Theme.px(10)
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            Text { width: parent.width; elide: Text.ElideRight; text: (sc.modelData.n ? sc.modelData.n + " " : "") + (sc.modelData.name || qsTr("未命名地点")); font.family: serifFamily; font.pixelSize: Theme.px(12); font.bold: true; color: Theme.text }
-                                            Text {
-                                                visible: sc.modelData.loose.length > 0
-                                                width: parent.width
-                                                elide: Text.ElideRight
-                                                text: sc.modelData.loose.length > 1 ? qsTr("%1 等 %2 条").arg(sc.modelData.loose[0]).arg(sc.modelData.loose.length) : sc.modelData.loose[0] || ""
-                                                font.family: serifFamily; font.pixelSize: Theme.px(11); color: Theme.muted
+                                readonly property bool hotel: modelData.kind === "hotel"
+                                objectName: hotel ? "calWeekHotel-" + modelData.id + "-" + modelData.a : "calWeekBar-" + modelData.id
+                                x: weekView.gut + modelData.a * weekView.colW + Theme.px(3)
+                                y: Theme.px(2) + modelData.lane * Theme.px(26)
+                                width: (modelData.b - modelData.a + 1) * weekView.colW - Theme.px(6)
+                                height: Theme.px(22)
+                                radius: Theme.px(6)
+                                topLeftRadius: modelData.cutL ? 0 : radius; bottomLeftRadius: topLeftRadius
+                                topRightRadius: modelData.cutR ? 0 : radius; bottomRightRadius: topRightRadius
+                                color: hotel ? Qt.alpha(modelData.color, 0.14) : modelData.color
+                                border.width: hotel ? 1 : 0; border.color: Qt.alpha(modelData.color, 0.5)
+                                opacity: (root.drag && root.drag.id === modelData.id && root.dragging && !hotel ? 0.35 : modelData.done ? 0.62 : 1)
+                                Text {
+                                    x: Theme.px(7)
+                                    width: parent.width - Theme.px(12)
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    elide: Text.ElideRight
+                                    text: wb.hotel ? (wb.modelData.name && weekView.colW < Theme.px(90) ? wb.modelData.name : qsTr("住宿") + (wb.modelData.name ? " · " + wb.modelData.name : "")) : (wb.modelData.name || qsTr("未命名计划"))
+                                    font.family: serifFamily; font.pixelSize: Theme.px(12.5); font.bold: !wb.hotel; color: wb.hotel ? Theme.textSoft : "#ffffff"
+                                }
+                                BarArea { visible: !wb.hotel; enabled: !wb.hotel; anchors.fill: parent; bar: wb.modelData; srcItem: wb }
+                                MouseArea { visible: wb.hotel; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.openPlan(wb.modelData.id, "bookings") }
+                            }
+                        }
+                    }
+                    Item {   // 当天在哪一站（没写时间的日程写在站名下面）
+                        id: stopRow
+                        y: allDay.height
+                        width: weekTop.width
+                        height: stopCols.maxH
+                        Item {
+                            id: stopCols
+                            readonly property real maxH: {
+                                let n = 0
+                                for (const l of root.weekInfo.stops || []) {
+                                    let h = 0
+                                    for (const s of l) h += (s.loose.length ? Theme.px(38) : Theme.px(24)) + Theme.px(2)
+                                    n = Math.max(n, h)
+                                }
+                                return n + (n > 0 ? Theme.px(2) : 0)
+                            }
+                            Repeater {
+                                model: root.weekInfo.stops || []
+                                delegate: Column {
+                                    required property var modelData
+                                    required property int index
+                                    x: weekView.gut + index * weekView.colW + Theme.px(3)
+                                    width: weekView.colW - Theme.px(6)
+                                    spacing: Theme.px(2)
+                                    Repeater {
+                                        model: parent.modelData
+                                        delegate: Rectangle {
+                                            id: sc
+                                            required property var modelData
+                                            objectName: "calWeekStop"
+                                            width: parent.width
+                                            height: modelData.loose.length ? Theme.px(38) : Theme.px(24)
+                                            radius: Theme.px(6)
+                                            color: Qt.alpha(modelData.color, 0.1)
+                                            Rectangle { width: Theme.px(3); height: parent.height; radius: width / 2; color: sc.modelData.color }
+                                            Column {
+                                                x: Theme.px(8); width: parent.width - Theme.px(10)
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                Text { width: parent.width; elide: Text.ElideRight; text: (sc.modelData.n ? sc.modelData.n + " " : "") + (sc.modelData.name || qsTr("未命名地点")); font.family: serifFamily; font.pixelSize: Theme.px(12); font.bold: true; color: Theme.text }
+                                                Text {
+                                                    visible: sc.modelData.loose.length > 0
+                                                    width: parent.width
+                                                    elide: Text.ElideRight
+                                                    text: sc.modelData.loose.length > 1 ? qsTr("%1 等 %2 条").arg(sc.modelData.loose[0]).arg(sc.modelData.loose.length) : sc.modelData.loose[0] || ""
+                                                    font.family: serifFamily; font.pixelSize: Theme.px(11); color: Theme.muted
+                                                }
                                             }
-                                        }
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: root.openPlan(sc.modelData.id, "")
-                                            onContainsMouseChanged: root.hoverTip(containsMouse, sc, sc.modelData.plan + " · " + sc.modelData.name + (sc.modelData.loose.length ? "\n" + sc.modelData.loose.join("\n") : ""))
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: root.openPlan(sc.modelData.id, "")
+                                                onContainsMouseChanged: root.hoverTip(containsMouse, sc, sc.modelData.plan + " · " + sc.modelData.name + (sc.modelData.loose.length ? "\n" + sc.modelData.loose.join("\n") : ""))
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
+                    }
+                    Rectangle {   // 放不下时的位置条
+                        parent: weekTop
+                        visible: weekTop.contentHeight > weekTop.height
+                        x: weekTop.width - width
+                        y: weekTop.visibleArea.yPosition * weekTop.height
+                        width: Theme.px(3)
+                        height: weekTop.visibleArea.heightRatio * weekTop.height
+                        radius: width / 2
+                        color: Theme.lineStrong
                     }
                 }
                 Rectangle { width: parent.width; height: 1; color: Theme.lineStrong }
@@ -561,7 +584,7 @@ Item {
                                 y: index * weekView.hourPx
                                 width: parent.width
                                 Rectangle { x: weekView.gut; width: parent.width - x; height: 1; color: Theme.line; visible: parent.index > 0 }
-                                Text { visible: parent.index > 0; width: weekView.gut - Theme.px(6); y: -height / 2; horizontalAlignment: Text.AlignRight; text: Fmt.pad(parent.index) + ":00"; font.family: serifFamily; font.pixelSize: Theme.px(11); color: Theme.muted }
+                                Text { visible: parent.index > 0 && parent.y - height / 2 >= weekFlick.contentY && parent.y + height / 2 <= weekFlick.contentY + weekFlick.height; width: weekView.gut - Theme.px(6); y: -height / 2; horizontalAlignment: Text.AlignRight; text: Fmt.pad(parent.index) + ":00"; font.family: serifFamily; font.pixelSize: Theme.px(11); color: Theme.muted }
                             }
                         }
                         Repeater {

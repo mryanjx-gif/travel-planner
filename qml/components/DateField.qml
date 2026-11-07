@@ -79,7 +79,7 @@ Item {
                 c.moveTo(8 * s, 3 * s); c.lineTo(8 * s, 7 * s); c.moveTo(16 * s, 3 * s); c.lineTo(16 * s, 7 * s); c.stroke()
             }
         }
-        MouseArea { id: calMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.openCal() }
+        MouseArea { id: calMa; objectName: "dateCalBtn"; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.openCal() }
     }
 
     // ---- 月历 ----
@@ -102,7 +102,7 @@ Item {
     function shiftMonth(n) { let m = viewM + n, y = viewY; while (m < 0) { m += 12; --y } while (m > 11) { m -= 12; ++y } viewM = m; viewY = y }
     readonly property var cells: {
         const first = new Date(viewY, viewM, 1)
-        const lead = (first.getDay() + 6) % 7   // 周一开头
+        const lead = (first.getDay() - calendar.weekStart + 7) % 7   // 跟设置里的一周起始
         const n = new Date(viewY, viewM + 1, 0).getDate()
         const out = []
         for (let i = 0; i < lead; ++i) out.push(0)
@@ -149,7 +149,7 @@ Item {
                 columns: 7
                 width: parent.width
                 Repeater {
-                    model: Fmt.en ? ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"] : ["一", "二", "三", "四", "五", "六", "日"]
+                    model: [0, 1, 2, 3, 4, 5, 6].map(i => (Fmt.en ? ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] : ["日", "一", "二", "三", "四", "五", "六"])[(i + calendar.weekStart) % 7])
                     delegate: Text {
                         required property var modelData
                         width: calCol.width / 7; horizontalAlignment: Text.AlignHCenter
@@ -162,6 +162,7 @@ Item {
                         required property var modelData
                         readonly property string ds: modelData ? root.viewY + "-" + root.pad(root.viewM + 1) + "-" + root.pad(modelData) : ""
                         readonly property bool sel: ds !== "" && ds === root.value
+                        objectName: ds ? "dateDay-" + ds : ""
                         width: calCol.width / 7; height: Theme.px(30)
                         radius: height / 2
                         color: sel ? Theme.accent : (dMa.containsMouse && modelData ? Theme.accentSoft : "transparent")

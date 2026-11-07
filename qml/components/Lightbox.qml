@@ -230,6 +230,7 @@ Item {
             Text {
                 objectName: "lightboxPercent"
                 anchors.verticalCenter: parent.verticalCenter
+                visible: !root.heicMissing
                 text: root.percent + "%"
                 font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: "#c8d0d8"
             }

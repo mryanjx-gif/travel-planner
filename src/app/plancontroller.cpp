@@ -567,10 +567,10 @@ void PlanController::setLibraryPref(const QString &key, const QString &value)
     else if (key == QLatin1String("sort")) m_lib.sort = value;
     else if (key == QLatin1String("q")) m_lib.q = value;
     else return;
-    if (key == QLatin1String("q")) { refreshLibrary(); m_libSearchTimer.start(); return; }
-    saveLibrary();
-    if (key == QLatin1String("view") || key == QLatin1String("sort")) refreshLibrary();
-    else applyFilter(false);   // 地图跟着列表
+    if (key != QLatin1String("q")) saveLibrary();
+    refreshLibrary();
+    // 列表马上变；重建地图的标记要 150–230 ms（UHD 620），隔 200 ms 才跟，点的时候不顿，连点只重建一次
+    if (key != QLatin1String("view") && key != QLatin1String("sort")) m_libSearchTimer.start();
 }
 
 void PlanController::toggleLibraryRegion(const QString &key)

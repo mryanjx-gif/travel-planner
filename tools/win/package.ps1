@@ -35,6 +35,8 @@ if (Test-Path $SrcLink) { cmd /c rmdir "`"$SrcLink`"" | Out-Null }
 cmd /c mklink /J "`"$SrcLink`"" "`"$Root`"" | Out-Null
 if (-not (Test-Path (Join-Path $SrcLink 'CMakeLists.txt'))) { Fail "建立目录联接失败：$SrcLink → $Root" }
 $ErrorActionPreference = 'Continue'
+# 差异清单 #36：配置和编译固定在系统 ANSI 代码页，头文件依赖才记得住
+try { [Console]::OutputEncoding = [Text.Encoding]::GetEncoding([int](Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Nls\CodePage').ACP) } catch {}
 & cmake -S $SrcLink -B $Bld -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_PREFIX_PATH=$Qt" 2>&1 | Out-File -Append -Encoding utf8 (Join-Path $Dev 'package.log')
 if ($LASTEXITCODE -ne 0) { $ErrorActionPreference = 'Stop'; Fail '生成编译配置失败（日志 D:\TravelPlannerNative-dev\package.log）' }
 & cmake --build $Bld 2>&1 | Out-File -Append -Encoding utf8 (Join-Path $Dev 'package.log')
