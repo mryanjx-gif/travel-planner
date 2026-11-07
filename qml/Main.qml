@@ -659,6 +659,21 @@ Window {
     }
     // 保存状态（PO 0.8.8 选改进 c）：只读时一直显示；有改动超过 1.5 秒还没存上才显示（自动保存很快，照 Electron 写法会一闪一闪）
     property bool dirtyLong: false
+    // 全窗口共用的液态玻璃背景：地图 + 地球这一层，带 mipmap；分辨率最高 1.25 倍（Electron v6.2.2）
+    ShaderEffectSource {
+        id: glassSource
+        objectName: "glassSource"
+        sourceItem: scene
+        visible: false
+        mipmap: true
+        smooth: true
+        textureSize: {
+            const d = Math.min(Screen.devicePixelRatio, 1.25)
+            return Qt.size(Math.ceil(scene.width * d), Math.ceil(scene.height * d))
+        }
+    }
+    Binding { target: Theme; property: "glassSource"; value: glassSource }
+
     Timer { id: dirtyTimer; interval: 1500; onTriggered: win.dirtyLong = app.dirty }
     Connections { target: app; function onDirtyChanged() { if (app.dirty) dirtyTimer.restart(); else { dirtyTimer.stop(); win.dirtyLong = false } } }
     readonly property string saveText: app.readOnly ? qsTr("只读") : win.dirtyLong ? qsTr("● 有未保存的改动") : ""
@@ -795,7 +810,7 @@ Window {
             anchors.fill: parent
             backdrop: scene
             radius: width / 2
-            tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.82 : 0.96)
+            tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.69 : 0.96)
         }
         Column {
             anchors.fill: parent
@@ -1462,7 +1477,7 @@ Window {
             anchors.fill: parent
             backdrop: scene
             radius: width / 2
-            tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.82 : 0.96)
+            tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.69 : 0.96)
             edge: locMa.containsMouse ? Theme.lineStrong : Theme.glassEdge
             scale: locMa.pressed ? 0.92 : 1
             Behavior on scale { NumberAnimation { duration: Theme.motion ? 120 : 0 } }

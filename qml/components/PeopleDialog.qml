@@ -12,7 +12,6 @@ ModalLayer {
     readonly property int shareCount: money.shareCount || 0
     readonly property int bookingCount: money.bookingCount || 0
     cardWidth: 420
-    solid: true
     onDismissed: close()
 
     function show() {

@@ -9,6 +9,7 @@ QtObject {
     // "动效"和"透明效果"两个设置（设置页在阶段 ⑥；现在默认都开）
     property bool motion: true
     property bool glass: true
+    property Item glassSource: null   // 全窗口共用的玻璃背景（Main.qml 给）
 
     function px(n) { return Math.round(n * scale) }
 

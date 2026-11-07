@@ -20,7 +20,7 @@ Item {
     property real centerY: 0          // 0.11.6：竖列从上一颗（所在行）出发，不是第一行
     property bool caret: false        // 0.11.6：文字后面的小三角 ▾（计划、照片带竖列）
     property var badges: []           // [{ text, kind: "days" | "count" }]（顶栏"下次出发"的倒计时和待办数）
-    property real baseAlpha: 0.5      // 小泡泡遮盖（glass.css .lyr-opt --lg-alpha .5）
+    property real baseAlpha: 0.42     // 小泡泡遮盖（glass.css .lyr-opt --lg-alpha .5）
     property color onColor: Theme.text
     property bool pickedNow: false
     signal clicked()
@@ -63,7 +63,7 @@ Item {
         backdrop: bud.backdrop
         radius: height / 2
         shadow: bud.p > 0.98
-        tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? (bud.dark ? 0.3 : bud.baseAlpha) : 0.96)
+        tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? (bud.dark ? 0.25 : bud.baseAlpha) : 0.96)
         edge: hover.hovered ? Theme.lineStrong : Theme.glassEdge
     }
     // 选中：里面垫一颗更白的玻璃胶囊

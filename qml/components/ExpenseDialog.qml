@@ -41,7 +41,6 @@ ModalLayer {
     }
     signal peopleRequested()
     cardWidth: 480
-    solid: true
     onDismissed: open = false
 
     function show(row, draft) {

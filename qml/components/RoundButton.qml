@@ -19,7 +19,7 @@ Item {
         anchors.fill: parent
         backdrop: root.backdrop
         radius: width / 2
-        tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.82 : 0.96)
+        tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.69 : 0.96)
         edge: ma.containsMouse ? Theme.lineStrong : Theme.glassEdge
         scale: ma.pressed ? 0.9 : 1
         Behavior on scale { NumberAnimation { duration: Theme.motion ? 120 : 0 } }

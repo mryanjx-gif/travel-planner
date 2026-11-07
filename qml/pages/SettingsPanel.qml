@@ -6,6 +6,7 @@ import TPApp
 
 GlassPanel {
     id: root
+    tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.95 : 0.99)   // 设置要长时间读字
     property bool open: false
     property var history: []
     signal closeClicked()

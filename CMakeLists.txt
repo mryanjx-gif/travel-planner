@@ -3,7 +3,7 @@
 # 规则（PO 2026-11-02）：大更新改第一位，中等更新改第二位，小修改改第三位；正式版之前是 0.x.y，正式版 1.0.0。
 cmake_minimum_required(VERSION 3.24)
 
-set(TP_VERSION "0.11.6")
+set(TP_VERSION "0.12.0")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TP_VERSION_NUMERIC "${TP_VERSION}")
 
 project(TravelPlannerNative
@@ -168,6 +168,7 @@ qt_add_executable(TravelPlanner WIN32
     src/map/globeraster.cpp src/map/globeraster.h
     src/map/globeitem.cpp src/map/globeitem.h src/map/globeops.h
     src/map/flatvehicle.cpp src/map/flatvehicle.h
+    src/map/glasssurface.cpp src/map/glasssurface.h
     src/map/skyitem.cpp src/map/skyitem.h
 )
 target_include_directories(TravelPlanner PRIVATE
@@ -294,7 +295,6 @@ qt_add_shaders(TravelPlanner "tp_shaders"
     FILES
         shaders/globe.vert
         shaders/globe.frag
-        shaders/glass.frag
 )
 # 地球的瓦片（0.9.0）用纹理数组（sampler2DArray）：GLSL 只出 300 es / 330（老的 100 es / 120 没有纹理数组）。
 # 0.9.3：天空（sky.frag）用 uint 运算算星星、城市灯光用 textureGrad，也放这一组。
@@ -303,6 +303,8 @@ qt_add_shaders(TravelPlanner "tp_shaders_globe"
     PREFIX "/"
     GLSL "300es,330,410,440"
     FILES
+        shaders/glass.vert
+        shaders/glass.frag
         shaders/globetile.vert
         shaders/globetile.frag
         shaders/sky.vert

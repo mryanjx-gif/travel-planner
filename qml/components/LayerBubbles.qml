@@ -107,7 +107,7 @@ Item {
         anchors.fill: parent
         backdrop: root.backdrop
         radius: Theme.px(12)
-        tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? (root.dark ? 0.3 : 0.82) : 0.96)
+        tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? (root.dark ? 0.25 : 0.69) : 0.96)
         scale: btnArea.pressed ? 0.9 : 1   // 按下时轻轻缩一下（glass.css :active scale(.9)）
         Behavior on scale { NumberAnimation { duration: Theme.motion ? 120 : 0 } }
         Canvas {

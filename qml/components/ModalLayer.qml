@@ -9,7 +9,6 @@ Item {
     property Item backdrop: null
     property real cardWidth: 460
     property bool dismissible: true     // Esc / 点遮罩能不能关
-    property bool solid: false          // 卡片底色加深：内容多的表单，背后的字不透上来（0.11.5）
     default property alias content: col.data
     signal dismissed()
 
@@ -38,7 +37,8 @@ Item {
         GlassPanel {
             id: card
             backdrop: root.backdrop
-            tint: root.solid ? Qt.rgba(Theme.glassTint.r, Theme.glassTint.g, Theme.glassTint.b, Math.max(Theme.glassTint.a, 0.97)) : Theme.glassTint
+            liquid: false
+            tint: Qt.rgba(Theme.glassTint.r, Theme.glassTint.g, Theme.glassTint.b, 0.97)
             width: Math.min(Theme.px(root.cardWidth), root.width - 32)
             height: col.implicitHeight + Theme.px(48)
             anchors.centerIn: parent

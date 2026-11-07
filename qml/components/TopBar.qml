@@ -100,7 +100,7 @@ Item {
                 anchors.fill: parent
                 backdrop: root.backdrop
                 radius: height / 2
-                tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.82 : 0.96)
+                tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.69 : 0.96)
                 edge: dotsMa.containsMouse ? Theme.lineStrong : Theme.glassEdge
             }
             Row {
@@ -286,7 +286,7 @@ Item {
                 anchors.fill: parent
                 backdrop: root.backdrop
                 radius: height / 2
-                tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.82 : 0.96)
+                tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.69 : 0.96)
             }
             Text {
                 id: saveLabel
@@ -306,7 +306,7 @@ Item {
                 anchors.fill: parent
                 backdrop: root.backdrop
                 radius: height / 2
-                tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.82 : 0.96)
+                tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.69 : 0.96)
             }
             Row {
                 id: capRow

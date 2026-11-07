@@ -22,6 +22,7 @@ Item {
         anchors.fill: parent
         backdrop: root.backdrop
         radius: height / 2
+        tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.42 : 0.96)
     }
 
     Row {
