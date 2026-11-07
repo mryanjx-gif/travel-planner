@@ -185,6 +185,7 @@ public:
     // ---- 瓦片（0.8.5） ----
     bool tileBanner() const { return m_tileBanner; }
     Q_INVOKABLE void dismissTileBanner();
+    Q_INVOKABLE void retryTiles();      // 0.12.8 横幅的"重试"：换一个样式网址，让地图库重新取这一屏的瓦片
     bool tilesOff() const { return m_tilesOff; }
     // 离线总开关或"在线底图"开关变了（Electron tp:prefs → tilesOff() 时 setBase('已解锁')）：关掉时马上切到"已解锁"
     void setTilesOff(bool off);
@@ -474,6 +475,7 @@ private:
     QTimer m_prefetchTimer;
     int m_tileErr = 0;
     bool m_tileBanner = false;
+    int m_styleRetry = 0;
     bool m_tilesOff = false;
     // 手动标记（0.8.5）
     std::function<void(int)> m_onEdited;

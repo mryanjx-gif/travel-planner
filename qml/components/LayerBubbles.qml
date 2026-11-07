@@ -130,8 +130,10 @@ Item {
                 c.beginPath(); c.moveTo(2, 17.5); c.lineTo(12, 23); c.lineTo(22, 17.5); c.stroke()
             }
         }
+        TpTip { text: qsTr("切换底图"); show: btnArea.containsMouse && !root.open }
         MouseArea {
             id: btnArea
+            hoverEnabled: true
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
             Accessible.role: Accessible.Button

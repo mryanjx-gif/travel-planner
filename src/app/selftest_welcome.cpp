@@ -191,4 +191,105 @@ void runWelcome(Report &r, AppController *app, QQuickWindow *win)
     pause(150);
 }
 
+// 0.12.8 新手引导（问一句 → 4 步 → 记下来）、Esc 层级、报错走横幅不走 Toast、升级提示、不见了的数据文件
+void runTour(Report &r, AppController *app, QQuickWindow *win)
+{
+    r.section(QStringLiteral("新手引导和提示（0.12.8）"));
+    goPage(win, "plan");
+    pause(300);
+    QQuickItem *tour = item(win, QStringLiteral("tour"));
+    QQuickItem *offer = findItem(tour, QStringLiteral("tourOffer"));
+    QQuickItem *toast = item(win, QStringLiteral("toast"));
+    QQuickItem *err = item(win, QStringLiteral("errorBanner"));
+    const bool wasDone = app->tourDone();
+    const auto esc = [&] { QVariant v; QMetaObject::invokeMethod(win, "escOnce", Q_RETURN_ARG(QVariant, v)); return v.toString(); };
+
+    // 问一句：Esc 算跳过，记下来
+    app->setTourDone(false);
+    QMetaObject::invokeMethod(tour, "offer");
+    r.check(waitFor([&] { return shown(offer); }, 800) && !win->property("modalOpen").toBool(), QStringLiteral("小卡片问要不要看，不挡地图"));
+    r.check(esc() == QLatin1String("tourOffer") && !tour->property("offering").toBool() && app->tourDone(), QStringLiteral("Esc = 跳过，记下来"));
+
+    // 点"看看"开始；4 步都在，洞对准按钮
+    app->setTourDone(false);
+    QMetaObject::invokeMethod(tour, "offer");
+    pause(200);
+    click(win, findItem(tour, QStringLiteral("tourOfferGo")));
+    r.check(waitFor([&] { return tour->property("active").toBool(); }, 800) && win->property("modalOpen").toBool(), QStringLiteral("点看看开始，算弹框"));
+    r.check(!app->tourDone(), QStringLiteral("还没看完不记"));
+    pause(500);
+    const auto holeOn = [&](const char *name) {
+        QQuickItem *t = item(win, QString::fromLatin1(name));
+        const QRectF rc = tour->property("holeRect").toRectF();
+        const QPointF p = t->mapToItem(tour, QPointF(t->width() / 2, t->height() / 2));
+        return rc.contains(p);
+    };
+    r.check(holeOn("dotsPill"), QStringLiteral("第 1 步指 ⋯"));
+    click(win, findItem(tour, QStringLiteral("tourNext")));
+    r.check(waitFor([&] { return tour->property("index").toInt() == 1; }, 500) && holeOn("newBtn"), QStringLiteral("第 2 步指新建计划"));
+    click(win, findItem(tour, QStringLiteral("tourNext")));
+    r.check(waitFor([&] { return tour->property("index").toInt() == 2; }, 500) && holeOn("layers"), QStringLiteral("第 3 步指图层"));
+    click(win, findItem(tour, QStringLiteral("tourNext")));
+    r.check(waitFor([&] { return tour->property("index").toInt() == 3; }, 500) && holeOn("locBtn") && tour->property("last").toBool(), QStringLiteral("第 4 步指我的位置，是最后一步"));
+    click(win, findItem(tour, QStringLiteral("tourNext")));
+    r.check(waitFor([&] { return !tour->property("active").toBool(); }, 500) && app->tourDone(), QStringLiteral("看完记下来"));
+
+    // 进行中 Esc 结束
+    QMetaObject::invokeMethod(tour, "start");
+    pause(200);
+    QWindowSystemInterface::handleKeyEvent<QWindowSystemInterface::SynchronousDelivery>(win, QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+    QWindowSystemInterface::handleKeyEvent<QWindowSystemInterface::SynchronousDelivery>(win, QEvent::KeyRelease, Qt::Key_Escape, Qt::NoModifier);
+    r.check(waitFor([&] { return !tour->property("active").toBool(); }, 500), QStringLiteral("进行中 Esc 结束"));
+
+    // 报错走横幅，Toast 不显示
+    toast->setProperty("showing", false);
+    QMetaObject::invokeMethod(toast, "show", Q_ARG(QVariant, QStringLiteral("试试报错")), Q_ARG(QVariant, true), Q_ARG(QVariant, QVariant()), Q_ARG(QVariant, QVariant()), Q_ARG(QVariant, QVariant()), Q_ARG(QVariant, QVariant()));
+    r.check(waitFor([&] { return shown(err); }, 500) && err->property("title").toString() == QStringLiteral("试试报错") && !toast->property("showing").toBool(), QStringLiteral("报错进横幅，不走 Toast"));
+    QMetaObject::invokeMethod(win, "clearError");
+    r.check(waitFor([&] { return !shown(err); }, 500), QStringLiteral("横幅能关"));
+
+    // 升级提示：12 秒，点了打开更新日志
+    QMetaObject::invokeMethod(win, "showUpdated");
+    r.check(toast->property("showing").toBool() && toast->property("message").toString().contains(app->version()), QStringLiteral("升级提示写版本号"));
+    r.check(toast->property("stayMs").toInt() == 12000, QStringLiteral("停 12 秒"));
+    pause(300);
+    click(win, findItem(toast, QStringLiteral("toastAction")));
+    QQuickItem *settings = item(win, QStringLiteral("settingsPanel"));
+    r.check(waitFor([&] { return settings->property("section").toString() == QLatin1String("log") && shown(settings); }, 1500), QStringLiteral("点了打开更新日志"));
+    settings->setProperty("section", QStringLiteral("about"));
+    goPage(win, "plan");
+    pause(300);
+
+    // 图标按钮的提示：鼠标停上去出现，画在窗口最上层
+    {
+        QQuickItem *loc = item(win, QStringLiteral("locBtn"));
+        const QPointF p = loc->mapToScene(QPointF(loc->width() / 2, loc->height() / 2));
+        QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, win->mapToGlobal(p), Qt::NoButton, Qt::NoButton, QEvent::MouseMove);
+        const auto tipShown = [&] {
+            for (QQuickItem *c : win->contentItem()->childItems())
+                if (c->objectName() == QLatin1String("tpTip") && c->isVisible()) return true;
+            return false;
+        };
+        r.check(waitFor(tipShown, 1500), QStringLiteral("我的位置：鼠标提示出现"));
+        const QPointF away(win->width() / 2.0, win->height() / 2.0);
+        QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, away, win->mapToGlobal(away), Qt::NoButton, Qt::NoButton, QEvent::MouseMove);
+        r.check(waitFor([&] { return !tipShown(); }, 800), QStringLiteral("移开就消失"));
+    }
+
+    // 账本：滚过表头以后上面钉一份
+    goPage(win, "ledger");
+    QQuickItem *flick = item(win, QStringLiteral("ledgerFlick"));
+    QQuickItem *pin = item(win, QStringLiteral("ledgerPinnedHead"));
+    waitFor([&] { return shown(flick); }, 1500);
+    r.check(pin && !pin->isVisible(), QStringLiteral("账本在最上面时不钉表头"));
+    if (flick) flick->setProperty("contentY", flick->property("contentHeight").toDouble());
+    pause(200);
+    r.check(flick && flick->property("contentHeight").toDouble() <= flick->height() || (pin && pin->isVisible()), QStringLiteral("账本滚下去后表头钉在上面"));
+    if (flick) flick->setProperty("contentY", 0);
+    goPage(win, "plan");
+    pause(200);
+
+    if (!wasDone) app->setTourDone(false);
+}
+
 } // namespace tp::app::selftest

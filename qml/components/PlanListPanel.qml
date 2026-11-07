@@ -178,6 +178,7 @@ Item {
                 Accessible.name: qsTr("关闭列表")
                 Rectangle { anchors.fill: parent; radius: width / 2; color: xMa.containsMouse ? Qt.rgba(1, 1, 1, 0.6) : "transparent" }
                 TpIcon { anchors.centerIn: parent; name: "close"; width: Theme.px(15); height: Theme.px(15); color: Theme.muted }
+                TpTip { text: qsTr("关闭列表"); show: xMa.containsMouse }
                 MouseArea { id: xMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
             }
         }
@@ -433,6 +434,7 @@ Item {
                 Accessible.name: cell.r.hidden ? qsTr("在地图上显示") : qsTr("在地图上隐藏")
                 Rectangle { anchors.fill: parent; radius: width / 2; color: eyeMa.containsMouse ? Qt.rgba(1, 1, 1, 0.7) : "transparent" }
                 TpIcon { anchors.centerIn: parent; name: cell.r.hidden ? "eyeOff" : "eye"; width: Theme.px(16); height: Theme.px(16); color: cell.r.hidden ? Theme.faint : Theme.muted }
+                TpTip { text: cell.r.hidden ? qsTr("在地图上显示") : qsTr("在地图上隐藏"); show: eyeMa.containsMouse }
                 MouseArea { id: eyeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.eyeClicked(cell.r.id, !cell.r.hidden) }
             }
         }

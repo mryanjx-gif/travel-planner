@@ -9,6 +9,7 @@ Item {
     property real fontSize: 14
     property bool compact: false
     property bool done: false     // 文字前面画一笔对勾
+    property string tip: ""       // 只有符号的按钮（×）用
     signal clicked()
     activeFocusOnTab: true
     implicitHeight: Theme.px(compact ? 32 : 40)
@@ -56,6 +57,7 @@ Item {
         on: root.done
         stroke: root.kind === "primary" || root.kind === "danger" ? "#ffffff" : Theme.accent
     }
+    TpTip { text: root.tip; show: area.containsMouse }
     MouseArea {
         id: area
         anchors.fill: parent

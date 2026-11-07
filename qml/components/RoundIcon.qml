@@ -69,5 +69,6 @@ Rectangle {
         color: "#26323c"
         Text { id: tipText; anchors.centerIn: parent; text: ri.label; font.family: serifFamily; font.pixelSize: Theme.px(11); color: "#ffffff" }
     }
+    TpTip { text: ri.label; show: riMa.containsMouse && !ri.showTip }
     MouseArea { id: riMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: ri.clicked() }
 }

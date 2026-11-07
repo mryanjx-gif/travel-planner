@@ -28,6 +28,8 @@ Item {
     property string nowKind: "none"        // none / live / next / back
     property string nowLabel: ""
     property string nowBadge: ""
+    readonly property Item pillItem: dotsPill   // 新手引导指的按钮
+    readonly property Item newItem: newBtn
     property int todoOpen: 0
     property bool nowOpen: false
     property bool listOpen: false
@@ -131,10 +133,11 @@ Item {
                         visible: root.todoOpen > 0
                         width: Math.max(height, todoText.implicitWidth + Theme.px(12)); height: Theme.px(18); radius: height / 2
                         color: Theme.accentSoft
-                        Text { id: todoText; anchors.centerIn: parent; text: root.todoOpen; font.family: serifFamily; font.pixelSize: Theme.px(11); font.bold: true; color: Theme.accentInk }
+                        Text { id: todoText; anchors.centerIn: parent; text: root.todoOpen > 99 ? "99+" : root.todoOpen; font.family: serifFamily; font.pixelSize: Theme.px(11); font.bold: true; color: Theme.accentInk }
                     }
                 }
             }
+            TpTip { text: qsTr("页面"); show: dotsMa.containsMouse }
             MouseArea {
                 id: dotsMa
                 anchors.fill: parent
@@ -251,7 +254,7 @@ Item {
                     width: contentWidth
                     height: root.btnH
                     badges: key === "next" ? [root.nowBadge !== "" ? { text: root.nowBadge, kind: "days" } : null,
-                                              root.todoOpen > 0 ? { text: String(root.todoOpen), kind: "count" } : null].filter(x => x) : []
+                                              root.todoOpen > 0 ? { text: root.todoOpen > 99 ? "99+" : String(root.todoOpen), kind: "count" } : null].filter(x => x) : []
                     onClicked: {
                         if (key === "next") { bubbles.setOpen(false, key); nextLater.restart() }
                         else { root.subPicked(key); bubbles.setOpen(false, key) }
@@ -320,6 +323,7 @@ Item {
                         border.color: Qt.rgba(1, 1, 1, 0.9)
                     }
                     TpIcon { anchors.centerIn: parent; name: "list"; color: root.listOpen ? Theme.accent : Theme.text }
+                    TpTip { text: qsTr("计划列表 (Ctrl B)"); show: listMa.containsMouse }
                     MouseArea { id: listMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.listClicked() }
                 }
                 Rectangle { width: 1; height: Theme.px(18); color: Theme.lineStrong; anchors.verticalCenter: parent.verticalCenter }
@@ -352,7 +356,8 @@ Item {
                             font.family: serifFamily; font.pixelSize: Theme.px(13); font.bold: true; color: "#ffffff"
                         }
                     }
-                    MouseArea { id: newMa; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.newClicked() }
+                    TpTip { text: qsTr("新建计划"); show: newMa.containsMouse && root.compact }
+                    MouseArea { id: newMa; hoverEnabled: true; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.newClicked() }
                 }
                 Item {
                     id: meBtn
@@ -374,7 +379,8 @@ Item {
                         TpIcon { visible: parent.initial === ""; anchors.centerIn: parent; name: "person"; color: "#ffffff"; width: Theme.px(17); height: Theme.px(17) }
                         Text { objectName: "meInitial"; visible: parent.initial !== ""; anchors.centerIn: parent; text: parent.initial.toUpperCase(); font.family: serifFamily; font.pixelSize: Theme.px(15); font.bold: true; color: "#ffffff" }
                     }
-                    MouseArea { id: meMa; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.menuClicked() }
+                    TpTip { text: qsTr("菜单"); show: meMa.containsMouse }
+                    MouseArea { id: meMa; hoverEnabled: true; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.menuClicked() }
                 }
             }
         }

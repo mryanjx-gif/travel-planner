@@ -29,6 +29,7 @@ public:
     // QML 里用的地址
     static QString urlFor(const QString &relOrAbs, int width, int version);
     static void noteRotated(const QString &file);   // 主线程
+    static int pending();                           // 0.12.8 排着队和正在做的（相册显示"正在生成缩略图"）
 
 private:
     data::ThumbCache *m_cache;

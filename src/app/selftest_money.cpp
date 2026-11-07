@@ -592,17 +592,19 @@ void runSplit(Report &r, AppController *app, QQuickWindow *win, PlanPageControll
     showExpense(dlg, QStringLiteral("试"));
     waitFor([&] { return dlg->opacity() > 0.95; }, 1000);
     click(win, findItem(dlg, QStringLiteral("expPeople")));
-    waitFor([&] { return pd->property("open").toBool() && pd->opacity() > 0.95; }, 1000);
-    r.check(pd->property("open").toBool(), QStringLiteral("\"管理同行人\"打开同行人窗口"));
-    fill(win, addName, QStringLiteral("路人"));
-    click(win, findItem(pd, QStringLiteral("peopleAdd")));
+    QQuickItem *paneInDlg = findItem(dlg, QStringLiteral("expPeoplePane"));
+    r.check(waitFor([&] { return isShown(paneInDlg); }, 1000) && !pd->property("open").toBool() && !isShown(findItem(dlg, QStringLiteral("expForm"))),
+            QStringLiteral("\"管理同行人\"在同一窗口内翻页，不叠第二个弹窗（0.12.8）"));
+    fill(win, findItem(paneInDlg, QStringLiteral("peopleAddName")), QStringLiteral("路人"));
+    click(win, findItem(paneInDlg, QStringLiteral("peopleAdd")));
     waitFor([&] { return dlg->property("among").toList().size() == 4; }, 500);
     r.check(dlg->property("among").toList().size() == 4 && findItem(dlg, QStringLiteral("expAmong-路人")), QStringLiteral("单笔窗口跟着多一个人"));
-    click(win, findItem(pd, QStringLiteral("peopleDel-路人")));
+    click(win, findItem(paneInDlg, QStringLiteral("peopleDel-路人")));
     waitFor([&] { return dlg->property("among").toList().size() == 3; }, 500);
     r.check(money(page).value(QStringLiteral("people")).toList().size() == 3 && dlg->property("among").toList().size() == 3, QStringLiteral("只在全员平摊里的人能直接删"));
-    click(win, findItem(pd, QStringLiteral("peopleDone")));
-    waitGone(pd);
+    click(win, findItem(paneInDlg, QStringLiteral("peopleDone")));
+    r.check(waitFor([&] { return isShown(findItem(dlg, QStringLiteral("expForm"))); }, 800) && dlg->property("titleText").toString().contains(QStringLiteral("试")),
+            QStringLiteral("返回后表单还在，填的内容没丢"));
     dlg->setProperty("open", false);
     waitGone(dlg);
 

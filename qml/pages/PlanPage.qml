@@ -625,6 +625,13 @@ Item {
                 }
             }
             // 切换条停在这里，往下滚时贴在页头下面（画在列表外面）
+            LinkText {   // 0.12.8 天气预报没取到：说清原因，给重试
+                objectName: "tripWxRetry"
+                visible: root.tab === "itinerary" && weather.forecastFailed
+                small: true
+                text: qsTr("天气预报没取到（可能没联网，或者服务暂时不可用）· 重试")
+                onClicked: weather.retryForecast()
+            }
             Item { id: navSpace; width: parent.width; height: root.stepping && root.tab === "itinerary" ? root.navH : 0 }
             Item {
                 visible: root.tab === "itinerary"
@@ -641,7 +648,7 @@ Item {
                     visible: root.stops.length > 0 && weather.climateAvailable && !weather.climateShown
                     anchors.right: parent.right
                     small: true
-                    text: weather.climateBusy ? qsTr("取数据中…") : qsTr("往年同月气候")
+                    text: weather.climateBusy ? qsTr("取数据中…") : weather.climateError ? qsTr("往年气候没取到（可能没联网，或者服务暂时不可用）· 重试") : qsTr("往年同月气候")
                     onClicked: if (!weather.climateBusy) weather.fetchClimate()
                 }
             }

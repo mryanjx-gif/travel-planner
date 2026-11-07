@@ -29,6 +29,8 @@ class WeatherController : public QObject
     Q_PROPERTY(bool climateAvailable READ climateAvailable NOTIFY changed)
     Q_PROPERTY(bool climateBusy READ climateBusy NOTIFY changed)
     Q_PROPERTY(bool climateShown READ climateShown NOTIFY changed)
+    Q_PROPERTY(bool climateError READ climateError NOTIFY changed)   // 0.12.8 上次取往年气候失败（点了重试就清）
+    Q_PROPERTY(bool forecastFailed READ forecastFailed NOTIFY changed)   // 0.12.8 上次取预报失败
 
 public:
     WeatherController(PlanPageController *page, PlanController *plans, data::DataStore *store, services::NetClient *net, QObject *parent = nullptr);
@@ -38,6 +40,9 @@ public:
     bool climateAvailable() const { return m_fetch || allowed(QStringLiteral("climate")); }
     bool climateBusy() const { return m_climBusy; }
     bool climateShown() const { return m_climOn; }
+    bool climateError() const { return m_climError; }
+    bool forecastFailed() const { return m_wxFailed; }
+    Q_INVOKABLE void retryForecast();
 
     void setCacheFile(const QString &path) { m_file = path; loadCache(); }
     Q_INVOKABLE void fetchClimate();
@@ -53,6 +58,7 @@ signals:
     void climateFailed();
 
 private:
+    bool m_climError = false, m_wxFailed = false;
     struct Wx { qint64 at = 0; QJsonObject daily; };
     struct ClimTask { int year = 0, month = 0; QVector<map::plans::ClimPoint> points; };
     bool allowed(const QString &service) const;

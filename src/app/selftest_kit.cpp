@@ -729,8 +729,12 @@ void runNetAbout(Report &r, AppController *app, map::MapController *mapc, QQuick
     QQuickItem *tour = item(QStringLiteral("aboutTour"));
     if (r.check(effectivelyShown(tour), QStringLiteral("有 再看一次引导"))) {
         click(win, tour);
-        QQuickItem *t = item(QStringLiteral("toast"));
-        r.check(t && waitFor([&] { return t->property("message").toString().contains(QStringLiteral("还在做")); }, 1500), QStringLiteral("引导还没做：点了提示还在做"));
+        QQuickItem *t = item(QStringLiteral("tour"));
+        r.check(t && waitFor([&] { return t->property("active").toBool(); }, 1500), QStringLiteral("再看一次引导：开始了（0.12.8）"));
+        QMetaObject::invokeMethod(t, "finish");
+        app->setTourDone(false);
+        QMetaObject::invokeMethod(win, "goPage", Q_ARG(QVariant, QStringLiteral("settings")));
+        pause(300);
     }
     // 照片署名：种一条看列表
     data::DataStore *store = app->store();

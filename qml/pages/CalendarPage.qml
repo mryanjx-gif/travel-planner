@@ -841,7 +841,7 @@ Item {
                 Text { objectName: "calSideTitle"; text: qsTr("还没定日期") + " " + root.undatedCount; font.family: serifFamily; font.pixelSize: Theme.px(15); font.bold: true; color: Theme.text }
                 Text {
                     visible: root.undatedCount === 0
-                    text: qsTr("全部都定了日期。")
+                    text: (plans.list.total || 0) === 0 ? qsTr("还没有计划。") : qsTr("全部都定了日期。")
                     font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted
                 }
                 SideGroup { title: qsTr("计划中"); rows: root.planning }
@@ -1093,6 +1093,7 @@ Item {
         Accessible.role: Accessible.Button
         Accessible.name: text === "‹" ? qsTr("往前") : qsTr("往后")
         Text { anchors.centerIn: parent; text: nb.text; font.family: serifFamily; font.pixelSize: Theme.px(22); color: Theme.textSoft }
+        TpTip { text: nb.text === "‹" ? qsTr("往前") : qsTr("往后"); show: nbMa.containsMouse }
         MouseArea { id: nbMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: nb.clicked() }
     }
     component NoteLink: Text {

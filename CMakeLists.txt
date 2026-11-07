@@ -3,7 +3,7 @@
 # 规则（PO 2026-11-02）：大更新改第一位，中等更新改第二位，小修改改第三位；正式版之前是 0.x.y，正式版 1.0.0。
 cmake_minimum_required(VERSION 3.24)
 
-set(TP_VERSION "0.12.7")
+set(TP_VERSION "0.12.8")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TP_VERSION_NUMERIC "${TP_VERSION}")
 
 project(TravelPlannerNative
@@ -187,7 +187,7 @@ foreach(f TpAnim TpMove TpSpring FocusRing TpCard TpDone GlassPanel TpButton Mod
           LinkText StatusFilterPill FilterMenu NowCard PlanSheet
           SplitBud TopBar AvatarMenu PlanListPanel LibraryView WishMonthBar WishDialog CommandPalette RoundButton TpIcon
           PlanEditor DateField TpField StylePopover MarkerShape ColorWheel EditOverlay DrawerGrip
-          SchedList RouteSketch RoundIcon MenuRow Lightbox PhotosTab MdEditor CalPlanCard CalPicker EmptyArt EmptyState)
+          SchedList RouteSketch RoundIcon MenuRow Lightbox PhotosTab MdEditor CalPlanCard CalPicker EmptyArt EmptyState Tour TpTip PeoplePane)
     set_source_files_properties(qml/components/${f}.qml PROPERTIES QT_RESOURCE_ALIAS ${f}.qml)
 endforeach()
 foreach(f SettingsPanel SettingsCard SettingsRow BackupSection AboutSection CalendarPage JournalPage LedgerPage PlanPage WelcomePage)
@@ -219,6 +219,9 @@ qt_add_qml_module(TravelPlanner
         qml/components/ErrorCard.qml
         qml/components/Banner.qml
         qml/components/Toast.qml
+        qml/components/Tour.qml
+        qml/components/TpTip.qml
+        qml/components/PeoplePane.qml
         qml/components/Segmented.qml
         qml/components/TpSelect.qml
         qml/components/TpCheck.qml

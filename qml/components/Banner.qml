@@ -12,7 +12,7 @@ GlassPanel {
     signal closeClicked()
 
     height: Math.max(row.implicitHeight, actionRow.implicitHeight) + Theme.px(28)
-    tint: warning ? Qt.rgba(253 / 255, 246 / 255, 240 / 255, Theme.glass ? 0.9 : 0.99) : Theme.glassTint
+    tint: warning ? Qt.rgba(253 / 255, 246 / 255, 240 / 255, Theme.glass && liquid ? 0.9 : 0.99) : Theme.glassTint
     edge: warning ? Qt.rgba(194 / 255, 86 / 255, 15 / 255, 0.28) : Theme.glassEdge
 
     Row {
@@ -68,6 +68,7 @@ GlassPanel {
         anchors.rightMargin: Theme.px(10)
         anchors.verticalCenter: parent.verticalCenter
         Accessible.name: qsTr("关闭")
+        tip: qsTr("关闭")
         onClicked: root.closeClicked()
     }
 }

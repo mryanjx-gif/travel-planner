@@ -26,6 +26,15 @@ Item {
     readonly property int columns: Math.max(1, Math.floor((targetWidth - asideW - Theme.px(32) + gap) / (tileTarget + gap)))
     readonly property real tile: (grid.width - gap * (columns - 1)) / columns
 
+    // 0.12.8 打开相册和照片库变了时数一次（不是每张格子都查）
+    property int lostCount: 0
+    function recountLost() { if (visible) lostCount = photos.missingCount() }
+    onVisibleChanged: recountLost()
+    Connections { target: photos; function onLibraryChanged() { root.recountLost() } }
+    // 0.12.8 分步提示：缩略图第一次做要时间（后台最多 2 张同时做），告诉人还剩几张
+    property int thumbLeft: 0
+    Timer { interval: 500; repeat: true; running: root.visible; onTriggered: root.thumbLeft = photos.thumbPending() }
+
     onCompactChanged: album.compact = compact
     onColumnsChanged: album.columns = columns
     Component.onCompleted: { album.compact = compact; album.columns = columns }
@@ -149,6 +158,34 @@ Item {
                     spacing: Theme.px(14)
                     LinkText { small: true; text: qsTr("HEIF 图像扩展"); onClicked: photos.openStore("heif") }
                     LinkText { small: true; text: qsTr("HEVC 视频扩展"); onClicked: photos.openStore("hevc") }
+                }
+            }
+        }
+        // 0.12.8 东西不见了：说清楚有几张、为什么、怎么办
+        Rectangle {
+            objectName: "albumLost"
+            visible: root.lostCount > 0
+            width: parent.width
+            height: visible ? lostCol.implicitHeight + Theme.px(16) : 0
+            radius: Theme.radiusControl
+            color: "#fdf6f0"
+            border.width: 1
+            border.color: Qt.rgba(194 / 255, 86 / 255, 15 / 255, 0.28)
+            Column {
+                id: lostCol
+                x: Theme.px(10); y: Theme.px(8)
+                width: parent.width - 2 * x
+                spacing: Theme.px(6)
+                Text {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    text: Fmt.one(qsTr("有 %1 张照片找不到文件。记录还在，可能是数据文件夹里的 photos 被移动或删除了，放回原位置就能显示。").arg(root.lostCount))
+                    font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.text
+                }
+                Row {
+                    spacing: Theme.px(6)
+                    TpButton { compact: true; text: qsTr("打开数据文件夹"); onClicked: app.openDataFolder() }
+                    TpButton { objectName: "albumLostCheck"; compact: true; text: qsTr("重新检查"); onClicked: root.lostCount = photos.missingCount() }
                 }
             }
         }
@@ -447,5 +484,23 @@ Item {
             : root.album.view === "inbox" ? qsTr("没有未归类的照片。导入时认不出属于哪个计划的照片会放在这里。")
             : qsTr("还没有归到计划的照片。")
         font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted
+    }
+
+    Rectangle {
+        objectName: "albumThumbProgress"
+        visible: root.thumbLeft > 2
+        anchors.horizontalCenter: grid.horizontalCenter
+        anchors.bottom: grid.bottom
+        anchors.bottomMargin: Theme.px(8)
+        width: thumbText.implicitWidth + Theme.px(20)
+        height: Theme.px(26)
+        radius: height / 2
+        color: "#e8162a36"
+        Text {
+            id: thumbText
+            anchors.centerIn: parent
+            text: qsTr("正在生成缩略图，还有 %1 张").arg(root.thumbLeft)
+            font.family: serifFamily; font.pixelSize: Theme.px(12); color: "#ffffff"
+        }
     }
 }

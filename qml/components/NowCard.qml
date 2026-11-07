@@ -393,6 +393,7 @@ Item {
         color: closeMa.containsMouse ? Qt.rgba(22 / 255, 32 / 255, 42 / 255, 0.06) : "transparent"
         Accessible.role: Accessible.Button; Accessible.name: qsTr("收起")
         Text { anchors.centerIn: parent; text: "×"; font.pixelSize: Theme.px(18); color: Theme.muted }
+        TpTip { text: qsTr("收起"); show: closeMa.containsMouse }
         MouseArea { id: closeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
     }
 }

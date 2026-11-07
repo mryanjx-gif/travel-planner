@@ -73,7 +73,7 @@ const Value *WeatherController::nowStop() const
 // 打开的计划换了，或者数据、此刻变了：要问的问一下，再重新算
 void WeatherController::update()
 {
-    if (m_page->planId() != m_id) { m_id = m_page->planId(); m_climOn = false; }
+    if (m_page->planId() != m_id) { m_id = m_page->planId(); m_climOn = false; m_climError = false; m_wxFailed = false; }
     QVector<plans::GeoPoint> need;
     const auto add = [&](const Value &s) { need.push_back({ keyOf(s), lat(s), lng(s) }); };
     if (const Value *p = m_id.isEmpty() ? nullptr : plans::planById(m_store->data(), m_id); p && plans::inForecastWindow(*p, m_plans->today())) {
@@ -98,7 +98,8 @@ void WeatherController::requestForecast(const QVector<plans::GeoPoint> &points)
     for (qsizetype i = 0; i < need.size(); i += kBatch) {
         const QVector<plans::GeoPoint> part = need.mid(i, kBatch);
         get(plans::forecastUrl(part), [this, part](int status, const QByteArray &body, int netError) {
-            if (netError != 0) { qInfo("天气预报：没取到（HTTP %d）", status); return; }
+            if (netError != 0) { qInfo("天气预报：没取到（HTTP %d）", status); if (!m_wxFailed) { m_wxFailed = true; emit changed(); } return; }
+            m_wxFailed = false;
             const QVector<QJsonObject> daily = plans::parseDaily(body, int(part.size()));
             const qint64 t = nowSec();
             for (int j = 0; j < part.size(); ++j) if (!daily[j].isEmpty()) m_wx.insert(part[j].key, Wx{ t, daily[j] });
@@ -106,6 +107,14 @@ void WeatherController::requestForecast(const QVector<plans::GeoPoint> &points)
             recompute();
         });
     }
+}
+
+void WeatherController::retryForecast()
+{
+    m_wxFailed = false;
+    m_tried.clear();
+    emit changed();
+    update();
 }
 
 void WeatherController::recompute()
@@ -149,6 +158,7 @@ void WeatherController::recompute()
 void WeatherController::fetchClimate()
 {
     if (m_climBusy || (!m_fetch && !allowed(QStringLiteral("climate")))) return;
+    m_climError = false;
     const Value *p = plans::planById(m_store->data(), m_id);
     if (!p) return;
     const QString today = m_plans->today();
@@ -186,6 +196,7 @@ void WeatherController::climNext()
             m_climTasks.clear();
             m_climAcc.clear();
             m_climBusy = false;
+            m_climError = true;
             emit changed();
             emit climateFailed();
             return;

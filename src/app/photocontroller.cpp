@@ -170,6 +170,18 @@ void PhotoController::onDataChanged()
     emit libraryChanged();
 }
 
+// ponytail: 在主线程逐个查文件，只在打开相册和照片库变了时算；几万张放在慢盘上才会觉得卡，那时再挪到后台
+int PhotoController::missingCount() const
+{
+    int n = 0;
+    const QString dir = dataDir();
+    for (const Value &ph : m_app->store()->data()[QStringLiteral("photos")].asArray()) {
+        const QString file = ph[QStringLiteral("file")].toString();
+        if (!file.startsWith(QLatin1String("photos/")) || !QFileInfo(dir + u'/' + file).isFile()) ++n;
+    }
+    return n;
+}
+int PhotoController::thumbPending() const { return ThumbProvider::pending(); }
 int PhotoController::count() const { return int(m_app->store()->data()[QStringLiteral("photos")].asArray().size()); }
 
 QString PhotoController::thumbUrl(const QString &file, int width) const

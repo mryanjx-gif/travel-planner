@@ -39,9 +39,10 @@ ModalLayer {
         const over = Math.abs(fixedSum) - Math.abs(amountNum)
         return over > 0.005 ? qsTr("填的金额加起来 %1，超过总额 %2，多了 %3").arg(Fmt.money(fixedSum)).arg(Fmt.money(amountNum)).arg(Fmt.money(over)) : ""
     }
-    signal peopleRequested()
+    property bool peoplePage: false   // 0.12.8 "管理同行人"在同一窗口内翻页，不叠第二个弹窗
     cardWidth: 480
-    onDismissed: open = false
+    onDismissed: { if (peoplePage) peoplePane.close(); else open = false }
+    onOpenChanged: if (!open) peoplePage = false
 
     function show(row, draft) {
         root.forceActiveFocus()   // 上次的输入框可能还留着焦点，那样新内容写不进去（TpField）
@@ -131,6 +132,20 @@ ModalLayer {
         if (err === "") open = false
     }
 
+    PeoplePane {
+        id: peoplePane
+        objectName: "expPeoplePane"
+        visible: root.peoplePage
+        money: (planPage.info.money || {})
+        doneText: qsTr("返回")
+        onClosed: { root.peoplePage = false; root.takeFocus(); titleField.focusAll() }
+    }
+    Column {
+    id: formPage
+    objectName: "expForm"
+    visible: !root.peoplePage
+    width: parent.width
+    spacing: Theme.px(14)
     Text {
         width: parent.width
         text: root.expenseId === "" ? qsTr("记一笔") : qsTr("修改")
@@ -318,7 +333,7 @@ ModalLayer {
             compact: true
             anchors.verticalCenter: parent.verticalCenter
             text: qsTr("管理同行人")
-            onClicked: root.peopleRequested()
+            onClicked: { root.peoplePage = true; peoplePane.show() }
         }
         Row {
             id: footRow
@@ -327,5 +342,6 @@ ModalLayer {
             TpButton { text: qsTr("取消"); onClicked: root.open = false }
             TpButton { objectName: "expOk"; kind: "primary"; text: qsTr("保存"); onClicked: root.save() }
         }
+    }
     }
 }

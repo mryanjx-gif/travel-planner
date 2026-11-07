@@ -180,6 +180,7 @@ TpCard {
                                 Accessible.role: Accessible.Button
                                 Accessible.name: qsTr("删除")
                                 TpIcon { anchors.centerIn: parent; width: Theme.px(13); height: width; name: "close"; color: delMa.containsMouse ? Theme.danger : Theme.muted; visible: hover.hovered }
+                                TpTip { text: qsTr("删除"); show: delMa.containsMouse }
                                 MouseArea {
                                     id: delMa
                                     anchors.fill: parent

@@ -411,6 +411,14 @@ Item {
                         text: qsTr("搜不到：%1。可以改用「点选」在地图上点一下，或者「坐标」手动输入。").arg(editor.searchError)
                         font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.danger
                     }
+                    LinkText {
+                        objectName: "edSearchRetry"
+                        visible: editor.searchState === "error"
+                        x: Theme.px(6)
+                        small: true
+                        text: qsTr("重试")
+                        onClicked: editor.search(searchField.text)
+                    }
                     Repeater {
                         model: editor.searchState === "done" ? editor.results : []
                         delegate: Rectangle {

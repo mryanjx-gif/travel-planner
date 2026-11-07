@@ -16,6 +16,8 @@ namespace tp::app {
 
 namespace {
 
+std::atomic_int s_pending{0};   // 0.12.8 排着队和正在做的
+
 // 后台做缩略图；做完发信号给 Response（Response 被 QML 提前丢掉时信号自动断开，不会访问已删除的对象）
 // 0.11.1：width = 0 不进缓存、按请求的大小解原图（HEIC 看大图）；滚走了的（cancel）排到时直接跳过，快速滚过几千张时不堵后面的
 class Job : public QObject, public QRunnable
@@ -24,6 +26,7 @@ class Job : public QObject, public QRunnable
 public:
     Job(data::ThumbCache *cache, const QString &path, int width, const QSize &requested, std::shared_ptr<std::atomic_bool> cancelled)
         : m_cache(cache), m_path(path), m_width(width), m_requested(requested), m_cancelled(std::move(cancelled)) {}
+    ~Job() override { --s_pending; }
     void run() override
     {
         QString err;
@@ -109,6 +112,7 @@ QQuickImageResponse *ThumbProvider::requestImageResponse(const QString &id, cons
         if (!dir.isEmpty() && rel.startsWith(QLatin1String("photos/")) && !rel.contains(QLatin1String(".."))) path = dir + u'/' + rel;
     }
     auto cancelled = std::make_shared<std::atomic_bool>(false);
+    ++s_pending;
     auto *job = new Job(m_cache, path, width, requested, cancelled);   // QRunnable 默认做完自动删除
     auto *r = new Response(job, cancelled);
     m_pool.start(job);
@@ -116,6 +120,7 @@ QQuickImageResponse *ThumbProvider::requestImageResponse(const QString &id, cons
 }
 
 QHash<QString, int> ThumbProvider::s_turned;
+int ThumbProvider::pending() { return s_pending.load(); }
 
 void ThumbProvider::noteRotated(const QString &file) { ++s_turned[file]; }
 

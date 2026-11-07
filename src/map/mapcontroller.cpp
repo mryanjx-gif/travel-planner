@@ -248,8 +248,8 @@ void MapController::writeStyle()
     const bool raster = m_base != QLatin1String("unlock");
     const int ts = raster ? tileSizeOf(m_base) : 0;
     // 文件名带底图和瓦片大小：maplibre 按网址认样式，内容不同就要换网址
-    const QString file = m_styleDir + (m_base == QLatin1String("sat") ? QStringLiteral("/style-v%1-%2-%3.json").arg(kStyleVersion).arg(m_base).arg(ts)
-                                                                       : QStringLiteral("/style-v%1-%2.json").arg(kStyleVersion).arg(m_base));
+    const QString file = m_styleDir + (m_base == QLatin1String("sat") ? QStringLiteral("/style-v%1-%2-%3%4.json").arg(kStyleVersion).arg(m_base).arg(ts).arg(m_styleRetry ? QStringLiteral("-r") : QString())
+                                                                       : QStringLiteral("/style-v%1-%2%3.json").arg(kStyleVersion).arg(m_base, m_styleRetry ? QStringLiteral("-r") : QString()));
     // 端口每次启动不一样，所以样式文件每次启动都会重写（几百字节）；内容一样就不重写
     const QByteArray want = skeletonStyleJson(m_tileTemplates, m_base, ts, m_assets + QStringLiteral("/admin"));
     QFile f(file);
@@ -288,6 +288,14 @@ void MapController::onTileFetched(const QString &base, bool ok, const QString &d
         m_tileBanner = true;
         emit tileBannerChanged();
     }
+}
+
+void MapController::retryTiles()
+{
+    m_tileErr = 0;
+    dismissTileBanner();
+    m_styleRetry = (m_styleRetry + 1) % 2;   // maplibre 按网址认样式，同一个网址不会重新取；两个文件名轮流用，不多占地方
+    writeStyle();
 }
 
 void MapController::dismissTileBanner()

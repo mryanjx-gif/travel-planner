@@ -33,6 +33,8 @@ class AppController : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(QString version READ version CONSTANT)
+    Q_PROPERTY(bool tourDone READ tourDone WRITE setTourDone NOTIFY prefsChanged)   // 0.12.8 新手引导看过或跳过（settings.json）
+    Q_PROPERTY(bool dataGone READ dataGone NOTIFY dataGoneChanged)                  // 0.12.8 用着用着数据文件不见了
     Q_PROPERTY(bool devTools READ devTools CONSTANT)
     Q_PROPERTY(QString lang READ lang WRITE setLang NOTIFY langChanged)
     Q_PROPERTY(QString fontSize READ fontSize WRITE setFontSize NOTIFY fontSizeChanged)
@@ -102,6 +104,10 @@ public:
     void activateWindow();                // 从托盘 / 最小化恢复并调到前面（单实例、托盘用）
 
     QString version() const;
+    bool tourDone() const;
+    void setTourDone(bool on);
+    bool dataGone() const;
+    Q_INVOKABLE QString noteVersion();  // 记下这次的版本号，返回上次记的（第一次是空）
     bool devTools() const;
     QString lang() const;
     void setLang(const QString &v);
@@ -262,6 +268,8 @@ signals:
     void importProgress();
     void importFinished(const QVariantMap &report);
     void toast(const QString &text, bool error);
+    void saveFailed(const QString &text);   // 0.12.8 报错不走 Toast：横幅 + 再试一次
+    void dataGoneChanged();
     void saveConflict();                                 // 保存时发现 data.js 被别处改过（不是关闭时）
     void closeSaveFailed(bool conflict, const QString &error);
     // 窗口里按下了鼠标（0.8.5，scene 坐标；只是通知，不拦截）：图层泡泡"点别处收回"用（Electron document click）

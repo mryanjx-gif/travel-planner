@@ -196,6 +196,7 @@ Column {
         Accessible.role: Accessible.Button
         Accessible.name: label
         TpIcon { anchors.centerIn: parent; width: Theme.px(15); height: width; name: act.solid ? "starOn" : act.icon; color: act.solid ? "#ffd166" : "#ffffff" }
+        TpTip { text: act.label; show: actMa.containsMouse }
         MouseArea { id: actMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: act.clicked() }
     }
 }

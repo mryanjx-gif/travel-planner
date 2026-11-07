@@ -120,6 +120,8 @@ public:
     // ---- 缩略图缓存 ----
     Q_INVOKABLE void refreshCacheSize();
     Q_INVOKABLE void clearThumbCache();
+    Q_INVOKABLE int missingCount() const;   // 0.12.8 记录还在、文件找不到的照片
+    Q_INVOKABLE int thumbPending() const;
     // 照片署名（0.12.5，T-13；Electron creditsRow）：[{ plan, file, title, author, license, licenseUrl, url, src }]
     Q_INVOKABLE QVariantList creditRows() const;
 

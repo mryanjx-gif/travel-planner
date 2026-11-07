@@ -8,11 +8,12 @@ ModalLayer {
     property string hint: ""
     property alias text: input.text
     property int maxLength: 60
+    property string error: ""
     signal accepted(string text)
     signal canceled()
     cardWidth: 440
     onDismissed: canceled()
-    onOpenChanged: if (open) { input.forceActiveFocus(); input.selectAll() }
+    onOpenChanged: if (open) { error = ""; input.forceActiveFocus(); input.selectAll() }
 
     Text {
         width: parent.width
@@ -57,6 +58,14 @@ ModalLayer {
             Keys.onEnterPressed: root.accepted(text)
             Keys.onEscapePressed: root.canceled()
         }
+    }
+    Text {
+        objectName: "inputDialogError"
+        visible: root.error !== ""
+        width: parent.width
+        wrapMode: Text.Wrap
+        text: root.error
+        font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.danger
     }
     Row {
         anchors.right: parent.right

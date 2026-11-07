@@ -184,7 +184,11 @@ Item {
                 objectName: "lightboxError"
                 anchors.centerIn: parent
                 visible: root.open && root.cur.file !== undefined && !root.heicMissing && (root.src.toString() === "" || fit.status === Image.Error)
-                text: qsTr("这张照片显示不了")
+                width: Math.min(parent.width - Theme.px(40), Theme.px(460))
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.Wrap
+                lineHeight: 1.35
+                text: qsTr("这张照片显示不了") + (root.cur.missing ? "\n" + qsTr("文件可能被移动或删除了：%1。放回数据文件夹的原位置就能显示。").arg(root.cur.file || "") : "")
                 font.family: serifFamily; font.pixelSize: Theme.px(15); color: "#c8d0d8"
             }
         }

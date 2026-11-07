@@ -635,6 +635,12 @@ void TestData::storeWatcher()
     QCOMPARE(spy.count(), 1);   // 同一个版本只提示一次
     writeFileRaw(tmp.filePath("travel.json"), "{\"plans\":[1]}");
     QTRY_COMPARE_WITH_TIMEOUT(spy.count(), 2, 3000);
+    // 0.12.8 文件不见了要知道，放回来要恢复
+    QVERIFY(!s.gone());
+    QFile::rename(tmp.filePath("travel.json"), tmp.filePath("moved.json"));
+    QTRY_VERIFY_WITH_TIMEOUT(s.gone(), 3000);
+    QFile::rename(tmp.filePath("moved.json"), tmp.filePath("travel.json"));
+    QTRY_VERIFY_WITH_TIMEOUT(!s.gone(), 3000);
     s.stopWatching();
 }
 

@@ -31,8 +31,8 @@ ModalLayer {
     function save() {
         const pn = planChoices.find(x => x.key === planId), sn = stopChoices.find(x => x.key === stopId)
         const n = ids.length
-        open = false
-        if (photos.assign(ids, planId, stopId)) root.assigned(n, pn ? pn.text : "", sn ? sn.text.replace(/^\d+\.\s*/, "") : "")
+        if (photos.assign(ids, planId, stopId)) { open = false; root.assigned(n, pn ? pn.text : "", sn ? sn.text.replace(/^\d+\.\s*/, "") : "") }
+        else win.showError(qsTr("没有归进去：数据现在只能看、不能改，或者计划已经不在了。"))
     }
 
     Text {

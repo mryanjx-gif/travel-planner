@@ -83,6 +83,7 @@ public:
     bool hasElectronData() const { return m_hasElectronData; }
     // 别的旅行计划正开着这份数据（只读）
     bool lockedByOther() const { return m_lockedByOther; }
+    bool gone() const { return m_gone; }   // 0.12.8 数据文件不见了（监视开着时才会变）
     LockOwner lockOwner() const { return m_lockOwner; }
     // 用户选了"仍然编辑"：强制接管锁
     void takeOverLock();
@@ -130,6 +131,7 @@ public:
     void refreshLockNow() { onLockTimer(); }
 
 signals:
+    void goneChanged();            // 0.12.8 travel.json（或整个数据文件夹）不见了 / 又回来了
     void externallyChanged();      // travel.json 被别处改过（同一个版本只发一次）
     void dirtyChanged(bool dirty);
     void reloaded();               // 重新读取了（恢复历史版本之后等）
@@ -143,7 +145,7 @@ private:
     void snapPlans();
     void stampUpdated();
     void snapshotDaily(const QByteArray &current);
-    void onHashResult(quint64 generation, const QByteArray &hash);
+    void onHashResult(quint64 generation, const QByteArray &hash, bool exists);
     void tick();
     void onLockTimer();
     QString stampName(const QString &prefix) const;   // prefix-YYYYMMDD-HHMMSS.json
@@ -167,6 +169,7 @@ private:
 
     QTimer m_watch;
     bool m_hashing = false;
+    bool m_gone = false;
     quint64 m_generation = 0;          // 每次读取 / 保存 +1，丢掉之前发出的哈希任务的结果
     QByteArray m_lastNotified;
 };

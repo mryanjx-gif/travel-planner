@@ -79,6 +79,7 @@ GlassPanel {
                 compact: true
                 width: Theme.px(30)
                 Accessible.name: qsTr("关闭")
+                tip: qsTr("关闭")
                 onClicked: root.closeClicked()
             }
         }

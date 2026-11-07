@@ -1184,3 +1184,41 @@ Windows 自带，不随程序分发。	Come with Windows; not distributed with t
 还没有花费	No spending yet
 在计划的“消费”或“交通住宿”里记下来，这里就会汇总。	Add it under Expenses or Bookings in a plan and it adds up here.
 打开计划库	Open library
+要不要看 4 步引导？把常用的按钮认一遍。	Take the 4-step tour? It shows you the buttons you'll use most.
+看看	Show me
+跳过	Skip
+下一步	Next
+开始用吧	Let's go
+计划、日历、相册、游记都在这里	Plans, calendar, album and journal are all in here
+点这里新建一个旅行计划	Tap here to start a new trip
+换底图：卫星图、街道图、浅灰、已解锁	Switch the map: satellite, streets, light gray, unlocked
+一键回到你现在的位置	Jump back to where you are now
+已更新到 v%1	Updated to v%1
+看看改了什么	What's new
+再试一次	Try again
+重试	Retry
+数据文件夹不见了	The data folder is gone
+%1 里的 travel.json 找不到了，可能是文件夹被移动、改名，或者移动硬盘没插。窗口里的内容还在；放回原位置会自动恢复，也可以换一个文件夹。	travel.json in %1 can't be found. The folder may have been moved or renamed, or a drive unplugged. What's in this window is still here. Put the folder back and it recovers by itself, or switch to another folder.
+换文件夹…	Switch folder…
+返回	Back
+没有改成：数据现在只能看、不能改，或者这个计划已经不在了。	Not changed: the data is read-only right now, or this plan no longer exists.
+没有归进去：数据现在只能看、不能改，或者计划已经不在了。	Not assigned: the data is read-only right now, or the plan no longer exists.
+往年气候没取到（可能没联网，或者服务暂时不可用）· 重试	Couldn't get past climate (no connection, or the service is down) · Retry
+天气预报没取到（可能没联网，或者服务暂时不可用）· 重试	Couldn't get the forecast (no connection, or the service is down) · Retry
+更新失败（可能没联网，或者汇率服务暂时不可用），用的是上次的	Update failed (no connection, or the rates service is down); using the last rates
+重新取汇率	Get rates again
+文件可能被移动或删除了：%1。放回数据文件夹的原位置就能显示。	The file may have been moved or deleted: %1. Put it back in the data folder to see it.
+有 %1 张照片找不到文件。记录还在，可能是数据文件夹里的 photos 被移动或删除了，放回原位置就能显示。	%1 photos can't be found. The records are kept. The photos folder inside your data folder may have been moved or deleted; put it back to see them.
+重新检查	Check again
+正在生成缩略图，还有 %1 张	Making thumbnails, %1 left
+页面	Pages
+计划列表 (Ctrl B)	Plan list (Ctrl B)
+切换底图	Switch map
+我的位置	My location
+收起	Collapse
+关闭	Close
+关闭列表	Close list
+关闭设置	Close settings
+在地图上显示	Show on map
+在地图上隐藏	Hide on map
+新建计划	New plan

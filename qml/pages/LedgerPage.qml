@@ -127,6 +127,7 @@ Item {
                 text: qsTr("缺少 %1 的汇率，这些消费没算进合计。").arg(root.missing.join(Fmt.en ? ", " : "、"))
                 font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.danger
             }
+            LinkText { objectName: "ledgerRatesRetry"; visible: root.missing.length > 0 && !rates.netOff; small: true; text: rates.busy ? qsTr("正在取汇率…") : qsTr("重新取汇率"); onClicked: if (!rates.busy) rates.refreshNow() }
             Text {
                 width: parent.width
                 wrapMode: Text.Wrap
@@ -200,19 +201,7 @@ Item {
                 visible: root.trips.length > 0
                 width: parent.width
                 spacing: -1   // 相邻两行的边框叠成一条
-                Item {
-                    width: parent.width
-                    height: Theme.px(26)
-                    Text { x: Theme.px(12); anchors.verticalCenter: parent.verticalCenter; text: qsTr("旅程"); font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted }
-                    Row {
-                        anchors.right: parent.right
-                        anchors.rightMargin: Theme.px(12)
-                        anchors.verticalCenter: parent.verticalCenter
-                        Text { visible: !root.narrow; width: root.colDays; horizontalAlignment: Text.AlignRight; text: qsTr("天数"); font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted }
-                        Text { visible: !root.narrow; width: root.colBudget; horizontalAlignment: Text.AlignRight; text: qsTr("预算"); font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted }
-                        Text { width: root.colSpent; horizontalAlignment: Text.AlignRight; text: qsTr("花费"); font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted }
-                    }
-                }
+                TripsHead { id: tripsHead; width: parent.width }
                 Repeater {
                     model: root.sorted
                     delegate: Rectangle {
@@ -273,6 +262,28 @@ Item {
                 text: qsTr("还有 %1 趟没有花费").arg(root.info.emptyCount || 0)
                 font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.muted
             }
+        }
+    }
+    // 0.12.8 长表固定表头：滚过表头以后，上面钉一份
+    Rectangle {
+        objectName: "ledgerPinnedHead"
+        visible: flick.contentY > tripsHead.mapToItem(flick.contentItem, 0, 0).y && root.trips.length > 0
+        x: col.x
+        width: col.width
+        height: pinHead.height
+        color: "#fafcfd"
+        TripsHead { id: pinHead; width: parent.width }
+    }
+    component TripsHead: Item {
+        height: Theme.px(26)
+        Text { x: Theme.px(12); anchors.verticalCenter: parent.verticalCenter; text: qsTr("旅程"); font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted }
+        Row {
+            anchors.right: parent.right
+            anchors.rightMargin: Theme.px(12)
+            anchors.verticalCenter: parent.verticalCenter
+            Text { visible: !root.narrow; width: root.colDays; horizontalAlignment: Text.AlignRight; text: qsTr("天数"); font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted }
+            Text { visible: !root.narrow; width: root.colBudget; horizontalAlignment: Text.AlignRight; text: qsTr("预算"); font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted }
+            Text { width: root.colSpent; horizontalAlignment: Text.AlignRight; text: qsTr("花费"); font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted }
         }
     }
 }

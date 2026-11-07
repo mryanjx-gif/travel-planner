@@ -264,6 +264,7 @@ Column {
                 font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.muted
             }
             Text {
+                id: moneyMissingText
                 objectName: "moneyMissing"
                 visible: root.missing.length > 0 || root.mainMissing.length > 0
                 width: parent.width
@@ -271,6 +272,7 @@ Column {
                 text: qsTr("缺少 %1 的汇率，这些消费没算进合计。").arg(root.missing.concat(root.mainMissing.filter(c => root.missing.indexOf(c) < 0)).join(Fmt.en ? ", " : "、"))
                 font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.danger
             }
+            LinkText { objectName: "moneyRatesRetry"; visible: moneyMissingText.visible && !rates.netOff; small: true; text: rates.busy ? qsTr("正在取汇率…") : qsTr("重新取汇率"); onClicked: if (!rates.busy) rates.refreshNow() }
             Text {
                 objectName: "moneyRates"
                 visible: rates.main !== root.cur || rates.date !== ""
@@ -430,6 +432,7 @@ Column {
                     Accessible.name: qsTr("删除")
                     Rectangle { anchors.fill: parent; radius: width / 2; color: delMa.containsMouse ? Theme.panel2 : "transparent" }
                     TpIcon { anchors.centerIn: parent; width: Theme.px(15); height: width; name: "trash"; color: Theme.muted }
+                    TpTip { text: qsTr("删除"); show: delMa.containsMouse }
                     MouseArea { id: delMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.remove(row.modelData) }
                 }
             }

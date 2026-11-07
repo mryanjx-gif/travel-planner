@@ -56,6 +56,7 @@ AppController::AppController(Settings *settings, DataStore *store, QObject *pare
         qInfo("travel.json 被别处改过");
         if (!m_extChanged) { m_extChanged = true; emit extChangedChanged(); }
     });
+    connect(m_store, &DataStore::goneChanged, this, &AppController::dataGoneChanged);
     connect(m_store, &DataStore::dirtyChanged, this, &AppController::dirtyChanged);
     connect(m_store, &DataStore::lockChanged, this, [this] {
         if (m_store->lockedByOther()) qInfo("数据正在别处打开：%s（只读）", qUtf8Printable(m_store->lockOwner().describe()));
@@ -191,6 +192,15 @@ void AppController::setPref(const QString &key, const QString &v)
     m_settings->setValue(key, v);
     m_settings->save();
     emit prefsChanged();
+}
+bool AppController::tourDone() const { return m_settings->value(QStringLiteral("tourDone")).toString() == QLatin1String("1"); }
+void AppController::setTourDone(bool on) { setPref(QStringLiteral("tourDone"), on ? QStringLiteral("1") : QString()); }
+bool AppController::dataGone() const { return m_store->gone(); }
+QString AppController::noteVersion()
+{
+    const QString last = m_settings->value(QStringLiteral("lastVersion")).toString();
+    if (last != version()) { m_settings->setValue(QStringLiteral("lastVersion"), version()); m_settings->save(); }
+    return last;
 }
 QString AppController::greetName() const { return m_settings->value(QStringLiteral("greetName")).toString(); }
 void AppController::setGreetName(const QString &v) { setPref(QStringLiteral("greetName"), v.trimmed().left(20)); }
@@ -539,7 +549,7 @@ bool AppController::doSave(bool force, bool quiet)
     }
     qWarning("保存失败：%s", qUtf8Printable(r.error));
     // Electron：'保存失败：' + 原因 + '\n改动还在窗口里没丢，可以再试一次。'（自动保存失败也提示）
-    emit toast(tp::tr("保存失败：") + r.error + QLatin1Char('\n') + tp::tr("改动还在窗口里没丢，可以再试一次。"), true);
+    emit saveFailed(tp::tr("保存失败：") + r.error + QLatin1Char('\n') + tp::tr("改动还在窗口里没丢，可以再试一次。"));
     return false;
 }
 
@@ -601,11 +611,11 @@ void AppController::undoRedo(int dir)
 {
     if (m_store->state() == DataStore::State::None || m_store->isReadOnly()) return;
     if (m_editing) {
-        emit toast(tp::tr("编辑器开着时不能撤销：先点「完成」，或者点「放弃这次的修改」"), true);
+        emit toast(tp::tr("编辑器开着时不能撤销：先点「完成」，或者点「放弃这次的修改」"), false);
         return;
     }
     if (m_conflictPending) {
-        emit toast(tp::tr("先处理“数据文件被别处改过”，再撤销或重做。"), true);
+        emit toast(tp::tr("先处理“数据文件被别处改过”，再撤销或重做。"), false);
         return;
     }
     // 还没保存的改动先存成一步（Electron 一样）；存不了就不撤销

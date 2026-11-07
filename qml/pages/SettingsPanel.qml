@@ -73,7 +73,7 @@ GlassPanel {
         if (rates.busy) return qsTr("正在取汇率…")
         if (rates.date === "") return rates.netOff ? qsTr("汇率的联网已关闭，现在没有汇率") : rates.failed ? qsTr("还没拿到汇率，联网后重新打开计划试试") : qsTr("还没取到")
         const s = qsTr("%1 的汇率（来源：%2，%3 取到）").arg(rates.date).arg(rates.src).arg(Qt.formatDateTime(new Date(rates.updatedAt), "yyyy-MM-dd hh:mm"))
-        return s + (rates.failed ? " · " + qsTr("更新失败，用的是上次的") : "")
+        return s + (rates.failed ? " · " + qsTr("更新失败（可能没联网，或者汇率服务暂时不可用），用的是上次的") : "")
     }
     function docName(d) {
         const kind = d.kind === "passport" ? qsTr("护照") : d.kind === "visa" ? qsTr("签证") : qsTr("其他证件")
@@ -126,6 +126,7 @@ GlassPanel {
             kind: "ghost"
             text: "×"
             Accessible.name: qsTr("关闭设置")
+            tip: qsTr("关闭设置")
             onClicked: root.closeClicked()
         }
     }

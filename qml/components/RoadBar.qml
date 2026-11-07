@@ -49,6 +49,7 @@ GlassPanel {
                 compact: true
                 width: Theme.px(32)
                 Accessible.name: qsTr("先不算")
+                tip: qsTr("先不算")
                 onClicked: roads.dismiss()
             }
         }

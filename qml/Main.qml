@@ -1038,7 +1038,6 @@ Window {
 
     Connections {
         target: weather
-        function onClimateFailed() { toast.show(qsTr("往年气候没取到，等一下再试"), true) }
     }
     NowCard {
         id: nowCard
@@ -1520,6 +1519,7 @@ Window {
                 RotationAnimator on rotation { running: locator.busy && Theme.motion; from: 0; to: 360; duration: 1200; loops: Animation.Infinite; onStopped: locIcon.rotation = 0 }
             }
         }
+        TpTip { text: qsTr("我的位置"); show: locMa.containsMouse }
         MouseArea { id: locMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: locator.locate() }
     }
 
@@ -1569,6 +1569,7 @@ Window {
             warning: true
             title: qsTr("当前底图加载失败（可能没联网，或服务方限流、改了政策）。可以换成不用联网的「已解锁」底图。")
             onCloseClicked: mapc.dismissTileBanner()
+            TpButton { objectName: "tileRetry"; text: qsTr("重试"); compact: true; onClicked: mapc.retryTiles() }
             TpButton { text: qsTr("切到已解锁"); compact: true; kind: "primary"; onClicked: win.pickBase("unlock") }
         }
         // "有 N 段还没算"（0.8.4，Electron #roadBar：顶栏下面居中）
@@ -1806,13 +1807,12 @@ Window {
         }
     }
     BookingDialog { id: bookingDialog; objectName: "bookingDialog"; currency: (planPage.info.money || {}).currency || "" }
-    ExpenseDialog { id: expenseDialog; objectName: "expenseDialog"; planCurrency: (planPage.info.money || {}).currency || ""; today: plans.today; people: (planPage.info.money || {}).people || []; onPeopleRequested: peopleDialog.show() }
+    ExpenseDialog { id: expenseDialog; objectName: "expenseDialog"; planCurrency: (planPage.info.money || {}).currency || ""; today: plans.today; people: (planPage.info.money || {}).people || [] }
     // 同行人（0.11.5）：放在记一笔后面，从那里打开时盖在上面
     PeopleDialog {
         id: peopleDialog
         objectName: "peopleDialog"
         money: planPage.info.money || ({})
-        onOpenChanged: if (!open && expenseDialog.open) expenseDialog.takeFocus()
     }
     ModalLayer {
         id: budgetDialog
@@ -1888,8 +1888,8 @@ Window {
         title: qsTr("预计天数")
         hint: qsTr("大约几天（不确定可以留空）")
         onAccepted: (t) => {
-            open = false
-            if (planPage.setDays(t) === "badDays") toast.show(qsTr("天数要在 1 到 999 之间"), true)
+            if (planPage.setDays(t) === "badDays") error = qsTr("天数要在 1 到 999 之间")   // 窗口留着，打的字不丢
+            else open = false
         }
         onCanceled: open = false
     }
@@ -2354,16 +2354,104 @@ Window {
         onCanceled: open = false
     }
 
+    Timer { id: tourShot; interval: 900; onTriggered: { win.startTour(); if (shotPage === "ui-tour-3") tour.go(2) } }
     Toast {
         id: toast
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 28
+        onErrorRaised: (msg) => win.showError(msg)
+    }
+
+    // ---- 0.12.8 新手引导（S-17）、升级提示（S-18）----
+    Tour {
+        id: tour
+        steps: [{ target: topBar.pillItem, text: qsTr("计划、日历、相册、游记都在这里") },
+                { target: topBar.newItem, text: qsTr("点这里新建一个旅行计划") },
+                { target: layers, text: qsTr("换底图：卫星图、街道图、浅灰、已解锁") },
+                { target: locBtn, text: qsTr("一键回到你现在的位置") }]
+        onStartRequested: win.startTour()
+    }
+    function startTour() {
+        if (editor.open) { toast.show(qsTr("请先完成或放弃当前编辑"), false); return }
+        win.goPage("plan")
+        win.nowOpen = false
+        win.albumOpen = false
+        plans.setLibraryOpen(false)
+        mapc.markers.clearSelection()
+        tour.start()
+    }
+    function openChangelog() { settings.section = "log"; win.goPage("settings") }
+    function showUpdated() { toast.show(qsTr("已更新到 v%1").arg(app.version), false, qsTr("看看改了什么"), () => win.openChangelog(), false, 12000) }
+    // 第一次回到地图（欢迎页、启动时的对话框都关了）才问，照 Electron：没看过引导就问引导，看过了才提示升级
+    property bool onboardDone: false
+    Timer {
+        interval: 1200
+        repeat: true
+        running: !testRun && !win.onboardDone
+        onTriggered: {
+            if (!win.onMapPage || win.modalOpen || palette.open || editor.open) return
+            win.onboardDone = true
+            const last = app.noteVersion()
+            if (!app.tourDone) tour.offer()
+            else if (last !== "" && last !== app.version) win.showUpdated()
+        }
+    }
+
+    // ---- 0.12.8 报错和"东西不见了"：不自己消失，盖在弹窗上面（用弹窗时出的错也看得见） ----
+    property string errText: ""
+    property string errAction: ""
+    property var errFn: null
+    property bool errIsSave: false
+    function showError(text, actText, actFn) {
+        errText = text
+        errAction = actText || ""
+        errFn = actFn || null
+        errIsSave = false
+    }
+    function clearError() { errText = ""; errAction = ""; errFn = null; errIsSave = false }
+    Connections { target: app; function onDirtyChanged() { if (!app.dirty && win.errIsSave) win.clearError() } }
+    Column {
+        id: alerts
+        x: Math.round((win.width - width) / 2)
+        y: win.topH + 2
+        width: Math.min(Theme.px(620), win.width - 32)
+        spacing: 12
+        z: 210
+        Banner {
+            objectName: "dataGoneBanner"
+            liquid: false
+            width: parent.width
+            visible: app.dataGone || shotPage === "ui-gone"
+            warning: true
+            closable: false
+            title: qsTr("数据文件夹不见了")
+            detail: qsTr("%1 里的 travel.json 找不到了，可能是文件夹被移动、改名，或者移动硬盘没插。窗口里的内容还在；放回原位置会自动恢复，也可以换一个文件夹。").arg(app.dataDir)
+            TpButton { objectName: "dataGoneSwitch"; text: qsTr("换文件夹…"); compact: true; onClicked: folderDialog.open() }
+        }
+        Banner {
+            objectName: "errorBanner"
+            liquid: false
+            width: parent.width
+            visible: win.errText !== ""
+            warning: true
+            title: win.errText
+            onCloseClicked: win.clearError()
+            TpButton {
+                objectName: "errorRetry"
+                visible: win.errAction !== ""
+                text: win.errAction
+                compact: true
+                kind: "primary"
+                onClicked: { const f = win.errFn; win.clearError(); if (f) f() }
+            }
+        }
     }
 
     Connections {
         target: app
         function onToast(text, error) { toast.show(text, error) }
+        function onSaveFailed(text) { win.showError(text, qsTr("再试一次"), () => app.saveNow(false)); win.errIsSave = true }
         function onSaveConflict() { conflictDialog.open = true }
         function onCloseSaveFailed(conflict, error) {
             closeFailDialog.conflict = conflict
@@ -2389,6 +2477,8 @@ Window {
     // 弹框开着时 Esc 交给弹框自己。
     readonly property var escChain: [
         { name: "palette", on: () => palette.open, close: () => palette.hide() },
+        // 0.12.8 引导：进行中算弹框（modalOpen，Esc 归 Tour 自己）；这里是开始前问的那张小卡片
+        { name: "tourOffer", on: () => tour.offering, close: () => tour.skipOffer() },
         { name: "sub", on: () => topBar.subIsOpen, close: () => topBar.closeSub() },
         { name: "bubbles", on: () => topBar.bubblesOpen, close: () => topBar.setBubbles(false) },
         { name: "menu", on: () => avatarMenu.open, close: () => { avatarMenu.open = false } },
@@ -2480,7 +2570,7 @@ Window {
         function onToast(text, warn) { toast.show(text, warn) }
     }
     // 撤销 / 重做（0.5.0，D-13）：光标在输入框里时不拦截（交给输入框自己的撤销），有弹框时也不拦截
-    readonly property bool modalOpen: welcomePage.visible || dataChoice.open || noDataDialog.open || conflictDialog.open || closeFailDialog.open
+    readonly property bool modalOpen: welcomePage.visible || tour.active || dataChoice.open || noDataDialog.open || conflictDialog.open || closeFailDialog.open
                                       || restoreDialog.open || titleDialog.open || crashDialog.open || electronFolderDialog.open
                                       || importDialog.open || importProgressDialog.open || importReportDialog.open || takeOverDialog.open
                                       || photoReview.open || cleanupDialog.open || planConfirm.open || bulkConfirm.open || wishDialog.open || editorDialog.open
@@ -2645,6 +2735,10 @@ Window {
         else if (shotPage === "ui-settings" || shotPage === "ui-backup" || shotPage === "ui-backup-running" || shotPage === "ui-devtools") goPage("settings")
         else if (shotPage === "ui-firstrun") dataChoice.forced = "firstRun"
         else if (shotPage === "ui-welcome") welcomePage.forced = true
+        else if (shotPage === "ui-tour" || shotPage === "ui-tour-3") tourShot.start()
+        else if (shotPage === "ui-tour-offer") tour.offer()
+        else if (shotPage === "ui-update") win.showUpdated()
+        else if (shotPage === "ui-error") win.showError(qsTr("保存失败：") + "D:\\旅行计划数据\\travel.json" + "\n" + qsTr("改动还在窗口里没丢，可以再试一次。"), qsTr("再试一次"), () => {})
         else if (shotPage.startsWith("empty-")) emptyShot.start()
         else if (shotPage === "ui-missing") dataChoice.forced = "missing"
         else if (shotPage === "ui-nodata") { noDataDialog.dir = "D:\\新文件夹"; noDataDialog.open = true }
@@ -2736,7 +2830,7 @@ Window {
     // 截图（0.10.1）：trip-bookings = 交通住宿（含没订住宿的提醒）；trip-budget = 消费；trip-booking-form / trip-expense-form = 弹出表单；
     // trip-stopbooks = 站点卡片上当天的交通住宿。在数据副本上加几条示例
     // 0.10.2：trip-settle = 有同行人的消费页和结算；trip-split-form = 分账表单（按金额分）；trip-split-narrow = 500 宽的分账表单
-    readonly property bool moneyShot: ["trip-bookings", "trip-budget", "trip-booking-form", "trip-expense-form", "trip-stopbooks", "trip-settle", "trip-split-form", "trip-split-narrow", "trip-share-people", "trip-share-rows", "trip-share-on", "trip-share-off", "trip-share-edited"].indexOf(shotPage) >= 0
+    readonly property bool moneyShot: ["trip-expense-people", "trip-bookings", "trip-budget", "trip-booking-form", "trip-expense-form", "trip-stopbooks", "trip-settle", "trip-split-form", "trip-split-narrow", "trip-share-people", "trip-share-rows", "trip-share-on", "trip-share-off", "trip-share-edited"].indexOf(shotPage) >= 0
     // 0.10.5：trip-photos = 照片标签（有封面）；trip-lightbox = 看大图；trip-lightbox-zoom = 放大（原图）；*-narrow = 500 宽；editor-photos、editor-cover = 编辑器的照片、封面
     readonly property bool photosShot: ["trip-photos", "trip-photos-narrow", "trip-lightbox", "trip-lightbox-zoom"].indexOf(shotPage) >= 0
     function runPhotosShot() {
@@ -2865,7 +2959,8 @@ Window {
             if (win.moneyShot) {
                 planPanel.openTab(shotPage === "trip-bookings" || shotPage === "trip-booking-form" ? "bookings" : shotPage === "trip-stopbooks" ? "itinerary" : "budget")
                 if (shotPage === "trip-booking-form") bookingDialog.show(null, "hotel")
-                if (shotPage === "trip-expense-form") expenseDialog.show(null, { title: "", cat: "food" })
+                if (shotPage === "trip-expense-form" || shotPage === "trip-expense-people") expenseDialog.show(null, { title: "", cat: "food" })
+                if (shotPage === "trip-expense-people") expenseDialog.peoplePage = true
                 if (shotPage.startsWith("trip-share")) win.runShareShot()
                 if (shotPage.startsWith("trip-split")) {
                     for (const x of planPage.info.money.rows) if (x.custom) { expenseDialog.show(x, null); break }

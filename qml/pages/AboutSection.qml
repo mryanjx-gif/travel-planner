@@ -61,7 +61,7 @@ Column {
             width: parent.width
             label: qsTr("新手引导")
             sub: qsTr("在地图上把几个常用按钮再指一遍")
-            TpButton { objectName: "aboutTour"; compact: true; text: qsTr("再看一次"); onClicked: win.notReady() }
+            TpButton { objectName: "aboutTour"; compact: true; text: qsTr("再看一次"); onClicked: win.startTour() }
         }
     }
 

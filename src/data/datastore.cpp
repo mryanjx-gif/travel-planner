@@ -133,6 +133,7 @@ QString DataStore::stampName(const QString &prefix) const
 
 bool DataStore::load(const QString &dataDir)
 {
+    if (m_gone) { m_gone = false; emit goneChanged(); }
     const bool ok = loadInner(dataDir);
     emit contentChanged();
     return ok;
@@ -454,15 +455,17 @@ void DataStore::tick()
     QPointer<DataStore> self(this);
     hashPool()->start([self, gen, file] {
         QByteArray bytes, hash;
-        if (readAll(file, &bytes)) hash = sha256Hex(bytes);
-        if (self) QMetaObject::invokeMethod(self.data(), [self, gen, hash] { if (self) self->onHashResult(gen, hash); }, Qt::QueuedConnection);
+        bool exists = true;
+        if (readAll(file, &bytes, &exists)) hash = sha256Hex(bytes);
+        if (self) QMetaObject::invokeMethod(self.data(), [self, gen, hash, exists] { if (self) self->onHashResult(gen, hash, exists); }, Qt::QueuedConnection);
     });
 }
 
-void DataStore::onHashResult(quint64 generation, const QByteArray &hash)
+void DataStore::onHashResult(quint64 generation, const QByteArray &hash, bool exists)
 {
     m_hashing = false;
     if (generation != m_generation) return;   // 这期间保存 / 重新读取过，结果作废
+    if (m_gone == exists) { m_gone = !exists; emit goneChanged(); }
     if (!hash.isEmpty() && hash != m_knownHash && hash != m_lastNotified) {
         m_lastNotified = hash;
         emit externallyChanged();

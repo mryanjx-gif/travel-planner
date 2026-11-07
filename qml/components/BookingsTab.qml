@@ -184,6 +184,7 @@ Column {
         Accessible.name: label
         Rectangle { anchors.fill: parent; radius: width / 2; color: icMa.containsMouse ? Theme.panel2 : "transparent" }
         TpIcon { anchors.centerIn: parent; width: Theme.px(15); height: width; name: ic.name; color: Theme.muted }
+        TpTip { text: ic.label; show: icMa.containsMouse }
         MouseArea { id: icMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: ic.clicked() }
     }
 }

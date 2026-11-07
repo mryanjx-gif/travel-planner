@@ -41,11 +41,11 @@ ModalLayer {
     function save() {
         if (kind === "start") {
             if (badRange) return
-            open = false
-            if (plans.startPlan(planId, start, end)) root.started(planName)
+            if (plans.startPlan(planId, start, end)) { open = false; root.started(planName) }
+            else win.showError(qsTr("没有改成：数据现在只能看、不能改，或者这个计划已经不在了。"))
         } else {
-            open = false
-            plans.setSeasonRef(planId, ref)
+            if (plans.setSeasonRef(planId, ref)) open = false
+            else win.showError(qsTr("没有改成：数据现在只能看、不能改，或者这个计划已经不在了。"))
         }
     }
 

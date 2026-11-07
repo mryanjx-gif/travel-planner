@@ -36,6 +36,7 @@ Item {
             color: root.iconColor
         }
     }
+    TpTip { text: root.tip; show: ma.containsMouse }
     MouseArea {
         id: ma
         anchors.fill: parent
