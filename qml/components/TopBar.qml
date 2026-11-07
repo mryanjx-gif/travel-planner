@@ -141,7 +141,19 @@ Item {
                     }
                 }
             }
-            TpTip { text: qsTr("页面"); show: dotsMa.containsMouse }
+            // 0.12.11 角标说明是什么（"27 天后""29" 单看看不懂）
+            TpTip {
+                text: {
+                    const l = [qsTr("页面")]
+                    if (pillBadges.visible && root.nowBadge !== "")
+                        l.push(root.nowKind === "live" ? qsTr("正在旅行：%1").arg(root.nowBadge)
+                             : root.nowKind === "back" ? qsTr("最近一趟：%1").arg(root.nowBadge)
+                             : qsTr("下次出发：%1").arg(root.nowBadge))
+                    if (pillBadges.visible && root.todoOpen > 0) l.push(qsTr("这趟还有 %1 项待办没做完").arg(root.todoOpen))
+                    return l.join(" · ")
+                }
+                show: dotsMa.containsMouse
+            }
             MouseArea {
                 id: dotsMa
                 anchors.fill: parent
@@ -322,7 +334,9 @@ Item {
                 anchors.fill: parent
                 radius: height / 2
                 liquid: !root.overPage
-                tint: Qt.rgba(newBtn.g[0] / 255, newBtn.g[1] / 255, newBtn.g[2] / 255, Theme.glass && !root.overPage ? 0.69 : 0.96)
+                // 0.12.11 压在整页上（日历、游记、账本）和旁边胶囊一样用接近实底的白，不然一颗灰一颗白
+                tint: root.overPage ? Qt.rgba(250 / 255, 252 / 255, 253 / 255, 0.96)
+                                    : Qt.rgba(newBtn.g[0] / 255, newBtn.g[1] / 255, newBtn.g[2] / 255, Theme.glass ? 0.69 : 0.96)
                 edge: newMa.containsMouse ? Theme.lineStrong : Theme.glassEdge
             }
             Row {

@@ -1242,3 +1242,11 @@ Windows 自带，不随程序分发。	Come with Windows; not distributed with t
 搜索地名添加，例如 Kyoto、Eiffel Tower	Search to add, e.g. Kyoto
 电话（带国家代码，如 +86 …）	Phone (with country code, e.g. +86)
 其他（血型、过敏、常用药等，自己决定写不写）	Other (blood type, allergies, medication; only if you want)
+# 0.12.11 总检查修复
+正在旅行：%1	Travelling now: %1
+最近一趟：%1	Last trip: %1
+下次出发：%1	Next trip: %1
+这趟还有 %1 项待办没做完	%1 to-dos left for this trip
+这一站还没有照片。	No photos for this stop yet.
+这一站还没有照片，点“添加照片”从电脑里选。	No photos for this stop yet. Click “Add photos” to pick some from your computer.
+还没出发的 %3 趟，预计花 %1 %2	%3 trips still to come, estimated %1 %2

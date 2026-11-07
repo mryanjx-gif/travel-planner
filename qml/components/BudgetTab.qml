@@ -336,7 +336,7 @@ Column {
             TpField {
                 id: quickTitle
                 objectName: "quickTitle"
-                width: quickRow.width - Theme.px(92 + 84 + 52) - quickCur.width - 4 * quickRow.spacing
+                width: quickRow.width - Theme.px(92 + 84) - quickAdd.width - quickCur.width - 4 * quickRow.spacing
                 placeholder: qsTr("内容")
                 value: root.qTitle
                 onEdited: (t) => { root.qTitle = t }
@@ -358,7 +358,7 @@ Column {
                 text: root.cur
                 font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.muted
             }
-            TpButton { objectName: "quickAdd"; compact: true; width: Theme.px(52); kind: "primary"; text: qsTr("记"); onClicked: root.submitQuick() }
+            TpButton { id: quickAdd; objectName: "quickAdd"; compact: true; kind: "primary"; text: qsTr("记一笔"); onClicked: root.submitQuick() }   // 0.12.11 原来只写"记"
         }
         Row {
             spacing: Theme.px(8)

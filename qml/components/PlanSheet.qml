@@ -34,14 +34,17 @@ Item {
     function statusLabel(s) { return s === "completed" ? qsTr("已完成") : s === "wish" ? qsTr("想去") : qsTr("计划中") }
     function statusColor(s) { return s === "completed" ? "#2b8a3e" : s === "wish" ? "#7b61b5" : "#e8590c" }
     function legLabel(m) { return m === "train" ? qsTr("火车") : m === "ferry" ? qsTr("船") : m === "drive" ? qsTr("自驾") : m === "walk" ? qsTr("徒步") : qsTr("飞机") }
+    // 0.12.11 换行只在" · "和"、"处，不把"未定日期"拆成两行（字之间加 WORD JOINER，空格换不换行的空格）
+    function keep(t) { return String(t).replace(/ /g, " ").split("").join("⁠") }
     function summary() {
         const bits = [statusLabel(sheet.status)]
         bits.push(route ? qsTr("%1 站").arg(stops.length) : qsTr("单一目的地"))
-        const regs = (sheet.regions || []).map(r => qsTr(r))
-        if (regs.length) bits.push(regs.join("、"))
+        const regs = (sheet.regions || []).map(r => keep(qsTr(r)))
         const d = Fmt.range(sheet.startDate, sheet.endDate)
         bits.push(d !== "" ? d : qsTr("未定日期"))
-        return bits.join(" · ")
+        const out = bits.map(keep)
+        if (regs.length) out.splice(2, 0, regs.join("、"))
+        return out.join(" · ")
     }
     function legText(leg) {
         if (!leg) return ""
@@ -96,7 +99,7 @@ Item {
                     width: parent.width - Theme.px(14)
                     wrapMode: Text.Wrap
                     font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.muted
-                    text: root.summary() + (root.sheet.pinned ? " · " + qsTr("已置顶") : "")
+                    text: root.summary() + (root.sheet.pinned ? " · " + root.keep(qsTr("已置顶")) : "")
                 }
             }
         }

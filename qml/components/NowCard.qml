@@ -181,7 +181,7 @@ Item {
                             width: col.width - root.labelW - Theme.px(12)
                             elide: Text.ElideRight
                             font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.text
-                            text: modelData.text || modelData.stop || ""
+                            text: String(modelData.text || modelData.stop || "").trim()   // 0.12.11 开头带空格的不往里缩
                         }
                     }
                 }

@@ -948,4 +948,15 @@ GlassPanel {
             }
         }
     }
+    // 0.12.11 放不下时右边一直有位置条（数据、关于这些长的分组，一眼看出能往下滚）
+    Rectangle {
+        objectName: "settingsScrollBar"
+        visible: flick.contentHeight > flick.height + 1
+        x: flick.x + flick.width - width - Theme.px(4)
+        y: flick.y + Theme.px(4) + flick.visibleArea.yPosition * (flick.height - Theme.px(8))
+        width: Theme.px(4)
+        height: Math.max(Theme.px(24), flick.visibleArea.heightRatio * (flick.height - Theme.px(8)))
+        radius: width / 2
+        color: Theme.lineStrong
+    }
 }

@@ -18,6 +18,8 @@
 #include "plans.h"
 #include "thumbcache.h"
 
+#include <algorithm>
+
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
@@ -265,12 +267,31 @@ void runAudit(Report &r, AppController *app, map::MapController *mapc, QQuickWin
         QQuickItem *dlg = win->findChild<QQuickItem *>(QStringLiteral("wishDialog"));
         // 一周从周日开始时小日历也跟着（设置页真点，见下面）：先走设置页
         goPage(QStringLiteral("settings"));
-        if (QQuickItem *panel = m.item(QStringLiteral("settingsPanel"))) panel->setProperty("section", QStringLiteral("cal"));   // 0.12.3 分组了
+        // 0.12.3 分组了：先切到"日历"。面板刚开始淡入时还看不见（opacity 0 → visible false），不能用只找看得见的 m.item
+        QQuickItem *setPanel = win->findChild<QQuickItem *>(QStringLiteral("settingsPanel"));
+        if (setPanel) QMetaObject::invokeMethod(setPanel, "showSection", Q_ARG(QVariant, QStringLiteral("cal")));
         QQuickItem *seg = nullptr;
         waitFor([&] { seg = m.item(QStringLiteral("weekStartSeg-0")); return seg != nullptr; }, 2500);
         waitStill(m.item(QStringLiteral("weekStartSeg")), 1500);
         m.click(seg);
-        r.check(cal->weekStart() == 0, QStringLiteral("设置页：鼠标点\"周日\"，一周从周日开始"), QString::number(cal->weekStart()));
+        QString why = QString::number(cal->weekStart());
+        if (cal->weekStart() != 0 && seg) {   // 诊断：点的那一点最上面接鼠标的是谁
+            const QPointF p = seg->mapToScene(QPointF(seg->width() / 2, seg->height() / 2));
+            std::function<QQuickItem *(QQuickItem *)> top = [&](QQuickItem *it) -> QQuickItem * {
+                QList<QQuickItem *> kids = it->childItems();
+                std::stable_sort(kids.begin(), kids.end(), [](QQuickItem *a, QQuickItem *b) { return a->z() < b->z(); });
+                for (int i = int(kids.size()) - 1; i >= 0; --i) {
+                    QQuickItem *c = kids[i];
+                    if (!c->isVisible() || !c->isEnabled()) continue;
+                    if (c->clip() && !c->contains(c->mapFromScene(p))) continue;
+                    if (QQuickItem *f = top(c)) return f;
+                }
+                return (it->acceptedMouseButtons() & Qt::LeftButton) && it->contains(it->mapFromScene(p)) ? it : nullptr;
+            };
+            QQuickItem *t = top(win->contentItem());
+            why += QStringLiteral(" 点 (%1,%2) 最上面：%3 %4").arg(p.x()).arg(p.y()).arg(t ? QString::fromLatin1(t->metaObject()->className()) : QStringLiteral("无"), t ? t->objectName() + QStringLiteral(" 父 ") + (t->parentItem() ? t->parentItem()->objectName() + QStringLiteral("/") + QString::fromLatin1(t->parentItem()->metaObject()->className()) : QString()) : QString());
+        }
+        r.check(cal->weekStart() == 0, QStringLiteral("设置页：鼠标点\"周日\"，一周从周日开始"), why);
         goPage(QStringLiteral("wish"));
         waitFor([&] { return m.item(QStringLiteral("wishStartBtn-") + wid) != nullptr; }, 2500);
         waitStill(panel);
@@ -298,10 +319,11 @@ void runAudit(Report &r, AppController *app, map::MapController *mapc, QQuickWin
 
         // 周一开始（真点回去）
         goPage(QStringLiteral("settings"));
+        if (setPanel) QMetaObject::invokeMethod(setPanel, "showSection", Q_ARG(QVariant, QStringLiteral("cal")));
         waitFor([&] { seg = m.item(QStringLiteral("weekStartSeg-1")); return seg != nullptr; }, 2500);
         waitStill(m.item(QStringLiteral("weekStartSeg")), 1500);
         m.click(seg);
-        r.check(cal->weekStart() == 1, QStringLiteral("设置页：鼠标点\"周一\"改回去"));
+        r.check(seg && cal->weekStart() == 1, QStringLiteral("设置页：鼠标点\"周一\"改回去"));
         goPage(QStringLiteral("wish"));
         waitFor([&] { return m.item(QStringLiteral("wishSeasonBtn-") + wid) != nullptr; }, 2500);
         waitStill(panel);

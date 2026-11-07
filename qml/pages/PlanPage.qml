@@ -491,6 +491,28 @@ Item {
                         }
                     }
                 }
+                // 0.12.11 窄窗口放不下时两头渐隐，看得出还能横着滑（原来"攻略"切半个字）
+                Rectangle {
+                    objectName: "tripTabsFadeR"
+                    visible: tabsFlick.contentX < tabsFlick.contentWidth - tabsFlick.width - 1
+                    anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom; anchors.bottomMargin: 1
+                    width: Theme.px(36)
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0; color: Qt.rgba(250 / 255, 252 / 255, 253 / 255, 0) }
+                        GradientStop { position: 1; color: Qt.rgba(250 / 255, 252 / 255, 253 / 255, 1) }
+                    }
+                }
+                Rectangle {
+                    visible: tabsFlick.contentX > 1
+                    anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom; anchors.bottomMargin: 1
+                    width: Theme.px(28)
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0; color: Qt.rgba(250 / 255, 252 / 255, 253 / 255, 1) }
+                        GradientStop { position: 1; color: Qt.rgba(250 / 255, 252 / 255, 253 / 255, 0) }
+                    }
+                }
             }
             BookingsTab {
                 objectName: "tripBookings"
@@ -941,7 +963,7 @@ Item {
         z: 2
     }
     // ---- 站点切换条：贴在页头下面（Electron .stop-nav 吸顶）----
-    Rectangle {
+    TpCard {   // 0.12.11 和下面的站点卡片一个样子（原来是灰底细边小圆角）
         id: navBar
         objectName: "tripNav"
         visible: root.stepping && !root.missing && root.tab === "itinerary"
@@ -949,9 +971,6 @@ Item {
         width: parent.width - 2 * x
         y: Math.max(root.collapsed ? root.compactH : Theme.px(6), root.navNatural)
         height: root.navH - Theme.px(6)
-        radius: Theme.radiusControl
-        color: "#f2f5f8"
-        border.width: 1; border.color: Theme.line
         z: 3
         MouseArea { anchors.fill: parent }
         RoundIcon {

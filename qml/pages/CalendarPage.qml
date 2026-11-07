@@ -236,7 +236,7 @@ Item {
         }
         Row {
             id: headRight
-            anchors.right: parent.right
+            x: head.twoRows ? 0 : parent.width - width   // 不用 anchors.right：去掉锚以后 x 不会回 0
             anchors.bottom: parent.bottom
             height: Theme.px(36)
             spacing: Theme.px(8)
@@ -259,6 +259,14 @@ Item {
     }
 
     // 没有一个计划定了日期（0.12.7 空状态）：叠在主体上，不挡从右边拖计划进来；拖的时候让开。季节表不受影响
+    // 0.12.11 底下的格子线先盖住（不挡鼠标），卡片不压在一片竖线上
+    Rectangle {
+        z: 5
+        visible: root.noDated && !root.isSeason && !root.dragging
+        anchors.fill: mainCard
+        radius: mainCard.radius
+        color: Qt.rgba(Theme.card.r, Theme.card.g, Theme.card.b, 0.9)
+    }
     Rectangle {
         z: 5
         visible: root.noDated && !root.isSeason && !root.dragging

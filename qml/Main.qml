@@ -1606,7 +1606,8 @@ Window {
     // ---- 左下角：测试信息（图形后端、退回原因、数据、刷新率）；只在开发版显示（0.8.0） ----
     Rectangle {
         id: devInfo
-        visible: app.devTools && !win.fullPageOpen && !win.drawerPanelOpen && !plans.libraryOpen && !win.settingsOpen && !win.tripOpen   // 计划库、设置、计划页开着时地图窄，放不下；0.8.9：窄窗口抽屉开着时不显示（会透到抽屉底下）
+        visible: app.devTools && !win.fullPageOpen && !win.drawerPanelOpen && !plans.libraryOpen && !win.settingsOpen && !win.tripOpen
+                 && !tour.offering && !tour.active && !toast.visible   // 0.12.11 引导邀请、升级提示等底部提示出现时让开；计划库、设置、计划页开着时地图窄，放不下；0.8.9：窄窗口抽屉开着时不显示（会透到抽屉底下）
         anchors.right: parent.right   // 0.8.7：左下角给状态胶囊，测试信息挪到右下角（简易面板开着时让到它左边）
         anchors.bottom: parent.bottom
         anchors.margins: 14

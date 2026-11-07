@@ -632,6 +632,15 @@ Item {
                                                     onClicked: root.photoAddRequested(stopItem.modelData.id)
                                                 }
                                             }
+                                            Text {   // 0.12.11 没照片时说一句，不然下面空着像没做完
+                                                objectName: "edPhotoEmpty"
+                                                visible: stopPhotos.rows.length === 0
+                                                width: parent.width
+                                                wrapMode: Text.Wrap
+                                                text: !root.canPhoto || stopItem.modelData.bad ? qsTr("这一站还没有照片。")
+                                                                                              : qsTr("这一站还没有照片，点“添加照片”从电脑里选。")
+                                                font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
+                                            }
                                             Grid {
                                                 visible: stopPhotos.rows.length > 0
                                                 width: parent.width

@@ -133,7 +133,7 @@ Item {
                         topPadding: Theme.px(4)
                         width: parent.width
                         wrapMode: Text.Wrap
-                        text: qsTr("还没去的预计 %1 %2（%3 趟）").arg(rates.main).arg(root.whole(root.info.future)).arg(root.info.futureCount || 0)
+                        text: qsTr("还没出发的 %3 趟，预计花 %1 %2").arg(rates.main).arg(root.whole(root.info.future)).arg(root.info.futureCount || 0)
                         font.family: serifFamily; font.pixelSize: Theme.px(15); color: Theme.textSoft
                     }
                 }

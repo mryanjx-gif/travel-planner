@@ -25,9 +25,9 @@ Item {
         radius: Theme.radiusControl
         color: root.kind === "primary" ? (area.pressed ? Theme.accentInk : Theme.accent)
              : root.kind === "danger" ? (area.pressed ? Theme.dangerInk : Theme.danger)
-             : root.kind === "ghost" ? (area.containsMouse ? Qt.rgba(22 / 255, 32 / 255, 42 / 255, 0.06) : "transparent")
+             : root.kind === "ghost" || root.kind === "link" ? (area.containsMouse ? Qt.rgba(22 / 255, 32 / 255, 42 / 255, 0.06) : "transparent")
              : (area.pressed ? "#eef2f5" : (area.containsMouse ? "#ffffff" : Qt.rgba(1, 1, 1, 0.72)))
-        border.width: (root.kind === "primary" || root.kind === "danger" || root.kind === "ghost") ? 0 : 1
+        border.width: (root.kind === "primary" || root.kind === "danger" || root.kind === "ghost" || root.kind === "link") ? 0 : 1
         border.color: root.kind === "dangerOutline" ? Qt.rgba(168 / 255, 64 / 255, 28 / 255, 0.4) : Theme.lineStrong
         Rectangle {   // 键盘焦点
             anchors.fill: parent
@@ -47,7 +47,8 @@ Item {
         font.family: serifFamily
         font.pixelSize: Theme.px(root.compact ? 13 : root.fontSize)
         color: (root.kind === "primary" || root.kind === "danger") ? "#ffffff"
-             : root.kind === "dangerOutline" ? Theme.dangerInk : Theme.text
+             : root.kind === "dangerOutline" ? Theme.dangerInk : root.kind === "link" ? Theme.accentInk : Theme.text
+        font.underline: root.kind === "link" && area.containsMouse   // 0.12.11 link：像链接的文字按钮（主题蓝，悬停加下划线）
     }
     TpDone {
         id: doneMark

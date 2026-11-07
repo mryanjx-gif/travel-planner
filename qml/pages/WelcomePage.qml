@@ -126,7 +126,7 @@ Item {
         TpButton {
             objectName: "welcomeOpen"
             anchors.horizontalCenter: parent.horizontalCenter
-            kind: "ghost"
+            kind: "link"
             compact: true
             fontSize: 13.5
             text: qsTr("已经有数据？打开数据文件夹")

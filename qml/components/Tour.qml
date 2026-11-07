@@ -79,6 +79,21 @@ Item {
         Behavior on width { enabled: root.placed; TpMove {} }
         Behavior on height { enabled: root.placed; TpMove {} }
     }
+    // 0.12.11 洞口描一圈亮边：卫星图本来就暗，只靠压暗看不出指的是哪个按钮
+    Rectangle {
+        objectName: "tourRing"
+        visible: root.active
+        x: root.holeRect.x; y: root.holeRect.y
+        width: root.holeRect.width; height: root.holeRect.height
+        radius: hole.inner
+        color: "transparent"
+        border.width: Theme.px(2)
+        border.color: Qt.rgba(1, 1, 1, 0.92)
+        Behavior on x { enabled: root.placed; TpMove {} }
+        Behavior on y { enabled: root.placed; TpMove {} }
+        Behavior on width { enabled: root.placed; TpMove {} }
+        Behavior on height { enabled: root.placed; TpMove {} }
+    }
     // 点哪儿都是下一步（Electron 一样）
     MouseArea {
         visible: root.active

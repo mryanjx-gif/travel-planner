@@ -160,7 +160,7 @@ Item {
         Row {
             id: headRight
             visible: root.curId === ""
-            anchors.right: parent.right
+            x: head.twoRows ? 0 : parent.width - width   // 不用 anchors.right：去掉锚以后 x 不会回 0
             anchors.bottom: parent.bottom
             height: Theme.px(36)
             spacing: Theme.px(10)
