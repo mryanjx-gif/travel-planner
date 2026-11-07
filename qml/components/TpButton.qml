@@ -8,10 +8,11 @@ Item {
     property string kind: "secondary"
     property real fontSize: 14
     property bool compact: false
+    property bool done: false     // 文字前面画一笔对勾
     signal clicked()
     activeFocusOnTab: true
     implicitHeight: Theme.px(compact ? 32 : 40)
-    implicitWidth: label.implicitWidth + Theme.px(compact ? 24 : 34)
+    implicitWidth: label.implicitWidth + Theme.px(compact ? 24 : 34) + (done ? doneMark.width + Theme.px(5) : 0)
     opacity: enabled ? 1 : 0.5
     Accessible.role: Accessible.Button
     Accessible.name: text
@@ -40,11 +41,20 @@ Item {
     Text {
         id: label
         anchors.centerIn: parent
+        anchors.horizontalCenterOffset: root.done ? (doneMark.width + Theme.px(5)) / 2 : 0
         text: root.text
         font.family: serifFamily
         font.pixelSize: Theme.px(root.compact ? 13 : root.fontSize)
         color: (root.kind === "primary" || root.kind === "danger") ? "#ffffff"
              : root.kind === "dangerOutline" ? Theme.dangerInk : Theme.text
+    }
+    TpDone {
+        id: doneMark
+        anchors.right: label.left
+        anchors.rightMargin: Theme.px(5)
+        anchors.verticalCenter: parent.verticalCenter
+        on: root.done
+        stroke: root.kind === "primary" || root.kind === "danger" ? "#ffffff" : Theme.accent
     }
     MouseArea {
         id: area

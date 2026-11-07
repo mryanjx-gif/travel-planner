@@ -4,7 +4,7 @@
 import QtQuick
 import TPApp
 
-Rectangle {
+TpCard {
     id: root
     property string listKey: "packing"      // packing / todos
     property string title: ""
@@ -22,8 +22,7 @@ Rectangle {
     objectName: "kitCard-" + listKey
     height: col.implicitHeight + Theme.px(24)
     radius: Theme.px(16)
-    color: "#ffffff"
-    border.width: 1; border.color: Theme.line
+    color: Theme.card
 
     function add() {
         if (planPage.addChecks(listKey, draft) < 0) return
@@ -56,7 +55,7 @@ Rectangle {
         animOff.restart()
         planPage.setCheckDone(listKey, id, done)
     }
-    Transition { id: sink; NumberAnimation { properties: "y"; duration: Theme.durPanel; easing.type: Easing.OutCubic } }
+    Transition { id: sink; NumberAnimation { properties: "y"; duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveMove } }
 
     Column {
         id: col

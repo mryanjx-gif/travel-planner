@@ -673,6 +673,7 @@ Window {
         objectName: "glassSource"
         sourceItem: scene
         visible: false
+        live: Theme.glass   // 实色时不用背景
         mipmap: true
         smooth: true
         textureSize: {
@@ -798,7 +799,7 @@ Window {
         current: win.layerKey
         dark: win.globeMode || mapc.base === "sat"   // 地球上背景是星空，用烟色玻璃
         onPicked: (key) => win.pickBase(key)
-        Behavior on x { NumberAnimation { duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
+        Behavior on x { TpMove {} }
     }
     // ± 缩放（0.8.9，M-30；PO 选 A 照 Electron：右上一列 图层 → ±）。以地图中心缩放一级
     Item {
@@ -810,7 +811,7 @@ Window {
         y: layers.y + layers.btnSize + 10
         z: 15
         visible: (win.mapShown && !win.albumOpen) || (win.tripOpen && win.tripRoom)   // 0.9.0：地球上也有 ±（Electron 球形时也有）；0.9.5 起 mapShown 含地球
-        Behavior on x { NumberAnimation { duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
+        Behavior on x { TpMove {} }
         GlassPanel {
             anchors.fill: parent
             radius: width / 2
@@ -1061,7 +1062,7 @@ Window {
         width: targetWidth
         targetWidth: win.albumOpen ? win.width - 2 * win.gap : expanded ? (win.width < Theme.px(900) ? win.width - 28 - Theme.px(56) : Math.round(win.width * 0.6)) : Math.min(Theme.px(320), win.width - 28)
         albumOpen: win.albumOpen
-        Behavior on width { enabled: Theme.motion; NumberAnimation { duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
+        Behavior on width { enabled: Theme.motion; TpMove { ms: 220 } }
         height: win.height - y - 20
         open: win.listOpen && win.mapShown
         info: plans.list
@@ -1148,7 +1149,7 @@ Window {
         objectName: "statusPill"
         visible: win.mapShown && !win.sheetOpen && !win.editorShown && !plans.libraryOpen && !win.photoMode   // 0.11.0 计划库有自己的筛选；0.11.1 照片模式没有可筛的
         x: win.leftX
-        Behavior on x { enabled: Theme.motion; NumberAnimation { duration: 250; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
+        Behavior on x { enabled: Theme.motion; TpMove {} }
 
         y: win.height - height - 20
         z: 13
@@ -1184,8 +1185,8 @@ Window {
         height: win.drawerMode ? win.drawerH + 20 : win.height - y - win.gap
         x: win.drawerMode ? 0 : (win.sheetOpen ? win.width - width - win.gap : win.width + 20)
         visible: win.drawerMode ? y < win.height : x < win.width
-        Behavior on y { enabled: Theme.motion && !win.drawerDragging; NumberAnimation { duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
-        Behavior on x { enabled: Theme.motion; NumberAnimation { duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
+        Behavior on y { enabled: Theme.motion && !win.drawerDragging; TpAnim { shown: win.sheetOpen } }
+        Behavior on x { enabled: Theme.motion; TpAnim { shown: win.sheetOpen } }
         z: 14
         source: plans.sheet
         focusIndex: mapc.markers.focusStop
@@ -1222,8 +1223,8 @@ Window {
         y: win.drawerMode ? (win.editorShown ? win.height - win.drawerH : win.height + 20) : win.topH - 6
         height: win.drawerMode ? win.drawerH : win.height - y - win.gap
         visible: win.drawerMode ? y < win.height : x < win.width
-        Behavior on x { enabled: Theme.motion; NumberAnimation { duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
-        Behavior on y { enabled: Theme.motion && !win.drawerDragging; NumberAnimation { duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
+        Behavior on x { enabled: Theme.motion; TpAnim { shown: win.editorShown } }
+        Behavior on y { enabled: Theme.motion && !win.drawerDragging; TpAnim { shown: win.editorShown } }
         onFinishRequested: win.finishEditor()
         onDiscardRequested: editorDialog.ask("discard", -1, "")
         onDeletePlanRequested: editorDialog.ask("deletePlan", -1, editor.plan.name || "")
@@ -1405,7 +1406,7 @@ Window {
             if (key !== "ok") return
             if (kind === "delete") {
                 if (plans.deletePlan(planId)) toast.show(qsTr("已删除「%1」").arg(planName), false, qsTr("撤销"), () => app.undo())
-            } else if (plans.markCompleted(planId)) toast.show(qsTr("已标记为已完成"), false)
+            } else if (plans.markCompleted(planId)) toast.show(qsTr("已标记为已完成"), false, "", null, true)
         }
     }
 
@@ -1415,7 +1416,7 @@ Window {
         objectName: "unlockPanel"
         visible: mapc.base === "unlock" && !win.globeMode && win.map !== null
         x: win.leftX
-        Behavior on x { enabled: Theme.motion; NumberAnimation { duration: 250; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
+        Behavior on x { enabled: Theme.motion; TpMove {} }
         readonly property real bottomGap: win.height - win.leftStackTop + 10   // 0.8.9：在比例尺 / 图例上面（Electron 左下：足迹 → 比例尺 → 图例）
         y: win.height - height - bottomGap
         z: 12
@@ -1439,7 +1440,7 @@ Window {
         z: 12
         width: mapc.scaleWidth
         height: Theme.px(16)
-        Behavior on x { enabled: Theme.motion; NumberAnimation { duration: 250; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
+        Behavior on x { enabled: Theme.motion; TpMove {} }
         Rectangle { y: parent.height - 2; width: parent.width; height: 2; color: "#ffffff"; layer.enabled: true }
         Rectangle { y: parent.height - 7; width: 2; height: 7; color: "#ffffff" }
         Rectangle { x: parent.width - 2; y: parent.height - 7; width: 2; height: 7; color: "#ffffff" }
@@ -1469,7 +1470,7 @@ Window {
             tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.69 : 0.96)
             edge: locMa.containsMouse ? Theme.lineStrong : Theme.glassEdge
             scale: locMa.pressed ? 0.92 : 1
-            Behavior on scale { NumberAnimation { duration: Theme.motion ? 120 : 0 } }
+            Behavior on scale { TpSpring {} }
             TpIcon {
                 anchors.centerIn: parent
                 width: Theme.px(22); height: width
@@ -1632,7 +1633,7 @@ Window {
         color: Qt.rgba(22 / 255, 32 / 255, 42 / 255, 0.1)
         opacity: win.tripOpen || win.settingsOpen ? 1 : 0
         visible: opacity > 0.01
-        Behavior on opacity { enabled: Theme.motion; NumberAnimation { duration: Theme.durPanel } }
+        Behavior on opacity { enabled: Theme.motion; TpAnim { shown: win.tripOpen || win.settingsOpen } }
     }
     PlanPage {
         id: planPanel
@@ -1643,7 +1644,7 @@ Window {
         height: win.height - y - win.gap
         x: win.tripOpen ? win.width - width - win.gap : win.width + 20
         visible: x < win.width
-        Behavior on x { enabled: Theme.motion; NumberAnimation { duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
+        Behavior on x { enabled: Theme.motion; TpAnim { shown: win.tripOpen } }
         shown: win.tripOpen
         source: planPage.info
         focusIndex: mapc.markers.focusStop

@@ -55,7 +55,7 @@ Item {
             z: hot ? 2 : 1
             color: hot ? Theme.warn : Theme.accent
             border.width: 2; border.color: "#ffffff"
-            Behavior on width { NumberAnimation { duration: Theme.motion ? 120 : 0 } }
+            Behavior on width { TpMove { ms: 120 } }
             Text { anchors.centerIn: parent; text: index + 1; font.pixelSize: 11; font.bold: true; color: "#ffffff" }
             HoverHandler {
                 cursorShape: Qt.PointingHandCursor
@@ -85,7 +85,7 @@ Item {
             width: modelData.w; height: modelData.h
             z: 2000 + (active ? 10 : 0) + (drag.active ? 20 : 0)
             scale: active ? 1.18 : 1
-            Behavior on scale { NumberAnimation { duration: Theme.motion ? 140 : 0 } }
+            Behavior on scale { TpSpring {} }
             Image {
                 x: -root.pad; y: -root.pad
                 width: dm.width + 2 * root.pad; height: dm.height + 2 * root.pad

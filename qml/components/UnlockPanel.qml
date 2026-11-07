@@ -116,8 +116,9 @@ GlassPanel {
             height: Theme.px(34)
             radius: Theme.px(8)
             color: Theme.bg
-            border.width: search.activeFocus ? 2 : 1
-            border.color: search.activeFocus ? Theme.accent : Theme.line
+            border.width: 1
+            border.color: search.activeFocus ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.6) : Theme.line
+            FocusRing { target: search }
             TextInput {
                 id: search
                 objectName: "unlockSearch"
@@ -225,8 +226,9 @@ GlassPanel {
                         anchors.fill: parent
                         radius: Theme.px(6)
                         color: Theme.bg
-                        border.width: year.activeFocus ? 2 : 1
-                        border.color: year.activeFocus ? Theme.accent : Theme.line
+                        border.width: 1
+                        border.color: year.activeFocus ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.6) : Theme.line
+                        FocusRing { target: year }
                         TextInput {
                             id: year
                             anchors.fill: parent

@@ -42,7 +42,7 @@ Item {
             x: root.checked ? parent.width - width - Theme.px(2) : Theme.px(2)
             y: Theme.px(2)
             color: "#ffffff"
-            Behavior on x { enabled: Theme.motion; NumberAnimation { duration: 120 } }
+            Behavior on x { enabled: Theme.motion; TpSpring {} }
         }
     }
     Text {

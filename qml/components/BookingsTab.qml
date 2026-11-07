@@ -111,15 +111,14 @@ Column {
             }
             Repeater {
                 model: modelData.rows
-                delegate: Rectangle {
+                delegate: TpCard {
                     id: card
                     required property var modelData
                     objectName: "bookRow"
                     width: root.width
                     height: col.implicitHeight + Theme.px(20)
                     radius: Theme.px(14)
-                    color: "#ffffff"
-                    border.width: 1; border.color: Theme.line
+                    color: Theme.card
                     Column {
                         id: col
                         x: Theme.px(12); y: Theme.px(10)

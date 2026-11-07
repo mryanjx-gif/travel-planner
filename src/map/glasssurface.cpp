@@ -1,5 +1,7 @@
 #include "glasssurface.h"
 
+#include <QPainter>
+#include <QPainterPath>
 #include <QQuickWindow>
 #include <QSGDynamicTexture>
 #include <QSGGeometryNode>
@@ -10,6 +12,7 @@
 #include <QSGRendererInterface>
 #include <rhi/qrhi.h>
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 
 namespace {
@@ -150,10 +153,10 @@ void GlassSurface::setTint(const QColor &c)
     emit tintChanged();
 }
 
-void GlassSurface::setPlain(bool on)
+void GlassSurface::setPlain(int v)
 {
-    if (m_plain == on) return;
-    m_plain = on;
+    if (m_plain == v) return;
+    m_plain = v;
     update();
     emit plainChanged();
 }
@@ -239,7 +242,7 @@ QSGNode *GlassSurface::updatePaintNode(QSGNode *old, UpdatePaintNodeData *)
     put(0, m_rect, sceneRadius(), pill() ? 1.f : 2.f);   // 第 0 个总是自己
     for (int i = 0; i < m_near.size(); ++i) put(i + 1, m_near[i].rect, m_near[i].radius, 1.f);
     u.n = float(1 + m_near.size());
-    u.plain = m_plain ? 1.f : 0.f;
+    u.plain = float(m_plain);
 
     // 顶点：本地坐标（跟着缩放走）；纹理坐标放场景坐标，着色器按它算
     const qreal k = width() > 0 ? m_rect.width() / width() : 1;
@@ -276,4 +279,36 @@ void GlassWatch::setWindow(QQuickWindow *w)
             QMetaObject::invokeMethod(this, &GlassWatch::slow, Qt::QueuedConnection);
         }
     }, Qt::DirectConnection);
+}
+
+QImage CardImages::requestImage(const QString &id, QSize *size, const QSize &)
+{
+    const QStringList a = id.split(u'/');
+    const int r = a.value(0).toInt(), k = std::max(1, a.value(1).toInt());
+    const QColor color(QLatin1Char('#') + a.value(2));
+    const int edge = int(std::ceil(r * 1.25)) * k + 1;   // 和 TpCard.qml 的 edge 一样
+    const int side = edge * 2 + 3;
+    const double R = r * 1.25 * k;   // n = 2.6 时切掉的量和半径 r 的圆弧相同
+    QPainterPath path;
+    const auto corner = [&](double cx, double cy, double sx, double sy, bool first, bool back) {
+        for (int i = 0; i <= 24; ++i) {
+            const double t = (back ? 24 - i : i) / 24.0 * M_PI / 2;
+            const QPointF pt(cx + sx * R * std::pow(std::cos(t), 2 / 2.6), cy + sy * R * std::pow(std::sin(t), 2 / 2.6));
+            if (first && i == 0) path.moveTo(pt); else path.lineTo(pt);
+        }
+    };
+    // 顺时针：上 → 右 → 下 → 左
+    corner(side - R, R, 1, -1, true, true);
+    corner(side - R, side - R, 1, 1, false, false);
+    corner(R, side - R, -1, 1, false, true);
+    corner(R, R, -1, -1, false, false);
+    path.closeSubpath();
+    QImage img(side, side, QImage::Format_ARGB32_Premultiplied);
+    img.fill(Qt::transparent);
+    QPainter p(&img);
+    p.setRenderHint(QPainter::Antialiasing);
+    p.fillPath(path, color);
+    p.end();
+    if (size) *size = img.size();
+    return img;
 }

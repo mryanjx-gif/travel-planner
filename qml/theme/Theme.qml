@@ -21,6 +21,7 @@ QtObject {
     // 颜色
     function seasonColor(k) { return k === "best" ? "#3f9a5a" : k === "nice" ? "#5b93c9" : k === "meh" ? "#e0b23f" : k === "bad" ? "#b9b2a7" : line }   // 季节条（计划页、想去）
     readonly property color bg: "#ebf0f4"
+    readonly property color card: "#f1f5f8"       // 内容卡片：比面板深一点，靠底色分层（0.12.2）
     readonly property color panel: "#f8fafc"
     readonly property color panel2: "#eef2f5"
     readonly property color panelLight: "#fdfefe"
@@ -50,5 +51,8 @@ QtObject {
 
     // 动效：面板进场 .22s cubic-bezier(.2,.8,.2,1)
     readonly property int durPanel: motion ? 220 : 0
-    readonly property var curvePanel: [0.2, 0.8, 0.2, 1.0, 1.0, 1.0]
+    readonly property var curveEnter: [0.2, 0.8, 0.2, 1.0, 1.0, 1.0]    // 进来：缓出
+    readonly property var curveExit: [0.4, 0.0, 1.0, 1.0, 1.0, 1.0]     // 离开：缓入
+    readonly property var curveMove: [0.4, 0.0, 0.2, 1.0, 1.0, 1.0]     // A 到 B
+    readonly property var curveSpring: [0.34, 1.6, 0.5, 1.0, 1.0, 1.0]  // 选中、开关：回弹
 }

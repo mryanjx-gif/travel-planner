@@ -28,8 +28,9 @@ Item {
         anchors.fill: parent
         radius: Theme.radiusControl
         color: "#ffffff"
-        border.width: edit.activeFocus ? 2 : 1
-        border.color: root.bad ? Theme.danger : edit.activeFocus ? Theme.accent : Theme.lineStrong
+        border.width: 1
+        border.color: root.bad ? Theme.danger : edit.activeFocus ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.6) : Theme.lineStrong
+        FocusRing { target: edit }
     }
     Flickable {
         id: flick

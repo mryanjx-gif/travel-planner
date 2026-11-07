@@ -47,8 +47,9 @@ Item {
         anchors.fill: parent
         radius: Theme.radiusControl
         color: area.containsMouse ? "#ffffff" : Qt.rgba(1, 1, 1, 0.72)
-        border.width: root.activeFocus ? 2 : 1
-        border.color: root.activeFocus ? Theme.accent : Theme.lineStrong
+        border.width: 1
+        border.color: root.activeFocus ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.6) : Theme.lineStrong
+        FocusRing { target: root }
     }
     Text {
         id: label

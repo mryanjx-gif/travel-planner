@@ -122,9 +122,11 @@ GlassPanel {
             }
             TpButton {
                 compact: true
+                done: root.copied
                 text: root.copied ? qsTr("已复制") : qsTr("复制")
                 Accessible.name: qsTr("复制错误信息")
-                onClicked: { root.copied = true; root.copyClicked() }
+                onClicked: { root.copied = true; copiedTimer.restart(); root.copyClicked() }
+                Timer { id: copiedTimer; interval: 2500; onTriggered: root.copied = false }
             }
         }
     }

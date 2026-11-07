@@ -15,7 +15,7 @@ Item {
 
     visible: opacity > 0.01
     opacity: open ? 1 : 0
-    Behavior on opacity { enabled: Theme.motion; NumberAnimation { duration: 140 } }
+    Behavior on opacity { enabled: Theme.motion; TpAnim { shown: root.open } }
 
     property var items: []
     property var results: []
@@ -86,7 +86,7 @@ Item {
         x: Math.round((root.width - width) / 2)
         y: Math.max(Theme.px(70), Math.round(root.height * 0.14))
         scale: root.open ? 1 : 0.97
-        Behavior on scale { enabled: Theme.motion; NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+        Behavior on scale { enabled: Theme.motion; TpAnim { shown: root.open } }
         GlassPanel {
             anchors.fill: parent
             radius: Theme.px(18)

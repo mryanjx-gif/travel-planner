@@ -13,8 +13,8 @@ Item {
     height: col.implicitHeight + Theme.px(26)
     visible: opacity > 0.01
     opacity: open ? 1 : 0
-    transform: Translate { y: root.open ? 0 : Theme.px(8) ; Behavior on y { enabled: Theme.motion; NumberAnimation { duration: Theme.durPanel; easing.type: Easing.OutCubic } } }
-    Behavior on opacity { enabled: Theme.motion; NumberAnimation { duration: 160 } }
+    transform: Translate { y: root.open ? 0 : Theme.px(8) ; Behavior on y { enabled: Theme.motion; TpAnim { shown: root.open } } }
+    Behavior on opacity { enabled: Theme.motion; TpAnim { shown: root.open } }
 
     function regionLabel(r) { return qsTr(r) }
     function containsGlobal(gx, gy) {

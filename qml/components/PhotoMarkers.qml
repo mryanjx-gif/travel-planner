@@ -29,7 +29,7 @@ Item {
             visible: on
             opacity: model.op
             scale: (hot ? 1.14 : 1) * model.sc
-            Behavior on scale { enabled: Theme.motion && overlay.active && !overlay.moving; NumberAnimation { duration: 120 } }
+            Behavior on scale { enabled: Theme.motion && overlay.active && !overlay.moving; TpMove { ms: 120 } }
             objectName: "photoMk-" + index
 
             Rectangle {

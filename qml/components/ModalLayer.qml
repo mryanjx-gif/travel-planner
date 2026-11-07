@@ -15,7 +15,7 @@ Item {
     visible: opacity > 0.01
     opacity: open ? 1 : 0
     z: 100
-    Behavior on opacity { NumberAnimation { duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
+    Behavior on opacity { TpAnim { shown: root.open } }
 
     function takeFocus() { focusScope.forceActiveFocus() }   // 上面一层关了时拿回焦点（和 Esc）
     onOpenChanged: if (open) focusScope.forceActiveFocus()
@@ -41,7 +41,7 @@ Item {
             height: col.implicitHeight + Theme.px(48)
             anchors.centerIn: parent
             scale: root.open ? 1 : (Theme.motion ? 0.96 : 1)
-            Behavior on scale { NumberAnimation { duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
+            Behavior on scale { TpAnim { shown: root.open } }
             MouseArea { anchors.fill: parent }   // 点卡片本身不关
 
             Column {

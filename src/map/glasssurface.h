@@ -6,6 +6,7 @@
 
 #include <QColor>
 #include <QPointer>
+#include <QQuickImageProvider>
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QRectF>
@@ -19,7 +20,7 @@ class GlassSurface : public QQuickItem {
     Q_PROPERTY(QQuickItem *source READ source WRITE setSource NOTIFY sourceChanged)
     Q_PROPERTY(qreal radius READ radius WRITE setRadius NOTIFY radiusChanged)
     Q_PROPERTY(QColor tint READ tint WRITE setTint NOTIFY tintChanged)
-    Q_PROPERTY(bool plain READ plain WRITE setPlain NOTIFY plainChanged)   // 标准玻璃：只磨砂，不折射不高光
+    Q_PROPERTY(int plain READ plain WRITE setPlain NOTIFY plainChanged)   // 0 = 液态，1 = 标准（只磨砂），2 = 实色
 public:
     explicit GlassSurface(QQuickItem *parent = nullptr);
     ~GlassSurface() override;
@@ -29,8 +30,8 @@ public:
     void setRadius(qreal r);
     QColor tint() const { return m_tint; }
     void setTint(const QColor &c);
-    bool plain() const { return m_plain; }
-    void setPlain(bool on);
+    int plain() const { return m_plain; }
+    void setPlain(int v);
 
 signals:
     void sourceChanged();
@@ -58,7 +59,7 @@ private:
     QRectF m_rect;          // 场景坐标
     QVector<Near> m_near;   // 够得着、要连起来的别的泡泡
     bool m_watching = false;
-    bool m_plain = false;
+    int m_plain = 0;
 };
 
 // 真玻璃带不动时报告（0.12.1）：显卡耗时连续 2 秒都超过 20 ms（至少 20 帧）。
@@ -81,4 +82,11 @@ private:
     std::atomic_bool m_active{false};
     double m_since = -1;   // 这两个只在渲染线程用
     int m_count = 0;
+};
+
+// 内容卡片的形状贴图（qml/components/TpCard.qml）：连续轻圆角。id = 半径/倍数/颜色（不带 #）
+class CardImages : public QQuickImageProvider {
+public:
+    CardImages() : QQuickImageProvider(QQuickImageProvider::Image) {}
+    QImage requestImage(const QString &id, QSize *size, const QSize &) override;
 };

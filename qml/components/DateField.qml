@@ -40,8 +40,9 @@ Item {
         anchors.fill: parent
         radius: Theme.radiusControl
         color: "#ffffff"
-        border.width: input.activeFocus ? 2 : 1
-        border.color: root.flash || root.bad ? Theme.danger : input.activeFocus ? Theme.accent : Theme.lineStrong
+        border.width: 1
+        border.color: root.flash || root.bad ? Theme.danger : input.activeFocus ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.6) : Theme.lineStrong
+        FocusRing { target: input }
     }
     TextInput {
         id: input

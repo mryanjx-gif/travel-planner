@@ -96,13 +96,12 @@ Column {
     }
 
     // ---- 紧急信息 ----
-    Rectangle {
+    TpCard {
         objectName: "kitEmergency"
         width: parent.width
         height: emCol.implicitHeight + Theme.px(24)
         radius: Theme.px(16)
-        color: "#ffffff"
-        border.width: 1; border.color: Theme.line
+        color: Theme.card
         Column {
             id: emCol
             x: Theme.px(14); y: Theme.px(12)

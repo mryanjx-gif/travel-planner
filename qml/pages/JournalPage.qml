@@ -35,7 +35,10 @@ Item {
 
     visible: opacity > 0.01
     opacity: shown ? 1 : 0
-    Behavior on opacity { enabled: Theme.motion; NumberAnimation { duration: 180 } }
+    scale: shown || !Theme.motion ? 1 : 0.96
+    transformOrigin: Item.TopLeft
+    Behavior on scale { TpAnim { shown: root.shown; ms: 280 } }
+    Behavior on opacity { enabled: Theme.motion; TpAnim { shown: root.shown } }
     onShownChanged: { journal.active = shown; if (shown) route(); else leave() }
 
     // ---- 换页 ----

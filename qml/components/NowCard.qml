@@ -284,7 +284,7 @@ Item {
                 width: parent.width
                 height: open ? Theme.px(44) : 0
                 clip: true
-                Behavior on height { enabled: Theme.motion; NumberAnimation { duration: 160 } }
+                Behavior on height { enabled: Theme.motion; TpMove { ms: 160 } }
                 Rectangle {
                     anchors.right: parent.right
                     y: Theme.px(6)

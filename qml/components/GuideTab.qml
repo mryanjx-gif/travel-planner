@@ -108,14 +108,13 @@ Column {
         visible: !root.editing && !root.blank
         width: parent.width
         height: Math.max(bodyCard.height, root.wide ? side.height : 0)
-        Rectangle {
+        TpCard {
             id: bodyCard
             objectName: "guideBody"
             width: root.wide ? parent.width - side.width - Theme.px(16) : parent.width
             height: readBlocks.height + Theme.px(32)
             radius: Theme.px(16)
-            color: "#ffffff"
-            border.width: 1; border.color: Theme.line
+            color: Theme.card
             GuideBlocks {
                 id: readBlocks
                 x: Theme.px(18); y: Theme.px(16)

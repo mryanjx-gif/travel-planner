@@ -10,7 +10,7 @@ layout(std140, binding = 0) uniform buf {
     float qt_Opacity;
     float lod;        // 面上磨砂的 mip 级别
     float n;          // rects 里有几个
-    float plain;      // 1 = 标准玻璃
+    float plain;      // 0 = 液态，1 = 标准，2 = 实色
     vec2 sceneSize;
     vec4 tint;        // 底色 rgba（雾蓝 --g-map × .92 × 这块的 --lg-alpha）
     vec4 rects[8];    // x, y, w, h（场景像素）
@@ -21,8 +21,8 @@ layout(binding = 1) uniform sampler2D source;
 const float BEVEL = 22.0, IOR = 1.46, THICK = 40.0, DEPTH = 60.0, K = 8.0;
 
 float sdBox(vec2 p, vec2 b, float r) { vec2 q = abs(p) - b + r; return length(max(q, 0.)) + min(max(q.x, q.y), 0.) - r; }
-// iOS 式连续圆角：转角用 4 次超椭圆代替圆弧
-float sdSq(vec2 p, vec2 b, float r) { vec2 q = abs(p) - b + r; vec2 m = max(q, 0.); vec2 m2 = m * m; return pow(dot(m2, m2), .25) + min(max(q.x, q.y), 0.) - r; }
+// 连续圆角：超椭圆 n = 3，45° 切掉的量和半径 r 的圆弧相同，所以延伸到 1.42r（阶段6设计预案 §一）
+float sdSq(vec2 p, vec2 b, float r) { float R = min(r * 1.42, min(b.x, b.y)); vec2 q = abs(p) - b + R; vec2 m = max(q, 0.); return pow(m.x * m.x * m.x + m.y * m.y * m.y, 1. / 3.) + min(max(q.x, q.y), 0.) - R; }
 float smin(float a, float b, float k) { float h = clamp(.5 + .5 * (b - a) / k, 0., 1.); return mix(b, a, h) - k * h * (1. - h); }
 int gi = 0;
 float sdf(vec2 p)
@@ -50,10 +50,11 @@ void main()
     float d = sdf(p);
     // 一个像素只由离它最近的那块面来画，不盖住相邻泡泡的内容
     if (d > 1.5 || gi != 0) { fragColor = vec4(0.); return; }
-    if (plain > .5) {   // 标准玻璃（X-04）：同一个形状和粘连，只磨砂 + 底色 + 细亮线
-        vec3 c0 = mix(bg(p / sceneSize, lod + 1.), tint.rgb, clamp(tint.a, 0., 1.));
+    if (plain > .5) {   // 1 = 标准玻璃（X-04）：同一个形状和粘连，只磨砂 + 底色 + 细亮线；2 = 实色，不看背景
+        bool solid = plain > 1.5;
+        vec3 c0 = solid ? tint.rgb : mix(bg(p / sceneSize, lod + 1.), tint.rgb, clamp(tint.a, 0., 1.));
         c0 += vec3(smoothstep(1.2, 0., abs(d + .9)) * .35);
-        float a0 = 1. - smoothstep(-.75, .75, d);
+        float a0 = (1. - smoothstep(-.75, .75, d)) * (solid ? tint.a : 1.);
         fragColor = vec4(c0 * a0, a0) * qt_Opacity;
         return;
     }

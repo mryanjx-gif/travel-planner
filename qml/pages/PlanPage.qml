@@ -1015,7 +1015,7 @@ Item {
         opacity: root.collapsed && !root.missing ? 1 : 0
         visible: opacity > 0.01
         z: 4
-        Behavior on opacity { enabled: Theme.motion; NumberAnimation { duration: 160 } }
+        Behavior on opacity { enabled: Theme.motion; TpAnim { shown: root.collapsed && !root.missing; ms: 160 } }
         MouseArea { anchors.fill: parent }
         Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.line }
         Text {

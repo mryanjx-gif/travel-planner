@@ -20,7 +20,7 @@ Item {
         tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.69 : 0.96)
         edge: ma.containsMouse ? Theme.lineStrong : Theme.glassEdge
         scale: ma.pressed ? 0.9 : 1
-        Behavior on scale { NumberAnimation { duration: Theme.motion ? 120 : 0 } }
+        Behavior on scale { TpSpring {} }
         TpIcon {
             anchors.centerIn: parent
             name: root.icon

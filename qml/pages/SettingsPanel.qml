@@ -23,7 +23,7 @@ GlassPanel {
     visible: opacity > 0.01
     opacity: open ? 1 : 0
     transform: Translate { x: root.open || !Theme.motion ? 0 : Theme.px(24) }
-    Behavior on opacity { NumberAnimation { duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
+    Behavior on opacity { TpAnim { shown: root.open } }
 
     function refresh() { history = app.historyList() }
     // 开发版：故意制造一个 QML 里的 JS 错误（0.5.1）

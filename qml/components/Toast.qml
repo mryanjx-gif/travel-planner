@@ -8,16 +8,20 @@ Rectangle {
     property bool error: false
     property string actionText: ""
     property var action: null
-    function show(msg, isError, actText, actFn) {
+    property bool showing: false
+    property bool doneMark: false   // 文字前面画一笔对勾
+    function show(msg, isError, actText, actFn, done) {
+        doneMark = !!done
         label.text = msg
         error = !!isError
         actionText = actText || ""
         action = actFn || null
         opacity = 1
+        showing = true
         timer.interval = isError ? 8000 : (actionText !== "" ? 6000 : 3500)
         timer.restart()
     }
-    width: Math.min(label.implicitWidth + (actionText !== "" ? act.implicitWidth + Theme.px(16) : 0) + Theme.px(36), parent ? parent.width - 40 : 600)
+    width: Math.min(label.implicitWidth + (root.doneMark ? Theme.px(20) : 0) + (actionText !== "" ? act.implicitWidth + Theme.px(16) : 0) + Theme.px(36), parent ? parent.width - 40 : 600)
     height: label.implicitHeight + Theme.px(20)
     radius: height / 2
     color: error ? "#f6e3dc" : "#e8162a36"
@@ -26,11 +30,18 @@ Rectangle {
     opacity: 0
     visible: opacity > 0.01
     z: 200
-    Behavior on opacity { NumberAnimation { duration: Theme.durPanel } }
+    Behavior on opacity { TpAnim { shown: root.showing } }
+    TpDone {
+        anchors.right: label.left
+        anchors.rightMargin: Theme.px(6)
+        anchors.verticalCenter: parent.verticalCenter
+        on: root.doneMark && root.showing
+        stroke: "#ffffff"
+    }
     Text {
         id: label
         anchors.centerIn: parent
-        anchors.horizontalCenterOffset: root.actionText !== "" ? -(act.implicitWidth + Theme.px(16)) / 2 : 0
+        anchors.horizontalCenterOffset: (root.actionText !== "" ? -(act.implicitWidth + Theme.px(16)) / 2 : 0) + (root.doneMark ? Theme.px(10) : 0)
         width: Math.min(implicitWidth, root.parent ? root.parent.width - 76 - (root.actionText !== "" ? act.implicitWidth + Theme.px(16) : 0) : 560)
         wrapMode: Text.Wrap
         horizontalAlignment: Text.AlignHCenter
@@ -57,8 +68,8 @@ Rectangle {
             anchors.margins: -Theme.px(6)
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: { const f = root.action; root.opacity = 0; root.actionText = ""; root.action = null; if (f) f() }
+            onClicked: { const f = root.action; root.showing = false; root.opacity = 0; root.actionText = ""; root.action = null; if (f) f() }
         }
     }
-    Timer { id: timer; onTriggered: root.opacity = 0 }
+    Timer { id: timer; onTriggered: { root.showing = false; root.opacity = 0 } }
 }

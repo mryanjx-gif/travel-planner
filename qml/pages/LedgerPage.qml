@@ -21,7 +21,10 @@ Item {
 
     visible: opacity > 0.01
     opacity: shown ? 1 : 0
-    Behavior on opacity { enabled: Theme.motion; NumberAnimation { duration: 180 } }
+    scale: shown || !Theme.motion ? 1 : 0.96
+    transformOrigin: Item.TopLeft
+    Behavior on scale { TpAnim { shown: root.shown; ms: 280 } }
+    Behavior on opacity { enabled: Theme.motion; TpAnim { shown: root.shown } }
     onShownChanged: planPage.showLedger(shown)
 
     function whole(v) { return Fmt.money(Math.round(v || 0)) }   // 都是换算出来的钱，小数没有意义

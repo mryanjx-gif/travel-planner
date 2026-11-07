@@ -3,7 +3,7 @@
 # 规则（PO 2026-11-02）：大更新改第一位，中等更新改第二位，小修改改第三位；正式版之前是 0.x.y，正式版 1.0.0。
 cmake_minimum_required(VERSION 3.24)
 
-set(TP_VERSION "0.12.1")
+set(TP_VERSION "0.12.2")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TP_VERSION_NUMERIC "${TP_VERSION}")
 
 project(TravelPlannerNative
@@ -181,7 +181,7 @@ target_compile_definitions(TravelPlanner PRIVATE TP_SOURCE_DIR="${CMAKE_SOURCE_D
 
 set_source_files_properties(qml/theme/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE QT_RESOURCE_ALIAS Theme.qml)
 set_source_files_properties(qml/theme/Fmt.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE QT_RESOURCE_ALIAS Fmt.qml)
-foreach(f GlassPanel TpButton ModalLayer ChoiceCard ChoiceDialog MessageDialog TextInputDialog ExtChangedCard ErrorCard Banner Toast Segmented
+foreach(f TpAnim TpMove TpSpring FocusRing TpCard TpDone GlassPanel TpButton ModalLayer ChoiceCard ChoiceDialog MessageDialog TextInputDialog ExtChangedCard ErrorCard Banner Toast Segmented
           TpSelect TpCheck PhotoImportReview PhotoCleanupDialog MapMarkers PhotoMarkers AlbumView PhotoAssignDialog MapTip RoadBar LayerBubbles UnlockPanel
           LinkText StatusFilterPill FilterMenu NowCard PlanSheet
           SplitBud TopBar AvatarMenu PlanListPanel LibraryView WishMonthBar WishDialog CommandPalette RoundButton TpIcon
@@ -201,6 +201,12 @@ qt_add_qml_module(TravelPlanner
         qml/Pill.qml
         qml/theme/Theme.qml
         qml/theme/Fmt.qml
+        qml/components/TpAnim.qml
+        qml/components/TpMove.qml
+        qml/components/TpSpring.qml
+        qml/components/FocusRing.qml
+        qml/components/TpCard.qml
+        qml/components/TpDone.qml
         qml/components/GlassPanel.qml
         qml/components/TpButton.qml
         qml/components/ModalLayer.qml

@@ -13,7 +13,7 @@ GlassPanel {
     height: Math.max(label.implicitHeight, goBtn.implicitHeight) + Theme.px(16)
     visible: opacity > 0.01
     opacity: open ? 1 : 0
-    Behavior on opacity { NumberAnimation { duration: Theme.durPanel } }
+    Behavior on opacity { TpAnim { shown: root.open } }
 
     Row {
         id: row

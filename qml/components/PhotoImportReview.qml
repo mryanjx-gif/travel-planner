@@ -67,7 +67,7 @@ ModalLayer {
             height: parent.height
             radius: height / 2
             color: Theme.accent
-            Behavior on width { NumberAnimation { duration: Theme.motion ? 120 : 0 } }
+            Behavior on width { TpMove { ms: 120 } }
         }
     }
     Item {

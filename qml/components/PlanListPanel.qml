@@ -46,8 +46,8 @@ Item {
 
     visible: opacity > 0.01
     opacity: open ? 1 : 0
-    transform: Translate { x: root.open ? 0 : -Theme.px(14); Behavior on x { enabled: Theme.motion; NumberAnimation { duration: Theme.durPanel; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } } }
-    Behavior on opacity { enabled: Theme.motion; NumberAnimation { duration: 180 } }
+    transform: Translate { x: root.open ? 0 : -Theme.px(14); Behavior on x { enabled: Theme.motion; TpAnim { shown: root.open } } }
+    Behavior on opacity { enabled: Theme.motion; TpAnim { shown: root.open } }
 
     readonly property var rows: info.rows || []
     // 加上小标题的显示顺序：{ header: true, group, count } 或 { row }

@@ -108,7 +108,7 @@ Item {
     anchors.fill: parent
     visible: opacity > 0.01
     opacity: open ? 1 : 0
-    Behavior on opacity { enabled: Theme.motion; NumberAnimation { duration: 160 } }
+    Behavior on opacity { enabled: Theme.motion; TpAnim { shown: root.open } }
     Accessible.role: Accessible.Dialog
     Accessible.name: qsTr("看大图")
 

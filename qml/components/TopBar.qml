@@ -92,7 +92,7 @@ Item {
             opacity: bubbles.open ? 0 : 1
             scale: bubbles.open ? 0.6 : 1
             Behavior on opacity { NumberAnimation { duration: Theme.motion ? 250 : 0 } }
-            Behavior on scale { NumberAnimation { duration: Theme.motion ? 300 : 0; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curvePanel } }
+            Behavior on scale { NumberAnimation { duration: Theme.motion ? 300 : 0; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveEnter } }
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("页面")
             GlassPanel {
@@ -338,7 +338,7 @@ Item {
                         radius: height / 2
                         color: newMa.pressed ? Theme.accentInk : Theme.accent
                         scale: newMa.pressed ? 0.95 : 1
-                        Behavior on scale { NumberAnimation { duration: Theme.motion ? 120 : 0 } }
+                        Behavior on scale { TpSpring {} }
                     }
                     Row {
                         id: newRow
@@ -368,7 +368,7 @@ Item {
                         border.width: 2
                         border.color: root.menuOpen ? Theme.accentSoft : "#fafcfd"
                         scale: meMa.pressed ? 0.92 : 1
-                        Behavior on scale { NumberAnimation { duration: Theme.motion ? 120 : 0 } }
+                        Behavior on scale { TpSpring {} }
                         TpIcon { anchors.centerIn: parent; name: "person"; color: "#ffffff"; width: Theme.px(17); height: Theme.px(17) }
                     }
                     MouseArea { id: meMa; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.menuClicked() }

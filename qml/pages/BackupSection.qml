@@ -40,6 +40,9 @@ Column {
 
     QtObject { id: clock; property double now: Date.now() }
     Timer { interval: 60000; running: true; repeat: true; onTriggered: clock.now = Date.now() }
+    Timer { id: backupDoneTimer; interval: 2500 }
+    readonly property double lastBackupAt: app.lastBackup   // 只有备份成功才会变
+    onLastBackupAtChanged: if (lastBackupAt > 0) backupDoneTimer.restart()
     Connections { target: app; function onBackupChanged() { clock.now = Date.now() } }
 
     spacing: Theme.px(8)
@@ -101,6 +104,7 @@ Column {
                 compact: true
                 kind: root.running ? "secondary" : "primary"
                 text: root.running ? qsTr("取消") : qsTr("现在备份")
+                done: backupDoneTimer.running
                 onClicked: {
                     if (root.running) app.cancelBackup()
                     else if (!root.hasDir) root.pickFolder("now")
@@ -122,7 +126,7 @@ Column {
             height: parent.height
             radius: parent.radius
             color: Theme.accent
-            Behavior on width { enabled: Theme.motion; NumberAnimation { duration: 120 } }
+            Behavior on width { enabled: Theme.motion; TpMove { ms: 120 } }
         }
     }
 

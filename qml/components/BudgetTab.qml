@@ -63,14 +63,13 @@ Column {
     function catOptions() { return ["transport", "stay", "food", "ticket", "shop", "other"].map(k => ({ key: k, text: Fmt.catLabel(k) })) }
 
     // ---- 结算（5A：放最上面）----
-    Rectangle {
+    TpCard {
         objectName: "moneySettle"
         visible: root.multi && (root.money.expenseCount || 0) > 0
         width: parent.width
         height: visible ? setCol.implicitHeight + Theme.px(24) : 0
         radius: Theme.px(16)
-        color: "#ffffff"
-        border.width: 1; border.color: Theme.line
+        color: Theme.card
         Column {
             id: setCol
             x: Theme.px(14); y: Theme.px(12)
@@ -89,10 +88,11 @@ Column {
                     objectName: "settleCopy"
                     anchors.right: parent.right
                     compact: true
+                    done: copiedTimer.running
                     text: copiedTimer.running ? qsTr("已复制") : qsTr("复制")
                     onClicked: { app.copyText(root.settleText()); copiedTimer.restart() }
                 }
-                Timer { id: copiedTimer; interval: 1500 }
+                Timer { id: copiedTimer; interval: 2500 }
             }
             Repeater {
                 model: root.settle.transfers || []
@@ -181,12 +181,11 @@ Column {
     }
 
     // ---- 合计 ----
-    Rectangle {
+    TpCard {
         width: parent.width
         height: sumCol.implicitHeight + Theme.px(24)
         radius: Theme.px(16)
-        color: "#ffffff"
-        border.width: 1; border.color: Theme.line
+        color: Theme.card
         Column {
             id: sumCol
             x: Theme.px(14); y: Theme.px(12)
@@ -378,7 +377,7 @@ Column {
         spacing: Theme.px(6)
         Repeater {
             model: root.rows
-            delegate: Rectangle {
+            delegate: TpCard {
                 id: row
                 required property var modelData
                 readonly property bool refund: modelData.amount < 0
@@ -386,8 +385,7 @@ Column {
                 width: root.width
                 height: rowCol.implicitHeight + Theme.px(18)
                 radius: Theme.px(12)
-                color: rowMa.containsMouse ? "#f7fafc" : "#ffffff"
-                border.width: 1; border.color: Theme.line
+                color: rowMa.containsMouse ? Theme.panel2 : Theme.card
                 MouseArea { id: rowMa; anchors.fill: parent; enabled: !root.readOnly; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.edit(row.modelData) }
                 Rectangle { x: Theme.px(10); anchors.verticalCenter: parent.verticalCenter; width: Theme.px(4); height: parent.height - Theme.px(20); radius: width / 2; color: Fmt.catColors[row.modelData.cat] || Theme.line }
                 Column {

@@ -52,6 +52,7 @@
 #include "datastore.h"
 #include "devtools.h"
 #include "graphicsbackend.h"
+#include "glasssurface.h"
 #include "logger.h"
 #include "nativedialog.h"
 #include "paths.h"
@@ -372,6 +373,7 @@ int main(int argc, char *argv[])
     tp::data::ThumbCache thumbs(Paths::cacheDir() + QStringLiteral("/thumbs"));
     auto *thumbProvider = new tp::app::ThumbProvider(&thumbs);   // 引擎接管，引擎析构时删除
     engine.addImageProvider(QStringLiteral("thumb"), thumbProvider);
+    engine.addImageProvider(QStringLiteral("card"), new CardImages);   // 0.12.2 内容卡片的连续圆角
     engine.addImageProvider(QStringLiteral("marker"), new tp::map::MarkerImages);   // 地图标记（0.8.2），引擎接管
     tp::app::PhotoController photos(&ctl, &thumbs, thumbProvider);
     photos.setSettings(&settings);

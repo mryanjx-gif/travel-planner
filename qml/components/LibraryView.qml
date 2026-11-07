@@ -124,7 +124,7 @@ Item {
             // 圆圈滑入（Electron .lib-ck：不在选择模式时宽度为 0）
             Item {
                 width: root.selMode ? Theme.px(26) : 0; height: parent.height; clip: true
-                Behavior on width { enabled: Theme.motion; NumberAnimation { duration: 160 } }
+                Behavior on width { enabled: Theme.motion; TpMove { ms: 160 } }
                 SelCircle { anchors.verticalCenter: parent.verticalCenter; on: tr.sel }
             }
             ToolBtn {
@@ -455,7 +455,7 @@ Item {
     }
 
     // ---- 批量操作条（Electron selBarHtml；导出到阶段 ⑧） ----
-    Rectangle {
+    TpCard {
         id: selBar
         objectName: "libSelBar"
         visible: root.selMode
@@ -464,9 +464,7 @@ Item {
         y: parent.height - height - Theme.px(8)
         height: selFlow.height + Theme.px(16)
         radius: Theme.px(12)
-        color: Qt.rgba(1, 1, 1, 0.88)
-        border.width: 1
-        border.color: Theme.line
+        color: Theme.card
         Flow {
             id: selFlow
             x: Theme.px(10); y: Theme.px(8)

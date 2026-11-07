@@ -336,6 +336,8 @@ void runAudit(Report &r, AppController *app, map::MapController *mapc, QQuickWin
         waitFor([&] { return m.item(QStringLiteral("planRow-") + wid) != nullptr; }, 1500);
         // 点这一行的名字（中间是按钮）
         if (QQuickItem *row = m.item(QStringLiteral("planRow-") + wid)) {
+            waitStill(row, 1500);   // 列表重排、面板动画没停时按原位置点不中（全量里间歇失败过）
+            waitFrames(win, 2);
             const QPointF p = row->mapToScene(QPointF(row->width() * 0.4, 14));
             m.at(p, Qt::LeftButton, Qt::LeftButton, QEvent::MouseButtonPress);
             m.at(p, Qt::NoButton, Qt::LeftButton, QEvent::MouseButtonRelease);

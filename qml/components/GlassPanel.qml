@@ -29,19 +29,19 @@ Item {
     GlassSurface {
         objectName: "glassSurface"
         anchors.fill: parent
-        visible: root.useLiquid
         source: Theme.glassSource
         radius: root.radius
         tint: root.tint
-        plain: !Theme.liquidOn
+        plain: root.useLiquid ? (Theme.liquidOn ? 0 : 1) : 2
     }
 
-    // 玻璃自带亮线：液态时这里只画特别的边（鼠标移上去、警告）
+    // 玻璃自带亮线：这里只画特别的边（鼠标移上去、警告）
     Rectangle {
         anchors.fill: parent
         radius: root.radius
-        color: root.useLiquid ? "transparent" : root.tint
-        border.width: !root.useLiquid || !Qt.colorEqual(root.edge, Theme.glassEdge) ? 1 : 0
+        color: "transparent"
+        visible: !Qt.colorEqual(root.edge, Theme.glassEdge)
+        border.width: 1
         border.color: root.edge
     }
 

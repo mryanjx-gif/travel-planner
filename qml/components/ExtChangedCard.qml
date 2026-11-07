@@ -15,7 +15,7 @@ GlassPanel {
     visible: opacity > 0.01
     opacity: open ? 1 : 0
     transform: Translate { y: root.open || !Theme.motion ? 0 : Theme.px(12) }
-    Behavior on opacity { NumberAnimation { duration: Theme.durPanel } }
+    Behavior on opacity { TpAnim { shown: root.open } }
 
     Column {
         id: col

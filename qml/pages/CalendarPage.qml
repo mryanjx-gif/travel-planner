@@ -33,7 +33,10 @@ Item {
 
     visible: opacity > 0.01
     opacity: shown ? 1 : 0
-    Behavior on opacity { enabled: Theme.motion; NumberAnimation { duration: 180 } }
+    scale: shown || !Theme.motion ? 1 : 0.96
+    transformOrigin: Item.TopLeft
+    Behavior on scale { TpAnim { shown: root.shown; ms: 280 } }
+    Behavior on opacity { enabled: Theme.motion; TpAnim { shown: root.shown } }
     onShownChanged: { calendar.active = shown; if (!shown) { card.open = false; picker.open = false; hideNotice(); cancelDrag() } }
 
     function periodLabel() {
@@ -252,7 +255,7 @@ Item {
     }
 
     // ==================== 主体 ====================
-    Rectangle {
+    TpCard {
         id: mainCard
         objectName: "calMain"
         x: root.gutter
@@ -260,8 +263,7 @@ Item {
         width: parent.width - 2 * root.gutter - (root.sideShown && !root.narrow ? root.sideW + Theme.px(12) : 0)
         height: parent.height - y - root.gutter
         radius: Theme.px(16)
-        color: "#ffffff"
-        border.width: 1; border.color: Theme.line
+        color: Theme.card
         clip: true
 
         // ---- 年 ----
@@ -1042,7 +1044,7 @@ Item {
                 color: root.flashId === modelData.id ? Theme.accentSoft : rowArea.containsMouse ? Theme.panel2 : Theme.panelLight
                 border.width: 1; border.color: root.flashId === modelData.id ? Theme.accent : Theme.line
                 opacity: root.drag && root.drag.id === modelData.id && root.dragging ? 0.4 : 1
-                Behavior on color { enabled: Theme.motion; ColorAnimation { duration: 300 } }
+                Behavior on color { enabled: Theme.motion; ColorAnimation { duration: 300; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveMove } }
                 TpIcon { x: Theme.px(4); anchors.verticalCenter: parent.verticalCenter; width: Theme.px(14); height: Theme.px(14); name: "grip"; color: Theme.faint }
                 Rectangle { x: Theme.px(20); anchors.verticalCenter: parent.verticalCenter; width: Theme.px(10); height: width; radius: width / 2; color: row.modelData.color }
                 Text {

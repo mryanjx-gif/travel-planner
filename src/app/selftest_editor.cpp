@@ -217,8 +217,13 @@ void runEditor(Report &r, AppController *app, map::MapController *mapc, QQuickWi
     QQuickItem *res = item(win, "edResults");
     r.check(res && res->isVisible(), QStringLiteral("结果列表显示（带署名）"));
     const int nStops = int(ed->working()[QStringLiteral("stops")].asArray().size());
-    ed->addResult(0);
+    // 0.12.2：真点结果（点了这一行就被销毁，以前接着清搜索框会报 searchField is not defined）
+    QQuickItem *search = item(win, "edSearch");
+    if (search) search->setProperty("value", QStringLiteral("Nara"));
+    if (QQuickItem *hit = item(win, "edResultHit-0")) click(win, hit); else ed->addResult(0);
     pause(200);
+    r.check(search && search->property("text").toString().isEmpty(), QStringLiteral("点搜索结果后清空搜索框"), search ? search->property("text").toString() : QString());
+    if (search) search->setProperty("value", QString());
     {
         const json::Array &sa = ed->working()[QStringLiteral("stops")].asArray();
         r.check(int(sa.size()) == nStops + 1 && sa.back()[QStringLiteral("name")].toString() == QLatin1String("Nara") && ed->searchState() == QLatin1String("idle"),

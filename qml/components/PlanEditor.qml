@@ -186,15 +186,13 @@ Item {
             spacing: Theme.px(10)
 
             // ---- 计划信息卡片：收起时一行摘要，点"改"展开 ----
-            Rectangle {
+            TpCard {
                 id: infoCard
                 objectName: "edInfo"
                 width: parent.width
                 height: infoCol.implicitHeight + Theme.px(18)
                 radius: Theme.radiusSmall
                 color: root.infoOpen ? Qt.rgba(1, 1, 1, 0.6) : Theme.accentSoft
-                border.width: root.infoOpen ? 1 : 0
-                border.color: Theme.line
                 Column {
                     id: infoCol
                     x: Theme.px(10); y: Theme.px(9)
@@ -388,14 +386,13 @@ Item {
                 }
             }
             // 搜索结果（方案 B：带编号，地图上同时标出来；鼠标停在哪一行，地图上那个点变大）
-            Rectangle {
+            TpCard {
                 objectName: "edResults"
                 visible: editor.searchState !== "idle"
                 width: parent.width
                 height: resCol.implicitHeight + Theme.px(10)
                 radius: Theme.radiusSmall
-                color: "#ffffff"
-                border.color: Theme.line
+                color: Theme.card
                 Column {
                     id: resCol
                     x: Theme.px(5); y: Theme.px(5)
@@ -436,9 +433,10 @@ Item {
                                 Text { width: parent.width; elide: Text.ElideRight; text: modelData.address; font.family: serifFamily; font.pixelSize: Theme.px(11.5); color: Theme.muted }
                             }
                             MouseArea {
+                                objectName: "edResultHit-" + index
                                 anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                 onContainsMouseChanged: editor.hoverResult = containsMouse ? index : (editor.hoverResult === index ? -1 : editor.hoverResult)
-                                onClicked: { editor.addResult(index); searchField.clear() }
+                                onClicked: { const f = searchField; editor.addResult(index); f.clear() }   // addResult 之后这一行已被销毁
                             }
                         }
                     }
