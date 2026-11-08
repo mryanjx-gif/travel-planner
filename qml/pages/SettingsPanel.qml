@@ -1021,6 +1021,20 @@ GlassPanel {
                                                     : qsTr("没有找到 Electron 版；导入时可以手动选它的数据文件夹。")
                     TpButton { text: qsTr("导入…"); compact: true; enabled: app.dataDir !== "" && !app.readOnly && !app.importRunning; onClicked: root.importClicked() }
                 }
+                // 0.14.1：导出分享版（E-07，全部计划）、导入 .trip（E-08）
+                SettingsRow {
+                    objectName: "setShare"
+                    width: parent.width
+                    label: qsTr("导出分享版")
+                    sub: qsTr("打算把软件连数据一起发给别人时用：复制一份数据，去掉私人内容，只带能分发的照片。")
+                    TpButton { text: qsTr("导出…"); compact: true; enabled: app.dataDir !== ""; onClicked: win.exportShare([]) }
+                }
+                SettingsRow {
+                    width: parent.width
+                    label: qsTr("导入计划文件 .trip")
+                    sub: qsTr("别人导出的计划；也可以直接把 .trip 文件拖进窗口。")
+                    TpButton { text: qsTr("导入…"); compact: true; enabled: app.dataDir !== "" && !app.readOnly; onClicked: win.importTrip("") }
+                }
                 BackupSection {
                     width: parent.width
                     expanded: shotPage === "ui-backup" || shotPage === "ui-backup-running"

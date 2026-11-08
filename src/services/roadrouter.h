@@ -75,6 +75,9 @@ public:
     // 0.14.0 导出前（E-10，Electron ensureRoads / computeRoadsFor）：只数 / 只算这一个计划的段（planId 空 = 全部）
     Q_INVOKABLE int pendingFor(const QString &planId) const;
     Q_INVOKABLE void startFor(const QString &planId);
+    // 0.14.1 .trip / 分享版 / 批量导出：几个计划一起数、一起算
+    Q_INVOKABLE int pendingForIds(const QStringList &planIds) const;
+    Q_INVOKABLE void startForIds(const QStringList &planIds);
     Q_INVOKABLE void stop();
     Q_INVOKABLE void recount();    // 重新数一遍还没算的段
     // 截图用（roadbar 页）：假装有 n 段还没算（不动数据）
@@ -110,7 +113,7 @@ private:
     bool m_running = false, m_stopReq = false, m_done = false, m_dismissed = false, m_demo = false;
     int m_ok = 0, m_fail = 0, m_total = 0, m_index = 0;
     QVector<tp::map::roads::Pending> m_list;
-    QString m_only;                       // startFor：只算这个计划
+    QStringList m_only;                   // startFor：只算这些计划
     QSet<QString> m_sessionFail;          // 这次运行里没算出来的（断网、超时……）：不算进"还没算"，下次打开再试
     QHash<QString, QString> m_lastMsg;    // key → 最近一次失败的原因
     QString m_failFile;

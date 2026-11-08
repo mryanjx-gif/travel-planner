@@ -10,6 +10,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QHash>
+#include <QRandomGenerator>
 #include <QRegularExpression>
 #include <QSet>
 #include <algorithm>
@@ -505,7 +506,7 @@ Value ElectronImport::merge(const Value &existing, Converted &conv, Mode mode)
 
 ImportReport ElectronImport::run(const QString &electronDir, const QString &nativeDir, const Value &existing, Mode mode,
                                  const QDateTime &now, const QString &appVersion, Value *result,
-                                 const std::function<bool(int, int)> &progress)
+                                 const std::function<bool(int, int)> &progress, const QHash<QString, planmerge::Mode> &picks)
 {
     ImportReport fail;
     const QDir src(electronDir), dst(nativeDir);
@@ -521,8 +522,29 @@ ImportReport ElectronImport::run(const QString &electronDir, const QString &nati
 
     Converted conv = convert(parsed.data, now, appVersion,
                              [&src](const QString &rel) { return QFileInfo(src.filePath(rel)).isFile(); });
+    // 逐个计划选（0.14.1）要用转换后、合并前的全部照片来源
+    QHash<QString, QString> srcOf, origOf;   // 原生相对路径 → Electron 相对路径
+    for (const ImportCopy &c : conv.copies) srcOf.insert(c.dst, c.src);
+    for (const ImportCopy &c : conv.originals) origOf.insert(QStringLiteral("photos/") + c.dst.mid(QStringLiteral("photos/.originals/").size()), c.src);
+    const Value incoming = conv.doc;
     Value doc = merge(existing, conv, existing.isObject() ? mode : Mode::Replace);
     ImportReport rep = conv.report;
+    planmerge::Result picked;
+    if (mode == Mode::AddNew && existing.isObject() && !picks.isEmpty()) {
+        planmerge::Options po;
+        po.uid = [](const QString &prefix) {
+            return prefix + u'_' + QString::number(QDateTime::currentMSecsSinceEpoch(), 36) + QString::number(QRandomGenerator::global()->bounded(1u << 30), 36);
+        };
+        po.copySuffix = trd("（导入）");
+        picked = planmerge::apply(doc, incoming, picks, po);
+        doc = picked.doc;
+        rep.plans += picked.plans;
+        rep.plansSkipped -= picked.plans;
+        rep.photos += picked.photos;
+        rep.journal += picked.journal;
+        for (const Value &p : incoming[QStringLiteral("plans")].asArray())
+            if (picked.planIds.contains(p[QStringLiteral("id")].toString())) rep.stops += int(p[QStringLiteral("stops")].asArray().size());
+    }
 
     // Electron photos\ 里没被引用的文件（只报告）
     {
@@ -592,9 +614,48 @@ ImportReport ElectronImport::run(const QString &electronDir, const QString &nati
         if (k < nMain) ++rep.photosCopied; else ++rep.originalsCopied;
         if (progress && !progress(k + 1, total)) { rollback(rep.copiedFiles); rep.copiedFiles.clear(); rep.cancelled = true; return rep; }
     }
+    if (!picked.files.isEmpty()) {
+        const auto readRel = [&src](const QString &rel, QByteArray *out) {
+            if (rel.isEmpty()) return false;
+            QFile f(src.filePath(rel));
+            if (!f.open(QIODevice::ReadOnly)) return false;
+            *out = f.readAll();
+            return true;
+        };
+        const planmerge::WriteResult w = planmerge::writeFiles(
+            doc, nativeDir, picked.files, [&](const QString &from, QByteArray *b) { return readRel(srcOf.value(from), b); },
+            [&](const QString &from, QByteArray *b) { return readRel(origOf.value(from), b); });
+        if (!w.ok) {
+            rep.error = w.error;
+            rollback(rep.copiedFiles);
+            rep.copiedFiles.clear();
+            return rep;
+        }
+        rep.copiedFiles += w.copied;
+        rep.photosCopied += w.written + w.same;
+    }
     rep.ok = true;
     if (result) *result = std::move(doc);
     return rep;
+}
+
+QVariantList ElectronImport::conflicts(const QString &electronDir, const Value &existing, const QDateTime &now, QString *error)
+{
+    QVariantList out;
+    QFile f(QDir(electronDir).filePath(nativefmt::electronDataFileName()));
+    if (!f.open(QIODevice::ReadOnly)) { if (error) *error = trd("这个文件夹里没有 Electron 版的 data.js"); return out; }
+    const ParsedDataFile parsed = parseDataFile(f.readAll());
+    if (!parsed.ok || !parsed.data.isObject()) { if (error) *error = trd("data.js 读不出来：%1").arg(parsed.error); return out; }
+    const QDir src(electronDir);
+    const Converted conv = convert(parsed.data, now, QString(), [&src](const QString &rel) { return QFileInfo(src.filePath(rel)).isFile(); });
+    for (const Value &p : conv.doc[QStringLiteral("plans")].asArray()) {
+        const QString id = p[QStringLiteral("id")].toString();
+        const QVariantMap local = planmerge::summary(existing, id);
+        if (local.isEmpty()) continue;
+        out << QVariantMap{ { QStringLiteral("id"), id }, { QStringLiteral("name"), p[QStringLiteral("name")].toString() },
+                            { QStringLiteral("local"), local }, { QStringLiteral("incoming"), planmerge::summary(conv.doc, id) } };
+    }
+    return out;
 }
 
 void ElectronImport::rollback(const QStringList &copiedFiles)

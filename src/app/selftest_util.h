@@ -28,6 +28,7 @@ class NetController;
 class WeatherController;
 class AiController;
 class ExportController;
+class TripController;
 class Locator;
 class FrameStats;
 class Settings;
@@ -132,8 +133,10 @@ AiController *aiCtl();
 void runAi(Report &r, AppController *app, QQuickWindow *win, services::NetClient *net);
 // 0.14.0：导出——预览、勾选影响输出、PDF / 长图 / 信息卡 / .ics 写到临时文件夹、导出前算路三个按钮、入口（selftest_export.cpp）
 ExportController *exporterCtl();
+TripController *tripsCtl();
 QString reportDir();   // 自检报告所在的文件夹（导出的页面图放这里给人看）
 void runExport(Report &r, AppController *app, QQuickWindow *win, services::RoadRouter *roads);
+void runTrip(Report &r, AppController *app, QQuickWindow *win);   // 0.14.1
 // 0.9.1：性能——启动各步、拖地图每帧、换模式、数据重建、写设置、玻璃和标记各占多少（selftest_perf.cpp）
 FrameStats *frameStats();
 Settings *settingsObj();

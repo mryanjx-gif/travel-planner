@@ -243,7 +243,7 @@ void runKit(Report &r, AppController *app, QQuickWindow *win, PlanPageController
     tripList->setProperty("contentY", tripList->property("originY").toReal() + tripList->property("contentHeight").toReal() - tripList->height());
     waitFrames(win, 3);
     pause(700);   // 差异清单 #26：同一块地方连点太快，第二下可能不生效
-    // 0.14.0：紧急信息卡旁边的"导出信息卡"打开导出对话框（信息卡）；⋯ 菜单里只剩 .trip、分享版是占位（0.14.1）
+    // 0.14.0：紧急信息卡旁边的"导出信息卡"打开导出对话框（信息卡）；0.14.1：⋯ 菜单的 .trip、分享版接上（详细的在自检 trip）
     {
         QQuickItem *t = item(QStringLiteral("toast"));
         QQuickItem *dlg = item(QStringLiteral("exportDialog")), *root = item(QStringLiteral("exportRoot"));
@@ -251,15 +251,25 @@ void runKit(Report &r, AppController *app, QQuickWindow *win, PlanPageController
         r.check(dlg && root && waitFor([dlg] { return dlg->property("open").toBool(); }, 800) && root->property("kind").toString() == QLatin1String("card"),
                 QStringLiteral("紧急信息卡旁边的导出信息卡：打开导出对话框"));
         if (dlg) dlg->setProperty("open", false);
-        const auto isStub = [t] { return t && t->property("showing").toBool() && t->property("message").toString().size() > 0; };
         QStringList missing;
-        for (const char *k : { "Trip", "Share" }) {
-            QQuickItem *row = item(QStringLiteral("tripExport") + QLatin1String(k));
-            t->setProperty("showing", false);
+        {
+            QQuickItem *flow = item(QStringLiteral("tripFlow")), *share = item(QStringLiteral("tripShare")), *ask = item(QStringLiteral("tripRoadAsk"));
+            QTemporaryDir td;
+            const QString tf = td.filePath(QStringLiteral("kit.trip"));
+            if (flow) flow->setProperty("autoPath", tf);
+            const auto skipRoads = [ask] { if (waitFor([ask] { return ask && ask->property("open").toBool(); }, 300)) QMetaObject::invokeMethod(ask, "chosen", Q_ARG(QString, QStringLiteral("skip"))); };
+            QQuickItem *row = item(QStringLiteral("tripExportTrip"));
             if (row) QMetaObject::invokeMethod(row, "clicked");
-            if (!row || !waitFor(isStub, 500)) missing << QLatin1String(k);
+            skipRoads();
+            if (!row || !waitFor([&] { return QFile::exists(tf); }, 3000)) missing << QStringLiteral("Trip");
+            row = item(QStringLiteral("tripExportShare"));
+            if (row) QMetaObject::invokeMethod(row, "clicked");
+            skipRoads();
+            if (!row || !waitFor([share] { return share && share->property("open").toBool(); }, 800)) missing << QStringLiteral("Share");
+            if (share) share->setProperty("open", false);
+            if (flow) flow->setProperty("autoPath", QString());
         }
-        r.check(missing.isEmpty(), QStringLiteral("⋯ 菜单的 .trip、分享版：提示还在做"), missing.join(QLatin1Char(' ')));
+        r.check(missing.isEmpty(), QStringLiteral("⋯ 菜单的 .trip 写出文件、分享版打开选项"), missing.join(QLatin1Char(' ')));
         r.check(item(QStringLiteral("tripInCalendar")) != nullptr, QStringLiteral("⋯ 菜单的在日历里看还在"));
         t->setProperty("showing", false);
         pause(700);
@@ -745,12 +755,12 @@ void runNetAbout(Report &r, AppController *app, map::MapController *mapc, QQuick
     const QString about = allText(aboutCard);
     QStringList lack;
     for (const char *w : { "不用于商业", "Windows 10", "Black Marble", "Esri", "OpenStreetMap", "Nominatim", "OSRM", "Open-Meteo", "CC BY", "Frankfurter", "er-api", "exchangerate-api.com", "Natural Earth",
-                           "LGPL-3", "maplibre-native-qt", "suncalc", "OFL", "Apache 2.0", "Material Symbols", "思源宋体", "原创" })
+                           "LGPL-3", "maplibre-native-qt", "suncalc", "miniz", "OFL", "Apache 2.0", "Material Symbols", "思源宋体", "原创" })
         if (!about.contains(QString::fromUtf8(w))) lack << QString::fromUtf8(w);
     r.check(effectivelyShown(aboutCard) && lack.isEmpty(), QStringLiteral("关于写全了作者、系统要求、署名、授权、字体、素材"), lack.join(u','));
     const QString lic = app->licensesDir();
     bool licOk = true;
-    for (const QString &f : { QStringLiteral("LICENSE-suncalc.txt"), QStringLiteral("LICENSE-NotoSerifCJK.txt"), QStringLiteral("LICENSE-Material-Symbols.txt"), QStringLiteral("maplibre-native-qt/LGPL-3.0-only.txt"), QStringLiteral("maplibre-native-qt/BSD-2-Clause.txt") })
+    for (const QString &f : { QStringLiteral("LICENSE-suncalc.txt"), QStringLiteral("LICENSE-miniz.txt"), QStringLiteral("LICENSE-NotoSerifCJK.txt"), QStringLiteral("LICENSE-Material-Symbols.txt"), QStringLiteral("maplibre-native-qt/LGPL-3.0-only.txt"), QStringLiteral("maplibre-native-qt/BSD-2-Clause.txt") })
         licOk = licOk && QFileInfo::exists(lic + u'/' + f);
     r.check(licOk, QStringLiteral("授权全文在程序目录的 LICENSES"), lic);
     QQuickItem *tour = item(QStringLiteral("aboutTour"));

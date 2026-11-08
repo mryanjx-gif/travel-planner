@@ -1049,7 +1049,7 @@ Item {
         onClicked: root.closeRequested()
     }
 
-    // ---- ⋯ 菜单（0.14.0 导出接上；.trip、分享版是 0.14.1）----
+    // ---- ⋯ 菜单（0.14.0 导出接上；0.14.1 .trip、分享版）----
     Rectangle {
         objectName: "tripMenu"
         visible: root.menuOpen
@@ -1107,7 +1107,8 @@ Item {
                         if (k === "Pdf" || k === "Image") win.openExport(root.info.id, "itinerary", k === "Pdf" ? "pdf" : "png")
                         else if (k === "Ics") win.openExport(root.info.id, "ics", "pdf")
                         else if (k === "Card") win.openExport(root.info.id, "card", "png")
-                        else win.notReady()
+                        else if (k === "Trip") win.exportTrip([root.info.id])
+                        else win.exportShare([root.info.id])
                     }
                 }
             }

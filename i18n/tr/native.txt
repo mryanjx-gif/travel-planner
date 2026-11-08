@@ -1497,3 +1497,78 @@ AI 规划	AI planning
 路线简图上先画直线	The route sketch shows straight lines
 %1 段没算出来，导出后按直线显示	%1 segment(s) couldn't be calculated and will show as straight lines
 先打开或在地图上选中一个计划	Open a plan or select one on the map first
+# 0.14.1 .trip、分享版、批量导出
+已导出 %1 个计划文件到 %2（照片 %3 张%4）	Exported %1 plan files to %2 (%3 photos%4)
+，%1 张找不到文件没带	, %1 missing files left out
+已导出：%1（%2照片 %3 张%4）	Exported: %1 (%2%3 photos%4)
+%1 个计划，	%1 plans, 
+这里只能拖入 .trip 计划文件（照片请在相册里点“导入照片”）	Only .trip plan files can be dropped here (to add photos, use "Import photos" in the album)
+这里只能拖入 .trip 计划文件	Only .trip plan files can be dropped here
+松开导入计划	Drop to import the plan
+照片请在相册里点“导入照片”	To add photos, use "Import photos" in the album
+.trip 计划文件	.trip plan files
+这个计划这里已经有了	This plan is already here
+Electron 版的	From the Electron version
+用 Electron 版的替换这里的（这里的游记和照片记录也换成 Electron 版的）	Replace the one here with the Electron version (its journal entries and photo records too)
+两个都留，导入的名字后面加“（导入）”	Keep both; the imported one gets "(imported)" after its name
+留着这里的，这一个不导入	Keep the one here and don't import this one
+后面还有 %1 个已经有的计划，都这样处理	Do the same for the %1 other plans that are already here
+取消导入	Cancel import
+导出 %1 个计划	Export %1 plans
+对方也装了旅行计划，点“导入 .trip”或拖进窗口；导入后能看、能改	For people who also have Travel Planner: they click "Import .trip" or drop it into the window, then can view and edit it
+分享版文件夹	Shareable folder
+去掉私人内容的一份数据，对方用“更换数据文件夹”打开查看	A copy of the data without private details; they open it with "Change data folder"
+导出分享版（%1 个计划）	Export shareable version (%1 plans)
+复制一份数据，去掉私人内容，对方用“更换数据文件夹”打开。紧急信息卡、证件、当地紧急电话一律去掉。	Makes a copy of the data without private details for others to open with "Change data folder". The emergency card, documents and local emergency numbers are always removed.
+去掉“已解锁”里手动标记的省 / 州	Remove provinces / states marked by hand in "Unlocked"
+只带有来源记录、而且来源是 Wikimedia、NASA 或自己拍的照片；来源是 Google 地图的一律不带。	Only photos with a source record from Wikimedia, NASA or your own camera are included; photos from Google Maps never are.
+没有来源记录的站点照片也带上（只在“全部可分发的”时有效；确定是自己拍的才勾）	Also include stop photos without a source record (only with "All shareable"; tick only if you took them yourself)
+分享版导出好了	Shareable version exported
+已导出 %1 个分享版文件夹到：	Exported %1 shareable folders to: 
+已导出到：	Exported to: 
+，%1 张不能分发的没带	, %1 not shareable and left out
+，%1 张找不到文件	, %1 files missing
+文件夹里有“照片署名.txt”，转发时请一起带上。对方在“设置 → 数据 → 数据文件夹”里选这个文件夹就能看。	The folder contains a photo credits file; please pass it on together. The other person picks this folder under "Settings → Data → Data folder" to view it.
+这些自驾 / 徒步段现在画的是直线。直接导出的话，对方打开也是直线，要他自己联网点“现在计算”。	These drive / walk segments are drawn as straight lines. If you export now, the other person will see straight lines too and has to click "Calculate now" while online.
+约 %1 分钟，算完自动保存；对方打开就是道路路线，不用再算	About %1 min, saved automatically; the other person sees road routes without recalculating
+对方那边先显示直线	They will see straight lines at first
+导出计划文件	Export plan file
+旅行计划文件	Travel Planner plan
+导入计划文件	Import plan file
+在“我的旅程”里点“选择”，勾好计划后点“批量导出”	In "My trips", click "Select", tick the plans, then click "Export selected"
+打算把软件连数据一起发给别人时用：复制一份数据，去掉私人内容，只带能分发的照片。	For giving the app and data to someone else: copies the data, removes private details and keeps only shareable photos.
+导入计划文件 .trip	Import plan file (.trip)
+别人导出的计划；也可以直接把 .trip 文件拖进窗口。	Plans exported by someone else; you can also drop a .trip file into the window.
+没有选要导出的计划	No plans selected to export
+没有选导出到哪里	No destination selected
+导出“%1”失败：%2	Couldn't export "%1": %2
+导入已经过期，请重新导入	This import has expired, please import again
+已导入 %1 个计划	Imported %1 plans
+，照片 %1 张	, %1 photos
+写不了这个位置：%1	Can't write to this location: %1
+打包失败：%1	Packing failed: %1
+覆盖不了原来的文件：%1	Can't replace the existing file: %1
+不是有效的计划文件（%1）	Not a valid plan file (%1)
+找不到这个文件	File not found
+不是 zip 文件	not a zip file
+文件里的条目太多	too many entries
+zip 目录坏了	the zip directory is damaged
+文件解压后太大	too large when unpacked
+缺少 plan.json	plan.json is missing
+计划文件里的 plan.json 读不出来	plan.json in the plan file can't be read
+不是「旅行计划」的计划文件	Not a Travel Planner plan file
+计划文件的格式版本不对	The plan file's format version is wrong
+这个计划文件是更新版本的旅行计划导出的，请先更新软件	This plan file was exported by a newer Travel Planner; please update the app first
+计划文件里没有计划数据	The plan file has no plan data
+导出时间：%1	Exported: %1
+作者：%1 · 授权：%2 · 来源：%3	Author: %1 · Licence: %2 · Source: %3
+街道图 / 卫星图（地图和地球）：Esri 在线瓦片 · Esri 及其数据提供方	Street / satellite maps (map and globe): Esri online tiles · Esri and its data providers
+不能导出到数据文件夹里面	Can't export into the data folder
+旅行计划-分享版	TravelPlanner-share
+建不了文件夹：%1	Can't create folder: %1
+写不进去：%1	Can't write: %1
+照片署名.txt	Photo credits.txt
+已合并：新加 %1 笔消费	Merged: %1 new expenses
+写不进数据文件夹：%1	Can't write to the data folder: %1
+北海道 7 日	Hokkaido, 7 days
+.trip 计划文件的打包和解包。MIT，Copyright 2013-2014 RAD Game Tools and Valve Software、2010-2014 Rich Geldreich and Tenacious Software LLC。	Packing and unpacking .trip plan files. MIT, Copyright 2013-2014 RAD Game Tools and Valve Software, 2010-2014 Rich Geldreich and Tenacious Software LLC.

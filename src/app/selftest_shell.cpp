@@ -409,20 +409,8 @@ void runShell(Report &r, AppController *app, map::MapController *mapc, QQuickWin
     }
 
     // ---- 0.12.3 占位入口、设置改版 ----
-    r.section(QStringLiteral("占位入口、设置改版（0.12.3）"));
+    r.section(QStringLiteral("原占位入口（0.14.1 都接上了）、设置改版（0.12.3）"));
     {
-        QQuickItem *t = item(win, "toast");
-        const auto isStub = [t] {
-            const QString m = t ? t->property("message").toString() : QString();
-            return t && t->property("showing").toBool() && (m == QStringLiteral("这个功能还在做") || m == QLatin1String("This feature isn't ready yet"));
-        };
-        const auto stub = [&](QQuickItem *it, const QString &what) {
-            if (t) t->setProperty("showing", false);
-            click(win, it);
-            const bool ok = waitFor(isStub, 800);
-            r.check(ok, what, ok ? QString() : whereStr(win, it));
-            pause(300);
-        };
         nav->go(QStringLiteral("plan"));
         waitFor([win] { return shown(item(win, "aiBtn")); }, 1500);
         click(win, item(win, "aiBtn"));   // 0.13.0 起是真的面板
@@ -432,24 +420,41 @@ void runShell(Report &r, AppController *app, map::MapController *mapc, QQuickWin
         click(win, item(win, "meBtn"));
         waitFor([win] { QQuickItem *m = item(win, "avatarMenu"); return m && m->property("open").toBool(); }, 800);
         pause(250);
-        stub(item(win, "menu-importTrip"), QStringLiteral("头像菜单的导入 .trip"));
+        // 0.14.1：导入 .trip 接上（自检时给一个不存在的文件，看到"导入失败"就说明走到了导入）
+        QQuickItem *flow = item(win, "tripFlow");
+        const auto tripTried = [&](QQuickItem *it, const QString &what) {
+            if (flow) { flow->setProperty("lastResult", QString()); flow->setProperty("autoPath", QStringLiteral("C:/不存在/自检.trip")); }
+            click(win, it);
+            const bool ok = waitFor([flow] { return flow && !flow->property("lastResult").toString().isEmpty(); }, 800);
+            r.check(ok, what, ok ? flow->property("lastResult").toString() : whereStr(win, it));
+            if (flow) flow->setProperty("autoPath", QString());
+            pause(300);
+        };
+        tripTried(item(win, "menu-importTrip"), QStringLiteral("头像菜单的导入 .trip"));
 
-        int stubs = 0;
-        for (const QVariant &v : call(win, "paletteItems").toList())
-            if (v.toMap().value(QStringLiteral("key")) == QLatin1String("notReady")) ++stubs;
-        if (t) t->setProperty("showing", false);
-        call(win, "runCommand", QVariantMap{ { QStringLiteral("kind"), QStringLiteral("act") }, { QStringLiteral("key"), QStringLiteral("notReady") } });
-        r.check(stubs == 8 && waitFor(isStub, 800), QStringLiteral("Ctrl K 搜得到 8 个占位入口（AI 助手 0.13.0 接上了），选了提示还在做"), QString::number(stubs));
+        int stubs = 0, tripActs = 0;
+        for (const QVariant &v : call(win, "paletteItems").toList()) {
+            const QString k = v.toMap().value(QStringLiteral("key")).toString();
+            if (k == QLatin1String("notReady")) ++stubs;
+            if (k == QLatin1String("importTrip") || k == QLatin1String("exportShare") || k == QLatin1String("bulkExport") || k == QLatin1String("export:trip:trip")) ++tripActs;
+        }
+        r.check(stubs == 0 && tripActs == 4, QStringLiteral("Ctrl K 没有占位入口了；.trip、分享版、批量导出 4 条在"), QStringLiteral("%1 / %2").arg(stubs).arg(tripActs));
 
         call(win, "pickPage", QStringLiteral("library"));
         waitFor([win] { return shown(item(win, "libImportTrip")); }, 2000);
         pause(400);
-        stub(item(win, "libImportTrip"), QStringLiteral("计划库顶部的导入 .trip"));
+        tripTried(item(win, "libImportTrip"), QStringLiteral("计划库顶部的导入 .trip"));
         click(win, item(win, "libSelect"));
         waitFor([win] { return shown(item(win, "libSelExport")); }, 1000);
         click(win, item(win, "libSelAll"));
         pause(200);
-        stub(item(win, "libSelExport"), QStringLiteral("计划库多选后的批量导出"));
+        {
+            QQuickItem *bulk = item(win, "tripBulk");
+            click(win, item(win, "libSelExport"));
+            r.check(waitFor([bulk] { return bulk && bulk->property("open").toBool(); }, 800), QStringLiteral("计划库多选后的批量导出：打开对话框"));
+            if (bulk) bulk->setProperty("open", false);
+            pause(300);
+        }
         click(win, item(win, "libSelect"));
         for (int i = 0; i < 9 && !call(win, "escOnce").toString().isEmpty(); ++i) pause(80);
 

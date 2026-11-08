@@ -213,7 +213,10 @@ public:
     Q_INVOKABLE QString guessCurrency() const;                         // 按系统地区猜主货币
     // 从 Electron 版导入（0.6.0）：src = Electron 的数据文件夹，mode = "add"（只加新的）/ "replace"（替换全部）。
     // 在后台做，完成时发 importFinished(报告)。返回 { ok, error }（ok = 已经开始）
-    Q_INVOKABLE QVariantMap importElectron(const QString &src, const QString &mode);
+    // picks（0.14.1）："add" 时这里已经有的计划逐个怎么处理：{ 计划 id: "replace" / "copy" / "skip" }（没写的跳过）
+    Q_INVOKABLE QVariantMap importElectron(const QString &src, const QString &mode, const QVariantMap &picks = {});
+    // 0.14.1：再导入前，Electron 那边哪些计划这里已经有了 { ok, error, plans: [{ id, name, local, incoming }] }
+    Q_INVOKABLE QVariantMap electronConflicts(const QString &src) const;
     Q_INVOKABLE void cancelImport();
     Q_INVOKABLE void takeOverLock();                // 别的旅行计划开着这份数据时，用户选"仍然编辑"
     Q_INVOKABLE void reloadData();                  // 外部修改提示上的"重新加载"

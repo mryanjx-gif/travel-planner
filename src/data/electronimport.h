@@ -11,6 +11,7 @@
 #pragma once
 
 #include "jsonvalue.h"
+#include "planmerge.h"
 
 #include <QDateTime>
 #include <QString>
@@ -65,9 +66,14 @@ public:
 
     // 整个流程（在后台线程跑）：读 data.js → 转换 → 合并 → 复制照片。成功时 result 是要保存的新数据。
     // existing 为空（null）时按"替换全部"。progress(done, total) 返回 false = 取消。
+    // picks（0.14.1）：AddNew 时本地已经有的计划逐个怎么处理（计划 id → Replace / Copy / Skip，见 planmerge.h）；没写的跳过
     static ImportReport run(const QString &electronDir, const QString &nativeDir, const json::Value &existing, Mode mode,
                             const QDateTime &now, const QString &appVersion, json::Value *result,
-                            const std::function<bool(int, int)> &progress = {});
+                            const std::function<bool(int, int)> &progress = {},
+                            const QHash<QString, planmerge::Mode> &picks = {});
+
+    // 0.14.1：再导入前看看哪些计划这里已经有了（冲突框用）。[{ id, name, local: summary, incoming: summary }]；error 非空 = 读不出来
+    static QVariantList conflicts(const QString &electronDir, const json::Value &existing, const QDateTime &now, QString *error);
 
     // 删掉 run 复制进去的文件（保存失败时回滚）
     static void rollback(const QStringList &copiedFiles);

@@ -218,7 +218,7 @@ Item {
             objectName: "libImportTrip"
             compact: true
             text: qsTr("导入 .trip")
-            onClicked: win.notReady()
+            onClicked: win.importTrip("")
         }
     }
     Flow {
@@ -528,7 +528,7 @@ Item {
                 compact: true
                 enabled: root.selIds.length > 0
                 text: qsTr("批量导出")
-                onClicked: win.notReady()
+                onClicked: win.bulkExport(root.selIds)
             }
             TpButton {
                 objectName: "libSelDelete"

@@ -130,6 +130,7 @@ Column {
         Line { name: "maplibre-native-qt（399311e）"; detail: qsTr("平面地图。BSD-2-Clause。") }
         Line { name: "MapLibre Native"; detail: qsTr("平面地图的渲染。BSD-2-Clause；内置的第三方组件见授权文件夹里的 maplibre-native-LICENSES.core.md。") }
         Line { name: "suncalc 2.0.2"; detail: qsTr("日出日落，移植成 C++。BSD-2-Clause，Copyright (c) 2026, Volodymyr Agafonkin。") }
+        Line { name: "miniz 3.1.2"; detail: qsTr(".trip 计划文件的打包和解包。MIT，Copyright 2013-2014 RAD Game Tools and Valve Software、2010-2014 Rich Geldreich and Tenacious Software LLC。") }
         SettingsRow {
             objectName: "aboutLicenses"
             width: parent.width

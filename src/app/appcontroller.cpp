@@ -387,7 +387,18 @@ QVariantMap AppController::firstRunImport()
 }
 
 // ---------- 从 Electron 版导入（0.6.0） ----------
-QVariantMap AppController::importElectron(const QString &srcIn, const QString &mode)
+QVariantMap AppController::electronConflicts(const QString &srcIn) const
+{
+    const QString src = localPath(srcIn);
+    QString err;
+    const QVariantList list = data::ElectronImport::conflicts(src, m_store->data(), QDateTime::currentDateTime(), &err);
+    if (!err.isEmpty()) return result(false, err);
+    QVariantMap r = result(true);
+    r.insert(QStringLiteral("plans"), list);
+    return r;
+}
+
+QVariantMap AppController::importElectron(const QString &srcIn, const QString &mode, const QVariantMap &picksIn)
 {
     const QString src = localPath(srcIn);
     if (m_importThread) return result(false, tp::tr("正在导入，请稍等"));
@@ -408,7 +419,9 @@ QVariantMap AppController::importElectron(const QString &srcIn, const QString &m
     QPointer<AppController> self(this);
     qInfo("开始从 Electron 版导入：%s → %s（%s）", qUtf8Printable(QDir::toNativeSeparators(src)), qUtf8Printable(QDir::toNativeSeparators(dst)),
           replace ? "替换全部" : "只加新的");
-    m_importThread = QThread::create([self, src, dst, existing, replace, now, ver, cancel = &m_importCancel] {
+    QHash<QString, data::planmerge::Mode> picks;
+    for (auto it = picksIn.cbegin(); it != picksIn.cend(); ++it) picks.insert(it.key(), data::planmerge::modeFromKey(it.value().toString()));
+    m_importThread = QThread::create([self, src, dst, existing, replace, now, ver, picks, cancel = &m_importCancel] {
         json::Value doc;
         const data::ImportReport rep = data::ElectronImport::run(
             src, dst, existing, replace ? data::ElectronImport::Mode::Replace : data::ElectronImport::Mode::AddNew, now, ver, &doc,
@@ -420,7 +433,7 @@ QVariantMap AppController::importElectron(const QString &srcIn, const QString &m
                     emit self->importProgress();
                 }, Qt::QueuedConnection);
                 return !cancel->load();
-            });
+            }, picks);
         if (self) QMetaObject::invokeMethod(self.data(), [self, rep, doc, replace] {
             if (self) self->importDoneOnMain(rep, doc, replace);
         }, Qt::QueuedConnection);

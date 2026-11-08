@@ -146,6 +146,7 @@ void runAll(Report &r, AppController *app, PhotoController *photos, map::MapCont
     if (want("tour")) runTour(r, app, win);   // 0.12.8
     if (want("ai")) runAi(r, app, win, net);   // 0.13.0
     if (want("export")) runExport(r, app, win, roads);   // 0.14.0
+    if (want("trip")) runTrip(r, app, win);   // 0.14.1
     if (want("welcome")) runWelcome(r, app, win);   // 0.12.7（中途换到临时数据，最后换回来）
     if (only.contains(QLatin1String("thumbs1000"))) runThumbs1000(r, photos, dir);
     mapc->fitAll(false);
@@ -381,6 +382,8 @@ static AiController *g_ai = nullptr;
 AiController *aiCtl() { return g_ai; }
 static ExportController *g_exporter = nullptr;
 ExportController *exporterCtl() { return g_exporter; }
+static TripController *g_trips = nullptr;
+TripController *tripsCtl() { return g_trips; }
 static QString g_reportDir;
 QString reportDir() { return g_reportDir; }
 PlanPageController *planPageCtl() { return g_planPage; }
@@ -391,6 +394,7 @@ void SelfTest::setWeather(WeatherController *w) { selftest::g_weather = w; }
 void SelfTest::setNetCtl(NetController *n) { selftest::g_netc = n; }
 void SelfTest::setAi(AiController *a) { selftest::g_ai = a; }
 void SelfTest::setExporter(ExportController *e) { selftest::g_exporter = e; }
+void SelfTest::setTrips(TripController *t) { selftest::g_trips = t; }
 
 void SelfTest::setEditor(PlanEditor *e, Locator *l, services::Geocoder *g) { selftest::g_editor = e; selftest::g_locator = l; selftest::g_geo = g; }
 

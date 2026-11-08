@@ -51,3 +51,10 @@ target_link_libraries(tst_export PRIVATE tp_export Qt6::Test Qt6::Gui)
 target_compile_definitions(tst_export PRIVATE TP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 set_target_properties(tst_export PROPERTIES WIN32_EXECUTABLE OFF AUTOMOC ON)
 add_test(NAME tst_export COMMAND tst_export)
+
+# 0.14.1 .trip 计划文件、分享版、导入合并（覆盖 / 另存 / 合并 / 跳过）、Electron 再导入逐个选；zip slip 和超限。不开窗口（QCoreApplication）
+qt_add_executable(tst_trip tst_trip.cpp)
+target_link_libraries(tst_trip PRIVATE tp_export Qt6::Test)
+target_compile_definitions(tst_trip PRIVATE TP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+set_target_properties(tst_trip PROPERTIES WIN32_EXECUTABLE OFF AUTOMOC ON)
+add_test(NAME tst_trip COMMAND tst_trip)

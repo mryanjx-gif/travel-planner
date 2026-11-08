@@ -59,6 +59,7 @@
 #include "photocontroller.h"
 #include "plancontroller.h"
 #include "exportcontroller.h"
+#include "tripcontroller.h"
 #include "calendarcontroller.h"
 #include "journalcontroller.h"
 #include "planpagecontroller.h"
@@ -372,6 +373,7 @@ int main(int argc, char *argv[])
     // 0.14.0 导出：行程单 / 信息卡一律用打包的思源宋体（嵌进 PDF），封面用打包的省界
     tp::app::ExportController exporter(&store, { uiFamily(QString()), appDir + QStringLiteral("/assets/admin"), Paths::cacheDir() + QStringLiteral("/export"),
                                                  [&plans] { return plans.today(); }, [&rates] { return rates.main(); } });
+    tp::app::TripController trips(&store, &ctl, [&rates] { return rates.main(); });   // 0.14.1 .trip、分享版、批量导出
     tp::app::WeatherController weather(&planPage, &plans, &store, &net);   // 0.10.3 预报和往年气候
     tp::app::CalendarController calendar(&ctl, &plans, &settings, &store, &mapc);   // 0.11.2 日历
     calendar.setPersist(!testRun);
@@ -443,6 +445,7 @@ int main(int argc, char *argv[])
     ctx->setContextProperty("editor", &editor);
     ctx->setContextProperty("planPage", &planPage);
     ctx->setContextProperty("exporter", &exporter);
+    ctx->setContextProperty("trips", &trips);
     ctx->setContextProperty("calendar", &calendar);
     ctx->setContextProperty("journal", &journal);
     ctx->setContextProperty("rates", &rates);
@@ -679,6 +682,7 @@ int main(int argc, char *argv[])
         tp::app::SelfTest::setNetCtl(&netc);
         tp::app::SelfTest::setAi(&ai);
         tp::app::SelfTest::setExporter(&exporter);
+        tp::app::SelfTest::setTrips(&trips);
         tp::app::SelfTest::setWeather(&weather);
         tp::app::SelfTest::start(QDir::fromNativeSeparators(selftestReport), &ctl, &photos, &mapc, win,
                                  GraphicsBackend::displayName(backend.api) + (backend.deviceInfo.isEmpty() ? QString() : QStringLiteral(" · ") + backend.deviceInfo),

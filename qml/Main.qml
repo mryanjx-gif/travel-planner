@@ -780,7 +780,7 @@ Window {
             if (key.startsWith("page:")) win.pickPage(key.slice(5))
             else if (key === "now") { if (!win.onMapPage) win.goPage("map"); win.setNowOpen(true) }
             else if (key === "settings") win.goPage("settings")
-            else if (key === "importTrip") win.notReady()
+            else if (key === "importTrip") win.importTrip("")
             else if (key === "folder") folderDialog.open()
             else if (key === "title") { titleDialog.text = app.windowTitleExtra; titleDialog.open = true }
             else if (key === "quit") app.requestQuit()
@@ -864,6 +864,10 @@ Window {
     function notReady() { toast.show(qsTr("这个功能还在做"), false) }
     // 0.14.0 导出对话框：kind = itinerary / card / ics，format = pdf / png
     function openExport(id, kind, format) { exportDialog.show(id, kind, format) }
+    function importTrip(path) { tripFlow.importTrip(path || "") }   // 0.14.1
+    function exportTrip(ids) { tripFlow.exportTrip(ids) }
+    function exportShare(ids) { tripFlow.exportShare(ids) }        // ids 空 = 全部计划
+    function bulkExport(ids) { tripFlow.bulk(ids) }
     // 0.12.9 删除后撤销：fn 真的删了才提示（返回 false = 没删）。前后各存一步，撤销只退这一下；
     // 删完又改过，按钮不能再退（退的会是后面的改动），提示用 Ctrl+Z
     function deleteWithUndo(fn, msg) {
@@ -907,13 +911,15 @@ Window {
         if (plans.overlayAvailable) act("overlay", plans.overlay ? qsTr("不叠其他旅程") : qsTr("叠上其他旅程"))
         if (netc.allowed.ai) act("ai", qsTr("AI 助手"))   // 0.13.0
         if (netc.allowed.ai) page("aiplan", qsTr("让 AI 帮我规划"))   // 0.13.2 整页向导
-        // 0.14.0 导出（行程单、长图、.ics、信息卡）对打开的计划，没打开时对地图上选中的；.trip、分享版、批量还在做（0.14.1）
+        // 0.14.0 导出（行程单、长图、.ics、信息卡、0.14.1 .trip）对打开的计划，没打开时对地图上选中的
         act("export:itinerary:pdf", qsTr("导出行程单 PDF"))
         act("export:itinerary:png", qsTr("导出行程单长图"))
         act("export:ics:pdf", qsTr("导出日历文件 .ics"))
         act("export:card:png", qsTr("导出信息卡"))
-        for (const t of [qsTr("导入 .trip"), qsTr("导出计划文件 .trip"), qsTr("导出分享版"), qsTr("批量导出")])
-            act("notReady", t)
+        act("export:trip:trip", qsTr("导出计划文件 .trip"))
+        act("importTrip", qsTr("导入 .trip"))      // 0.14.1
+        act("exportShare", qsTr("导出分享版"))     // 全部计划（Electron 设置里的"导出分享版"）
+        act("bulkExport", qsTr("批量导出"))        // 去"我的旅程"选计划
         act("fullscreen", qsTr("全屏"), "", "F11")
         act("dataFolder", qsTr("打开数据文件夹"))
         act("logFolder", qsTr("打开日志文件夹"), "", "F12")
@@ -945,7 +951,14 @@ Window {
         else if (k.startsWith("export:")) {
             const id = nav.page === "trip" ? planPage.planId : mapc.markers.selectedPlan
             if (!id) toast.show(qsTr("先打开或在地图上选中一个计划"), false)
+            else if (k === "export:trip:trip") win.exportTrip([id])
             else win.openExport(id, k.split(":")[1], k.split(":")[2])
+        }
+        else if (k === "importTrip") win.importTrip("")
+        else if (k === "exportShare") win.exportShare([])
+        else if (k === "bulkExport") {
+            if (!win.onMapPage || !win.listOpen) win.toggleList()
+            toast.show(qsTr("在“我的旅程”里点“选择”，勾好计划后点“批量导出”"), false)
         }
         else if (k === "ai") { if (!win.onMapPage) win.goPage("map"); aiPanel.open = true }
         else if (k === "new") win.newPlan()
@@ -1538,6 +1551,9 @@ Window {
     }
     ExportDialog {
         id: exportDialog
+    }
+    TripFlow {   // 0.14.1 .trip、分享版、批量导出、拖入导入
+        id: tripFlow
     }
     AiPanel {
         id: aiPanel
@@ -2813,6 +2829,7 @@ Window {
             extCard.forced = true
             expandFirstError.start()
         }
+        else if (shotPage.startsWith("ui-tripfile-")) tripFileShot.start()   // 0.14.1 .trip 冲突框、批量导出、拖入提示、分享版
         else if (shotPage === "ui-photo-import" || shotPage === "ui-photo-e2e") photoImportShot.start()
         else if (shotPage === "ui-photo-clean") photoCleanShot.start()
         else if (shotPage === "ui-settings-photos") goPage("settings")
@@ -3004,6 +3021,11 @@ Window {
                 tripShot2.start()
             }
         }
+    }
+    Timer {
+        id: tripFileShot
+        interval: 800
+        onTriggered: tripFlow.shot(shotPage.slice("ui-tripfile-".length))
     }
     Timer {
         id: tripShot2

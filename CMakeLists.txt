@@ -3,7 +3,7 @@
 # 规则（PO 2026-11-02）：大更新改第一位，中等更新改第二位，小修改改第三位；正式版之前是 0.x.y，正式版 1.0.0。
 cmake_minimum_required(VERSION 3.24)
 
-set(TP_VERSION "0.14.0")
+set(TP_VERSION "0.14.1")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TP_VERSION_NUMERIC "${TP_VERSION}")
 
 project(TravelPlannerNative
@@ -52,6 +52,7 @@ add_library(tp_data STATIC
     src/data/nativeformat.cpp src/data/nativeformat.h
     src/data/lockfile.cpp src/data/lockfile.h
     src/data/electronimport.cpp src/data/electronimport.h
+    src/data/planmerge.cpp src/data/planmerge.h
     src/data/exif.cpp src/data/exif.h
     src/data/photolib.cpp src/data/photolib.h
     src/data/trdata.h
@@ -145,13 +146,25 @@ if(WIN32)
 endif()
 set_target_properties(tp_ai PROPERTIES AUTOMOC ON)
 
+# 0.14.1 miniz 3.1.2（MIT，原样放在 src/third_party/miniz，来源见那里的 说明.md）：.trip 的 zip 打包 / 解包
+# 按 C++ 编（miniz 支持；项目只开了 CXX，中途 enable_language(C) 在开发目录重新配置时失败）
+set_source_files_properties(src/third_party/miniz/miniz.c PROPERTIES LANGUAGE CXX)
+add_library(tp_miniz STATIC src/third_party/miniz/miniz.c src/third_party/miniz/miniz.h)
+target_include_directories(tp_miniz PUBLIC src/third_party/miniz)
+target_compile_definitions(tp_miniz PUBLIC MINIZ_NO_ZLIB_COMPATIBLE_NAMES)
+if(MSVC)
+    target_compile_options(tp_miniz PRIVATE /W0)   # 第三方原样代码，不看它的警告
+endif()
+
 # 导出（0.14.0）：行程单 / 紧急信息卡（QPdfWriter + QPainter，都在 Qt Gui 里，不加新模块）、.ics。单元测试 tst_export 共用
+# 0.14.1：.trip 计划文件、分享版文件夹（trippack）
 add_library(tp_export STATIC
     src/export/itinerary.cpp src/export/itinerary.h
     src/export/ics.cpp src/export/ics.h
+    src/export/trippack.cpp src/export/trippack.h
 )
 target_include_directories(tp_export PUBLIC src/export)
-target_link_libraries(tp_export PUBLIC tp_map tp_core Qt6::Core Qt6::Gui)
+target_link_libraries(tp_export PUBLIC tp_map tp_core tp_miniz Qt6::Core Qt6::Gui)
 
 qt_add_executable(TravelPlanner WIN32
     src/app/main.cpp
@@ -169,13 +182,14 @@ qt_add_executable(TravelPlanner WIN32
     src/app/netcontroller.cpp src/app/netcontroller.h
     src/app/aicontroller.cpp src/app/aicontroller.h
     src/app/exportcontroller.cpp src/app/exportcontroller.h
+    src/app/tripcontroller.cpp src/app/tripcontroller.h
     src/app/weathercontroller.cpp src/app/weathercontroller.h
     src/app/planeditor.cpp src/app/planeditor.h
     src/app/locator.cpp src/app/locator.h
     src/app/thumbprovider.cpp src/app/thumbprovider.h
     src/app/framestats.cpp src/app/framestats.h
     src/app/selftest.cpp src/app/selftest.h src/app/selftest_util.cpp src/app/selftest_util.h
-    src/app/selftest_map.cpp src/app/selftest_routes.cpp src/app/selftest_unlock.cpp src/app/selftest_plans.cpp src/app/selftest_shell.cpp src/app/selftest_pages.cpp src/app/selftest_planpage.cpp src/app/selftest_money.cpp src/app/selftest_weather.cpp src/app/selftest_kit.cpp src/app/selftest_photos_tab.cpp src/app/selftest_library.cpp src/app/selftest_audit.cpp src/app/selftest_photomode.cpp src/app/selftest_calendar.cpp src/app/selftest_editor.cpp src/app/selftest_globe.cpp src/app/selftest_perf.cpp src/app/selftest_welcome.cpp src/app/selftest_ai.cpp src/app/selftest_export.cpp
+    src/app/selftest_map.cpp src/app/selftest_routes.cpp src/app/selftest_unlock.cpp src/app/selftest_plans.cpp src/app/selftest_shell.cpp src/app/selftest_pages.cpp src/app/selftest_planpage.cpp src/app/selftest_money.cpp src/app/selftest_weather.cpp src/app/selftest_kit.cpp src/app/selftest_photos_tab.cpp src/app/selftest_library.cpp src/app/selftest_audit.cpp src/app/selftest_photomode.cpp src/app/selftest_calendar.cpp src/app/selftest_editor.cpp src/app/selftest_globe.cpp src/app/selftest_perf.cpp src/app/selftest_welcome.cpp src/app/selftest_ai.cpp src/app/selftest_export.cpp src/app/selftest_trip.cpp
     src/platform/crashhandler.cpp src/platform/crashhandler.h
     src/platform/nativedialog.cpp src/platform/nativedialog.h
     src/platform/watchdog.cpp src/platform/watchdog.h
@@ -303,6 +317,7 @@ qt_add_qml_module(TravelPlanner
         qml/components/AiPanel.qml
         qml/components/AiKeyGuide.qml
         qml/components/ExportDialog.qml
+        qml/components/TripFlow.qml
         qml/components/AiProposal.qml
         qml/components/TpIcon.qml
         qml/components/PlanEditor.qml
@@ -401,7 +416,7 @@ add_custom_command(TARGET TravelPlanner POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets/fonts" "$<TARGET_FILE_DIR:TravelPlanner>/assets/fonts"
     # 0.12.5：授权全文放进程序目录的 LICENSES（设置 → 关于能打开）。Qt 自带的那份在打包时加（package.ps1）
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/third_party/maplibre-native-qt/LICENSES" "$<TARGET_FILE_DIR:TravelPlanner>/LICENSES/maplibre-native-qt"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_SOURCE_DIR}/assets/fonts/LICENSE-Material-Symbols.txt" "${CMAKE_SOURCE_DIR}/assets/fonts/LICENSE-NotoSerifCJK.txt" "${CMAKE_SOURCE_DIR}/assets/licenses/LICENSE-suncalc.txt" "$<TARGET_FILE_DIR:TravelPlanner>/LICENSES"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_SOURCE_DIR}/assets/fonts/LICENSE-Material-Symbols.txt" "${CMAKE_SOURCE_DIR}/assets/fonts/LICENSE-NotoSerifCJK.txt" "${CMAKE_SOURCE_DIR}/assets/licenses/LICENSE-suncalc.txt" "${CMAKE_SOURCE_DIR}/assets/licenses/LICENSE-miniz.txt" "$<TARGET_FILE_DIR:TravelPlanner>/LICENSES"
     VERBATIM)
 # 安装目录也要带上（OPTIONAL：文件不存在时跳过，不报错）
 install(FILES "${CMAKE_SOURCE_DIR}/assets/fonts/NotoSerifCJKsc-Regular.otf" "${CMAKE_SOURCE_DIR}/assets/fonts/NotoSerifCJKsc-Bold.otf" OPTIONAL DESTINATION assets/fonts)
