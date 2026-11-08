@@ -62,6 +62,9 @@ bool waitFor(const std::function<bool()> &pred, int timeoutMs)
     t.start();
     while (!pred()) {
         if (t.elapsed() > timeoutMs) return false;
+        // 自检代码一直没回到主事件循环：在这一层 deleteLater 的东西（ListView 换数据时放掉的旧行等），下面嵌套的事件循环不会删，
+        // 会留在树里、isVisible() 还是 true，findShown 会找到旧行（0.12.11 季节表斋月间歇失败）。这里照真程序回到主循环时那样删掉
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
         QEventLoop loop;
         QTimer::singleShot(30, &loop, &QEventLoop::quit);
         loop.exec();
