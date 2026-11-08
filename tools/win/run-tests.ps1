@@ -96,8 +96,8 @@ if (Test-Path (Join-Path $Build 'build.ninja')) {
     Run '生成编译配置' 'cmake' @('-S', $SrcLink, '-B', $Build, '-G', 'Ninja', '-DCMAKE_BUILD_TYPE=RelWithDebInfo', "-DCMAKE_PREFIX_PATH=$Qt", '-DTP_BUILD_TESTS=ON')
 }
 
-Say '[3/4] 编译测试程序（只编 tst_data、tst_app、tst_photo、tst_map、tst_net，不编整个程序）…'
-Run '编译' 'cmake' @('--build', $Build, '--target', 'tst_data', 'tst_app', 'tst_photo', 'tst_map', 'tst_net')
+Say '[3/4] 编译测试程序（只编 tst_data、tst_app、tst_photo、tst_map、tst_net、tst_ai，不编整个程序）…'
+Run '编译' 'cmake' @('--build', $Build, '--target', 'tst_data', 'tst_app', 'tst_photo', 'tst_map', 'tst_net', 'tst_ai')
 }
 
 Say '[4/4] 运行测试…'
@@ -112,7 +112,7 @@ if (Test-Path (Join-Path $DataDir 'data.js')) {
 # 结果文件名只用英文。qt_standard_project_setup 在 Windows 上把所有 exe 放到编译目录顶层（0.3.2 起两个位置都找）。
 # 0.4.0：Qt Test 在 Windows 上按系统的本地代码页（中文系统是 GBK）写结果文件，按 Default 编码读，中文不再乱码。
 $rc = 0
-foreach ($name in 'tst_data', 'tst_app', 'tst_photo', 'tst_map', 'tst_net') {
+foreach ($name in 'tst_data', 'tst_app', 'tst_photo', 'tst_map', 'tst_net', 'tst_ai') {
     $out = Join-Path $Build "$name-output.txt"
     if (Test-Path $out) { Remove-Item $out -Force }
     $exe = @((Join-Path $Build "$name.exe"), (Join-Path $Build "tests\$name.exe")) | Where-Object { Test-Path $_ } | Select-Object -First 1

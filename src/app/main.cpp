@@ -385,6 +385,14 @@ int main(int argc, char *argv[])
     tp::app::NavHistory nav;
     nav.resetTo(plans.mode());   // 0.8.10：从上次的模式开始（地图的四种模式也是"页面"，前进 / 后退按真的模式走）
     tp::app::CommandRanker commands;
+    // 0.13.1 AI 改计划：当前页 / 当前计划（详情页打开的，否则地图上选中的）/ 今天；应用时删掉了选中的计划就取消选中
+    ai.setPlanContext(&ctl, &store, &geocoder,
+        [&nav, &planPage, &mapc, &plans] {
+            const QString page = nav.page();
+            return QVariantMap{ { QStringLiteral("page"), page }, { QStringLiteral("today"), plans.today() },
+                                { QStringLiteral("planId"), page == QLatin1String("trip") ? planPage.planId() : mapc.markers()->selectedPlan() } };
+        },
+        [&mapc](const QStringList &ids) { if (ids.contains(mapc.markers()->selectedPlan())) mapc.markers()->clearSelection(); });
     tp::app::perf::startup("控制器都建好");
 
     if (lastCrash.found)

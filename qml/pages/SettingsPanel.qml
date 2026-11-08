@@ -824,12 +824,25 @@ GlassPanel {
                 SettingsRow {
                     width: parent.width
                     label: qsTr("联网搜索")
-                    sub: qsTr("让 AI 查路线、开放时间等最新信息，每轮最多搜 3 次，每次另收一点费用（下个版本才用上）。")
+                    sub: ai.canWeb ? qsTr("让 AI 查路线、开放时间等最新信息，每轮最多搜 3 次，每次另收一点费用。")
+                                   : qsTr("%1 不能联网搜索，回答只用它已有的知识，回复下面会标“没有联网核实”。").arg(ai.providerName)
                     Segmented {
                         objectName: "aiWeb"
+                        enabled: ai.canWeb
                         options: [{ key: "off", text: qsTr("关") }, { key: "on", text: qsTr("开") }]
                         current: ai.web ? "on" : "off"
                         onPicked: (k) => ai.web = k === "on"
+                    }
+                }
+                SettingsRow {
+                    width: parent.width
+                    label: qsTr("不发消费和订单号")
+                    sub: qsTr("改计划时 AI 会读到当前计划的内容；开着时不发消费、预算、订单号和金额。")
+                    Segmented {
+                        objectName: "aiNoMoney"
+                        options: [{ key: "off", text: qsTr("关") }, { key: "on", text: qsTr("开") }]
+                        current: ai.noMoney ? "on" : "off"
+                        onPicked: (k) => ai.noMoney = k === "on"
                     }
                 }
                 SettingsRow {

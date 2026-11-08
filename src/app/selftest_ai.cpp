@@ -7,6 +7,9 @@
 #include "aicontroller.h"
 #include "appcontroller.h"
 #include "credentials.h"
+#include "datastore.h"
+#include "geocoder.h"
+#include "planedit.h"
 #include "jsonio.h"
 #include "netclient.h"
 #include "settings.h"
@@ -44,6 +47,8 @@ public:
     QTcpServer server;
     QByteArray lastPath, lastBody, lastAuth, lastKey;
     int requests = 0;
+    QList<QByteArray> script;   // 0.13.1：排好的流式回答（每个请求取一个）
+    QList<QByteArray> bodies;   // 收到的请求体
     QList<QPointer<QTcpSocket>> held;   // 停止、卡住时一直不关的连接
 
     FakeAi() { server.listen(QHostAddress::LocalHost, 0); connect(&server, &QTcpServer::newConnection, this, [this] { while (auto *s = server.nextPendingConnection()) serve(s); }); }
@@ -88,10 +93,19 @@ private:
     {
         ++requests;
         lastPath = path; lastBody = body;
+        bodies << body;
+        if (!script.isEmpty() && !path.contains("/models")) {
+            sendHead(s, 200, "text/event-stream");
+            s->write(script.takeFirst());
+            s->flush();
+            s->disconnectFromHost();
+            return;
+        }
         if (path.endsWith("/v1/models?limit=100")) { sendJson(s, 200, R"({"data":[{"id":"claude-test-1"},{"id":"claude-test-2"}]})"); return; }
         if (path.endsWith("/oa/models")) { sendJson(s, 404, R"({"error":{"message":"no list"}})"); return; }
         const QJsonArray msgs = QJsonDocument::fromJson(body).object().value(QStringLiteral("messages")).toArray();
-        const QString last = msgs.isEmpty() ? QString() : msgs.last().toObject().value(QStringLiteral("content")).toString();
+        QString last = msgs.isEmpty() ? QString() : msgs.last().toObject().value(QStringLiteral("content")).toString();
+        if (!msgs.isEmpty()) for (const auto &b : msgs.last().toObject().value(QStringLiteral("content")).toArray()) last += b.toObject().value(QStringLiteral("text")).toString();
         if (last.contains(QLatin1String("E401"))) { sendJson(s, 401, R"({"error":{"type":"authentication_error","message":"invalid x-api-key"}})"); return; }
         sendHead(s, 200, "text/event-stream");
         if (path.endsWith("/v1/messages")) {
@@ -130,11 +144,338 @@ QJsonObject lastOf(AiController *ai, const char *role)
     return {};
 }
 
+
+// ---------------- 0.13.1 改计划（工具、预览、应用、撤销、时间预算、续轮上限、联网次数）----------------
+
+QByteArray sse(const QJsonObject &o) { return "data: " + QJsonDocument(o).toJson(QJsonDocument::Compact) + "\n\n"; }
+QJsonObject J(std::initializer_list<std::pair<QString, QJsonValue>> l) { QJsonObject o; for (const auto &p : l) o.insert(p.first, p.second); return o; }
+
+// Anthropic：可选的思考块（含 signature）+ 一个工具调用（参数分两段）+ 可选的文字
+QByteArray anthTool(const QString &id, const QString &name, const QJsonObject &input, bool thinking, const QString &text = {})
+{
+    QByteArray b = sse(J({ { "type", "message_start" }, { "message", J({ { "usage", J({ { "input_tokens", 3000 }, { "output_tokens", 1 } }) } }) } }));
+    int i = 0;
+    if (thinking) {
+        b += sse(J({ { "type", "content_block_start" }, { "index", i }, { "content_block", J({ { "type", "thinking" }, { "thinking", "" }, { "signature", "" } }) } }));
+        b += sse(J({ { "type", "content_block_delta" }, { "index", i }, { "delta", J({ { "type", "thinking_delta" }, { "thinking", QStringLiteral("想一想") } }) } }));
+        b += sse(J({ { "type", "content_block_delta" }, { "index", i }, { "delta", J({ { "type", "signature_delta" }, { "signature", "sig-abc" } }) } }));
+        b += sse(J({ { "type", "content_block_stop" }, { "index", i } }));
+        ++i;
+    }
+    if (!text.isEmpty()) {
+        b += sse(J({ { "type", "content_block_start" }, { "index", i }, { "content_block", J({ { "type", "text" }, { "text", "" } }) } }));
+        b += sse(J({ { "type", "content_block_delta" }, { "index", i }, { "delta", J({ { "type", "text_delta" }, { "text", text } }) } }));
+        b += sse(J({ { "type", "content_block_stop" }, { "index", i } }));
+        ++i;
+    }
+    if (!name.isEmpty()) {
+        const QString js = QString::fromUtf8(QJsonDocument(input).toJson(QJsonDocument::Compact));
+        b += sse(J({ { "type", "content_block_start" }, { "index", i }, { "content_block", J({ { "type", "tool_use" }, { "id", id }, { "name", name }, { "input", QJsonObject() } }) } }));
+        b += sse(J({ { "type", "content_block_delta" }, { "index", i }, { "delta", J({ { "type", "input_json_delta" }, { "partial_json", js.left(js.size() / 2) } }) } }));
+        b += sse(J({ { "type", "content_block_delta" }, { "index", i }, { "delta", J({ { "type", "input_json_delta" }, { "partial_json", js.mid(js.size() / 2) } }) } }));
+        b += sse(J({ { "type", "content_block_stop" }, { "index", i } }));
+    }
+    b += sse(J({ { "type", "message_delta" }, { "delta", J({ { "stop_reason", name.isEmpty() ? "end_turn" : "tool_use" } }) }, { "usage", J({ { "output_tokens", 300 } }) } }));
+    b += sse(J({ { "type", "message_stop" } }));
+    return b;
+}
+
+// OpenAI 兼容：推理 + 若干工具调用（[id, 名字, 参数]）或文字
+QByteArray oaTools(const QList<std::tuple<QString, QString, QJsonObject>> &calls, const QString &text = {})
+{
+    QByteArray b = sse(J({ { "choices", QJsonArray{ J({ { "delta", J({ { "reasoning_content", QStringLiteral("推理") } }) } }) } } }));
+    for (int i = 0; i < calls.size(); ++i) {
+        const auto &[id, name, args] = calls.at(i);
+        const QString js = QString::fromUtf8(QJsonDocument(args).toJson(QJsonDocument::Compact));
+        b += sse(J({ { "choices", QJsonArray{ J({ { "delta", J({ { "tool_calls", QJsonArray{ J({ { "index", i }, { "id", id }, { "type", "function" }, { "function", J({ { "name", name }, { "arguments", js.left(3) } }) } }) } } }) } }) } } }));
+        b += sse(J({ { "choices", QJsonArray{ J({ { "delta", J({ { "tool_calls", QJsonArray{ J({ { "index", i }, { "function", J({ { "arguments", js.mid(3) } }) } }) } } }) } }) } } }));
+    }
+    if (!text.isEmpty()) b += sse(J({ { "choices", QJsonArray{ J({ { "delta", J({ { "content", text } }) } }) } } }));
+    b += sse(J({ { "choices", QJsonArray{ J({ { "delta", QJsonObject() }, { "finish_reason", calls.isEmpty() ? "stop" : "tool_calls" } }) } } }));
+    b += sse(J({ { "choices", QJsonArray() }, { "usage", J({ { "prompt_tokens", 2000 }, { "completion_tokens", 100 } }) } }));
+    b += "data: [DONE]\n\n";
+    return b;
+}
+
+QVariantMap lastProps(AiController *ai, int k = 0)
+{
+    const QVariantList m = ai->messages();
+    for (qsizetype i = m.size() - 1; i >= 0; --i) {
+        const QVariantList ps = m.at(i).toMap().value(QStringLiteral("props")).toList();
+        if (ps.size() > k) return ps.at(k).toMap();
+    }
+    return {};
+}
+int countBeforeAi(const QString &dir) { return QDir(dir).entryList({ QStringLiteral("travel.before-ai-*.json") }, QDir::Files).size(); }
+const json::Value *planIn(const json::Value &root, const QString &id) { return tp::map::planedit::findPlan(root, id); }
+QString jstr(const json::Value &v) { return json::stringify(v, 0); }
+
+void runTools(Report &r, AppController *app, AiController *ai, FakeAi &fake, AiController::TestHooks h, const QString &chats)
+{
+    r.section(QStringLiteral("0.13.1 AI 改计划（工具、预览、应用、撤销）"));
+    data::DataStore *store = app->store();
+    const auto idle = [&](int ms = 8000) { return waitFor([ai] { return !ai->busy(); }, ms); };
+    const json::Value original = store->data();
+    // 自检用的计划（数据是验证用的副本）：p_aitest 三站 + 交通住宿 / 待办 / 行李各两条，s_a 有走路的折线、s_b 有一张照片；p_aidel 用来删
+    store->modify([](json::Value &d) {
+        const json::Value fx = json::parse(QString::fromUtf8(R"({"plans":[
+          {"id":"p_aitest","name":"AI自检","type":"route","status":"planning","startDate":"2026-12-01","endDate":"2026-12-04","notes":"","stops":[
+            {"id":"s_a","name":"Kyoto","lat":35.0,"lng":135.75,"arriveDate":"2026-12-01","departDate":"","schedule":[{"date":"2026-12-01","text":"早饭"},{"date":"2026-12-01","time":"10:00","text":"博物馆"}],"leg":{"mode":"walk","path":"abc","key":"k","dist":10,"time":20}},
+            {"id":"s_b","name":"Nara","lat":34.68,"lng":135.8,"arriveDate":"","departDate":"","schedule":[]},
+            {"id":"s_c","name":"Osaka","lat":34.69,"lng":135.5,"arriveDate":"","departDate":"","schedule":[]}],
+           "bookings":[{"id":"bk_a","kind":"flight","title":"航班"},{"id":"bk_b","kind":"hotel","title":"酒店"}],
+           "todos":[{"id":"td_a","text":"办签证","done":false},{"id":"td_b","text":"换钱","done":false}],
+           "packing":[{"id":"pk_a","text":"护照","done":false},{"id":"pk_b","text":"充电器","done":false}],
+           "expenses":[{"id":"ex_a","amount":12,"note":"秘密的消费"}]},
+          {"id":"p_aidel","name":"AI要删的","type":"single","status":"wish","stops":[]}],
+          "photos":[{"id":"ph_aitest","file":"photos/x.jpg","plan":"p_aitest","stop":"s_b"}]})"));
+        json::Array &ps = d.mutObject().find(QStringLiteral("plans"))->mutArray();
+        for (const json::Value &p : fx[QStringLiteral("plans")].asArray()) ps.push_back(p);
+        if (!d.mutObject().find(QStringLiteral("photos"))) d.mutObject().set(QStringLiteral("photos"), json::Value::array());
+        d.mutObject().find(QStringLiteral("photos"))->mutArray().push_back(fx[QStringLiteral("photos")].asArray().front());
+    });
+    app->commitStep();
+    // 地名搜索换成假的：岚山附近有一个结果（在 5 公里内 → 核对过）
+    services::Geocoder *geo = geocoderCtl();
+    if (geo) geo->setFetchForTest([](const QUrl &, std::function<void(int, const QByteArray &, int)> done) {
+        QTimer::singleShot(10, [done] { done(200, R"([{"name":"Test Place","display_name":"Test Place, Kyoto, Japan","lat":"35.0102","lon":"135.0101"}])", 0); });
+    });
+    ai->setProvider(QStringLiteral("claude"));
+    ai->setTier(QStringLiteral("balanced"));
+    ai->setWeb(true);
+    ai->newChat();
+
+    // ---- Anthropic：读计划（带思考块）→ 自动续轮 → propose_changes（20 种 op）----
+    const QJsonArray changes{
+        J({ { "op", "create_plan" }, { "new_id", "new1" }, { "name", QStringLiteral("AI新计划") }, { "startDate", "2027-01-01" }, { "endDate", "2027-01-03" } }),
+        J({ { "op", "add_stop" }, { "plan_id", "new1" }, { "name", QStringLiteral("新站") }, { "lat", 35.01 }, { "lng", 135.01 } }),
+        J({ { "op", "update_plan" }, { "name", QStringLiteral("AI自检改") } }),
+        J({ { "op", "delete_plan" }, { "plan_id", "p_aidel" } }),
+        J({ { "op", "set_days" }, { "days", 5 } }),
+        J({ { "op", "add_stop" }, { "name", QStringLiteral("加的站") }, { "lat", 35.01 }, { "lng", 135.01 }, { "after_stop_id", "s_a" }, { "legMode", "train" } }),
+        J({ { "op", "update_stop" }, { "stop_id", "s_c" }, { "notes", QStringLiteral("改备注") } }),
+        J({ { "op", "remove_stop" }, { "stop_id", "s_b" } }),
+        J({ { "op", "move_stop" }, { "stop_id", "s_c" }, { "after_stop_id", "start" } }),
+        J({ { "op", "add_schedule" }, { "stop_id", "s_a" }, { "text", QStringLiteral("晚饭") }, { "time", "19:00" } }),
+        J({ { "op", "update_schedule" }, { "stop_id", "s_a" }, { "n", 2 }, { "text", QStringLiteral("美术馆") } }),
+        J({ { "op", "remove_schedule" }, { "stop_id", "s_a" }, { "n", 1 } }),
+        J({ { "op", "add_booking" }, { "kind", "train" }, { "title", QStringLiteral("火车") } }),
+        J({ { "op", "update_booking" }, { "booking_id", "bk_a" }, { "title", QStringLiteral("新航班") } }),
+        J({ { "op", "remove_booking" }, { "booking_id", "bk_b" } }),
+        J({ { "op", "add_todo" }, { "text", QStringLiteral("买票") }, { "date", "2026-11-30" } }),
+        J({ { "op", "update_todo" }, { "todo_id", "td_a" }, { "done", true } }),
+        J({ { "op", "remove_todo" }, { "todo_id", "td_b" } }),
+        J({ { "op", "add_packing" }, { "text", QStringLiteral("雨伞") } }),
+        J({ { "op", "update_packing" }, { "packing_id", "pk_a" }, { "text", QStringLiteral("护照夹") } }),
+        J({ { "op", "remove_packing" }, { "packing_id", "pk_b" } }) };
+    fake.bodies.clear();
+    fake.script = { anthTool(QStringLiteral("toolu_read"), QStringLiteral("get_plans"), J({ { "plan_ids", QJsonArray{ "p_aitest" } } }), true),
+                    anthTool(QStringLiteral("toolu_prop"), QStringLiteral("propose_changes"), J({ { "summary", QStringLiteral("全部 20 种") }, { "plan_id", "p_aitest" }, { "changes", changes },
+                                                                                                  { "gaps", QJsonArray{ J({ { "text", QStringLiteral("查火车时刻") }, { "search", true } }) } } }), false, QStringLiteral("改好了。")) };
+    ai->send(QStringLiteral("帮我改一下 AI自检"));
+    r.check(idle() && fake.bodies.size() == 2, QStringLiteral("读计划后自动续一轮（共 2 个请求）"), QString::number(fake.bodies.size()));
+    const QJsonObject b0 = QJsonDocument::fromJson(fake.bodies.value(0)).object();
+    QStringList toolNames;
+    int maxUses = 0;
+    for (const auto &t : b0.value(QStringLiteral("tools")).toArray()) { toolNames << t.toObject().value(QStringLiteral("name")).toString(); if (t.toObject().contains(QStringLiteral("max_uses"))) maxUses = t.toObject().value(QStringLiteral("max_uses")).toInt(); }
+    r.check(toolNames == QStringList{ "get_plans", "research_status", "propose_changes", "web_search" } && maxUses == 3, QStringLiteral("Claude 带四个工具，联网搜索每轮最多 3 次"), toolNames.join(u','));
+    const QJsonArray sys = b0.value(QStringLiteral("system")).toArray();
+    r.check(sys.size() == 2 && sys.at(0).toObject().contains(QStringLiteral("cache_control")) && !sys.at(1).toObject().contains(QStringLiteral("cache_control"))
+            && sys.at(0).toObject().value(QStringLiteral("text")).toString().contains(QStringLiteral("p_aitest")) && sys.at(1).toObject().value(QStringLiteral("text")).toString().contains(QStringLiteral("现在的情况"))
+            && !sys.at(0).toObject().value(QStringLiteral("text")).toString().contains(QStringLiteral("读不到")),
+            QStringLiteral("system：规则 + 简表打缓存标记，现在的情况放后面；不再说看不到计划"));
+    const QString b1 = QString::fromUtf8(fake.bodies.value(1));
+    const QJsonArray m1 = QJsonDocument::fromJson(fake.bodies.value(1)).object().value(QStringLiteral("messages")).toArray();
+    const QJsonArray amContent = m1.size() >= 2 ? m1.at(m1.size() - 2).toObject().value(QStringLiteral("content")).toArray() : QJsonArray();
+    r.check(!amContent.isEmpty() && amContent.at(0).toObject().value(QStringLiteral("type")) == QLatin1String("thinking") && amContent.at(0).toObject().value(QStringLiteral("signature")) == QLatin1String("sig-abc")
+            && amContent.at(1).toObject().value(QStringLiteral("type")) == QLatin1String("tool_use"),
+            QStringLiteral("思考块连 signature 原样回传，后面跟工具调用"), QString::fromUtf8(QJsonDocument(amContent).toJson(QJsonDocument::Compact)).left(200));
+    const QJsonObject tr0 = m1.isEmpty() ? QJsonObject() : m1.last().toObject().value(QStringLiteral("content")).toArray().at(0).toObject();
+    r.check(tr0.value(QStringLiteral("type")) == QLatin1String("tool_result") && tr0.value(QStringLiteral("tool_use_id")) == QLatin1String("toolu_read") && tr0.value(QStringLiteral("content")).toString().contains(QStringLiteral("AI自检"))
+            && !tr0.value(QStringLiteral("content")).toString().contains(QStringLiteral("秘密的消费")) && !tr0.value(QStringLiteral("content")).toString().contains(QStringLiteral("\"path\"")),
+            QStringLiteral("get_plans 的结果回传：有计划内容，不带消费（默认不发）、不带折线"));
+    r.check(b1.contains(QStringLiteral("AI自检")), QStringLiteral("请求里带上计划"));
+    QVariantMap P = lastProps(ai);
+    r.check(P.value(QStringLiteral("state")) == QLatin1String("open") && P.value(QStringLiteral("total")).toInt() == 21 && P.value(QStringLiteral("nOk")).toInt() == 21,
+            QStringLiteral("20 种 op 都认领到了（21 项、默认全勾）"), QStringLiteral("%1 %2/%3").arg(P.value(QStringLiteral("state")).toString()).arg(P.value(QStringLiteral("nOk")).toInt()).arg(P.value(QStringLiteral("total")).toInt()));
+    r.check(waitFor([ai] { return !lastProps(ai).value(QStringLiteral("busyGeo")).toBool(); }, 6000), QStringLiteral("add_stop 用地名搜索核对完坐标"));
+    bool geoOk = false;
+    for (const QVariant &g : lastProps(ai).value(QStringLiteral("groups")).toList())
+        for (const QVariant &row : g.toMap().value(QStringLiteral("rows")).toList())
+            if (row.toMap().value(QStringLiteral("geo")).toMap().value(QStringLiteral("state")) == QLatin1String("ok")) geoOk = true;
+    r.check(geoOk, QStringLiteral("坐标在 5 公里内：标“核对过”"));
+    bool actOk = false;
+    for (const QVariant &m : ai->messages()) actOk = actOk || m.toMap().value(QStringLiteral("act")).toStringList().join(u' ').contains(QStringLiteral("读了「AI自检」"));
+    r.check(actOk, QStringLiteral("回答上面写读了哪个计划"));
+
+    // ---- 应用（含 AI 修改前备份）→ 撤销 → 重做 ----
+    const int backups0 = countBeforeAi(store->dataDir());
+    const json::Value pre = store->data();
+    const int mi = P.value(QStringLiteral("mi")).toInt();
+    ai->applyProposal(mi, 0);
+    P = lastProps(ai);
+    r.check(P.value(QStringLiteral("state")) == QLatin1String("applied") && P.value(QStringLiteral("applied")).toInt() == 21, QStringLiteral("应用 21 项"), QString::number(P.value(QStringLiteral("applied")).toInt()));
+    r.check(countBeforeAi(store->dataDir()) == std::min(backups0 + 1, 10), QStringLiteral("应用前存了一份 travel.before-ai-*.json"), QStringLiteral("%1 → %2").arg(backups0).arg(countBeforeAi(store->dataDir())));
+    const json::Value &d = store->data();
+    const json::Value *pt = planIn(d, QStringLiteral("p_aitest"));
+    QStringList order;
+    if (pt) for (const json::Value &s : (*pt)[QStringLiteral("stops")].asArray()) order << s[QStringLiteral("name")].toString();
+    r.check(pt && (*pt)[QStringLiteral("name")].toString() == QStringLiteral("AI自检改") && (*pt)[QStringLiteral("days")].toNumber() == 5, QStringLiteral("update_plan、set_days"));
+    r.check(order == QStringList{ QStringLiteral("Osaka"), QStringLiteral("Kyoto"), QStringLiteral("加的站") }, QStringLiteral("add_stop（放在后面）、remove_stop、move_stop（最前面）"), order.join(u','));
+    const json::Value *sa = nullptr;
+    if (pt) for (const json::Value &s : (*pt)[QStringLiteral("stops")].asArray()) if (s[QStringLiteral("id")].toString() == QLatin1String("s_a")) sa = &s;
+    QStringList sched;
+    if (sa) for (const json::Value &it : (*sa)[QStringLiteral("schedule")].asArray()) sched << it[QStringLiteral("text")].toString();
+    r.check(sched == QStringList{ QStringLiteral("美术馆"), QStringLiteral("晚饭") }, QStringLiteral("add_schedule、update_schedule、remove_schedule（序号先认领好，删前一条不指错）"), sched.join(u','));
+    r.check(sa && (*sa)[QStringLiteral("leg")][QStringLiteral("path")].isNull() && (*sa)[QStringLiteral("leg")][QStringLiteral("mode")].toString() == QLatin1String("walk"), QStringLiteral("前一站去下一站的折线清掉了，方式留着"));
+    const QString ptext = pt ? jstr(*pt) : QString();
+    r.check(ptext.contains(QStringLiteral("改备注")) && ptext.contains(QStringLiteral("新航班")) && ptext.contains(QStringLiteral("火车")) && !ptext.contains(QStringLiteral("酒店")),
+            QStringLiteral("update_stop、add / update / remove_booking"));
+    r.check(ptext.contains(QStringLiteral("买票")) && ptext.contains(QStringLiteral("\"due\":\"2026-11-30\"")) && !ptext.contains(QStringLiteral("换钱")) && ptext.contains(QStringLiteral("雨伞")) && ptext.contains(QStringLiteral("护照夹")) && !ptext.contains(QStringLiteral("充电器")),
+            QStringLiteral("add / update / remove_todo、add / update / remove_packing"));
+    r.check(ptext.contains(QStringLiteral("{\"id\":\"td_a\",\"text\":\"办签证\",\"done\":true}")), QStringLiteral("update_todo 标记完成"));
+    r.check(!planIn(d, QStringLiteral("p_aidel")), QStringLiteral("delete_plan"));
+    bool newOk = false;
+    for (const json::Value &p : d[QStringLiteral("plans")].asArray())
+        if (p[QStringLiteral("name")].toString() == QStringLiteral("AI新计划")) newOk = p[QStringLiteral("stops")].asArray().size() == 1 && p[QStringLiteral("startDate")].toString() == QLatin1String("2027-01-01");
+    r.check(newOk, QStringLiteral("create_plan + 往新计划 add_stop"));
+    QString phPlan = QStringLiteral("?");
+    for (const json::Value &ph : d[QStringLiteral("photos")].asArray()) if (ph[QStringLiteral("id")].toString() == QLatin1String("ph_aitest")) phPlan = ph[QStringLiteral("plan")].toString();
+    r.check(phPlan.isEmpty(), QStringLiteral("删掉的站点的照片移到“未归类”"));
+    r.check(!jstr(d).contains(QStringLiteral("_aiMark")), QStringLiteral("临时记号没留下"));
+    r.check(!store->isDirty(), QStringLiteral("应用后马上存好"));
+    const QString res = lastOf(ai, "assistant").isEmpty() ? QString() : QString();
+    Q_UNUSED(res);
+    const json::Value post = store->data();
+    app->undo();
+    r.check(jstr(store->data()[QStringLiteral("plans")]) == jstr(pre[QStringLiteral("plans")]) && jstr(store->data()[QStringLiteral("photos")]) == jstr(pre[QStringLiteral("photos")]),
+            QStringLiteral("Ctrl+Z 一步撤回全部 21 项（数据和应用前一样）"));
+    r.check(lastProps(ai).value(QStringLiteral("state")) == QLatin1String("undone"), QStringLiteral("预览标“已撤销”"));
+    app->redo();
+    r.check(jstr(store->data()[QStringLiteral("plans")]) == jstr(post[QStringLiteral("plans")]) && lastProps(ai).value(QStringLiteral("state")) == QLatin1String("applied"), QStringLiteral("Ctrl+Y 重做：数据回来，预览标回“已应用”"));
+
+    // ---- 找不到的目标标红；回传上一份预览的结果 ----
+    fake.bodies.clear();
+    fake.script = { anthTool(QStringLiteral("toolu_bad"), QStringLiteral("propose_changes"), J({ { "summary", "bad" }, { "plan_id", "p_aitest" }, { "changes", QJsonArray{
+        J({ { "op", "update_stop" }, { "stop_id", "s_none" }, { "notes", "x" } }), J({ { "op", "remove_todo" }, { "todo_id", "td_none" } }),
+        J({ { "op", "update_plan" }, { "plan_id", "p_none" }, { "name", "x" } }), J({ { "op", "update_schedule" }, { "stop_id", "s_a" }, { "n", 99 }, { "text", "x" } }),
+        J({ { "op", "add_todo" }, { "text", QStringLiteral("能用的一项") } }) } } }), false) };
+    ai->send(QStringLiteral("再改"));
+    idle();
+    P = lastProps(ai);
+    QStringList bads;
+    for (const QVariant &g : P.value(QStringLiteral("groups")).toList())
+        for (const QVariant &row : g.toMap().value(QStringLiteral("rows")).toList()) if (!row.toMap().value(QStringLiteral("bad")).toString().isEmpty()) bads << row.toMap().value(QStringLiteral("bad")).toString();
+    r.check(bads.size() == 4 && P.value(QStringLiteral("nOn")).toInt() == 1 && P.value(QStringLiteral("nOk")).toInt() == 1, QStringLiteral("找不到的站点 / 待办 / 计划 / 日程标红、不勾，能用的照常勾"), bads.join(u'|'));
+    r.check(QString::fromUtf8(fake.bodies.value(0)).contains(QStringLiteral("用户应用了 21 项")), QStringLiteral("上一份预览应用的结果回传给 AI"));
+
+    // ---- AI 备份只留 10 份 ----
+    int tick = 0;
+    const QDateTime base = QDateTime::currentDateTime().addDays(1);
+    store->setClock([&tick, base] { return base.addSecs(++tick); });
+    for (int i = 0; i < 12; ++i) store->snapshotBeforeAi();
+    store->setClock({});
+    r.check(countBeforeAi(store->dataDir()) == 10, QStringLiteral("AI 修改前的备份只留最近 10 份"), QString::number(countBeforeAi(store->dataDir())));
+
+    // ---- 恢复历史：没应用的预览标“已过期” ----
+    ai->setChatsFile(chats);
+    r.check(lastProps(ai).value(QStringLiteral("state")) == QLatin1String("expired"), QStringLiteral("重新打开后，没应用的预览标“已过期”"), lastProps(ai).value(QStringLiteral("state")).toString());
+
+    // ---- OpenAI 兼容（DeepSeek）：工具调用往返，reasoning_content 回传；没有联网 ----
+    ai->setProvider(QStringLiteral("deepseek"));
+    ai->newChat();
+    fake.bodies.clear();
+    fake.script = { oaTools({ { QStringLiteral("call_1"), QStringLiteral("get_plans"), J({ { "plan_ids", QJsonArray{ "p_aitest" } } }) } }),
+                    oaTools({}, QStringLiteral("好的，看过了。")) };
+    ai->send(QStringLiteral("看看计划"));
+    r.check(idle() && fake.bodies.size() == 2, QStringLiteral("OpenAI 兼容：读计划后自动续一轮"));
+    const QJsonObject ob0 = QJsonDocument::fromJson(fake.bodies.value(0)).object();
+    QStringList oaNames;
+    for (const auto &t : ob0.value(QStringLiteral("tools")).toArray()) oaNames << t.toObject().value(QStringLiteral("type")).toString() + u':' + t.toObject().value(QStringLiteral("function")).toObject().value(QStringLiteral("name")).toString();
+    r.check(oaNames == QStringList{ "function:get_plans", "function:research_status", "function:propose_changes" } && !ob0.contains(QStringLiteral("enable_search")), QStringLiteral("函数工具形状；DeepSeek 不带联网"), oaNames.join(u','));
+    const QJsonArray om = QJsonDocument::fromJson(fake.bodies.value(1)).object().value(QStringLiteral("messages")).toArray();
+    const QJsonObject oaAm = om.size() >= 2 ? om.at(om.size() - 2).toObject() : QJsonObject();
+    const QJsonObject oaTool = om.isEmpty() ? QJsonObject() : om.last().toObject();
+    r.check(oaAm.value(QStringLiteral("reasoning_content")) == QStringLiteral("推理") && oaAm.value(QStringLiteral("tool_calls")).toArray().at(0).toObject().value(QStringLiteral("id")) == QLatin1String("call_1"),
+            QStringLiteral("带工具时 reasoning_content 和 tool_calls 原样回传"), QString::fromUtf8(QJsonDocument(oaAm).toJson(QJsonDocument::Compact)).left(200));
+    r.check(oaTool.value(QStringLiteral("role")) == QLatin1String("tool") && oaTool.value(QStringLiteral("tool_call_id")) == QLatin1String("call_1") && oaTool.value(QStringLiteral("content")).toString().contains(QStringLiteral("AI自检")),
+            QStringLiteral("工具结果用 role = tool 回传"));
+    r.check(lastOf(ai, "assistant").value(QStringLiteral("noWeb")).toBool(), QStringLiteral("没有联网能力的家：回复下标“没有联网核实”"));
+
+    // ---- Kimi：内置 $web_search，每次请求最多回传 3 次 ----
+    ai->setProvider(QStringLiteral("kimi"));
+    ai->setKey(QStringLiteral("sk-selftest-kimi-0000"));
+    fake.bodies.clear();
+    QList<std::tuple<QString, QString, QJsonObject>> four;
+    for (int i = 1; i <= 4; ++i) four << std::tuple{ QStringLiteral("ws_%1").arg(i), QStringLiteral("$web_search"), J({ { "search_result", J({ { "search_id", QStringLiteral("q%1").arg(i) } }) } }) };
+    fake.script = { oaTools(four), oaTools({}, QStringLiteral("查到了。")) };
+    if (!ai->send(QStringLiteral("查一下"))) ai->confirmTell();
+    r.check(idle() && fake.bodies.size() == 2, QStringLiteral("Kimi 联网：搜完自动续一轮"));
+    QStringList kNames;
+    for (const auto &t : QJsonDocument::fromJson(fake.bodies.value(0)).object().value(QStringLiteral("tools")).toArray()) kNames << t.toObject().value(QStringLiteral("type")).toString();
+    int echoed = 0, refused = 0;
+    for (const auto &m : QJsonDocument::fromJson(fake.bodies.value(1)).object().value(QStringLiteral("messages")).toArray()) {
+        const QJsonObject o = m.toObject();
+        if (o.value(QStringLiteral("role")) != QLatin1String("tool")) continue;
+        if (o.value(QStringLiteral("content")).toString().contains(QStringLiteral("search_id"))) ++echoed;
+        else if (o.value(QStringLiteral("content")).toString().contains(QStringLiteral("3 次"))) ++refused;
+    }
+    r.check(kNames.contains(QStringLiteral("builtin_function")) && echoed == 3 && refused == 1, QStringLiteral("联网次数上限：4 次里回传 3 次，第 4 次回绝"), QStringLiteral("%1 echo=%2 refused=%3").arg(kNames.join(u',')).arg(echoed).arg(refused));
+    bool searchedMeta = false;
+    for (const QVariant &m : ai->messages()) searchedMeta = searchedMeta || m.toMap().value(QStringLiteral("meta")).toString().contains(QStringLiteral("搜索 3 次"));
+    r.check(searchedMeta && !lastOf(ai, "assistant").value(QStringLiteral("noWeb")).toBool(), QStringLiteral("搜索次数记进用量；联网的家不标“没有联网核实”"));
+
+    // ---- 时间预算：剩不到 45 秒提醒；剩不到 5 秒停下来问；继续查 ----
+    ai->setProvider(QStringLiteral("claude"));
+    ai->newChat();
+    fake.bodies.clear();
+    fake.script = { anthTool(QStringLiteral("rs1"), QStringLiteral("research_status"), J({ { "todo", QJsonArray{ "a", "b" } }, { "remaining_seconds", 30 } }), false),
+                    anthTool(QString(), QString(), {}, false, QStringLiteral("查完了。")) };
+    ai->send(QStringLiteral("补充一下"));
+    idle();
+    r.check(fake.bodies.size() == 2 && QString::fromUtf8(fake.bodies.value(1)).contains(QStringLiteral("剩下的时间不多")), QStringLiteral("预算 30 秒：自动续轮，并提醒剩下的时间不多（< 45 秒）"));
+    h.budgetMul = 0.1;   // 10 秒的预算缩成 1 秒：第一次汇报就到点
+    ai->setTestHooks(h);
+    ai->newChat();
+    fake.bodies.clear();
+    fake.script = { anthTool(QStringLiteral("rs2"), QStringLiteral("research_status"), J({ { "todo", QJsonArray{ "a", "b" } }, { "remaining_seconds", 10 } }), false) };
+    ai->send(QStringLiteral("补充一下"));
+    idle();
+    pause(1100);
+    QVariantMap rs = lastOf(ai, "assistant").value(QStringLiteral("research")).toObject().toVariantMap();
+    // 第一次汇报时预算 = 已用 + 1 秒，离到点还有约 1 秒（≤ 5 秒）→ 停下
+    r.check(fake.bodies.size() == 1 && rs.value(QStringLiteral("paused")).toBool(), QStringLiteral("剩不到 5 秒：停下来问“继续查 / 先到这里”，不再自动续"), QString::number(fake.bodies.size()));
+    fake.script = { anthTool(QStringLiteral("rs3"), QStringLiteral("research_status"), J({ { "todo", QJsonArray() }, { "remaining_seconds", 10 }, { "finished", true } }), false, QStringLiteral("都查完了。")) };
+    int rmi = -1;
+    const QVariantList ms = ai->messages();
+    for (int i = 0; i < ms.size(); ++i) if (ms.at(i).toMap().contains(QStringLiteral("research"))) rmi = i;
+    ai->researchAnswer(rmi, true);
+    idle();
+    r.check(fake.bodies.size() == 2 && QString::fromUtf8(fake.bodies.value(1)).contains(QStringLiteral("继续查")), QStringLiteral("点“继续查”接着问（预算延长）"));
+    h.budgetMul = 1;
+    ai->setTestHooks(h);
+
+    // ---- 自动续轮最多 12 轮 ----
+    ai->newChat();
+    fake.bodies.clear();
+    fake.script.clear();
+    for (int i = 0; i < 14; ++i) fake.script << anthTool(QStringLiteral("loop%1").arg(i), QStringLiteral("get_plans"), J({ { "plan_ids", QJsonArray{ "p_aitest" } } }), false);
+    ai->send(QStringLiteral("一直读"));
+    idle(20000);
+    r.check(fake.bodies.size() == 13 && lastMsg(ai).value(QStringLiteral("text")).toString().contains(QStringLiteral("上限")), QStringLiteral("自动续轮到 12 轮停下（共 13 个请求）"), QString::number(fake.bodies.size()));
+    fake.script.clear();
+
+    // 还原数据（这一段加的计划、改动都撤掉）
+    if (geo) geo->setFetchForTest({});
+    store->modify([&original](json::Value &dd) { dd = original; });
+    app->commitStep();
+    ai->newChat();
+}
+
 } // namespace
 
 void runAi(Report &r, AppController *app, QQuickWindow *win, services::NetClient *net)
 {
-    Q_UNUSED(app);
     r.section(QStringLiteral("0.13.0 AI 助手（本机假服务器）"));
     AiController *ai = aiCtl();
     Settings *st = settingsObj();
@@ -153,7 +494,7 @@ void runAi(Report &r, AppController *app, QQuickWindow *win, services::NetClient
     st->setValue(QStringLiteral("aiUsage"), json::Value());
     net->setOffline(false);
     net->setServiceEnabled(QStringLiteral("ai"), true);
-    for (const char *id : { "claude", "deepseek", "custom" }) platform::credentials::remove(prefix + QLatin1String(id));
+    for (const char *id : { "claude", "deepseek", "custom", "kimi" }) platform::credentials::remove(prefix + QLatin1String(id));
     AiController::TestHooks h;
     h.credPrefix = prefix;
     h.chatsFile = chats;
@@ -322,8 +663,10 @@ void runAi(Report &r, AppController *app, QQuickWindow *win, services::NetClient
     }
     if (panel) panel->setProperty("open", false);
 
+    runTools(r, app, ai, fake, h, chats);   // 0.13.1
+
     // 收尾：删掉测试钥匙、还原设置
-    for (const char *id : { "claude", "deepseek", "custom" }) platform::credentials::remove(prefix + QLatin1String(id));
+    for (const char *id : { "claude", "deepseek", "custom", "kimi" }) platform::credentials::remove(prefix + QLatin1String(id));
     st->setValue(QStringLiteral("ai"), oldAi);
     st->setValue(QStringLiteral("aiUsage"), oldUsage);
     st->save();

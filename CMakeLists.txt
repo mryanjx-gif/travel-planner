@@ -3,7 +3,7 @@
 # 规则（PO 2026-11-02）：大更新改第一位，中等更新改第二位，小修改改第三位；正式版之前是 0.x.y，正式版 1.0.0。
 cmake_minimum_required(VERSION 3.24)
 
-set(TP_VERSION "0.13.0")
+set(TP_VERSION "0.13.1")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TP_VERSION_NUMERIC "${TP_VERSION}")
 
 project(TravelPlannerNative
@@ -135,10 +135,11 @@ add_library(tp_ai STATIC
     src/ai/aistream.cpp src/ai/aistream.h
     src/ai/aiclient.cpp src/ai/aiclient.h
     src/ai/aiprompt.cpp src/ai/aiprompt.h
+    src/ai/aitools.cpp src/ai/aitools.h
     src/platform/credentials.cpp src/platform/credentials.h
 )
 target_include_directories(tp_ai PUBLIC src/ai src/platform)
-target_link_libraries(tp_ai PUBLIC tp_core Qt6::Core Qt6::Network)
+target_link_libraries(tp_ai PUBLIC tp_core tp_map Qt6::Core Qt6::Network)   # 0.13.1 aitools 改计划用 tp_map 的 planedit
 if(WIN32)
     target_link_libraries(tp_ai PUBLIC advapi32)   # CredWriteW / CredReadW / CredDeleteW（系统库）
 endif()
@@ -291,6 +292,7 @@ qt_add_qml_module(TravelPlanner
         qml/components/CommandPalette.qml
         qml/components/RoundButton.qml
         qml/components/AiPanel.qml
+        qml/components/AiProposal.qml
         qml/components/TpIcon.qml
         qml/components/PlanEditor.qml
         qml/components/DateField.qml

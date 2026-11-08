@@ -645,6 +645,7 @@ void AppController::undoRedo(int dir)
         data::UndoStack::Suppress s(m_undo);   // 撤销后的这次保存不再记一步
         ok = doSave(false, true);
     }
+    emit undoApplied(dir);
     qInfo("%s（%s）", dir < 0 ? "撤销" : "重做", ok ? "已保存" : "没保存");
     if (ok) emit toast(dir < 0 ? tp::tr("已撤销上一步（已保存）") : tp::tr("已重做（已保存）"), false);
 }

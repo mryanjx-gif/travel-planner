@@ -1,5 +1,6 @@
 // AI 助手面板（0.13.0，I-11；Electron assistant.js build / draw）：液态玻璃，右下 AI 泡泡上方。
-// 这一批能聊天（不带工具、不改计划）：Enter 发送 / Shift+Enter 换行 / 输入法组字时不误发（TpField）、■ 停止、
+// 0.13.1 能改计划：回答里的修改预览（AiProposal）、查找进度和"继续查 / 先到这里"、做了什么（读了哪些计划、查了什么）、"没有联网核实"。
+// 0.13.0：Enter 发送 / Shift+Enter 换行 / 输入法组字时不误发（TpField）、■ 停止、
 // 快捷动作、麦克风（替用户按 Win+H）、每条回复下小字写 token 和花费；没钥匙时显示引导卡；第一次发给某家前提示一次。
 import QtQuick
 import TPApp
@@ -182,7 +183,7 @@ GlassPanel {
                     Text {
                         width: parent.width
                         wrapMode: Text.Wrap
-                        text: qsTr("可以问行程、交通、季节。这一版还看不到你的计划，也不会改它。")
+                        text: qsTr("可以问行程、交通、季节，或者让我改某个计划。改动会先给你预览，勾选后才写入。") + (ai.noMoney ? qsTr("发给 AI 的内容不含消费和订单号。") : "")
                         font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.text
                     }
                     Flow {
@@ -212,7 +213,8 @@ GlassPanel {
                 required property int index
                 readonly property string role: modelData.role
                 width: list.width
-                height: role === "user" ? bubble.height : role === "note" ? noteBox.height : botCol.height
+                visible: !modelData.hidden
+                height: modelData.hidden ? 0 : role === "user" ? bubble.height : role === "note" ? noteBox.height : botCol.height
                 // 用户的话：右边的浅色气泡
                 Rectangle {
                     id: bubble
@@ -277,6 +279,15 @@ GlassPanel {
                     readonly property bool live: msg.modelData.live === true
                     readonly property string thinking: live ? ai.liveThinking : (msg.modelData.thinking || "")
                     Text {
+                        objectName: "aiAct"
+                        visible: (msg.modelData.act || []).length > 0
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: (msg.modelData.act || []).join(" · ")
+                        font.family: serifFamily; font.pixelSize: Theme.px(11.5); color: Theme.muted
+                    }
+                    Text {
                         visible: botCol.thinking !== ""
                         width: parent.width
                         elide: Text.ElideRight
@@ -299,6 +310,58 @@ GlassPanel {
                         visible: botCol.live && ai.liveText === "" && botCol.thinking === ""
                         text: "…"
                         font.pixelSize: Theme.px(18); color: Theme.muted
+                    }
+                    Text {
+                        objectName: "aiNoWeb"
+                        visible: !botCol.live && msg.modelData.noWeb === true
+                        text: "⊘ " + qsTr("没有联网核实")
+                        font.family: serifFamily; font.pixelSize: Theme.px(11); color: Theme.warn
+                    }
+                    // 查找进度（research_status）：到预计时间停下来问
+                    Rectangle {
+                        objectName: "aiResearch"
+                        visible: !!msg.modelData.research
+                        width: parent.width
+                        height: visible ? rsCol.height + Theme.px(16) : 0
+                        radius: Theme.radiusSmall
+                        readonly property var r: msg.modelData.research || ({})
+                        color: r.paused ? "#ffffff" : Qt.rgba(1, 1, 1, 0.55)
+                        border.width: 1; border.color: r.paused ? Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, 0.5) : Theme.line
+                        Column {
+                            id: rsCol
+                            x: Theme.px(12); y: Theme.px(8)
+                            width: parent.width - Theme.px(24)
+                            spacing: Theme.px(4)
+                            readonly property var r: parent.r
+                            Item {
+                                width: parent.width; height: Theme.px(18)
+                                Text { text: rsCol.r.finished ? qsTr("查完了") : rsCol.r.paused ? qsTr("到预计时间了") : qsTr("查找进度"); font.family: serifFamily; font.pixelSize: Theme.px(13); font.bold: true; color: Theme.text }
+                                Text { anchors.right: parent.right; text: qsTr("已用 %1").arg(rsCol.r.usedText || ""); font.family: serifFamily; font.pixelSize: Theme.px(11.5); color: Theme.muted; font.features: Theme.tnum }
+                            }
+                            Text { visible: (rsCol.r.note || "") !== ""; width: parent.width; wrapMode: Text.Wrap; textFormat: Text.PlainText; text: rsCol.r.note || ""; font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.textSoft }
+                            Text { visible: (rsCol.r.done || []).length > 0; width: parent.width; wrapMode: Text.Wrap; textFormat: Text.PlainText; text: qsTr("已查：") + (rsCol.r.done || []).join("、"); font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted }
+                            Text {
+                                visible: (rsCol.r.todo || []).length > 0 && !rsCol.r.finished
+                                width: parent.width; wrapMode: Text.Wrap; textFormat: Text.PlainText
+                                text: qsTr("还要查：") + (rsCol.r.todo || []).join("、") + (rsCol.r.paused ? qsTr("，%1").arg(rsCol.r.secsText) : "")
+                                font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
+                            }
+                            Row {
+                                visible: rsCol.r.paused === true && rsCol.r.answered !== true && !ai.busy
+                                anchors.right: parent.right
+                                spacing: Theme.px(6)
+                                TpButton { objectName: "aiRsStop"; compact: true; text: qsTr("先到这里"); onClicked: ai.researchAnswer(rsCol.r.mi, false) }
+                                TpButton { objectName: "aiRsGo"; compact: true; kind: "primary"; text: qsTr("继续查（%1）").arg(rsCol.r.secsText || ""); onClicked: ai.researchAnswer(rsCol.r.mi, true) }
+                            }
+                        }
+                    }
+                    Repeater {
+                        model: msg.modelData.props || []
+                        delegate: AiProposal {
+                            required property var modelData
+                            width: botCol.width
+                            p: modelData
+                        }
                     }
                     Text {
                         visible: !!msg.modelData.error

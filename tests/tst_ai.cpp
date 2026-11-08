@@ -1,6 +1,8 @@
 // AI 的纯计算（0.13.0）：SSE 拆包、两种接法的流式事件、用量 → 钱、三档对应表、拼请求、钥匙校验、mdLite。
 #include "aiproviders.h"
 #include "aistream.h"
+#include "aitools.h"
+#include "jsonio.h"
 
 #include <QJsonDocument>
 #include <QtTest>
@@ -172,6 +174,33 @@ private slots:
     {
         QVERIFY(httpError(401, R"({"error":{"message":"invalid x-api-key"}})").contains(QStringLiteral("invalid x-api-key")));
         QVERIFY(httpError(500, R"({"error":{"message":"boom"}})").contains(QStringLiteral("HTTP 500")));
+    }
+    // 0.13.1：工具定义两种形状、计划上下文去掉什么、预览认领、应用（日程按认领好的那条改，删前一条不指错）
+    void toolsAndApply()
+    {
+        using namespace tp::ai;
+        QCOMPARE(tools::anthropicTools(true).size(), 4);
+        QCOMPARE(tools::openAiTools(QStringLiteral("deepseek"), true).size(), 3);
+        QCOMPARE(tools::openAiTools(QStringLiteral("kimi"), true).last().toObject().value(QStringLiteral("type")).toString(), QStringLiteral("builtin_function"));
+        QVERIFY(tools::canSearch(QStringLiteral("qwen")) && !tools::canSearch(QStringLiteral("doubao")));
+        tp::json::Value root = tp::json::parse(QString::fromUtf8(R"({"plans":[{"id":"p1","name":"T","cover":"x","localEmergency":[{"label":"a"}],"expenses":[{"amount":1}],
+            "bookings":[{"id":"b1","kind":"hotel","ref":"R9","cost":3}],
+            "stops":[{"id":"s1","name":"A","lat":1,"lng":2,"schedule":[{"text":"x1"},{"text":"x2"}],"leg":{"mode":"drive","path":"pp","key":"k"}},{"id":"s2","name":"B","lat":3,"lng":4,"schedule":[]}]}],"photos":[]})"));
+        const QString ctx = tools::planForAi(root, root[QStringLiteral("plans")].asArray().front(), true);
+        QVERIFY(!ctx.contains(QStringLiteral("cover")) && !ctx.contains(QStringLiteral("localEmergency")) && !ctx.contains(QStringLiteral("expenses")) && !ctx.contains(QStringLiteral("R9")) && !ctx.contains(QStringLiteral("pp")));
+        QVERIFY(ctx.contains(QStringLiteral("\"legMode\":\"drive\"")) && ctx.contains(QStringLiteral("\"index\":2")) && ctx.contains(QStringLiteral("\"n\":2")));
+        const QJsonObject input = QJsonDocument::fromJson(R"({"summary":"s","changes":[{"op":"remove_schedule","stop_id":"s1","n":1},{"op":"update_schedule","stop_id":"s1","n":2,"text":"y2"},
+            {"op":"remove_stop","stop_id":"s2"},{"op":"update_stop","stop_id":"nope"},{"op":"bogus"}]})").object();
+        const QJsonObject P = tools::prepare(root, input, QStringLiteral("p1"), QStringLiteral("t1"), false);
+        QCOMPARE(P.value(QStringLiteral("changes")).toArray().size(), 4);   // 认不出的 op 去掉
+        QVERIFY(P.value(QStringLiteral("changes")).toArray().at(3).toObject().contains(QStringLiteral("bad")));
+        const tools::Applied a = tools::apply(root, P, [](const QString &pre) { return tools::uid(pre); });
+        QCOMPARE(a.n, 3);
+        const tp::json::Value &s1 = root[QStringLiteral("plans")].asArray().front()[QStringLiteral("stops")].asArray().front();
+        QCOMPARE(tp::json::stringify(s1[QStringLiteral("schedule")], 0), QStringLiteral("[{\"text\":\"y2\"}]"));
+        QVERIFY(s1[QStringLiteral("leg")][QStringLiteral("path")].isNull());   // 后一站删了，折线清掉
+        QVERIFY(a.needRoute);
+        QVERIFY(tools::resultText(P, a).contains(QStringLiteral("用户应用了 3 项")));
     }
 };
 

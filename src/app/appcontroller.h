@@ -263,6 +263,7 @@ signals:
     void prefsChanged();
     void dataChanged();
     void docReplaced();       // 撤销 / 重做换了一版数据（0.7.0，照片页跟着刷新）
+    void undoApplied(int dir);   // 0.13.1 撤销（-1）/ 重做（1）换了一版数据：AI 预览标"已撤销 / 已应用"
     void dirtyChanged();
     void extChangedChanged();
     void startupChoiceChanged();

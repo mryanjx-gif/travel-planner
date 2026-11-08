@@ -1343,3 +1343,71 @@ AI 助手现在不能用：离线模式开着，或者设置 → 联网里关掉
 （缓存 %1）	 (%1 cached)
 没填单价，只记 token	no prices set, tokens only
 这次回答太长，被截断了。可以说“短一点”或者把问题拆开再问。	This answer was too long and got cut off. Ask for a shorter answer, or split the question.
+# 0.13.1
+车	Car
+放在最前面	at the very start
+放在 %1 后面	after %1
+加在最后	at the end
+新计划	New trip
+附攻略	with guide
+名字 → %1	name → %1
+日期 → %1 – %2	dates → %1 – %2
+状态 → %1	status → %1
+备注 → %1	notes → %1
+攻略 → %1	guide → %1
+（%1 张照片会移到相册“未归类”）	(%1 photos will move to “Unsorted” in the album)
+坐标 → %1, %2	coordinates → %1, %2
+去下一站 → %1	to next stop → %1
+到达 %1	arrive %1
+离开 %1	leave %1
+去下一站：%1	to next stop: %1
+%1 后面	after %1
+最后	the end
+挪到 %1	move to %1
+（截止 %1）	 (due %1)
+标记完成	mark done
+标记未完成	mark not done
+截止 %1	due %1
+新计划：%1	New trip: %1
+✓ 地名搜索核对过：%1	✓ Checked with place search: %1
+约 %1 秒	about %1 s
+约 %1 分钟	about %1 min
+已用 %1 / 预计 %2	%1 used / %2 planned
+还剩 %1 秒	%1 s left
+还剩 %1 项	%1 items left
+查了「%1」	Searched “%1”
+读了「%1」	Read “%1”
+联网查了 %1 次	Searched the web %1 times
+搜索 %1 次	%1 searches
+这次回答太长，被截断了。可以说“一次只改一个计划，攻略写短一点”再试。	This answer was too long and got cut off. Try “change one trip at a time and keep the guide short”.
+自动续轮次数到上限了，停在这里。可以接着说“继续”。	Reached the limit of automatic follow-up rounds and stopped here. Say “continue” to go on.
+数据现在是只读的，改不了。	The data is read-only right now, so nothing can be changed.
+应用前没能先存备份（%1）。还是要应用吗？应用后仍然可以 Ctrl+Z 撤销。	Couldn't save a backup before applying (%1). Apply anyway? You can still undo with Ctrl+Z.
+有自驾 / 徒步段：到地图编辑器里点“现在计算”画出道路路线，再保存	Some legs are by car or on foot: open the map editor and click “Calculate now” to draw the road route, then save
+补充：%1	Fill in: %1
+✓ 已应用 %1 项。按 Ctrl+Z 可以撤销（光标不在输入框里时）。	✓ Applied %1 changes. Press Ctrl+Z to undo (when the cursor isn't in the input box).
+应用过 %1 项，已经撤销（Ctrl+Y 可以重做）。	Applied %1 changes, then undone (Ctrl+Y to redo).
+之前对话里的修改预览（%1 项），已经过期。要用的话请让它重新提一次。	A change preview from an earlier conversation (%1 changes) has expired. Ask again if you still want it.
+这份修改太长，写到一半被截断了，没法用。可以说“一次只改一个计划，攻略写短一点”再试。	These changes were too long and got cut off, so they can't be used. Try “change one trip at a time and keep the guide short”.
+其中删除 %1 项	%1 deletions
+用 AI 给的坐标（%1），备注里标“坐标待核实”	Use the AI's coordinates (%1) and mark “coordinates to check” in the notes
+应用 %1 项	Apply %1
+可以问行程、交通、季节，或者让我改某个计划。改动会先给你预览，勾选后才写入。	Ask about routes, transport or seasons, or have me change a trip. Changes are previewed first and only saved after you tick them.
+没有联网核实	Not checked online
+已用 %1	%1 used
+，%1	, %1
+继续查（%1）	Keep searching (%1)
+让 AI 查路线、开放时间等最新信息，每轮最多搜 3 次，每次另收一点费用。	Lets the AI look up current routes, opening hours and so on — at most 3 searches per round, each with a small extra fee.
+%1 不能联网搜索，回答只用它已有的知识，回复下面会标“没有联网核实”。	%1 can't search the web. Answers use only what it already knows and are marked “Not checked online”.
+不发消费和订单号	Don't send spending or booking numbers
+改计划时 AI 会读到当前计划的内容；开着时不发消费、预算、订单号和金额。	When changing a trip the AI reads its contents. While on, spending, budget, booking numbers and amounts are left out.
+新计划还没有这一项	The new trip doesn't have this yet
+找不到这个站点	Stop not found
+找不到这条日程	Schedule item not found
+找不到要挪去的站点	Target stop not found
+找不到要放在后面的那个站点	The stop to place it after was not found
+找不到这个计划	Trip not found
+找不到这条交通住宿	Booking not found
+找不到这条待办	To-do not found
+找不到这条行李	Packing item not found
+要联网查	needs a web search

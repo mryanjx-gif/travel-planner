@@ -9,7 +9,9 @@
 
 #include <QByteArray>
 #include <QJsonObject>
+#include <QJsonArray>
 #include <QMap>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 
@@ -29,7 +31,13 @@ private:
 struct StreamState {
     QString text, thinking, signature;
     QStringList citations;          // 来源网址（Anthropic citations_delta）
-    QMap<int, QString> toolJson;    // 工具调用的参数（0.13.1 用；这里只累加）
+    QMap<int, QString> toolJson;    // 工具调用的参数（按块 / 调用的下标累加）
+    // 0.13.1 带工具：Anthropic 的完整内容块（含 thinking 的 signature、server_tool_use、web_search_tool_result），原样存进历史、原样回传
+    QJsonArray blocks;
+    QList<int> doneTools;           // 刚写完参数的 tool_use 块下标（控制器取走，马上出预览）
+    QSet<int> badTools;             // 参数 JSON 没写完（被截断）
+    // OpenAI 兼容的工具调用：下标 → id、名字（参数在 toolJson）
+    QMap<int, QString> callIds, callNames;
     Usage usage;
     QString stop;                   // 停止原因（统一：end / max_tokens / tool_use / pause_turn / 其他原样）
     QString error;                  // 服务器在流里报的错

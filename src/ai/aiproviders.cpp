@@ -157,8 +157,12 @@ double estimate(const Price *pr, bool think)
 }
 
 Request buildChat(const Provider &p, const QString &base, const QString &key, const QString &model, bool think, const QString &effort,
-                  const QString &system, const QJsonArray &messages)
+                  const QString &system, const QJsonArray &messages, const ChatExtra &x)
 {
+    auto pass = [](const QJsonValue &v) {   // 已经拼好的消息原样发，否则 {role, text} → {role, content}
+        const QJsonObject o = v.toObject();
+        return o.contains(QStringLiteral("content")) || o.contains(QStringLiteral("tool_calls")) ? o : msg(o.value(QStringLiteral("role")).toString(), o.value(QStringLiteral("text")).toString());
+    };
     Request r;
     const QString b = base.isEmpty() ? p.base : base;
     QJsonObject body{ { QStringLiteral("model"), model }, { QStringLiteral("max_tokens"), p.maxTokens }, { QStringLiteral("stream"), true } };
@@ -166,11 +170,14 @@ Request buildChat(const Provider &p, const QString &base, const QString &key, co
         r.url = joinUrl(b, QStringLiteral("/messages"));
         r.headers = { { "x-api-key", key.toUtf8() }, { "anthropic-version", "2023-06-01" } };
         // 规则放 system 并打缓存标记（同一对话后面几轮更省；0.13.1 加计划简表后效果才明显）
-        body.insert(QStringLiteral("system"), QJsonArray{ QJsonObject{ { QStringLiteral("type"), QStringLiteral("text") }, { QStringLiteral("text"), system },
-                                                                       { QStringLiteral("cache_control"), QJsonObject{ { QStringLiteral("type"), QStringLiteral("ephemeral") } } } } });
+        QJsonArray sys{ QJsonObject{ { QStringLiteral("type"), QStringLiteral("text") }, { QStringLiteral("text"), system },
+                                     { QStringLiteral("cache_control"), QJsonObject{ { QStringLiteral("type"), QStringLiteral("ephemeral") } } } } };
+        if (!x.systemTail.isEmpty()) sys.append(QJsonObject{ { QStringLiteral("type"), QStringLiteral("text") }, { QStringLiteral("text"), x.systemTail } });
+        body.insert(QStringLiteral("system"), sys);
         QJsonArray ms;
-        for (const auto &v : messages) ms.append(msg(v[QStringLiteral("role")].toString(), v[QStringLiteral("text")].toString()));
+        for (const auto &v : messages) ms.append(pass(v));
         body.insert(QStringLiteral("messages"), ms);
+        if (!x.tools.isEmpty()) body.insert(QStringLiteral("tools"), x.tools);
         if (think) {   // 5.x 模型只认 adaptive（技术选型.md §11）
             body.insert(QStringLiteral("thinking"), QJsonObject{ { QStringLiteral("type"), QStringLiteral("adaptive") } });
             if (!effort.isEmpty()) body.insert(QStringLiteral("output_config"), QJsonObject{ { QStringLiteral("effort"), effort } });
@@ -178,9 +185,11 @@ Request buildChat(const Provider &p, const QString &base, const QString &key, co
     } else {
         r.url = joinUrl(b, QStringLiteral("/chat/completions"));
         r.headers = { { "Authorization", "Bearer " + key.toUtf8() } };
-        QJsonArray ms{ msg(QStringLiteral("system"), system) };
-        for (const auto &v : messages) ms.append(msg(v[QStringLiteral("role")].toString(), v[QStringLiteral("text")].toString()));
+        QJsonArray ms{ msg(QStringLiteral("system"), x.systemTail.isEmpty() ? system : system + QStringLiteral("\n\n") + x.systemTail) };
+        for (const auto &v : messages) ms.append(pass(v));
         body.insert(QStringLiteral("messages"), ms);
+        if (!x.tools.isEmpty()) body.insert(QStringLiteral("tools"), x.tools);
+        if (x.search) body.insert(QStringLiteral("enable_search"), true);
         body.insert(QStringLiteral("stream_options"), QJsonObject{ { QStringLiteral("include_usage"), true } });
         const QString &s = p.thinkStyle;
         const QJsonObject onOff{ { QStringLiteral("type"), think ? QStringLiteral("enabled") : QStringLiteral("disabled") } };

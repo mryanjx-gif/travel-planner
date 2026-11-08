@@ -64,20 +64,43 @@ bool StreamState::feedAnthropic(const QString &data)
     if (type == QLatin1String("message_start")) {
         mergeAnthropicUsage(usage, ev.value(QStringLiteral("message")).toObject().value(QStringLiteral("usage")).toObject());
     } else if (type == QLatin1String("content_block_start")) {
+        const int idx = ev.value(QStringLiteral("index")).toInt();
         const QJsonObject b = ev.value(QStringLiteral("content_block")).toObject();
         const QString bt = b.value(QStringLiteral("type")).toString();
+        while (blocks.size() <= idx) blocks.append(QJsonObject());
+        blocks.replace(idx, b);
         if (bt == QLatin1String("text")) text += b.value(QStringLiteral("text")).toString();
-        else if (bt == QLatin1String("tool_use") || bt == QLatin1String("server_tool_use")) toolJson.insert(ev.value(QStringLiteral("index")).toInt(), QString());
+        else if (bt == QLatin1String("tool_use") || bt == QLatin1String("server_tool_use")) toolJson.insert(idx, QString());
     } else if (type == QLatin1String("content_block_delta")) {
+        const int idx = ev.value(QStringLiteral("index")).toInt();
         const QJsonObject d = ev.value(QStringLiteral("delta")).toObject();
         const QString dt = d.value(QStringLiteral("type")).toString();
-        if (dt == QLatin1String("text_delta")) text += d.value(QStringLiteral("text")).toString();
-        else if (dt == QLatin1String("thinking_delta")) thinking += d.value(QStringLiteral("thinking")).toString();
-        else if (dt == QLatin1String("signature_delta")) signature = d.value(QStringLiteral("signature")).toString();
-        else if (dt == QLatin1String("input_json_delta")) toolJson[ev.value(QStringLiteral("index")).toInt()] += d.value(QStringLiteral("partial_json")).toString();
+        QJsonObject b = idx < blocks.size() ? blocks.at(idx).toObject() : QJsonObject();
+        auto add = [&b](const char *k, const QString &v) { b.insert(QLatin1String(k), b.value(QLatin1String(k)).toString() + v); };
+        if (dt == QLatin1String("text_delta")) { text += d.value(QStringLiteral("text")).toString(); add("text", d.value(QStringLiteral("text")).toString()); }
+        else if (dt == QLatin1String("thinking_delta")) { thinking += d.value(QStringLiteral("thinking")).toString(); add("thinking", d.value(QStringLiteral("thinking")).toString()); }
+        else if (dt == QLatin1String("signature_delta")) { signature = d.value(QStringLiteral("signature")).toString(); b.insert(QStringLiteral("signature"), signature); }
+        else if (dt == QLatin1String("input_json_delta")) toolJson[idx] += d.value(QStringLiteral("partial_json")).toString();
         else if (dt == QLatin1String("citations_delta")) {
-            const QString url = d.value(QStringLiteral("citation")).toObject().value(QStringLiteral("url")).toString();
+            const QJsonObject cit = d.value(QStringLiteral("citation")).toObject();
+            const QString url = cit.value(QStringLiteral("url")).toString();
             if (!url.isEmpty() && !citations.contains(url)) citations << url;
+            QJsonArray cs = b.value(QStringLiteral("citations")).toArray();
+            cs.append(cit);
+            b.insert(QStringLiteral("citations"), cs);
+        }
+        if (idx < blocks.size()) blocks.replace(idx, b);
+    } else if (type == QLatin1String("content_block_stop")) {
+        const int idx = ev.value(QStringLiteral("index")).toInt();
+        if (toolJson.contains(idx) && idx < blocks.size()) {
+            QJsonObject b = blocks.at(idx).toObject();
+            const QString raw = toolJson.value(idx).trimmed();
+            QJsonParseError pe;
+            const QJsonDocument doc = QJsonDocument::fromJson((raw.isEmpty() ? QStringLiteral("{}") : raw).toUtf8(), &pe);
+            if (pe.error != QJsonParseError::NoError || !doc.isObject()) badTools.insert(idx);
+            b.insert(QStringLiteral("input"), doc.object());
+            blocks.replace(idx, b);
+            if (b.value(QStringLiteral("type")).toString() == QLatin1String("tool_use")) doneTools << idx;
         }
     } else if (type == QLatin1String("message_delta")) {
         mergeAnthropicUsage(usage, ev.value(QStringLiteral("usage")).toObject());
@@ -111,7 +134,11 @@ bool StreamState::feedOpenAi(const QString &data)
         thinking += d.value(QStringLiteral("reasoning_content")).toString();
         for (const auto &tc : d.value(QStringLiteral("tool_calls")).toArray()) {
             const QJsonObject t = tc.toObject();
-            toolJson[t.value(QStringLiteral("index")).toInt()] += t.value(QStringLiteral("function")).toObject().value(QStringLiteral("arguments")).toString();
+            const int idx = t.value(QStringLiteral("index")).toInt();
+            const QJsonObject fn = t.value(QStringLiteral("function")).toObject();
+            toolJson[idx] += fn.value(QStringLiteral("arguments")).toString();
+            if (!t.value(QStringLiteral("id")).toString().isEmpty()) callIds[idx] = t.value(QStringLiteral("id")).toString();
+            if (!fn.value(QStringLiteral("name")).toString().isEmpty()) callNames[idx] = fn.value(QStringLiteral("name")).toString();
         }
         const QString fr = c.value(QStringLiteral("finish_reason")).toString();
         if (!fr.isEmpty()) stop = normStop(fr);

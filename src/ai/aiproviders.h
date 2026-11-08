@@ -76,9 +76,15 @@ struct Request {
     QList<std::pair<QByteArray, QByteArray>> headers;
     QByteArray body;
 };
-// messages：[{role: "user" / "assistant", text}]；base 为空用服务商默认地址
+// 0.13.1：system 的后半段（常变的：时间、当前计划；Claude 只给前半段打缓存标记）、工具（已按接法转好）、千问联网
+struct ChatExtra {
+    QString systemTail;
+    QJsonArray tools;
+    bool search = false;   // 千问 enable_search
+};
+// messages：[{role: "user" / "assistant", text}]，或已经按接法拼好的消息（带 content / tool_calls、role = tool）原样发；base 为空用服务商默认地址
 Request buildChat(const Provider &p, const QString &base, const QString &key, const QString &model, bool think, const QString &effort,
-                  const QString &system, const QJsonArray &messages);   // 联网搜索 0.13.1 才加
+                  const QString &system, const QJsonArray &messages, const ChatExtra &x = {});
 Request buildModels(const Provider &p, const QString &base, const QString &key);
 // 模型列表回复 → [id]
 QStringList parseModels(const QByteArray &body);
