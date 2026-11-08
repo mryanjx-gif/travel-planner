@@ -220,15 +220,20 @@ void paintSketch(QPainter &p, const QRectF &r, const Sketch &s, const QString &a
     y0 *= k; y1 *= k;
     double cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
     double w = std::max(3.0, (x1 - x0) * 1.3), h = std::max(3.0, (y1 - y0) * 1.3);
-    const double aspect = r.width() / r.height();
+    // 点只落在内框里：四周按圆点半径（10 / 12）+ 白边和余量留出来，最边上的站不贴框
+    const double rad = s.route ? 10 : 12, pad = rad + 8;
+    const QRectF in = r.adjusted(pad, pad, -pad, -pad);
+    const double aspect = in.width() / in.height();
     if (w / h < aspect) w = h * aspect; else h = w / aspect;
     // ponytail: 跨 180° 经线的路线按经度直接取范围（会画得很宽）；真有这种计划再按 unwrap 处理
     w = std::min(w, 360.0);
     h = w / aspect;
     const auto proj = [&](const QPointF &q) {
-        return QPointF(r.left() + (q.x() - (cx - w / 2)) / w * r.width(), r.top() + ((cy + h / 2) - mercY(q.y()) * k) / h * r.height());
+        return QPointF(in.left() + (q.x() - (cx - w / 2)) / w * in.width(), in.top() + ((cy + h / 2) - mercY(q.y()) * k) / h * in.height());
     };
-    const QRectF view(cx - w / 2, latOf((cy - h / 2) / k), w, latOf((cy + h / 2) / k) - latOf((cy - h / 2) / k));
+    // 底图要铺满整个框（含边距），裁剪范围按外框放大
+    const double vw = w * r.width() / in.width(), vh = h * r.height() / in.height();
+    const QRectF view(cx - vw / 2, latOf((cy - vh / 2) / k), vw, latOf((cy + vh / 2) / k) - latOf((cy - vh / 2) / k));
 
     p.save();
     QPainterPath clip;
@@ -266,10 +271,27 @@ void paintSketch(QPainter &p, const QRectF &r, const Sketch &s, const QString &a
         p.drawPolyline(pl);
     }
     // 站点：带序号的圆点（和下面的列表对得上）
+    // 太密时只标首尾，中间的按顺序挑和已标的不重叠的（其余画成小点），编号不互相盖住
+    const int n = int(s.stops.size());
+    QVector<QPointF> pc(n);
+    for (int i = 0; i < n; ++i) pc[i] = proj(s.stops[i]);
+    QVector<bool> big(n, false);
+    QVector<int> picked;
+    const auto tryPick = [&](int i) {
+        for (int j : picked) if (QLineF(pc[i], pc[j]).length() < 2 * rad + 2) return;
+        big[i] = true;
+        picked << i;
+    };
+    if (n) { big[0] = true; picked << 0; }
+    if (n > 1) { big[n - 1] = true; picked << n - 1; }   // 终点总标
+    for (int i = 1; i < n - 1; ++i) tryPick(i);
+    p.setPen(QPen(Qt::white, 1.5));
+    p.setBrush(s.color);
+    for (int i = 0; i < n; ++i) if (!big[i]) p.drawEllipse(pc[i], 4, 4);
     p.setFont(numFont);
-    for (int i = s.stops.size() - 1; i >= 0; --i) {
-        const QPointF c = proj(s.stops[i]);
-        const double rad = s.route ? 10 : 12;
+    for (int i = n - 1; i >= 0; --i) {
+        if (!big[i]) continue;
+        const QPointF c = pc[i];
         p.setPen(QPen(Qt::white, 2));
         p.setBrush(s.color);
         p.drawEllipse(c, rad, rad);

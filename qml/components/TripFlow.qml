@@ -146,7 +146,7 @@ Item {
         } else if (kind === "bulk") { ids = ["a", "b", "c"]; bulkDlg.fmt = "trip"; bulkDlg.how = "each"; bulkDlg.open = true }
         else if (kind === "share") { ids = ["a", "b"]; shareDlg.open = true }
         else if (kind === "drop" || kind === "drop-bad") { hintShot = true; hintShotBad = kind === "drop-bad" }
-        else if (kind === "sharedone") shareDone.show({ dir: "D:\\分享\\旅行计划-分享版-20261108-2130", count: 1, photos: 12, skipped: 5, missing: 0 })
+        else if (kind === "sharedone") shareDone.show({ dir: (app.lang === "en" ? "D:\\Shared\\" : "D:\\分享\\") + qsTr("旅行计划-分享版") + "-20261108-2130", count: 1, photos: 12, skipped: 5, missing: 0 })
     }
 
     // ---------- 拖进窗口（E-09）----------
@@ -290,7 +290,7 @@ Item {
             objectName: "tripConflictAll"
             visible: conflict.rest > 0
             width: parent.width
-            text: qsTr("后面还有 %1 个已经有的计划，都这样处理").arg(conflict.rest)
+            text: conflict.rest === 1 ? qsTr("后面还有 1 个已经有的计划，都这样处理") : qsTr("后面还有 %1 个已经有的计划，都这样处理").arg(conflict.rest)
             checked: conflict.applyAll
             onToggled: (c) => conflict.applyAll = c
         }
@@ -468,7 +468,7 @@ Item {
         objectName: "tripRoadAsk"
         property int count: 0
         readonly property bool canNet: !!netc.allowed.routing
-        title: qsTr("还有 %1 段路线没按道路算").arg(count)
+        title: count === 1 ? qsTr("还有 1 段路线没按道路算") : qsTr("还有 %1 段路线没按道路算").arg(count)
         message: qsTr("这些自驾 / 徒步段现在画的是直线。直接导出的话，对方打开也是直线，要他自己联网点“现在计算”。")
         cancelKey: "cancel"
         options: [

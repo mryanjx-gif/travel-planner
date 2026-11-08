@@ -874,7 +874,7 @@ GlassPanel {
                         required property var modelData
                         width: parent ? parent.width : 0
                         wrapMode: Text.Wrap
-                        text: modelData.name + "：" + modelData.text
+                        text: modelData.name + qsTr("：") + modelData.text
                         font.family: serifFamily; font.pixelSize: Theme.px(12); font.features: Theme.tnum; color: Theme.muted
                     }
                 }

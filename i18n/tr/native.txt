@@ -931,7 +931,8 @@ HEIC 照片能导入；这台电脑没装 HEIF / HEVC 扩展，暂时显示不�
 相关计划	Plans
 斋月约 %1	Ramadan ~%1
 斋月约 %1（按乌姆库拉历推算，各国看月可能差一两天）	Ramadan ~%1 (from the Umm al-Qura calendar; moon sighting may shift it a day or two by country)
-：	:
+：	: 
+，	, 
 同行人 · %1 人	Companions · %1 people
 同行人 · 只有我	Companions · just me
 管理同行人	Manage companions
@@ -1331,7 +1332,7 @@ API 钥匙	API key
 %1 次 · %2 token	%1 requests · %2 tokens
 这个月已经用了约 %1，到了上限 %2 的 80%。	About %1 used this month, 80% of the %2 limit.
 已用 %1 秒	%1 s so far
-已写 %1 字	%1 characters written
+已写 %1 字	%1 chars
 正在思考	Thinking
 %1 秒没有新内容	nothing new for %1 s
 这段对话约 %1	This chat: ~%1
@@ -1372,9 +1373,9 @@ AI 助手现在不能用：离线模式开着，或者设置 → 联网里关掉
 ✓ 地名搜索核对过：%1	✓ Checked with place search: %1
 约 %1 秒	about %1 s
 约 %1 分钟	about %1 min
-已用 %1 / 预计 %2	%1 used / %2 planned
+已用 %1 / 预计 %2	%1 / %2
 还剩 %1 秒	%1 s left
-还剩 %1 项	%1 items left
+还剩 %1 项	%1 left
 查了「%1」	Searched “%1”
 读了「%1」	Read “%1”
 联网查了 %1 次	Searched the web %1 times
@@ -1488,7 +1489,8 @@ AI 规划	AI planning
 第一页预览	First page preview
 导出到	Export to
 图片	Image
-还有 %1 段路线没按道路算	%1 route segment(s) not calculated yet
+还有 %1 段路线没按道路算	%1 route segments haven't been calculated yet
+还有 1 段路线没按道路算	1 route segment hasn't been calculated yet
 这些自驾 / 徒步段现在画的是直线。直接导出的话，行程单的路线简图上也是直线。	These drive / walk segments are drawn as straight lines. If you export now, the route sketch in the itinerary shows straight lines too.
 先算好再导出	Calculate first, then export
 约 %1 分钟，算完自动保存，然后接着导出	About %1 min, saved automatically, then the export continues
@@ -1512,7 +1514,8 @@ Electron 版的	From the Electron version
 用 Electron 版的替换这里的（这里的游记和照片记录也换成 Electron 版的）	Replace the one here with the Electron version (its journal entries and photo records too)
 两个都留，导入的名字后面加“（导入）”	Keep both; the imported one gets "(imported)" after its name
 留着这里的，这一个不导入	Keep the one here and don't import this one
-后面还有 %1 个已经有的计划，都这样处理	Do the same for the %1 other plans that are already here
+后面还有 %1 个已经有的计划，都这样处理	Do the same for the other %1 plans already here
+后面还有 1 个已经有的计划，都这样处理	Do the same for the other plan already here
 取消导入	Cancel import
 导出 %1 个计划	Export %1 plans
 对方也装了旅行计划，点“导入 .trip”或拖进窗口；导入后能看、能改	For people who also have Travel Planner: they click "Import .trip" or drop it into the window, then can view and edit it
@@ -1528,7 +1531,7 @@ Electron 版的	From the Electron version
 已导出到：	Exported to: 
 ，%1 张不能分发的没带	, %1 not shareable and left out
 ，%1 张找不到文件	, %1 files missing
-文件夹里有“照片署名.txt”，转发时请一起带上。对方在“设置 → 数据 → 数据文件夹”里选这个文件夹就能看。	The folder contains a photo credits file; please pass it on together. The other person picks this folder under "Settings → Data → Data folder" to view it.
+文件夹里有“照片署名.txt”，转发时请一起带上。对方在“设置 → 数据 → 数据文件夹”里选这个文件夹就能看。	The folder contains a photo credits file; please pass it on with the folder. The other person picks this folder under "Settings → Data → Data folder" to view it.
 这些自驾 / 徒步段现在画的是直线。直接导出的话，对方打开也是直线，要他自己联网点“现在计算”。	These drive / walk segments are drawn as straight lines. If you export now, the other person will see straight lines too and has to click "Calculate now" while online.
 约 %1 分钟，算完自动保存；对方打开就是道路路线，不用再算	About %1 min, saved automatically; the other person sees road routes without recalculating
 对方那边先显示直线	They will see straight lines at first
@@ -1564,7 +1567,7 @@ zip 目录坏了	the zip directory is damaged
 作者：%1 · 授权：%2 · 来源：%3	Author: %1 · Licence: %2 · Source: %3
 街道图 / 卫星图（地图和地球）：Esri 在线瓦片 · Esri 及其数据提供方	Street / satellite maps (map and globe): Esri online tiles · Esri and its data providers
 不能导出到数据文件夹里面	Can't export into the data folder
-旅行计划-分享版	TravelPlanner-share
+旅行计划-分享版	TravelPlanner-shared
 建不了文件夹：%1	Can't create folder: %1
 写不进去：%1	Can't write: %1
 照片署名.txt	Photo credits.txt

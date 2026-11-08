@@ -238,9 +238,11 @@ QString describe(const Value &root, const QJsonObject &ch)
         return tp::tr("加在最后");
     };
     QStringList f;
+    const QString colon = tp::tr("：");   // 站点名后的冒号：英文界面是 ": "
     QString sn = stopName(ch.value(L("stop")).toString());
     if (ch.contains(L("bad"))) {   // 没认领到：照 AI 写的说，不去数照片
-        if (sn.isEmpty()) sn = cs(c, "stop_id");
+        // 不露内部 id：删站点用 AI 给的站点名，没有就写"找不到这个站点"
+        if (sn.isEmpty()) sn = op == QLatin1String("remove_stop") && !cs(c, "name").isEmpty() ? cs(c, "name") : tp::tr("找不到这个站点");
         if (op == QLatin1String("remove_stop") || op == QLatin1String("delete_plan")) return op == QLatin1String("delete_plan") ? ch.value(L("key")).toString() : sn;
     }
     if (op == QLatin1String("create_plan")) {
@@ -272,12 +274,12 @@ QString describe(const Value &root, const QJsonObject &ch)
         return f.isEmpty() ? tp::tr("（没有内容）") : f.join(QStringLiteral("；"));
     };
     if (op == QLatin1String("add_stop")) {
-        QString d = cs(c, "name") + QStringLiteral("，") + place(ch.value(L("after")).toString());
+        QString d = cs(c, "name") + tp::tr("，") + place(ch.value(L("after")).toString());
         if (!cs(c, "legMode").isEmpty()) d += QStringLiteral(" · ") + tp::tr("去下一站：%1").arg(legZh(cs(c, "legMode")));
         if (!cs(c, "arriveDate").isEmpty()) d += QStringLiteral(" · ") + cs(c, "arriveDate");
         return d;
     }
-    if (op == QLatin1String("update_stop")) return sn + QStringLiteral("：") + stopFields();
+    if (op == QLatin1String("update_stop")) return sn + colon + stopFields();
     if (op == QLatin1String("remove_stop")) {
         const int n = photoCount(root, ch.value(L("key")).toString(), ch.value(L("stop")).toString());
         return sn + (n ? tp::tr("（%1 张照片会移到相册“未归类”）").arg(n) : QString());
@@ -292,13 +294,13 @@ QString describe(const Value &root, const QJsonObject &ch)
         const int ii = ch.value(L("item")).toInt();
         if (ii >= 0 && ii < int(sch.size())) item = sch[ii];
     }
-    if (op == QLatin1String("add_schedule")) return sn + QStringLiteral("：") + when(cs(c, "date"), cs(c, "time"), cs(c, "end_time")) + u' ' + cs(c, "text");
+    if (op == QLatin1String("add_schedule")) return sn + colon + when(cs(c, "date"), cs(c, "time"), cs(c, "end_time")) + u' ' + cs(c, "text");
     if (op == QLatin1String("update_schedule")) {
-        QString d = sn + QStringLiteral("：") + cut(str(item, "text"), 30) + QStringLiteral(" → ") + when(cs(c, "date"), cs(c, "time"), cs(c, "end_time")) + u' ' + cs(c, "text");
+        QString d = sn + colon + cut(str(item, "text"), 30) + QStringLiteral(" → ") + when(cs(c, "date"), cs(c, "time"), cs(c, "end_time")) + u' ' + cs(c, "text");
         if (ch.contains(L("toStop"))) d += QStringLiteral(" · ") + tp::tr("挪到 %1").arg(stopName(ch.value(L("toStop")).toString()));
         return d;
     }
-    if (op == QLatin1String("remove_schedule")) return sn + QStringLiteral("：") + when(str(item, "date"), str(item, "time"), str(item, "end")) + u' ' + cut(str(item, "text"), 60);
+    if (op == QLatin1String("remove_schedule")) return sn + colon + when(str(item, "date"), str(item, "time"), str(item, "end")) + u' ' + cut(str(item, "text"), 60);
     if (op == QLatin1String("add_booking")) {
         QString d = cs(c, "title").isEmpty() ? cs(c, "kind") : cs(c, "title");
         if (!cs(c, "from").isEmpty() || !cs(c, "to").isEmpty()) d += QStringLiteral(" · %1 → %2").arg(cs(c, "from").isEmpty() ? QStringLiteral("?") : cs(c, "from"), cs(c, "to").isEmpty() ? QStringLiteral("?") : cs(c, "to"));

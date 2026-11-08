@@ -136,7 +136,7 @@ GlassPanel {
                     Text {
                         width: parent.width
                         wrapMode: Text.Wrap
-                        text: qsTr("可以问行程、交通、季节，或者让我改某个计划。改动会先给你预览，勾选后才写入。") + (ai.noMoney ? qsTr("发给 AI 的内容不含消费和订单号。") : "")
+                        text: qsTr("可以问行程、交通、季节，或者让我改某个计划。改动会先给你预览，勾选后才写入。") + (ai.noMoney ? (app.lang === "en" ? " " : "") + qsTr("发给 AI 的内容不含消费和订单号。") : "")
                         font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.text
                     }
                     Flow {
@@ -451,6 +451,7 @@ GlassPanel {
             objectName: "aiRun"
             visible: ai.runText !== ""
             text: ai.runText
+            width: parent.width; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight
             font.family: serifFamily; font.pixelSize: Theme.px(11.5); color: Theme.muted
             font.features: Theme.tnum
         }

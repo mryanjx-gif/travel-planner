@@ -201,7 +201,7 @@ Item {
         objectName: "exportRoadAsk"
         property int count: 0
         readonly property bool canNet: !!netc.allowed.routing
-        title: qsTr("还有 %1 段路线没按道路算").arg(count)
+        title: count === 1 ? qsTr("还有 1 段路线没按道路算") : qsTr("还有 %1 段路线没按道路算").arg(count)
         message: qsTr("这些自驾 / 徒步段现在画的是直线。直接导出的话，行程单的路线简图上也是直线。")
         cancelKey: "cancel"
         options: [
