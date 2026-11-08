@@ -199,6 +199,8 @@ int main(int argc, char *argv[])
     QGuiApplication::setApplicationName(QStringLiteral("TravelPlannerNative"));
     QGuiApplication::setOrganizationName(QString());
     QGuiApplication::setApplicationVersion(QStringLiteral(TP_VERSION_STRING));
+    // 0.14.2：程序本身不用 Qt Quick Controls，只有选文件框没有系统原生的时候才会用到；打包只带 Basic 样式，这里固定用它
+    if (!qEnvironmentVariableIsSet("QT_QUICK_CONTROLS_STYLE")) qputenv("QT_QUICK_CONTROLS_STYLE", "Basic");
     tp::app::TpApplication app(argc, argv);   // 接住事件处理里没人接的 C++ 异常（0.5.1）
     ExitGuard exitGuard;                       // 退出保险（0.8.0），见上面
     // 收到托盘时窗口是隐藏的：不能因为"最后一个窗口关了"就退出；退出只走 AppController::finishQuit
@@ -625,6 +627,8 @@ int main(int argc, char *argv[])
     if (shotPage.isEmpty()) QTimer::singleShot(3000, &mapc, [&mapc] { mapc.preloadUnlock(); });
 
     // 8. 截图模式
+    // 0.14.2：ui-locate 启动后真的问一次系统定位（装好的版本里核对定位插件，日志写"系统定位来源"）
+    if (shotPage == QLatin1String("ui-locate")) QTimer::singleShot(500, &locator, &tp::app::Locator::locate);
     if (!shotPage.isEmpty()) {
         const QString out = cli.positionalArguments().value(0, QStringLiteral("screenshot.png"));
         const auto shoot = [win, out] {

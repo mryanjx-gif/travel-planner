@@ -1,0 +1,2 @@
+// exe 的图标（资源管理器、开始菜单、任务栏）；托盘和窗口图标另由程序读 assets/app
+IDI_ICON1 ICON "../../assets/app/icon.ico"

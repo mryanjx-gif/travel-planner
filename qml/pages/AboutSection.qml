@@ -127,10 +127,13 @@ Column {
         width: parent.width
         title: qsTr("开源组件和授权")
         Line { name: "Qt 6.12"; detail: qsTr("界面、网络、定位等。LGPL-3.0，动态链接，可以自行替换这些库。") }
+        Line { name: qsTr("Qt 内置的第三方组件"); detail: qsTr("zlib、libpng、libjpeg、FreeType、HarfBuzz、PCRE2、libwebp（WebP 照片）等，各自的授权全文在授权文件夹 Qt 里的 Qt-third-party.txt。") }
         Line { name: "maplibre-native-qt（399311e）"; detail: qsTr("平面地图。BSD-2-Clause。") }
         Line { name: "MapLibre Native"; detail: qsTr("平面地图的渲染。BSD-2-Clause；内置的第三方组件见授权文件夹里的 maplibre-native-LICENSES.core.md。") }
         Line { name: "suncalc 2.0.2"; detail: qsTr("日出日落，移植成 C++。BSD-2-Clause，Copyright (c) 2026, Volodymyr Agafonkin。") }
         Line { name: "miniz 3.1.2"; detail: qsTr(".trip 计划文件的打包和解包。MIT，Copyright 2013-2014 RAD Game Tools and Valve Software、2010-2014 Rich Geldreich and Tenacious Software LLC。") }
+        Line { name: qsTr("Microsoft Visual C++ 运行库"); detail: qsTr("Microsoft 允许随程序分发的运行库文件。") }
+        Line { name: "NSIS"; detail: qsTr("安装程序和卸载程序。zlib/libpng 授权。") }
         SettingsRow {
             objectName: "aboutLicenses"
             width: parent.width

@@ -1572,3 +1572,8 @@ zip 目录坏了	the zip directory is damaged
 写不进数据文件夹：%1	Can't write to the data folder: %1
 北海道 7 日	Hokkaido, 7 days
 .trip 计划文件的打包和解包。MIT，Copyright 2013-2014 RAD Game Tools and Valve Software、2010-2014 Rich Geldreich and Tenacious Software LLC。	Packing and unpacking .trip plan files. MIT, Copyright 2013-2014 RAD Game Tools and Valve Software, 2010-2014 Rich Geldreich and Tenacious Software LLC.
+Qt 内置的第三方组件	Third-party components bundled in Qt
+zlib、libpng、libjpeg、FreeType、HarfBuzz、PCRE2、libwebp（WebP 照片）等，各自的授权全文在授权文件夹 Qt 里的 Qt-third-party.txt。	zlib, libpng, libjpeg, FreeType, HarfBuzz, PCRE2, libwebp (WebP photos) and more; full license texts are in Qt-third-party.txt in the Qt folder of the licenses folder.
+Microsoft Visual C++ 运行库	Microsoft Visual C++ runtime
+Microsoft 允许随程序分发的运行库文件。	Runtime files that Microsoft allows to be redistributed with applications.
+安装程序和卸载程序。zlib/libpng 授权。	The installer and uninstaller. zlib/libpng license.

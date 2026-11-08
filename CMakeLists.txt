@@ -3,7 +3,7 @@
 # 规则（PO 2026-11-02）：大更新改第一位，中等更新改第二位，小修改改第三位；正式版之前是 0.x.y，正式版 1.0.0。
 cmake_minimum_required(VERSION 3.24)
 
-set(TP_VERSION "0.14.1")
+set(TP_VERSION "0.14.2")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TP_VERSION_NUMERIC "${TP_VERSION}")
 
 project(TravelPlannerNative
@@ -388,7 +388,7 @@ target_link_libraries(TravelPlanner PRIVATE tp_core tp_ai tp_export tp_data tp_p
 if(WIN32)
     target_link_libraries(TravelPlanner PRIVATE psapi shell32 user32)
     # 0.8.0：进程代码页 UTF-8（maplibre 读本地样式文件用窄字符路径），见 src/app/app.manifest；和 Qt 生成的 manifest 合并
-    target_sources(TravelPlanner PRIVATE src/app/app.manifest)
+    target_sources(TravelPlanner PRIVATE src/app/app.manifest src/app/app.rc)   # 0.14.2：exe 图标
 endif()
 
 set_target_properties(TravelPlanner PROPERTIES
@@ -416,7 +416,7 @@ add_custom_command(TARGET TravelPlanner POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets/fonts" "$<TARGET_FILE_DIR:TravelPlanner>/assets/fonts"
     # 0.12.5：授权全文放进程序目录的 LICENSES（设置 → 关于能打开）。Qt 自带的那份在打包时加（package.ps1）
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/third_party/maplibre-native-qt/LICENSES" "$<TARGET_FILE_DIR:TravelPlanner>/LICENSES/maplibre-native-qt"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_SOURCE_DIR}/assets/fonts/LICENSE-Material-Symbols.txt" "${CMAKE_SOURCE_DIR}/assets/fonts/LICENSE-NotoSerifCJK.txt" "${CMAKE_SOURCE_DIR}/assets/licenses/LICENSE-suncalc.txt" "${CMAKE_SOURCE_DIR}/assets/licenses/LICENSE-miniz.txt" "$<TARGET_FILE_DIR:TravelPlanner>/LICENSES"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_SOURCE_DIR}/assets/fonts/LICENSE-Material-Symbols.txt" "${CMAKE_SOURCE_DIR}/assets/fonts/LICENSE-NotoSerifCJK.txt" "${CMAKE_SOURCE_DIR}/assets/licenses/LICENSE-suncalc.txt" "${CMAKE_SOURCE_DIR}/assets/licenses/LICENSE-miniz.txt" "${CMAKE_SOURCE_DIR}/assets/licenses/README.txt" "$<TARGET_FILE_DIR:TravelPlanner>/LICENSES"
     VERBATIM)
 # 安装目录也要带上（OPTIONAL：文件不存在时跳过，不报错）
 install(FILES "${CMAKE_SOURCE_DIR}/assets/fonts/NotoSerifCJKsc-Regular.otf" "${CMAKE_SOURCE_DIR}/assets/fonts/NotoSerifCJKsc-Bold.otf" OPTIONAL DESTINATION assets/fonts)
