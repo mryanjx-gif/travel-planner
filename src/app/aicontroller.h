@@ -54,6 +54,10 @@ class AiController : public QObject
     Q_PROPERTY(double used READ used NOTIFY usageChanged)               // 本月已用（主币种）
     Q_PROPERTY(QVariantList usageRows READ usageRows NOTIFY usageChanged)   // 分家：name、text
     Q_PROPERTY(bool capReached READ capReached NOTIFY usageChanged)
+    Q_PROPERTY(double dayCap READ dayCap WRITE setDayCap NOTIFY usageChanged)   // 1.2.0 每日上限（主币种）
+    Q_PROPERTY(double dayUsed READ dayUsed NOTIFY usageChanged)
+    Q_PROPERTY(bool dayCapReached READ dayCapReached NOTIFY usageChanged)
+    Q_PROPERTY(bool estPending READ estPending NOTIFY tellChanged)          // 1.2.0 预计超过约 ¥5，等用户确认
     Q_PROPERTY(QStringList modelList READ modelList NOTIFY modelsChanged)
     Q_PROPERTY(QString modelsState READ modelsState NOTIFY modelsChanged)   // "" / busy / ok / 失败原因
     Q_PROPERTY(QVariantList messages READ messages NOTIFY messagesChanged)
@@ -102,6 +106,11 @@ public:
     double used() const;
     QVariantList usageRows() const;
     bool capReached() const { return cap() > 0 && used() >= cap(); }
+    double dayCap() const;
+    void setDayCap(double v);
+    double dayUsed() const;
+    bool dayCapReached() const { return dayCap() > 0 && dayUsed() >= dayCap(); }
+    bool estPending() const { return m_est.on; }
     QStringList modelList() const { return m_models; }
     QString modelsState() const { return m_modelsState; }
     QVariantList messages() const;
@@ -145,6 +154,12 @@ public:
     Q_INVOKABLE void newChat();
     Q_INVOKABLE void openChat(const QString &id);
     Q_INVOKABLE void raiseCap();                  // 到上限时当场提高（加约 $5）
+    Q_INVOKABLE void raiseDayCap();               // 1.2.0 今日上限当场提高（加约 ¥10）
+    Q_INVOKABLE void confirmEst();                // 1.2.0 预计较贵：仍然发送
+    Q_INVOKABLE void cancelEst();
+    Q_INVOKABLE void toggleCand(int mi, int j);   // 1.2.0 候选卡片
+    Q_INVOKABLE void candsGo(int mi);             // "做成攻略"
+    Q_INVOKABLE bool exportChat(const QString &file);   // 1.2.0 导出对话（.md / .txt；file:/// 或路径）
     Q_INVOKABLE bool voice();                     // 替用户按 Win+H（Windows 自带的语音输入）
     Q_INVOKABLE void openSignup(const QString &id);
     Q_INVOKABLE QString money(double amount, const QString &cur) const;   // "¥0.03" / "$0.012"
@@ -189,7 +204,10 @@ private:
     void doSend(const QString &text, const QString &shown, bool gapFill, bool keepResearch, const QString &kind);
     void recordPlan();
     void run();
-    QJsonArray apiHistory(ai::Kind kind) const;
+    QJsonArray apiHistory(ai::Kind kind, int *turnAt = nullptr) const;
+    static QString compact(const QJsonObject &o);
+    bool gate(const QString &t, const QString &shown, bool gapFill, bool keepResearch, const QString &kind);
+    double estimateMain(const QString &text, bool web) const;
     QString currentPlanId() const;
     const json::Value &root() const;
     void drainTools();
@@ -234,7 +252,7 @@ private:
     std::function<QString()> m_editorClose;               // 1.1.0 完成编辑器，返回计划 id（空 = 没关成）
     std::function<void(const QString &)> m_editorReopen;
     // 这一问（含自动续轮）。kind：""（聊天）/ wizard（向导）/ order（从订单生成）；tok / amt / cur：几轮加起来的用量（每份方案用量，0.13.2）
-    struct Run { qint64 t0 = 0; int autoN = 0; bool gapFill = false; QString planId, kind, pid, mdl; qint64 tok = 0; double amt = 0; QString cur; bool priced = true, props = false; } m_run;
+    struct Run { qint64 t0 = 0; int autoN = 0; bool gapFill = false, web = false; QString planId, kind, pid, mdl; qint64 tok = 0; double amt = 0; QString cur; bool priced = true, props = false; } m_run;
     struct Research { bool on = false; qint64 start = 0, budget = 0; QStringList todo; int secs = 0; bool paused = false; } m_research;
     struct Last { bool valid = false; QString chat; int mi = -1, pi = -1; quint64 mark = 0; QString result; } m_last;   // 最近一次应用（撤销联动）
     struct GeoJob { int gen; int mi; QString toolId; int k; };
@@ -243,6 +261,7 @@ private:
     int m_chatGen = 0;        // 换对话 +1：丢掉旧对话的坐标核对结果
     int m_doneSeen = 0;       // 流式中已经处理过的工具块
     QJsonObject m_propBuf;
+    struct Est { bool on = false; QString text, shown; bool gapFill = false, keep = false; QString kind; } m_est;
     QString m_shotRun;        // 截图用：输入框上方那一行
 };
 

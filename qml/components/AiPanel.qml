@@ -3,6 +3,7 @@
 // 0.13.0：Enter 发送 / Shift+Enter 换行 / 输入法组字时不误发（TpField）、■ 停止、
 // 快捷动作、麦克风（替用户按 Win+H）、每条回复下小字写 token 和花费；没钥匙时显示引导卡；第一次发给某家前提示一次。
 import QtQuick
+import QtQuick.Dialogs
 import TPApp
 
 GlassPanel {
@@ -40,6 +41,19 @@ GlassPanel {
 
     Keys.onEscapePressed: root.closeRequested()
 
+    // 1.2.0 第 5 条：面板上的滚轮一律不传给地图（列表滚到顶 / 底时没人接，以前漏到下面的地图）
+    MouseArea { objectName: "aiWheelStop"; anchors.fill: parent; z: -1; acceptedButtons: Qt.NoButton; onWheel: (w) => w.accepted = true }
+
+    // 1.2.0 第 7 条：导出对话
+    FileDialog {
+        id: exportDlg
+        title: qsTr("导出对话")
+        fileMode: FileDialog.SaveFile
+        defaultSuffix: "md"
+        nameFilters: ["Markdown (*.md)", qsTr("纯文本") + " (*.txt)"]
+        onAccepted: ai.exportChat(selectedFile)
+    }
+
     // ---- 头部 ----
     Item {
         id: head
@@ -71,7 +85,7 @@ GlassPanel {
             anchors.verticalCenter: parent.verticalCenter
             spacing: Theme.px(2)
             Repeater {
-                model: [{ k: "clock", t: qsTr("最近的对话") }, { k: "plus", t: qsTr("新对话") }, { k: "gear", t: qsTr("AI 设置") }, { k: "close", t: qsTr("关闭（Esc）") }]
+                model: [{ k: "page", t: qsTr("导出对话") }, { k: "clock", t: qsTr("最近的对话") }, { k: "plus", t: qsTr("新对话") }, { k: "gear", t: qsTr("AI 设置") }, { k: "close", t: qsTr("关闭（Esc）") }]
                 delegate: Rectangle {
                     id: hb
                     required property var modelData
@@ -91,6 +105,7 @@ GlassPanel {
                             const k = hb.modelData.k
                             if (k === "close") root.closeRequested()
                             else if (k === "gear") root.settingsRequested()
+                            else if (k === "page") { if (ai.messages.length > 0) exportDlg.open() }
                             else if (ai.busy) return
                             else if (k === "plus") { ai.newChat(); root.histOpen = false; input.focusEnd() }
                             else root.histOpen = !root.histOpen
@@ -232,6 +247,19 @@ GlassPanel {
                             onClicked: ai.raiseCap()
                         }
                         TpButton {
+                            objectName: "aiRaiseDayCap"
+                            visible: msg.modelData.kind === "daycap" && ai.dayCapReached
+                            compact: true
+                            text: qsTr("提高今日上限")
+                            onClicked: ai.raiseDayCap()
+                        }
+                        Row {   // 1.2.0 预计较贵：先问
+                            visible: msg.modelData.kind === "est" && ai.estPending && msg.index === list.count - 1
+                            spacing: Theme.px(6)
+                            TpButton { objectName: "aiEstGo"; compact: true; kind: "primary"; text: qsTr("仍然发送"); onClicked: ai.confirmEst() }
+                            TpButton { compact: true; text: qsTr("先不发"); onClicked: ai.cancelEst() }
+                        }
+                        TpButton {
                             visible: msg.modelData.kind === "nokey"
                             compact: true
                             text: qsTr("去设置")
@@ -348,6 +376,70 @@ GlassPanel {
                             }
                         }
                     }
+                    // 1.2.0 第 9 条：候选卡片（和修改预览同一种卡片）：勾选后"做成攻略"
+                    Rectangle {
+                        id: candBox
+                        objectName: "aiCands"
+                        readonly property var c: msg.modelData.cands || null
+                        readonly property bool open: !!c && c.state === "open" && !ai.busy
+                        readonly property int nOn: c ? c.items.filter(x => x.on).length : 0
+                        visible: !!c && c.items.length > 0
+                        width: parent.width
+                        height: visible ? candCol.height + Theme.px(20) : 0
+                        radius: Theme.radiusSmall
+                        color: c && c.state === "open" ? "#ffffff" : Qt.rgba(1, 1, 1, 0.55)
+                        border.width: 1
+                        border.color: c && c.state === "open" ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.45) : Theme.line
+                        Column {
+                            id: candCol
+                            x: Theme.px(12); y: Theme.px(10)
+                            width: parent.width - Theme.px(24)
+                            spacing: Theme.px(4)
+                            Text {
+                                width: parent.width; elide: Text.ElideRight; textFormat: Text.PlainText
+                                text: candBox.c ? (candBox.c.title || qsTr("候选")) : ""
+                                font.family: serifFamily; font.pixelSize: Theme.px(13.5); font.bold: true; color: Theme.text
+                            }
+                            Repeater {
+                                model: candBox.c ? candBox.c.items : []
+                                delegate: Item {
+                                    id: cand
+                                    required property var modelData
+                                    required property int index
+                                    objectName: "aiCand-" + index
+                                    width: candCol.width
+                                    height: Math.max(Theme.px(22), candText.height + Theme.px(2))
+                                    TpCheck { id: candChk; y: Theme.px(1); checked: cand.modelData.on; enabled: candBox.open; onToggled: ai.toggleCand(candBox.c.mi, cand.index) }
+                                    Text {
+                                        id: candText
+                                        x: candChk.width + Theme.px(8)
+                                        width: parent.width - x
+                                        wrapMode: Text.Wrap; textFormat: Text.PlainText
+                                        text: [cand.modelData.name, cand.modelData.time, cand.modelData.cost].filter(x => !!x).join(" · ")
+                                        font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.text
+                                    }
+                                }
+                            }
+                            Item {
+                                visible: !!candBox.c && candBox.c.state === "open"
+                                width: parent.width
+                                height: Theme.px(30)
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: qsTr("勾了 %1 个").arg(candBox.nOn)
+                                    font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
+                                }
+                                TpButton {
+                                    objectName: "aiCandsGo"
+                                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                                    compact: true; kind: "primary"
+                                    enabled: candBox.open && candBox.nOn > 0
+                                    text: qsTr("做成攻略")
+                                    onClicked: ai.candsGo(candBox.c.mi)
+                                }
+                            }
+                        }
+                    }
                     Repeater {
                         model: msg.modelData.props || []
                         delegate: AiProposal {
@@ -364,12 +456,15 @@ GlassPanel {
                         font.family: serifFamily; font.pixelSize: Theme.px(12.5)
                         color: msg.modelData.error === qsTr("已停止") ? Theme.muted : Theme.danger
                     }
-                    Text {
+                    Text {   // 1.2.0 第 6 条：只写金额，点一下展开 token 明细
+                        id: metaText
                         objectName: "aiMeta"
+                        property bool more: false
                         visible: !botCol.live && !!msg.modelData.meta
                         width: parent.width
                         wrapMode: Text.Wrap
-                        text: msg.modelData.meta || ""
+                        text: more ? (msg.modelData.meta || "") : (msg.modelData.costText || "") + " ▾"
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: metaText.more = !metaText.more }
                         font.family: serifFamily; font.pixelSize: Theme.px(11); color: Theme.muted
                         font.features: Theme.tnum
                     }

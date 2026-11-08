@@ -135,7 +135,7 @@ bool PlanEditor::pristine() const
     return m_isNew && !m_inStore && str(m_plan, "name").trimmed().isEmpty() && m_plan[kStops].asArray().empty();
 }
 
-QVariantMap PlanEditor::finish()
+QVariantMap PlanEditor::finish(bool stay)
 {
     if (!m_open) return { { QStringLiteral("ok"), true } };
     m_applyTimer.stop();
@@ -160,6 +160,7 @@ QVariantMap PlanEditor::finish()
     if (m_store->isDirty()) m_app->saveFor(true);
     m_app->endEditGroup();
     const QString id = planId();
+    if (stay) { m_inStore = true; m_isNew = false; return { { QStringLiteral("ok"), true }, { QStringLiteral("planId"), id } }; }
     int failed = 0, retry = 0;
     for (const pe::LegRow &r : pe::legRows(m_plan))
         if (r.road && !r.badCoords && !r.computed) { ++failed; retry += !(m_roads && m_roads->remembered(r.key)); }
@@ -173,6 +174,30 @@ QVariantMap PlanEditor::finish()
 }
 
 void PlanEditor::keepSingle() { m_singleAsked = true; }
+
+bool PlanEditor::reload(const QString &id)
+{
+    if (!m_open || planId() != id) return openPlan(id).isEmpty();
+    const Value *p = pe::findPlan(m_store->data(), id);
+    if (!p) { close(); return false; }   // AI 把它删了
+    if (m_store->isDirty()) m_app->saveFor(true);
+    m_app->beginEditGroup();
+    m_plan = *p;
+    m_original = *p;
+    m_originalPhotos = m_store->data()[QStringLiteral("photos")];
+    m_isNew = false;
+    m_inStore = true;
+    m_legState.clear();
+    ++m_legGen;
+    if (m_active >= int(m_plan[kStops].asArray().size())) m_active = -1;
+    m_mapc->setDraft(planId(), m_plan);
+    refreshView();
+    refreshSaveState();
+    scheduleLegs();
+    emit activeStopChanged();
+    qInfo("编辑器：AI 应用后原地刷新「%s」", qUtf8Printable(str(m_plan, "name")));
+    return true;
+}
 
 void PlanEditor::discard()
 {
@@ -226,7 +251,7 @@ void PlanEditor::fitPlan()
         const double lat = s[QStringLiteral("lat")].jsToNumber(), lng = s[QStringLiteral("lng")].jsToNumber();
         if (std::isfinite(lat) && std::isfinite(lng)) pts << QVariant(QVariantList{ lat, lng });
     }
-    if (!pts.isEmpty()) m_mapc->fitPoints(pts, 8);
+    if (!pts.isEmpty()) m_mapc->fitPoints(pts, 0);   // 1.2.0 和点开计划一样（以前写死 8 级，市区的计划缩得太小）
 }
 
 // ---------------- 改动 ----------------

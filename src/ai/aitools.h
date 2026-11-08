@@ -20,11 +20,11 @@
 namespace tp::ai::tools {
 
 constexpr int kMaxSearch = 3;   // 每次请求最多搜几次（PO 选 6）
-constexpr int kMaxAuto = 12;    // 一次提问里自动续轮最多几轮（Electron MAX_AUTO）
+constexpr int kMaxAuto = 3;     // 一次提问里自动续轮最多几轮（Electron 12；1.2.0 PO 降到 3）
 
 // 这家能不能联网搜索（claude / qwen / kimi）
 bool canSearch(const QString &providerId);
-QJsonArray defs();                                         // get_plans、research_status、propose_changes
+QJsonArray defs();                                         // get_plans、research_status、suggest_places（1.2.0）、propose_changes
 QJsonArray anthropicTools(bool web);                       // + web_search 服务器工具
 QJsonArray openAiTools(const QString &providerId, bool web);   // function 形状；Kimi 联网时 + $web_search
 // 0.13.2 从订单生成（I-12）：只给 propose_changes；能强制的家强制调用它。

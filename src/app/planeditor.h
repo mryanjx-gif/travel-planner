@@ -90,7 +90,8 @@ public:
     Q_INVOKABLE QString openPlan(const QString &planId);
     // "完成"：表单没问题 → 存好、关闭，返回 { ok: true, planId }；有问题 → 不关，返回 { ok: false, reason }（QML 问要不要放弃）。
     // 新建的计划什么都没填 → 直接关（什么都不存）
-    Q_INVOKABLE QVariantMap finish();
+    Q_INVOKABLE QVariantMap finish(bool stay = false);   // 1.2.0 stay：存好但不关（AI 应用修改时编辑页原地不动）
+    bool reload(const QString &planId);                  // 1.2.0 AI 应用后从数据重新读这个计划（还开着同一个就原地刷新）
     // "放弃这次的修改"：恢复成打开时的样子（新建的删掉）、保存，撤销栈回到打开之前；关闭
     Q_INVOKABLE void discard();
     // 完成时问"有多个站点但类型是单一目的地，要改成路线吗"选了"保持"（Electron 类型确认）

@@ -33,7 +33,8 @@ namespace {
 struct Base { const char *key, *url; int tileMaxZoom, tileSize; double mapMaxZoom; };
 const Base kBases[] = {
     { "street", "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", 19, 256, 18 },
-    { "sat", "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", 18, 128, 18 },
+    // 1.2.0 ?blankTile=false：那一片没有这么清楚的图时 Esri 回 404（实测），不回"Map data not yet available"灰格子；地图库就用上一级的图放大
+    { "sat", "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false", 18, 128, 18 },
 };
 constexpr int kStyleVersion = 6;       // 骨架样式改了内容就 +1（换文件名，maplibre 按网址认样式）；v3（0.8.4）加 transition；v4（0.8.5）底图走本机瓦片服务；v5（0.8.6）每种底图一份；v6（0.9.2）省界写进样式
 constexpr int kTileFailBanner = 8;     // 连续失败几次出横幅（PO 2026-11-02：连续 8 次，成功一次清零）

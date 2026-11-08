@@ -408,11 +408,11 @@ int main(int argc, char *argv[])
         [&mapc](const QStringList &ids) { if (ids.contains(mapc.markers()->selectedPlan())) mapc.markers()->clearSelection(); });
     // 1.1.0 编辑器开着时应用：先完成编辑（存成一步），应用完再打开
     ai.setEditorHooks([&editor]() -> QString {
-            QVariantMap r = editor.finish();
-            if (r.value(QStringLiteral("ask")).toString() == QLatin1String("single")) { editor.keepSingle(); r = editor.finish(); }
+            QVariantMap r = editor.finish(true);   // 1.2.0 存好但不关，应用后原地刷新（编辑页和 AI 面板都不动）
+            if (r.value(QStringLiteral("ask")).toString() == QLatin1String("single")) { editor.keepSingle(); r = editor.finish(true); }
             return r.value(QStringLiteral("ok")).toBool() ? r.value(QStringLiteral("planId")).toString() : QString();
         },
-        [&editor](const QString &id) { editor.openPlan(id); });
+        [&editor](const QString &id) { editor.reload(id); });
     tp::app::perf::startup("控制器都建好");
 
     if (lastCrash.found)

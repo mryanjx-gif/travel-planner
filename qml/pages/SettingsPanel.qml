@@ -861,6 +861,22 @@ GlassPanel {
                         }
                     }
                 }
+                SettingsRow {   // 1.2.0 第 1 条：每日上限
+                    width: parent.width
+                    label: qsTr("每日上限")
+                    sub: qsTr("今天约 %1").arg(ai.money(ai.dayUsed, ai.mainCur))
+                    Row {
+                        spacing: Theme.px(6)
+                        Text { anchors.verticalCenter: parent.verticalCenter; text: ai.mainCur; font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft }
+                        TpField {
+                            objectName: "aiDayCapInput"
+                            width: Theme.px(80)
+                            value: String(Math.round(ai.dayCap * 100) / 100)
+                            onAccepted: { const v = parseFloat(text); if (v >= 0) ai.dayCap = v }
+                            onEditingChanged: if (!editing) { const v = parseFloat(text); if (v >= 0 && Math.abs(v - ai.dayCap) > 0.004) ai.dayCap = v }
+                        }
+                    }
+                }
                 SettingsRow {
                     objectName: "aiUsed"
                     width: parent.width

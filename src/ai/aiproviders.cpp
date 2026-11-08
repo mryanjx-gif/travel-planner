@@ -94,6 +94,28 @@ QList<Provider> makeTable()
 
 QJsonObject msg(const QString &role, const QString &text) { return { { QStringLiteral("role"), role }, { QStringLiteral("content"), text } }; }
 
+// 1.2.0 给一条消息的最后一个能带标记的块打 cache_control（思考块、空文字块不能带）。字符串内容先改成一个 text 块
+void markCache(QJsonObject &m)
+{
+    const QJsonObject cc{ { QStringLiteral("type"), QStringLiteral("ephemeral") } };
+    const QJsonValue c = m.value(QStringLiteral("content"));
+    if (c.isString()) {
+        if (c.toString().isEmpty()) return;
+        m.insert(QStringLiteral("content"), QJsonArray{ QJsonObject{ { QStringLiteral("type"), QStringLiteral("text") }, { QStringLiteral("text"), c.toString() }, { QStringLiteral("cache_control"), cc } } });
+        return;
+    }
+    QJsonArray a = c.toArray();
+    for (qsizetype i = a.size() - 1; i >= 0; --i) {
+        QJsonObject b = a.at(i).toObject();
+        const QString t = b.value(QStringLiteral("type")).toString();
+        if (t == QLatin1String("thinking") || t == QLatin1String("redacted_thinking") || (t == QLatin1String("text") && b.value(QStringLiteral("text")).toString().isEmpty())) continue;
+        b.insert(QStringLiteral("cache_control"), cc);
+        a.replace(i, b);
+        m.insert(QStringLiteral("content"), a);
+        return;
+    }
+}
+
 QUrl joinUrl(const QString &base, const QString &path)
 {
     QString b = base.trimmed();
@@ -175,8 +197,15 @@ Request buildChat(const Provider &p, const QString &base, const QString &key, co
                                      { QStringLiteral("cache_control"), QJsonObject{ { QStringLiteral("type"), QStringLiteral("ephemeral") } } } } };
         if (!x.systemTail.isEmpty()) sys.append(QJsonObject{ { QStringLiteral("type"), QStringLiteral("text") }, { QStringLiteral("text"), x.systemTail } });
         body.insert(QStringLiteral("system"), sys);
+        // 1.2.0 缓存整段对话（最多 4 个断点：系统 1 + 这一问的开头 1 + 最后一条 1）。前缀不变的部分下一次只按约一成收费
         QJsonArray ms;
         for (const auto &v : messages) ms.append(pass(v));
+        for (const qsizetype i : { qsizetype(x.cacheAt), ms.size() - 1 }) {
+            if (i < 0 || i >= ms.size()) continue;
+            QJsonObject m = ms.at(i).toObject();
+            markCache(m);
+            ms.replace(i, m);
+        }
         body.insert(QStringLiteral("messages"), ms);
         if (!x.tools.isEmpty()) body.insert(QStringLiteral("tools"), x.tools);
         if (think) {   // 5.x 模型只认 adaptive（技术选型.md §11）

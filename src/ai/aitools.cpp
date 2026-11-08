@@ -52,6 +52,10 @@ const char kDefs[] = R"JSON([
   "remaining_seconds":{"type":"number","description":"预计还要多少秒（每次搜索大约按 15 秒算，再加整理的时间）"},
   "finished":{"type":"boolean"},
   "note":{"type":"string","description":"一句话：这一轮查到了什么要紧的"}}}},
+{"name":"suggest_places","description":"列出 6 到 8 个候选地点让用户勾选（用户问有什么好玩的、推荐去哪、某类景点时用）。每个一行：名字、大概要多久、大概多少钱。不写进计划；用户勾选后点“做成攻略”，你再只为勾选的查细节、出修改。",
+ "input_schema":{"type":"object","required":["items"],"properties":{
+  "title":{"type":"string","description":"几个字的标题，例如 悉尼 · 历史古迹"},
+  "items":{"type":"array","items":{"type":"object","required":["name"],"properties":{"name":{"type":"string"},"time":{"type":"string","description":"大概要多久，例如 半天、2 小时"},"cost":{"type":"string","description":"大概多少钱，例如 免费、A$ 18"}}}}}}},
 {"name":"propose_changes","description":"向用户提出对计划的修改（可以跨多个计划，可以增、删、改、挪任何内容），并列出还缺什么。不会直接生效：用户先看到逐条预览，勾选后点“应用”才写入。",
  "input_schema":{"type":"object","required":["summary","changes"],"properties":{
   "summary":{"type":"string","description":"一句话说明这些修改"},
@@ -85,7 +89,7 @@ const char kDefs[] = R"JSON([
    "start":{"type":"string","description":"YYYY-MM-DDTHH:MM（当地时间）"},"end":{"type":"string","description":"YYYY-MM-DDTHH:MM"},
    "ref":{"type":"string"},"cost":{"type":"number"},
    "schedule":{"type":"array","description":"add_stop：新站点的日程（每天做什么），一项一件事","items":{"type":"object","required":["text"],"properties":{"date":{"type":"string","description":"YYYY-MM-DD"},"time":{"type":"string","description":"HH:MM"},"end_time":{"type":"string","description":"HH:MM"},"text":{"type":"string"}}}}}}},
-  "gaps":{"type":"array","description":"这个方案还缺什么、哪些没查（订票网站、开放日期、具体时间、班次、价格、预约、住宿等）。每条一句话。",
+  "gaps":{"type":"array","description":"这个方案还缺什么、哪些没查（订票网站、开放日期、具体时间、班次、价格、预约、住宿等）。最多 3 条，每条一句话。",
    "items":{"type":"object","required":["text"],"properties":{"text":{"type":"string"},"search":{"type":"boolean","description":"要不要联网查"}}}}}}}
 ])JSON";
 
@@ -486,8 +490,8 @@ QJsonObject prepare(const Value &root, const QJsonObject &input, const QString &
         changes.append(ch);
     }
     QJsonArray gaps;
-    for (const auto &v : input.value(L("gaps")).toArray())
-        if (!v.toObject().value(L("text")).toString().isEmpty())
+    for (const auto &v : input.value(L("gaps")).toArray())   // 1.2.0：最多 3 条（PO）
+        if (gaps.size() < 3 && !v.toObject().value(L("text")).toString().isEmpty())
             gaps.append(QJsonObject{ { L("text"), v.toObject().value(L("text")).toString() }, { L("search"), v.toObject().value(L("search")).toBool() }, { L("on"), true } });
     P.insert(L("changes"), changes);
     P.insert(L("gaps"), gaps);

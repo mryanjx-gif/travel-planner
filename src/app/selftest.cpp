@@ -145,9 +145,11 @@ void runAll(Report &r, AppController *app, PhotoController *photos, map::MapCont
     if (want("audit")) runAudit(r, app, mapc, win, photos);
     if (want("tour")) runTour(r, app, win);   // 0.12.8
     if (want("ai")) runAi(r, app, win, net);   // 0.13.0
+    if (only.contains(QLatin1String("ailive"))) runAiLive(r, app, win);   // 1.2.0 要花钱，只有点名才跑
     if (want("export")) runExport(r, app, win, roads);   // 0.14.0
     if (want("trip")) runTrip(r, app, win);   // 0.14.1
     if (want("v11")) runV11(r, app, win, roads);   // 1.1.0
+    if (want("v12")) runV12(r, app, mapc, win);   // 1.2.0
     if (want("welcome")) runWelcome(r, app, win);   // 0.12.7（中途换到临时数据，最后换回来）
     if (only.contains(QLatin1String("thumbs1000"))) runThumbs1000(r, photos, dir);
     mapc->fitAll(false);

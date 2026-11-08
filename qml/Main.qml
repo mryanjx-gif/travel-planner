@@ -1281,12 +1281,12 @@ Window {
         objectName: "planEditor"
         drawer: win.drawerMode
         z: 14
-        width: win.drawerMode ? win.width : Math.min(Theme.px(470), win.width - 2 * win.gap)   // Electron --editor-w: 470px
+        width: win.drawerMode ? win.width : Math.min(Theme.px(470) - win.splitNow, win.width - 2 * win.gap)   // Electron --editor-w: 470px；1.2.0 并排时减去拖动条挪走的
         x: win.drawerMode ? 0 : (win.editorShown ? win.width - width - win.gap : win.width + 20)
         y: win.drawerMode ? (win.editorShown ? win.height - win.drawerH : win.height + 20) : win.topH - 6
         height: win.drawerMode ? win.drawerH : win.height - y - win.gap
         visible: win.drawerMode ? y < win.height : x < win.width
-        Behavior on x { enabled: Theme.motion; TpAnim { shown: win.editorShown } }
+        Behavior on x { enabled: Theme.motion && !win.splitDragging; TpAnim { shown: win.editorShown } }
         Behavior on y { enabled: Theme.motion && !win.drawerDragging; TpAnim { shown: win.editorShown } }
         onFinishRequested: win.finishEditor()
         // 1.1.0 顶部 AI（PO）：空计划 → 整页向导（新的先放弃、已有的先完成）；有内容 → AI 面板贴在编辑器左边
@@ -1565,9 +1565,44 @@ Window {
     // 1.1.0 第 7 条：编辑器开着时 AI 面板贴在编辑器左边、地图让位；放不下（< 1100 或抽屉）就盖在编辑器上，顶部"回到编辑"
     readonly property bool aiBeside: aiPanel.open && win.editorShown
     readonly property bool aiOver: win.aiBeside && (win.drawerMode || win.width < 1100)
+    // 1.2.0 第 8 条：AI 面板和编辑页并排时中间一条拖动条调两边宽度，记住（list.aiSplit：AI 面板比默认宽多少逻辑像素）
+    property real aiSplit: Theme.px(Number(app.listPref("aiSplit")) || 0)
+    property bool splitDragging: false
+    readonly property real splitNow: win.aiBeside && !win.aiOver ? win.aiSplit : 0
+    onSplitNowChanged: updateInsets()
+    function setAiSplit(px) { win.aiSplit = Math.max(Theme.px(-100), Math.min(Theme.px(110), px)) }
+    function saveAiSplit() { app.setListPref("aiSplit", String(Math.round(win.aiSplit / Theme.px(1)))) }
+    Item {
+        id: aiSplitter
+        objectName: "aiSplitter"
+        visible: win.aiBeside && !win.aiOver
+        z: 15
+        x: planEditor.x - win.gap
+        y: planEditor.y + Theme.px(20)
+        width: win.gap
+        height: planEditor.height - Theme.px(40)
+        Rectangle {
+            anchors.centerIn: parent
+            width: Theme.px(4); height: Theme.px(40); radius: width / 2
+            color: splitMa.containsMouse || splitMa.pressed ? Theme.accent : Theme.lineStrong
+        }
+        MouseArea {
+            id: splitMa
+            anchors.fill: parent
+            anchors.leftMargin: -Theme.px(3); anchors.rightMargin: -Theme.px(3)
+            hoverEnabled: true
+            cursorShape: Qt.SplitHCursor
+            property real sx: 0
+            property real s0: 0
+            onPressed: (m) => { sx = mapToItem(null, m.x, 0).x; s0 = win.aiSplit; win.splitDragging = true }
+            onPositionChanged: (m) => { if (pressed) win.setAiSplit(s0 + mapToItem(null, m.x, 0).x - sx) }
+            onReleased: { win.splitDragging = false; win.saveAiSplit() }
+            onCanceled: { win.splitDragging = false; win.saveAiSplit() }
+        }
+    }
     AiPanel {
         id: aiPanel
-        width: win.aiOver ? planEditor.width : Math.min(Theme.px(400), win.width - 2 * win.gap)
+        width: win.aiOver ? planEditor.width : Math.min(Theme.px(400) + win.splitNow, win.width - 2 * win.gap)
         height: win.aiBeside ? planEditor.height : Math.max(Theme.px(320), Math.min(Theme.px(620), aiBtn.y - Theme.px(210)))   // 顶上让开右边的缩放按钮
         x: win.aiOver ? planEditor.x : win.aiBeside ? planEditor.x - width - win.gap : win.width - width - win.gap
         y: win.aiBeside ? planEditor.y : aiBtn.y - height - Theme.px(10)

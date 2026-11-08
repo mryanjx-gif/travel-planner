@@ -13,6 +13,7 @@
 #include "jsonio.h"
 #include "netclient.h"
 #include "plancontroller.h"
+#include "planeditor.h"
 #include "settings.h"
 
 #include <QCoreApplication>
@@ -276,13 +277,13 @@ void runTools(Report &r, AppController *app, AiController *ai, FakeAi &fake, AiC
     fake.script = { anthTool(QStringLiteral("toolu_read"), QStringLiteral("get_plans"), J({ { "plan_ids", QJsonArray{ "p_aitest" } } }), true),
                     anthTool(QStringLiteral("toolu_prop"), QStringLiteral("propose_changes"), J({ { "summary", QStringLiteral("全部 20 种") }, { "plan_id", "p_aitest" }, { "changes", changes },
                                                                                                   { "gaps", QJsonArray{ J({ { "text", QStringLiteral("查火车时刻") }, { "search", true } }) } } }), false, QStringLiteral("改好了。")) };
-    ai->send(QStringLiteral("帮我改一下 AI自检"));
+    ai->send(QStringLiteral("查一下，帮我改一下 AI自检"));   // 1.2.0 两步走：带"查一下"这一问才联网
     r.check(idle() && fake.bodies.size() == 2, QStringLiteral("读计划后自动续一轮（共 2 个请求）"), QString::number(fake.bodies.size()));
     const QJsonObject b0 = QJsonDocument::fromJson(fake.bodies.value(0)).object();
     QStringList toolNames;
     int maxUses = 0;
     for (const auto &t : b0.value(QStringLiteral("tools")).toArray()) { toolNames << t.toObject().value(QStringLiteral("name")).toString(); if (t.toObject().contains(QStringLiteral("max_uses"))) maxUses = t.toObject().value(QStringLiteral("max_uses")).toInt(); }
-    r.check(toolNames == QStringList{ "get_plans", "research_status", "propose_changes", "web_search" } && maxUses == 3, QStringLiteral("Claude 带四个工具，联网搜索每轮最多 3 次"), toolNames.join(u','));
+    r.check(toolNames == QStringList{ "get_plans", "research_status", "suggest_places", "propose_changes", "web_search" } && maxUses == 3, QStringLiteral("Claude 带五个工具，联网搜索每轮最多 3 次"), toolNames.join(u','));
     const QJsonArray sys = b0.value(QStringLiteral("system")).toArray();
     r.check(sys.size() == 2 && sys.at(0).toObject().contains(QStringLiteral("cache_control")) && !sys.at(1).toObject().contains(QStringLiteral("cache_control"))
             && sys.at(0).toObject().value(QStringLiteral("text")).toString().contains(QStringLiteral("p_aitest")) && sys.at(1).toObject().value(QStringLiteral("text")).toString().contains(QStringLiteral("现在的情况"))
@@ -440,7 +441,7 @@ void runTools(Report &r, AppController *app, AiController *ai, FakeAi &fake, AiC
     const QJsonObject ob0 = QJsonDocument::fromJson(fake.bodies.value(0)).object();
     QStringList oaNames;
     for (const auto &t : ob0.value(QStringLiteral("tools")).toArray()) oaNames << t.toObject().value(QStringLiteral("type")).toString() + u':' + t.toObject().value(QStringLiteral("function")).toObject().value(QStringLiteral("name")).toString();
-    r.check(oaNames == QStringList{ "function:get_plans", "function:research_status", "function:propose_changes" } && !ob0.contains(QStringLiteral("enable_search")), QStringLiteral("函数工具形状；DeepSeek 不带联网"), oaNames.join(u','));
+    r.check(oaNames == QStringList{ "function:get_plans", "function:research_status", "function:suggest_places", "function:propose_changes" } && !ob0.contains(QStringLiteral("enable_search")), QStringLiteral("函数工具形状；DeepSeek 不带联网"), oaNames.join(u','));
     const QJsonArray om = QJsonDocument::fromJson(fake.bodies.value(1)).object().value(QStringLiteral("messages")).toArray();
     const QJsonObject oaAm = om.size() >= 2 ? om.at(om.size() - 2).toObject() : QJsonObject();
     const QJsonObject oaTool = om.isEmpty() ? QJsonObject() : om.last().toObject();
@@ -503,15 +504,88 @@ void runTools(Report &r, AppController *app, AiController *ai, FakeAi &fake, AiC
     h.budgetMul = 1;
     ai->setTestHooks(h);
 
-    // ---- 自动续轮最多 12 轮 ----
+    // ---- 自动续轮最多 3 轮（1.2.0 PO：12 → 3）----
     ai->newChat();
     fake.bodies.clear();
     fake.script.clear();
-    for (int i = 0; i < 14; ++i) fake.script << anthTool(QStringLiteral("loop%1").arg(i), QStringLiteral("get_plans"), J({ { "plan_ids", QJsonArray{ "p_aitest" } } }), false);
+    for (int i = 0; i < 6; ++i) fake.script << anthTool(QStringLiteral("loop%1").arg(i), QStringLiteral("get_plans"), J({ { "plan_ids", QJsonArray{ "p_aitest" } } }), false);
     ai->send(QStringLiteral("一直读"));
     idle(20000);
-    r.check(fake.bodies.size() == 13 && lastMsg(ai).value(QStringLiteral("text")).toString().contains(QStringLiteral("上限")), QStringLiteral("自动续轮到 12 轮停下（共 13 个请求）"), QString::number(fake.bodies.size()));
+    r.check(fake.bodies.size() == 4 && lastMsg(ai).value(QStringLiteral("text")).toString().contains(QStringLiteral("上限")), QStringLiteral("自动续轮到 3 轮停下（共 4 个请求）"), QString::number(fake.bodies.size()));
     fake.script.clear();
+
+    // ---- 1.2.0 省钱：缓存断点、分两步、旧回合压缩、候选卡片、转义、每日上限、导出、应用时编辑页不动 ----
+    r.section(QStringLiteral("1.2.0 AI 省钱"));
+    ai->setDayCap(1e6);
+    ai->newChat();
+    fake.bodies.clear();
+    const QJsonArray candItems{ J({ { "name", QStringLiteral("The Rocks") }, { "time", QStringLiteral("半天") }, { "cost", QStringLiteral("免费") } }),
+                                J({ { "name", QStringLiteral("Hyde Park Barracks") }, { "time", QStringLiteral("2 小时") }, { "cost", QStringLiteral("A$ 18") } }) };
+    fake.script = { anthTool(QStringLiteral("v12read"), QStringLiteral("get_plans"), J({ { "plan_ids", QJsonArray{ "p_aitest" } } }), true),
+                    anthTool(QStringLiteral("v12cand"), QStringLiteral("suggest_places"), J({ { "title", QStringLiteral("悉尼 · 古迹") }, { "items", candItems } }), false, QStringLiteral("第一问答完")) };
+    ai->send(QStringLiteral("悉尼有什么古迹"));
+    idle();
+    const QJsonObject v0 = QJsonDocument::fromJson(fake.bodies.value(0)).object(), v1 = QJsonDocument::fromJson(fake.bodies.value(1)).object();
+    QStringList v0tools;
+    for (const auto &t : v0.value(QStringLiteral("tools")).toArray()) v0tools << t.toObject().value(QStringLiteral("name")).toString();
+    r.check(fake.bodies.size() == 2 && !v0tools.contains(QStringLiteral("web_search")) && v0tools.contains(QStringLiteral("suggest_places")), QStringLiteral("第一步不带联网工具"), v0tools.join(u','));
+    auto lastBlockCached = [](const QJsonObject &m) { const QJsonArray c = m.value(QStringLiteral("content")).toArray(); return !c.isEmpty() && c.last().toObject().contains(QStringLiteral("cache_control")); };
+    const QJsonArray v1m = v1.value(QStringLiteral("messages")).toArray();
+    const int v1n = int(QString::fromUtf8(fake.bodies.value(1)).count(QStringLiteral("cache_control")));
+    r.check(!v1m.isEmpty() && lastBlockCached(v1m.last().toObject()) && lastBlockCached(v1m.first().toObject()) && v1n == 3,
+            QStringLiteral("缓存断点：系统 + 这一问开头 + 最后一条（共 3 个，≤ 4）"), QString::number(v1n));
+    const QVariantMap cm = lastOf(ai, "assistant").toVariantMap();
+    const int cmi = cm.value(QStringLiteral("cands")).toMap().value(QStringLiteral("mi")).toInt();
+    r.check(cm.value(QStringLiteral("cands")).toMap().value(QStringLiteral("items")).toList().size() == 2, QStringLiteral("候选卡片：两项，默认不勾"));
+    ai->toggleCand(cmi, 1);
+    fake.script = { anthTool(QString(), QString(), {}, false, QStringLiteral("第二问")) };
+    ai->candsGo(cmi);
+    idle();
+    const QString v2s = QString::fromUtf8(fake.bodies.value(2));
+    const QJsonObject v2 = QJsonDocument::fromJson(fake.bodies.value(2)).object();
+    QStringList v2tools;
+    for (const auto &t : v2.value(QStringLiteral("tools")).toArray()) v2tools << t.toObject().value(QStringLiteral("name")).toString();
+    const QJsonArray v2m = v2.value(QStringLiteral("messages")).toArray();
+    r.check(v2tools.contains(QStringLiteral("web_search")) && v2s.contains(QStringLiteral("Hyde Park Barracks")) && v2s.contains(QStringLiteral("做成攻略：Hyde Park Barracks。")), QStringLiteral("做成攻略：只发勾选的那个，这一问才联网"));
+    r.check(!v2s.contains(QStringLiteral("\"thinking\"")) && !v2s.contains(QStringLiteral("tool_use")) && v2s.contains(QStringLiteral("第一问答完")) && v2s.contains(QStringLiteral("［候选］"))
+            && v2m.size() == 3 && v2m.at(0).toObject().value(QStringLiteral("content")).isString() && lastBlockCached(v2m.last().toObject()),
+            QStringLiteral("旧回合压成纯文字：不带思考块、工具调用，只留回答和候选"), v2s.left(160));
+    fake.script = { anthTool(QStringLiteral("v12rs"), QStringLiteral("research_status"), J({ { "todo", QJsonArray() }, { "remaining_seconds", 10 }, { "finished", true }, { "note", QStringLiteral("\\u67e5\\u5b8c") } }), false, QStringLiteral("好")) };
+    ai->send(QStringLiteral("细化第一天"));
+    idle();
+    r.check(lastOf(ai, "assistant").value(QStringLiteral("research")).toObject().value(QStringLiteral("note")).toString() == QStringLiteral("查完"), QStringLiteral("查完了卡片：\\uXXXX 还原成字"),
+            lastOf(ai, "assistant").value(QStringLiteral("research")).toObject().value(QStringLiteral("note")).toString());
+    // 导出对话
+    const QString md = QDir::temp().filePath(QStringLiteral("tp-v12-chat.md"));
+    QFile::remove(md);
+    QString mdText;
+    if (ai->exportChat(QUrl::fromLocalFile(md).toString())) { QFile f(md); if (f.open(QIODevice::ReadOnly)) mdText = QString::fromUtf8(f.readAll()); }
+    QFile::remove(md);
+    r.check(mdText.contains(QStringLiteral("悉尼有什么古迹")) && mdText.contains(QStringLiteral("第一问答完")) && mdText.contains(QStringLiteral("做成攻略：")) && !mdText.contains(QStringLiteral("sk-ant")),
+            QStringLiteral("导出对话 .md：有双方的话，没有钥匙"), mdText.left(80));
+    // 每日上限：今天已经花了一点，上限设得比它小 → 拦下、不发；当场提高后能发
+    ai->setDayCap(ai->dayUsed() * 0.5);
+    const int dreq = fake.requests;
+    r.check(ai->dayUsed() > 0 && ai->dayCapReached() && !ai->send(QStringLiteral("每日上限")) && fake.requests == dreq && lastMsg(ai).value(QStringLiteral("kind")).toString() == QLatin1String("daycap"),
+            QStringLiteral("每日上限：到了拦下、不发"), QStringLiteral("%1 / %2").arg(ai->dayUsed()).arg(ai->dayCap()));
+    ai->raiseDayCap();
+    r.check(!ai->dayCapReached(), QStringLiteral("当场提高今日上限"));
+    ai->setDayCap(1e6);
+    // 应用修改时编辑页不关（第 2 条）：开着 p_aitest 的编辑器应用 → 还开着、原地刷新
+    if (PlanEditor *ed = editorCtl()) {
+        app->commitStep();
+        ed->openPlan(QStringLiteral("p_aitest"));
+        fake.script = { anthTool(QStringLiteral("v12prop"), QStringLiteral("propose_changes"), J({ { "summary", QStringLiteral("改名") }, { "plan_id", "p_aitest" },
+                                                                                              { "changes", QJsonArray{ J({ { "op", "update_plan" }, { "name", QStringLiteral("AI改名") } }) } } }), false, QStringLiteral("好")) };
+        ai->send(QStringLiteral("改个名"));
+        idle();
+        const QVariantMap pp = lastProps(ai);
+        ai->applyProposal(pp.value(QStringLiteral("mi")).toInt(), pp.value(QStringLiteral("pi")).toInt());
+        r.check(ed->isOpen() && ed->planId() == QLatin1String("p_aitest") && ed->plan().value(QStringLiteral("name")).toString() == QStringLiteral("AI改名")
+                && lastProps(ai).value(QStringLiteral("state")).toString() == QLatin1String("applied"),
+                QStringLiteral("编辑器开着时应用：编辑页不关、原地刷新出新内容"), ed->plan().value(QStringLiteral("name")).toString());
+        if (ed->isOpen()) ed->finish();
+    }
 
     // 还原数据（这一段加的计划、改动都撤掉）
     if (geo) geo->setFetchForTest({});

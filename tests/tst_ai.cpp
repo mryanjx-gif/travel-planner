@@ -126,7 +126,10 @@ private slots:
         QCOMPARE(ab["thinking"].toObject()["type"].toString(), QStringLiteral("adaptive"));
         QCOMPARE(ab["output_config"].toObject()["effort"].toString(), QStringLiteral("high"));
         QCOMPARE(ab["system"].toArray()[0].toObject()["text"].toString(), QStringLiteral("规则"));
-        QCOMPARE(ab["messages"].toArray()[0].toObject()["content"].toString(), QStringLiteral("你好"));
+        // 1.2.0 最后一条消息打缓存标记（字符串内容改成一个 text 块）
+        const QJsonObject b0 = ab["messages"].toArray()[0].toObject()["content"].toArray()[0].toObject();
+        QCOMPARE(b0["text"].toString(), QStringLiteral("你好"));
+        QCOMPARE(b0["cache_control"].toObject()["type"].toString(), QStringLiteral("ephemeral"));
         QVERIFY(ab["stream"].toBool());
         bool hasKey = false;
         for (const auto &h : a.headers) if (h.first == "x-api-key" && h.second == "sk-ant-x") hasKey = true;
@@ -179,8 +182,8 @@ private slots:
     void toolsAndApply()
     {
         using namespace tp::ai;
-        QCOMPARE(tools::anthropicTools(true).size(), 4);
-        QCOMPARE(tools::openAiTools(QStringLiteral("deepseek"), true).size(), 3);
+        QCOMPARE(tools::anthropicTools(true).size(), 5);   // 1.2.0 + suggest_places
+        QCOMPARE(tools::openAiTools(QStringLiteral("deepseek"), true).size(), 4);
         QCOMPARE(tools::openAiTools(QStringLiteral("kimi"), true).last().toObject().value(QStringLiteral("type")).toString(), QStringLiteral("builtin_function"));
         QVERIFY(tools::canSearch(QStringLiteral("qwen")) && !tools::canSearch(QStringLiteral("doubao")));
         tp::json::Value root = tp::json::parse(QString::fromUtf8(R"({"plans":[{"id":"p1","name":"T","cover":"x","localEmergency":[{"label":"a"}],"expenses":[{"amount":1}],

@@ -107,7 +107,7 @@ void MapController::fitPoints(const QVariantList &pts, double maxZoom, int durat
         const double lng = geo::unwrapTo(p.lng, ref);
         w = std::min(w, lng); e = std::max(e, lng); s = std::min(s, p.lat); n = std::max(n, p.lat);
     }
-    const geo::FitResult r = geo::fitBounds(m_cam, w, s, e, n, fitPad(), maxZoom);
+    const geo::FitResult r = geo::fitBounds(m_cam, w, s, e, n, fitPad(), maxZoom > 0 ? maxZoom : planMaxZoom(w, s, e, n));   // 1.2.0 ≤ 0：按计划的规则
     if (!r.ok) return;
     flyTo(r.lat, r.lng, r.zoom, durationMs);
 }

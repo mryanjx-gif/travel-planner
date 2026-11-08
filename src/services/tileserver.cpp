@@ -204,7 +204,8 @@ void TileServer::fetch(const TileKey &k, bool forMap, Done done)
         // 找不到（404）原样告诉 maplibre（它不会再要）；其他失败回 502（maplibre 过一会儿会重试）
         const int status = ok ? 200 : (r.status == 404 ? 404 : (r.error == NetClient::Error::Offline || r.error == NetClient::Error::ServiceOff ? 503 : 502));
         for (const Done &d : p.waiters) d(status, ok ? r.body : QByteArray());
-        if (p.forMap && r.error != NetClient::Error::Offline && r.error != NetClient::Error::ServiceOff) emit fetched(k.base, ok, detail);
+        // 1.2.0 地址带 blankTile=false 的（卫星图）：404 = 那一级没有图，不算失败、不进"连续失败"计数；其他底图的 404 照旧算失败
+        if (p.forMap && r.error != NetClient::Error::Offline && r.error != NetClient::Error::ServiceOff) emit fetched(k.base, ok || (r.status == 404 && m_sources.value(k.base).upstream.contains(QLatin1String("blankTile=false"))), detail);
     }, QByteArrayLiteral("image/*"));
 }
 

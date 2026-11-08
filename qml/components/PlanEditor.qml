@@ -11,6 +11,8 @@ import TPApp
 
 Item {
     id: root
+    // 1.2.0 第 5 条：编辑页上的滚轮一律不传给地图
+    MouseArea { objectName: "editorWheelStop"; anchors.fill: parent; z: -1; acceptedButtons: Qt.NoButton; onWheel: (w) => w.accepted = true }
     QtObject { id: schedEdit; property int stop: -1; property int j: -2; property var draft: ({}); property string err: "" }
     readonly property bool scheduleEditing: schedEdit.j !== -2
     function cancelSchedule() { schedEdit.j = -2 }

@@ -1723,3 +1723,25 @@ AI 助手，用你自己的钥匙。	The AI assistant, with your own key.
 加待办	Add a to-do
 出发城市	From
 必去的	Must-sees
+导出对话	Export chat
+纯文本	Plain text
+提高今日上限	Raise today's limit
+仍然发送	Send anyway
+候选	Options
+勾了 %1 个	%1 picked
+做成攻略	Make a guide
+回到别处	Return elsewhere
+回程城市	Return city
+补充说明	Notes
+比如带小孩、要无障碍	E.g. kids, step-free
+每日上限	Daily limit
+今天约 %1	Today ~%1
+回程到	Return to
+今日上限提高到 %1	Today's limit raised to %1
+今天已经用了约 %1，到了每日上限 %2 的 80%。	About %1 used today, 80% of the %2 daily limit.
+今天已经用了约 %1，到了每日上限 %2，先停在这里。	About %1 used today, the %2 daily limit. Stopping here.
+这次预计约 %1，继续吗？	This may cost about %1. Continue?
+做成攻略：%1	Make a guide: %1
+AI 对话	AI chat
+已导出对话	Chat exported
+导出失败：%1	Export failed: %1

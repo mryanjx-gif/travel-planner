@@ -396,6 +396,9 @@ private:
     void setLineHot(bool on);
     geo::Camera fitCam() const;   // 0.9.5：框住时用的相机（在地球上时窗口大小用地球那一项的）
     void fitAllFlat();   // 0.9.6：自动框住只动平面
+public:
+    static double planMaxZoom(double w, double s, double e, double n);   // 1.2.0 框住一个计划时最多放大到几级（一个点 12，否则 15）
+private:
     bool globeGo(double lat, double lng, double zoom, int ms);   // 在地球上时转给地球（zoom 太大就换平面）；不在地球上返回 false
     QString globeLineAt(double x, double y) const;
     bool planBounds(const QString &planId, double *w, double *s, double *e, double *n) const;

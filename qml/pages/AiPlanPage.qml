@@ -14,6 +14,9 @@ Item {
     // ---- 表单 ----
     property int step: 0
     property string fFrom: ""
+    property bool otherBack: false      // 1.2.0 第 4 条：默认回到出发地，可以改"回到别处"
+    property string fBack: ""
+    property string fNote: ""           // 1.2.0 最后一步的补充说明
     property string fTo: ""
     property string dateMode: "dates"   // dates / days
     property string fStart: ""
@@ -32,22 +35,22 @@ Item {
     readonly property var interestList: [qsTr("美食"), qsTr("自然风光"), qsTr("徒步登山"), qsTr("历史古迹"), qsTr("博物馆"), qsTr("购物"), qsTr("海滩"), qsTr("摄影"), qsTr("亲子"), qsTr("夜生活")]
 
     function form() {
-        return { from: fFrom, to: fTo, start: dateMode === "dates" ? fStart : "", end: dateMode === "dates" ? fEnd : "",
+        return { from: fFrom, back: otherBack ? fBack : "", note: fNote, to: fTo, start: dateMode === "dates" ? fStart : "", end: dateMode === "dates" ? fEnd : "",
                  days: dateMode === "days" ? fDays : "", people: fPeople, budget: fBudget, pace: fPace, interests: fInterests, must: fMust, avoid: fAvoid }
     }
     function reset() {
-        step = 0; fFrom = ""; fTo = ""; dateMode = "dates"; fStart = ""; fEnd = ""; fDays = ""
+        step = 0; fFrom = ""; otherBack = false; fBack = ""; fNote = ""; fTo = ""; dateMode = "dates"; fStart = ""; fEnd = ""; fDays = ""
         fPeople = ""; fBudget = ""; fPace = ""; fInterests = []; fMust = ""; fAvoid = ""; blockText = ""
     }
     function back() { if (step > 0) { step--; blockText = "" } }
     function next() { blockText = ""; if (step < steps.length - 1) step++; else submit() }
     // 跳过：这一步填了的清掉，再往下
     function skip() {
-        if (step === 0) { fFrom = ""; fTo = "" }
+        if (step === 0) { fFrom = ""; fTo = ""; otherBack = false; fBack = "" }
         else if (step === 1) { fStart = ""; fEnd = ""; fDays = "" }
         else if (step === 2) { fPeople = ""; fBudget = "" }
         else if (step === 3) { fPace = ""; fInterests = [] }
-        else { fMust = ""; fAvoid = "" }
+        else { fMust = ""; fAvoid = ""; fNote = "" }
         next()
     }
     // 截图用：填一份样子，停在第 n 步
@@ -217,6 +220,17 @@ Item {
                         spacing: Theme.px(8)
                         StepLabel { text: qsTr("从哪里出发") }
                         TpField { objectName: "aiPlanFrom"; width: parent.width; placeholder: qsTr("出发城市"); value: root.fFrom; onEdited: (t) => root.fFrom = t }
+                        Row {
+                            spacing: Theme.px(8)
+                            TpCheck { id: backChk; objectName: "aiPlanOtherBack"; checked: root.otherBack; onToggled: root.otherBack = !root.otherBack }
+                            Text {
+                                anchors.verticalCenter: backChk.verticalCenter
+                                text: qsTr("回到别处")
+                                font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.otherBack = !root.otherBack }
+                            }
+                        }
+                        TpField { objectName: "aiPlanReturn"; visible: root.otherBack; width: parent.width; placeholder: qsTr("回程城市"); value: root.fBack; onEdited: (t) => root.fBack = t }
                         StepLabel { text: qsTr("想去哪里") }
                         TpField { objectName: "aiPlanTo"; width: parent.width; placeholder: qsTr("目的地"); value: root.fTo; onEdited: (t) => root.fTo = t }
                         StepHint { text: qsTr("还没想好可以跳过，AI 会先问你。") }
@@ -307,6 +321,8 @@ Item {
                         TpField { objectName: "aiPlanMust"; width: parent.width; multiline: true; maxLines: 4; placeholder: qsTr("必去的"); value: root.fMust; onEdited: (t) => root.fMust = t }
                         StepLabel { text: qsTr("不想去的") }
                         TpField { objectName: "aiPlanAvoid"; width: parent.width; multiline: true; maxLines: 4; placeholder: qsTr("不想去的"); value: root.fAvoid; onEdited: (t) => root.fAvoid = t }
+                        StepLabel { text: qsTr("补充说明") }
+                        TpField { objectName: "aiPlanNote"; width: parent.width; multiline: true; maxLines: 4; placeholder: qsTr("比如带小孩、要无障碍"); value: root.fNote; onEdited: (t) => root.fNote = t }
                     }
                 }
             }

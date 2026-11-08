@@ -22,6 +22,7 @@
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QLocale>
+#include <QRegularExpression>
 #include <QSaveFile>
 #include <QUrl>
 #include <QHash>
@@ -70,6 +71,30 @@ QString providerLabel(const QString &id)
 
 // 离线又从没取到过汇率时的粗略换算（ponytail：只有美元和人民币；有汇率表后不用它）
 double fallbackPerUsd(const QString &cur) { return cur == QLatin1String("USD") ? 1 : cur == QLatin1String("CNY") ? 7.1 : -1; }
+
+// 1.2.0 修 bug：查完了卡片显示转义码。有的服务商把工具参数里的中文多转义了一层，解析后还是字面的转义写法（反斜杠 u + 4 位十六进制），这里还原成字
+QJsonValue unesc(const QJsonValue &v)
+{
+    if (v.isObject()) { QJsonObject o = v.toObject(); for (auto it = o.begin(); it != o.end(); ++it) it.value() = unesc(it.value()); return o; }
+    if (v.isArray()) { QJsonArray a = v.toArray(); for (qsizetype i = 0; i < a.size(); ++i) a.replace(i, unesc(a.at(i))); return a; }
+    if (!v.isString() || !v.toString().contains(QLatin1String("\\u"))) return v;
+    const QString s = v.toString();
+    QString out;
+    for (qsizetype i = 0; i < s.size(); ++i) {
+        bool ok = false;
+        const uint code = s.at(i) == u'\\' && i + 5 < s.size() && s.at(i + 1) == u'u' ? s.mid(i + 2, 4).toUInt(&ok, 16) : 0;
+        if (ok) { out += QChar(char16_t(code)); i += 5; }
+        else out += s.at(i);
+    }
+    return out;
+}
+
+// 1.2.0 两步走：这一问要不要联网。用户点名要查 / 细化时才带联网工具（PO 批的"分两步"）
+bool wantsWeb(const QString &t)
+{
+    static const QRegularExpression re(QStringLiteral("细化|查一下|查查|查下|搜一下|搜索|联网|做成攻略|补充|look up|search|refine"), QRegularExpression::CaseInsensitiveOption);
+    return re.match(t).hasMatch();
+}
 
 } // namespace
 
@@ -366,6 +391,43 @@ void AiController::raiseCap()
     emit toast(tp::tr("本月上限提高到 %1").arg(money(cap(), mainCur())), false);
 }
 
+// 1.2.0 每日上限（PO：默认 ¥10，按主币种；80% 提醒，到了停下、可以当场提高）。aiUsage.day = { d 日期, amt, cur }
+double AiController::dayCap() const
+{
+    const QJsonObject c = conf();
+    if (c.contains(QStringLiteral("dayCap"))) {
+        const double v = toMain(c.value(QStringLiteral("dayCap")).toDouble(), c.value(QStringLiteral("dayCapCur")).toString(mainCur()));
+        if (v >= 0) return v;
+    }
+    const double d = toMain(10, QStringLiteral("CNY"));
+    return d > 0 ? std::max(1.0, std::round(d)) : 10;
+}
+
+void AiController::setDayCap(double v)
+{
+    QJsonObject c = conf();
+    c.insert(QStringLiteral("dayCap"), std::max(0.0, v));
+    c.insert(QStringLiteral("dayCapCur"), mainCur());
+    m_settings->setValue(QStringLiteral("ai"), fromQ(c));
+    m_settings->save();
+    emit usageChanged();
+}
+
+double AiController::dayUsed() const
+{
+    const QJsonObject d = usageObj().value(QStringLiteral("day")).toObject();
+    if (d.value(QStringLiteral("d")).toString() != QDate::currentDate().toString(Qt::ISODate)) return 0;
+    const double v = toMain(d.value(QStringLiteral("amt")).toDouble(), d.value(QStringLiteral("cur")).toString());
+    return v > 0 ? v : 0;
+}
+
+void AiController::raiseDayCap()
+{
+    const double step = std::max(1.0, std::round(toMain(10, QStringLiteral("CNY"))));
+    setDayCap(std::max(dayCap(), dayUsed()) + step);
+    emit toast(tp::tr("今日上限提高到 %1").arg(money(dayCap(), mainCur())), false);
+}
+
 QJsonObject AiController::usageObj() const
 {
     const QJsonObject u = toQ(m_settings->value(QStringLiteral("aiUsage")));
@@ -440,8 +502,12 @@ QVariantList AiController::usageRows() const
 
 void AiController::record(const QString &pid, double amount, const QString &cur, qint64 tokens)
 {
-    const double before = used();
+    const double before = used(), dayBefore = dayUsed();
     QJsonObject u = usageObj();
+    if (amount > 0) {   // 今天的（主币种）
+        const double m = toMain(amount, cur);
+        if (m > 0) u.insert(QStringLiteral("day"), QJsonObject{ { QStringLiteral("d"), QDate::currentDate().toString(Qt::ISODate) }, { QStringLiteral("amt"), dayBefore + m }, { QStringLiteral("cur"), mainCur() } });
+    }
     QJsonObject by = u.value(QStringLiteral("by")).toObject();
     QJsonObject o = by.value(pid).toObject();
     o.insert(QStringLiteral("amt"), o.value(QStringLiteral("amt")).toDouble() + std::max(0.0, amount));
@@ -458,6 +524,9 @@ void AiController::record(const QString &pid, double amount, const QString &cur,
         note(tp::tr("这个月已经用了约 %1，到了上限 %2 的 80%。").arg(money(now, mainCur()), money(c, mainCur())));
         emit capWarned(now, c);
     }
+    const double dc = dayCap(), dnow = dayUsed();
+    if (dc > 0 && dnow >= 0.8 * dc && dayBefore < 0.8 * dc && dnow < dc)
+        note(tp::tr("今天已经用了约 %1，到了每日上限 %2 的 80%。").arg(money(dnow, mainCur()), money(dc, mainCur())));
 }
 
 QString AiController::money(double amount, const QString &cur) const
@@ -506,6 +575,9 @@ QVariantList AiController::messages() const
             m.insert(QStringLiteral("html"), mdLite(o.value(QStringLiteral("text")).toString()));
             for (const char *k : { "thinking", "meta", "error", "cur", "provider", "model" }) if (o.contains(QLatin1String(k))) m.insert(QLatin1String(k), o.value(QLatin1String(k)).toString());
             if (o.contains(QStringLiteral("cost"))) m.insert(QStringLiteral("cost"), o.value(QStringLiteral("cost")).toDouble());
+            // 1.2.0 第 6 条：花费那行只写金额，点开才有 token 明细（meta）
+            if (o.contains(QStringLiteral("meta"))) m.insert(QStringLiteral("costText"), o.contains(QStringLiteral("cost")) ? money(o.value(QStringLiteral("cost")).toDouble(), o.value(QStringLiteral("cur")).toString()) : tp::tr("没填单价"));
+            if (o.contains(QStringLiteral("cands"))) { QVariantMap c = o.value(QStringLiteral("cands")).toObject().toVariantMap(); c.insert(QStringLiteral("mi"), i); m.insert(QStringLiteral("cands"), c); }
             m.insert(QStringLiteral("act"), o.value(QStringLiteral("act")).toVariant());
             // 1.1.0：Anthropic 要求原样显示时带上来源（技术选型.md §11），只给 Claude 的；国内几家不显示
             if (o.value(QStringLiteral("api")).toString() == QLatin1String("anthropic")) m.insert(QStringLiteral("sources"), o.value(QStringLiteral("sources")).toVariant());
@@ -581,6 +653,7 @@ QString AiController::blockReason(QString *kind) const
     if (!hasKey()) { if (kind) *kind = QStringLiteral("nokey"); return tp::tr("还没有填 %1 的钥匙：设置 → AI。").arg(providerName()); }
     if (m_provider == QLatin1String("custom") && (base().isEmpty() || model().isEmpty())) return tp::tr("自定义服务要先在设置 → AI 里填地址和模型名。");
     if (capReached()) { if (kind) *kind = QStringLiteral("cap"); return tp::tr("这个月已经用了约 %1，到了上限 %2，先停在这里。").arg(money(used(), mainCur()), money(cap(), mainCur())); }
+    if (dayCapReached()) { if (kind) *kind = QStringLiteral("daycap"); return tp::tr("今天已经用了约 %1，到了每日上限 %2，先停在这里。").arg(money(dayUsed(), mainCur()), money(dayCap(), mainCur())); }
     return {};
 }
 
@@ -598,9 +671,54 @@ bool AiController::sendWith(const QString &text, const QString &shown, bool gapF
         emit tellChanged();
         return false;
     }
-    doSend(t, shown, gapFill, keepResearch, runKind);
+    return gate(t, shown, gapFill, keepResearch, runKind);
+}
+
+// 1.2.0 发送前估价（PO：预计超过约 ¥5 先问）。粗算：系统提示 + 历史 + 这句话的字节数 / 3 ≈ token，全按输入价、
+// 输出按 4000，联网的一问再乘 2 并加 3 次搜索（ponytail：不算缓存折扣，偏高；要准再按上一轮的实际用量推）
+double AiController::estimateMain(const QString &text, bool web) const
+{
+    const Provider *p = ai::provider(m_provider);
+    Price buf;
+    const Price *pr = m_provider == QLatin1String("custom") ? price(&buf) : priceFor(*p, model());
+    if (!pr) return -1;
+    const json::Value *plan = currentPlanId().isEmpty() ? nullptr : tp::map::planedit::findPlan(root(), currentPlanId());
+    const qint64 bytes = systemHead(tools::plansSummary(root())).toUtf8().size() + (plan ? tools::planForAi(root(), *plan, noMoney()).toUtf8().size() : 0)
+                       + QJsonDocument(apiHistory(p->kind)).toJson(QJsonDocument::Compact).size() + text.toUtf8().size();
+    Usage u;
+    u.input = bytes / 3;
+    u.output = 4000;
+    double c = ai::cost(pr, 0, u);
+    if (c < 0) return -1;
+    if (web) c = c * 2 + tools::kMaxSearch * p->searchPrice;
+    return toMain(c, m_provider == QLatin1String("custom") ? custom().value(QStringLiteral("cur")).toString() : p->currency);
+}
+
+bool AiController::gate(const QString &t, const QString &shown, bool gapFill, bool keepResearch, const QString &kind)
+{
+    const bool web = canWeb() && kind != QLatin1String("order") && (gapFill || (this->web() && wantsWeb(t)));
+    const double est = estimateMain(t, web);
+    const double limit = std::max(0.01, toMain(5, QStringLiteral("CNY")));
+    if (est > limit) {
+        m_est = Est{ true, t, shown, gapFill, keepResearch, kind };
+        note(tp::tr("这次预计约 %1，继续吗？").arg(money(est, mainCur())), QStringLiteral("est"));
+        emit tellChanged();
+        return false;
+    }
+    doSend(t, shown, gapFill, keepResearch, kind);
     return true;
 }
+
+void AiController::confirmEst()
+{
+    if (!m_est.on || busy()) return;
+    const Est e = m_est;
+    m_est = Est();
+    emit tellChanged();
+    doSend(e.text, e.shown, e.gapFill, e.keep, e.kind);
+}
+
+void AiController::cancelEst() { m_est = Est(); emit tellChanged(); }
 
 bool AiController::planWizard(const QVariantMap &form)
 {
@@ -631,7 +749,7 @@ void AiController::confirmTell()
     m_pendingShown.clear();
     m_pendingKind.clear();
     emit tellChanged();
-    doSend(t, shown, false, false, kind);
+    gate(t, shown, false, false, kind);
 }
 
 void AiController::cancelTell() { m_pending.clear(); m_pendingShown.clear(); m_pendingKind.clear(); emit tellChanged(); }
@@ -651,10 +769,12 @@ void AiController::doSend(const QString &text, const QString &shown, bool gapFil
     if (!keepResearch) m_research = Research();
     QJsonObject u{ { QStringLiteral("role"), QStringLiteral("user") }, { QStringLiteral("text"), text } };
     if (!shown.isEmpty()) u.insert(QStringLiteral("shown"), shown);
+    if (keepResearch) u.insert(QStringLiteral("cont"), true);   // 1.2.0 "继续查"：和上一问算同一回合（不压缩那段查找）
     m_msgs.append(u);
     m_run = Run();
     m_run.t0 = nowMs();
     m_run.gapFill = gapFill;
+    m_run.web = gapFill || wantsWeb(text);
     m_run.kind = kind;
     m_run.planId = kind == QLatin1String("wizard") ? QString() : currentPlanId();   // 向导是新计划，不带地图上选中的那个
     run();
@@ -663,9 +783,38 @@ void AiController::doSend(const QString &text, const QString &shown, bool gapFil
 // 对话 → 这种接法的 messages（Electron apiMessages）：
 // 助手的话有同一种接法的原样内容（思考块含 signature、工具调用、reasoning_content）就原样回传，否则只带文字（0.13.0 的旧历史、换了服务商）；
 // 上一轮调了工具的，下一条用户消息前补上工具结果；出错、一个字没写的回答和它前面那一问不带
-QJsonArray AiController::apiHistory(Kind kind) const
+// 1.2.0 旧回合压成纯文字（PO 批的 A②）：这一问（最后一条不是自动续轮、不是"继续查"的用户消息）之前的回合，
+// 只带用户的话和 AI 最后的文字 + 一行修改预览 / 候选的结果，不带思考块、工具调用、网页原文；这一问里的照旧原样回传（0.13.1 的 400 教训）。
+// 压过的样子只由已经结束的回合决定、以后不再变，所以下一问的前缀和这一问一样，缓存接得上。turnAt：这一问的开头在返回数组里的下标
+QString AiController::compact(const QJsonObject &o)
+{
+    QString t = o.value(QStringLiteral("text")).toString().trimmed();
+    const QJsonObject results = o.value(QStringLiteral("results")).toObject();
+    for (const auto &v : o.value(QStringLiteral("props")).toArray()) {
+        const QJsonObject P = v.toObject();
+        const QString st = P.value(QStringLiteral("state")).toString();
+        if (st == QLatin1String("empty") || st == QLatin1String("gapsonly")) continue;
+        const QString res = results.value(P.value(QStringLiteral("toolId")).toString()).toString(st == QLatin1String("open") ? QString::fromUtf8(kPending) : st);
+        t += QStringLiteral("\n［修改预览］%1：%2").arg(P.value(QStringLiteral("summary")).toString(), res);
+    }
+    const QJsonObject cands = o.value(QStringLiteral("cands")).toObject();
+    if (!cands.isEmpty()) {
+        QStringList names;
+        for (const auto &v : cands.value(QStringLiteral("items")).toArray()) names << v.toObject().value(QStringLiteral("name")).toString();
+        t += QStringLiteral("\n［候选］") + names.join(QStringLiteral("、"));
+    }
+    return t.trimmed();
+}
+
+QJsonArray AiController::apiHistory(Kind kind, int *turnAt) const
 {
     const bool anth = kind == Kind::Anthropic;
+    if (turnAt) *turnAt = -1;
+    qsizetype cur = 0;
+    for (qsizetype i = m_msgs.size() - 1; i >= 0; --i) {
+        const QJsonObject o = m_msgs.at(i).toObject();
+        if (o.value(QStringLiteral("role")) == QLatin1String("user") && !o.value(QStringLiteral("auto")).toBool() && !o.value(QStringLiteral("cont")).toBool()) { cur = i; break; }
+    }
     const QString api = anth ? QStringLiteral("anthropic") : QStringLiteral("openai");
     QJsonArray out;
     QList<std::pair<QString, QString>> pending;   // 还没回传结果的工具调用：id、名字
@@ -686,6 +835,17 @@ QJsonArray AiController::apiHistory(Kind kind) const
     for (qsizetype i = 0; i < m_msgs.size(); ++i) {
         const QJsonObject o = m_msgs.at(i).toObject();
         const QString role = o.value(QStringLiteral("role")).toString();
+        if (i < cur) {   // 已结束的回合：纯文字
+            if (role == QLatin1String("user")) {
+                if (o.value(QStringLiteral("auto")).toBool() || (i + 1 < m_msgs.size() && dead(m_msgs.at(i + 1).toObject()))) continue;
+                const QString text = o.value(QStringLiteral("text")).toString();
+                if (!text.isEmpty()) push(QJsonObject{ { QStringLiteral("role"), QStringLiteral("user") }, { QStringLiteral("content"), text } });
+            } else if (role == QLatin1String("assistant") && !dead(o)) {
+                const QString text = compact(o);
+                if (!text.isEmpty()) push(QJsonObject{ { QStringLiteral("role"), QStringLiteral("assistant") }, { QStringLiteral("content"), text } });
+            }
+            continue;
+        }
         if (role == QLatin1String("user")) {
             if (!o.value(QStringLiteral("auto")).toBool() && i + 1 < m_msgs.size() && dead(m_msgs.at(i + 1).toObject())) continue;
             const QString text = o.value(QStringLiteral("text")).toString();
@@ -709,6 +869,7 @@ QJsonArray AiController::apiHistory(Kind kind) const
                 if (!text.isEmpty()) push(QJsonObject{ { QStringLiteral("role"), QStringLiteral("user") }, { QStringLiteral("content"), text } });
             }
             pending.clear();
+            if (i == cur && turnAt && !out.isEmpty()) *turnAt = int(out.size()) - 1;
         } else if (role == QLatin1String("assistant")) {
             if (dead(o)) { pending.clear(); continue; }
             pending.clear();
@@ -741,7 +902,7 @@ QJsonArray AiController::apiHistory(Kind kind) const
             }
         }
     }
-    while (!out.isEmpty() && out.first().toObject().value(QStringLiteral("role")).toString() != QLatin1String("user")) out.removeFirst();
+    while (!out.isEmpty() && out.first().toObject().value(QStringLiteral("role")).toString() != QLatin1String("user")) { out.removeFirst(); if (turnAt && *turnAt >= 0) --*turnAt; }
     return out;
 }
 
@@ -750,7 +911,7 @@ void AiController::run()
     const Provider *p = ai::provider(m_provider);
     const bool order = m_run.kind == QLatin1String("order");
     const bool canWeb = tools::canSearch(m_provider);
-    const bool web = canWeb && !order && (this->web() || m_run.gapFill);
+    const bool web = canWeb && !order && (m_run.gapFill || (this->web() && m_run.web));   // 1.2.0 分两步：点名要查的一问才联网
     if (!m_run.planId.isEmpty() && !tp::map::planedit::findPlan(root(), m_run.planId)) m_run.planId = m_run.kind == QLatin1String("wizard") ? QString() : currentPlanId();
     const json::Value *plan = m_run.planId.isEmpty() ? nullptr : tp::map::planedit::findPlan(root(), m_run.planId);
     const QVariantMap w = m_where ? m_where() : QVariantMap();
@@ -776,11 +937,13 @@ void AiController::run()
         x.systemTail += QStringLiteral("\n\n") + orderTask(m_run.planId);
     }
     m_run.mdl = mdl;
-    const QJsonArray hist = apiHistory(p->kind);
+    int turnAt = -1;
+    const QJsonArray hist = apiHistory(p->kind, &turnAt);
+    x.cacheAt = turnAt;
     m_msgs.append(QJsonObject{ { QStringLiteral("role"), QStringLiteral("assistant") }, { QStringLiteral("text"), QString() },
                                { QStringLiteral("provider"), m_provider }, { QStringLiteral("model"), mdl },
                                { QStringLiteral("api"), p->kind == Kind::Anthropic ? QStringLiteral("anthropic") : QStringLiteral("openai") },
-                               { QStringLiteral("noWeb"), !web }, { QStringLiteral("planId"), m_run.planId } });
+                               { QStringLiteral("noWeb"), !web && !(canWeb && this->web()) }, { QStringLiteral("planId"), m_run.planId } });
     const Request r = buildChat(*p, base(), keyFor(m_provider), mdl, th, eff, head, hist, x);
     m_client.setNoByteMs(m_hooks.noByteMs > 0 ? m_hooks.noByteMs : 90000);
     m_lastEventMs = nowMs();
@@ -814,7 +977,7 @@ void AiController::prepareProposal(int mi, const QString &toolId, const QJsonObj
     QJsonObject am = m_msgs.at(mi).toObject();
     QJsonArray props = am.value(QStringLiteral("props")).toArray();
     for (const auto &v : props) if (v.toObject().value(QStringLiteral("toolId")).toString() == toolId) return;
-    const QJsonObject P = tools::prepare(root(), input, am.value(QStringLiteral("planId")).toString(), toolId, truncated);
+    const QJsonObject P = tools::prepare(root(), unesc(input).toObject(), am.value(QStringLiteral("planId")).toString(), toolId, truncated);
     props.append(P);
     m_run.props = true;
     am.insert(QStringLiteral("props"), props);
@@ -958,7 +1121,7 @@ void AiController::onFinished(const QString &error, bool aborted, bool stalled)
             if (b.isEmpty()) continue;
             content.append(b);
             const QString bt = b.value(QStringLiteral("type")).toString();
-            if (bt == QLatin1String("tool_use")) calls << Call{ b.value(QStringLiteral("id")).toString(), b.value(QStringLiteral("name")).toString(), b.value(QStringLiteral("input")).toObject(), s.badTools.contains(i) };
+            if (bt == QLatin1String("tool_use")) calls << Call{ b.value(QStringLiteral("id")).toString(), b.value(QStringLiteral("name")).toString(), unesc(b.value(QStringLiteral("input"))).toObject(), s.badTools.contains(i) };
         }
         am.insert(QStringLiteral("content"), content);
     } else {
@@ -968,7 +1131,7 @@ void AiController::onFinished(const QString &error, bool aborted, bool stalled)
             const QString name = s.callNames.value(it.key());
             QJsonParseError pe;
             const QJsonDocument doc = QJsonDocument::fromJson((it.value().trimmed().isEmpty() ? QStringLiteral("{}") : it.value()).toUtf8(), &pe);
-            calls << Call{ id, name, doc.object(), pe.error != QJsonParseError::NoError || !doc.isObject() };
+            calls << Call{ id, name, unesc(doc.object()).toObject(), pe.error != QJsonParseError::NoError || !doc.isObject() };
             tcs.append(QJsonObject{ { QStringLiteral("id"), id }, { QStringLiteral("type"), QStringLiteral("function") },
                                     { QStringLiteral("function"), QJsonObject{ { QStringLiteral("name"), name }, { QStringLiteral("arguments"), it.value() } } } });
         }
@@ -990,6 +1153,19 @@ void AiController::onFinished(const QString &error, bool aborted, bool stalled)
             if (c.name == QLatin1String("propose_changes")) prepareProposal(mi, c.id, c.input, c.bad);
             else if (c.name == QLatin1String("get_plans")) { results.insert(c.id, tools::readPlans(root(), c.input, noMoney(), &read)); go = QStringLiteral("go"); }
             else if (c.name == QLatin1String("research_status")) { am = m_msgs.at(mi).toObject(); rs = onResearch(am, c.id, c.input, results); m_msgs.replace(mi, am); }
+            else if (c.name == QLatin1String("suggest_places")) {   // 1.2.0 候选卡片：默认都不勾，用户勾了点"做成攻略"
+                QJsonArray items;
+                for (const auto &v : c.input.value(QStringLiteral("items")).toArray()) {
+                    const QJsonObject it = v.toObject();
+                    if (it.value(QStringLiteral("name")).toString().trimmed().isEmpty() || items.size() >= 8) continue;
+                    items.append(QJsonObject{ { QStringLiteral("name"), it.value(QStringLiteral("name")).toString().trimmed() }, { QStringLiteral("time"), it.value(QStringLiteral("time")).toString() },
+                                              { QStringLiteral("cost"), it.value(QStringLiteral("cost")).toString() }, { QStringLiteral("on"), false } });
+                }
+                am = m_msgs.at(mi).toObject();
+                am.insert(QStringLiteral("cands"), QJsonObject{ { QStringLiteral("title"), c.input.value(QStringLiteral("title")).toString() }, { QStringLiteral("items"), items }, { QStringLiteral("state"), QStringLiteral("open") } });
+                m_msgs.replace(mi, am);
+                results.insert(c.id, QStringLiteral("已列给用户，等他勾选。"));
+            }
             else if (c.name == QLatin1String("$web_search")) {   // Kimi：参数原样回传它就去搜；每次请求最多 3 次
                 ++kimiSearches;
                 results.insert(c.id, kimiSearches <= tools::kMaxSearch ? QString::fromUtf8(QJsonDocument(c.input).toJson(QJsonDocument::Compact))
@@ -1032,6 +1208,8 @@ void AiController::onFinished(const QString &error, bool aborted, bool stalled)
         m_msgs.replace(mi, am);
     }
     if (s.truncated()) note(tp::tr("这次回答太长，被截断了。可以说“一次只改一个计划，攻略写短一点”再试。"));
+    // 1.2.0 到了每日 / 每月上限：自动续轮也停下
+    if (!go.isEmpty()) { QString k; const QString why = blockReason(&k); if (!why.isEmpty()) { note(why, k); go.clear(); } }
     // 自动续轮：读了计划、查找还没到预计时间、Kimi 搜索、长搜索被暂停（pause_turn）
     if (!go.isEmpty() && m_run.autoN < tools::kMaxAuto) {
         ++m_run.autoN;
@@ -1230,6 +1408,64 @@ void AiController::gapsFill(int mi, int pi)
     for (const QString &s : sel) lines << QStringLiteral("- ") + s;
     sendWith(QStringLiteral("请补充下面这几项（需要就联网查；要搜 3 次以上时先用 research_status 报预计时间），把结果写进计划，做成修改预览：\n") + lines.join(u'\n'),
              tp::tr("补充：%1").arg(sel.join(QStringLiteral("；"))), true, false);
+}
+
+// ---- 1.2.0 候选卡片（第 9 条）：勾选 → "做成攻略"只为勾选的联网查细节、写进计划和攻略 ----
+void AiController::toggleCand(int mi, int j)
+{
+    if (mi < 0 || mi >= m_msgs.size()) return;
+    QJsonObject am = m_msgs.at(mi).toObject();
+    QJsonObject c = am.value(QStringLiteral("cands")).toObject();
+    QJsonArray items = c.value(QStringLiteral("items")).toArray();
+    if (c.value(QStringLiteral("state")).toString() != QLatin1String("open") || j < 0 || j >= items.size()) return;
+    QJsonObject it = items.at(j).toObject();
+    it.insert(QStringLiteral("on"), !it.value(QStringLiteral("on")).toBool());
+    items.replace(j, it);
+    c.insert(QStringLiteral("items"), items);
+    am.insert(QStringLiteral("cands"), c);
+    m_msgs.replace(mi, am);
+    emit messagesChanged();
+}
+
+void AiController::candsGo(int mi)
+{
+    if (busy() || mi < 0 || mi >= m_msgs.size()) return;
+    QJsonObject am = m_msgs.at(mi).toObject();
+    QJsonObject c = am.value(QStringLiteral("cands")).toObject();
+    if (c.value(QStringLiteral("state")).toString() != QLatin1String("open")) return;
+    QStringList sel;
+    for (const auto &v : c.value(QStringLiteral("items")).toArray()) if (v.toObject().value(QStringLiteral("on")).toBool()) sel << v.toObject().value(QStringLiteral("name")).toString();
+    if (sel.isEmpty()) return;
+    c.insert(QStringLiteral("state"), QStringLiteral("sent"));
+    am.insert(QStringLiteral("cands"), c);
+    m_msgs.replace(mi, am);
+    emit messagesChanged();
+    sendWith(QStringLiteral("把这几个做成攻略：%1。只为这几个联网查细节（门票、开放时间、怎么去、要不要预约），排进合适的日子，写进站点、日程和 guide，做成修改预览。").arg(sel.join(QStringLiteral("、"))),
+             tp::tr("做成攻略：%1").arg(sel.join(QStringLiteral("、"))), true, false);
+}
+
+// 1.2.0 第 7 条：导出这段对话（.md / .txt），只有用户和 AI 说的话，不含钥匙
+bool AiController::exportChat(const QString &file)
+{
+    const QUrl u(file);
+    const QString path = u.isLocalFile() ? u.toLocalFile() : file;
+    const bool md = !path.endsWith(QLatin1String(".txt"), Qt::CaseInsensitive);
+    QStringList out;
+    out << (md ? QStringLiteral("# ") : QString()) + tp::tr("AI 对话") + QStringLiteral(" · ") + QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH:mm"));
+    for (const auto &v : m_msgs) {
+        const QJsonObject o = v.toObject();
+        const QString role = o.value(QStringLiteral("role")).toString();
+        if (o.value(QStringLiteral("auto")).toBool() || (role != QLatin1String("user") && role != QLatin1String("assistant"))) continue;
+        const QString text = (role == QLatin1String("user") ? o.value(QStringLiteral("shown")).toString(o.value(QStringLiteral("text")).toString()) : o.value(QStringLiteral("text")).toString()).trimmed();
+        if (text.isEmpty()) continue;
+        const QString who = role == QLatin1String("user") ? tp::tr("我") : QStringLiteral("AI");
+        out << (md ? QStringLiteral("**%1**\n\n%2").arg(who, text) : QStringLiteral("%1：\n%2").arg(who, text));
+    }
+    QSaveFile f(path);
+    const QByteArray data = out.join(QStringLiteral("\n\n")).toUtf8() + '\n';
+    const bool ok = f.open(QIODevice::WriteOnly) && f.write(data) == data.size() && f.commit();
+    emit toast(ok ? tp::tr("已导出对话") : tp::tr("导出失败：%1").arg(f.errorString()), !ok);
+    return ok;
 }
 
 // ---- 查找的时间预算（I-06）：到预计时间停下来问"继续查 / 先到这里" ----

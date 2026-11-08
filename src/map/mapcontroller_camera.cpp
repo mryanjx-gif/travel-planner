@@ -312,11 +312,18 @@ bool MapController::planBounds(const QString &planId, double *w, double *s, doub
     return false;
 }
 
+double MapController::planMaxZoom(double w, double s, double e, double n)
+{
+    return std::abs(e - w) < 1e-6 && std::abs(n - s) < 1e-6 ? 12.0 : 15.0;
+}
+
 bool MapController::flyToPlan(const QString &planId)
 {
     double w, s, e, n;
     if (!planBounds(planId, &w, &s, &e, &n)) return false;
-    const geo::FitResult r = geo::fitBounds(fitCam(), w, s, e, n, fitPad(), 8);
+    // 1.2.0 PO：悉尼市区的计划只显示到整个悉尼一带——根因是这里照 Electron 写死最多 8 级（约 2 km/像素级别的视野），
+    // 市区几公里的范围永远放大不到。改成按范围算、最多 15 级；只有一个点（范围是 0）给 12 级
+    const geo::FitResult r = geo::fitBounds(fitCam(), w, s, e, n, fitPad(), planMaxZoom(w, s, e, n));
     if (!r.ok) return false;
     flyTo(r.lat, r.lng, r.zoom, 800);
     return true;

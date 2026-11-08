@@ -98,6 +98,7 @@ Locator *locatorCtl();
 services::Geocoder *geocoderCtl();
 void runEditor(Report &r, AppController *app, map::MapController *mapc, QQuickWindow *win, services::RoadRouter *roads);
 void runV11(Report &r, AppController *app, QQuickWindow *win, services::RoadRouter *roads);   // 1.1.0
+void runV12(Report &r, AppController *app, map::MapController *mapc, QQuickWindow *win);   // 1.2.0
 // 0.10.0：完整计划页（selftest_planpage.cpp）
 PlanPageController *planPageCtl();
 NavHistory *navCtl();
@@ -132,6 +133,7 @@ void runJournal(Report &r, AppController *app, QQuickWindow *win);
 // 0.13.0：AI 助手——本机假服务器模拟两种接法的流式回答、停止、卡住、截断、计费、模型列表、上限、钥匙、历史（selftest_ai.cpp）
 AiController *aiCtl();
 void runAi(Report &r, AppController *app, QQuickWindow *win, services::NetClient *net);
+void runAiLive(Report &r, AppController *app, QQuickWindow *win);   // 1.2.0 真接口实测（只有点名才跑）
 // 0.14.0：导出——预览、勾选影响输出、PDF / 长图 / 信息卡 / .ics 写到临时文件夹、导出前算路三个按钮、入口（selftest_export.cpp）
 ExportController *exporterCtl();
 TripController *tripsCtl();
