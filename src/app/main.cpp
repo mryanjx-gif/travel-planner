@@ -63,6 +63,7 @@
 #include "planpagecontroller.h"
 #include "netcontroller.h"
 #include "ratescontroller.h"
+#include "aicontroller.h"
 #include "weathercontroller.h"
 #include "planeditor.h"
 #include "locator.h"
@@ -358,6 +359,13 @@ int main(int argc, char *argv[])
     geocoder.setBase(settings.value(QStringLiteral("geocodeUrl")).toString());
     geocoder.setCacheFile(Paths::cacheDir() + (testRun ? QStringLiteral("/test-geocode.json") : QStringLiteral("/geocode.json")));
     tp::app::RatesController rates(&settings, &net);                    // 0.10.1 汇率和主货币
+    tp::app::AiController ai(&settings, &net, &rates);                  // 0.13.0 AI 助手（钥匙、聊天、费用）
+    if (testRun) {   // 截图 / 自检不碰真的钥匙和对话
+        tp::app::AiController::TestHooks h;
+        h.credPrefix = QStringLiteral("TravelPlannerNative-test/ai/");
+        h.chatsFile = Paths::cacheDir() + QStringLiteral("/test-ai-chats.json");
+        ai.setTestHooks(h);
+    }
     rates.setUsedProvider([&store] { return tp::map::plans::usedCurrencies(store.data()); });   // 0.12.6 缺哪种再补
     tp::app::PlanPageController planPage(&ctl, &plans, &store, &net, &rates, &settings);   // 0.10.0 完整计划页
     tp::app::WeatherController weather(&planPage, &plans, &store, &net);   // 0.10.3 预报和往年气候
@@ -426,6 +434,7 @@ int main(int argc, char *argv[])
     ctx->setContextProperty("journal", &journal);
     ctx->setContextProperty("rates", &rates);
     ctx->setContextProperty("netc", &netc);
+    ctx->setContextProperty("ai", &ai);
     ctx->setContextProperty("weather", &weather);
     ctx->setContextProperty("locator", &locator);
     // 截图 ui-photo-import / ui-photo-e2e：把 tests/photos.txt 里的测试照片当成"选中的文件"
@@ -655,6 +664,7 @@ int main(int argc, char *argv[])
         tp::app::SelfTest::setEditor(&editor, &locator, &geocoder);
         tp::app::SelfTest::setPlanPage(&planPage, &nav, &rates);
         tp::app::SelfTest::setNetCtl(&netc);
+        tp::app::SelfTest::setAi(&ai);
         tp::app::SelfTest::setWeather(&weather);
         tp::app::SelfTest::start(QDir::fromNativeSeparators(selftestReport), &ctl, &photos, &mapc, win,
                                  GraphicsBackend::displayName(backend.api) + (backend.deviceInfo.isEmpty() ? QString() : QStringLiteral(" · ") + backend.deviceInfo),

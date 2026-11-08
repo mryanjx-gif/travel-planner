@@ -157,6 +157,20 @@ Canvas {
             poly(c, [5, 12, 10, 17, 19, 7]); break
         case "folder":   // 欢迎页的数据位置
             poly(c, [3, 18, 3, 6, 9.500, 6, 11.500, 8.500, 21, 8.500, 21, 18, 3, 18]); break
+        // 0.13.0 AI 面板（Electron assistant.js ICON）
+        case "clock":
+            circle(c, 12, 12, 9); poly(c, [12, 7, 12, 12, 15, 14]); break
+        case "send":
+            poly(c, [12, 19, 12, 5]); poly(c, [6, 11, 12, 5, 18, 11]); break
+        case "square":
+            rrect(c, 7, 7, 10, 10, 2); c.fill(); break
+        case "mic":
+            rrect(c, 9, 3, 6, 11, 3); poly(c, [12, 18, 12, 21])
+            c.beginPath(); c.arc(12, 11, 7, 0, Math.PI); c.stroke(); break
+        case "gear":
+            circle(c, 12, 12, 3)
+            for (let i = 0; i < 8; ++i) { const a = i * Math.PI / 4; poly(c, [12 + 6.5 * Math.cos(a), 12 + 6.5 * Math.sin(a), 12 + 9 * Math.cos(a), 12 + 9 * Math.sin(a)]) }
+            circle(c, 12, 12, 6.5); break
         }
     }
 }

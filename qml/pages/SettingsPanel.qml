@@ -47,7 +47,7 @@ GlassPanel {
         { key: "weather", name: qsTr("天气"), use: qsTr("16 天内出发或正在旅行的计划，显示各站点的预报。"), who: qsTr("Open-Meteo（CC BY 4.0）") },
         { key: "climate", name: qsTr("气候"), use: qsTr("各站点近 10 年同一个月的平均气温和降水。"), who: qsTr("Open-Meteo 历史天气（CC BY 4.0；ERA5 · Copernicus 气候变化服务）") },
         { key: "elev", name: qsTr("海拔和时区"), use: qsTr("自动补站点的海拔（高反提示用）和时区（日出日落时间用）。"), who: qsTr("Open-Meteo（CC BY 4.0；海拔：Copernicus DEM GLO-90）") },
-        { key: "ai", name: qsTr("AI 助手"), use: qsTr("右下角的 AI 助手，用你自己的 API 密钥。功能在后面的版本。"), who: "Anthropic Claude API" }
+        { key: "ai", name: qsTr("AI 助手"), use: qsTr("右下角的 AI 助手，用你自己的 API 钥匙；你问的话会发给你在设置 → AI 里选的那家。"), who: qsTr("你选的那家：Claude（Anthropic）、DeepSeek、通义千问（阿里云百炼）、Kimi（月之暗面）、豆包（火山方舟）或自定义") }
     ]
     onSectionChanged: { flick.contentY = 0; if (section === "me") mapc.needUnlockCount(); refreshSection() }
     Connections { target: netc; function onTileCacheCleared(ok) { root.toastRequested(ok ? qsTr("地图瓦片缓存已移进回收站，用到时会重新下载。") : qsTr("没能移进回收站，可以稍后再试。"), !ok) } }
@@ -651,40 +651,225 @@ GlassPanel {
                 }
             }
 
-            // ---------- AI（占位，阶段 ⑦ 接功能）：显示但不能改，点了提示还在做 ----------
+            // ---------- AI 助手（0.13.0；PO 2026-11-08 选五家 + 自定义、三档、月上限，阶段7设计预案.md §〇）----------
             SettingsCard {
+                id: aiCard
                 objectName: "setCard-ai"
                 visible: root.section === "ai"
                 width: parent.width
                 title: qsTr("AI 助手")
+                property string keyErr: ""
+                property bool adv: false
+                readonly property var cur: ai.providers.find(p => p.id === ai.provider) || ({})
 
                 SettingsRow {
                     width: parent.width
-                    label: qsTr("API 密钥")
-                    sub: qsTr("还没有设置")
-                    TpButton { objectName: "aiKey"; text: qsTr("设置…"); compact: true; onClicked: win.notReady() }
+                    label: qsTr("服务商")
+                    sub: qsTr("你问的话和对话内容会发给这家处理。") + (aiCard.cur.chinaBlocked ? qsTr("中国大陆用不了 Claude。") : "") + (aiCard.cur.untested ? qsTr("自定义服务没有测试过，能不能用要看它是否兼容 OpenAI 接口。") : "")
+                    TpSelect {
+                        objectName: "aiProvider"
+                        width: Theme.px(170)
+                        enabled: !ai.busy
+                        options: ai.providers.map(p => ({ key: p.id, text: p.name + (p.untested ? qsTr("（未测试）") : "") }))
+                        current: ai.provider
+                        onPicked: (k) => { ai.provider = k; aiCard.keyErr = "" }
+                    }
                 }
                 SettingsRow {
                     width: parent.width
-                    label: qsTr("默认模型")
-                    TpSelect {
-                        objectName: "aiModel"
-                        width: Theme.px(180)
-                        options: [{ key: "sonnet", text: "Claude Sonnet 5.5" }]
-                        current: "sonnet"
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.notReady() }
+                    label: qsTr("API 钥匙")
+                    sub: ai.hasKey ? qsTr("已存在 Windows 凭据管理器（末 4 位 %1）").arg(ai.keyTails[ai.provider]) : qsTr("还没有填。只收开发者平台的 API 钥匙（按用量付费），网页版的会员订阅不能用。")
+                    Row {
+                        spacing: Theme.px(6)
+                        TpButton { objectName: "aiKeyClear"; visible: ai.hasKey; compact: true; text: qsTr("清除"); onClicked: ai.clearKey() }
+                        TpButton { objectName: "aiSignup"; visible: !!aiCard.cur.signup; compact: true; text: qsTr("申请钥匙 ↗"); onClicked: ai.openSignup(ai.provider) }
+                    }
+                }
+                Item {
+                    width: parent.width
+                    height: Theme.px(34)
+                    Rectangle {
+                        width: parent.width - keySave.width - Theme.px(8)
+                        height: parent.height
+                        radius: Theme.radiusControl
+                        color: "#ffffff"
+                        border.width: 1
+                        border.color: aiCard.keyErr !== "" ? Theme.danger : keyInput.activeFocus ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.6) : Theme.lineStrong
+                        TextInput {
+                            id: keyInput
+                            objectName: "aiKeyInput"
+                            x: Theme.px(10); width: parent.width - Theme.px(20); height: parent.height
+                            verticalAlignment: TextInput.AlignVCenter
+                            echoMode: TextInput.Password
+                            clip: true
+                            font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.text
+                            onAccepted: keySave.clicked()
+                            onTextEdited: aiCard.keyErr = ""
+                            Text {
+                                visible: keyInput.text === ""
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: ai.hasKey ? qsTr("粘贴新钥匙替换") : (ai.provider === "claude" ? qsTr("粘贴 sk-ant- 开头的钥匙") : qsTr("粘贴钥匙"))
+                                font: keyInput.font; color: "#7f8e9a"
+                            }
+                        }
+                    }
+                    TpButton {
+                        id: keySave
+                        objectName: "aiKeySave"
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        compact: true
+                        kind: "primary"
+                        text: qsTr("保存")
+                        onClicked: { aiCard.keyErr = ai.setKey(keyInput.text); if (aiCard.keyErr === "") { keyInput.text = ""; root.toastRequested(qsTr("钥匙已存好"), false) } }
+                    }
+                }
+                Text {
+                    objectName: "aiKeyErr"
+                    visible: aiCard.keyErr !== ""
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    text: aiCard.keyErr
+                    font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.danger
+                }
+                SettingsRow {
+                    width: parent.width
+                    label: qsTr("回答方式")
+                    sub: ai.manualModel !== "" && ai.provider !== "custom" ? qsTr("手填了模型，档位只管要不要思考。") : qsTr("一个档位同时定模型和要不要思考。")
+                    Segmented {
+                        objectName: "aiTierSet"
+                        options: [{ key: "fast", text: qsTr("快") }, { key: "balanced", text: qsTr("均衡") }, { key: "careful", text: qsTr("细致") }]
+                        current: ai.tier
+                        onPicked: (k) => ai.tier = k
+                    }
+                }
+                Column {
+                    objectName: "aiTierInfo"
+                    width: parent.width
+                    spacing: Theme.px(2)
+                    Repeater {
+                        model: ai.tiers
+                        delegate: Text {
+                            required property var modelData
+                            width: parent ? parent.width : 0
+                            elide: Text.ElideRight
+                            text: ({ fast: qsTr("快"), balanced: qsTr("均衡"), careful: qsTr("细致") })[modelData.key] + "：" + (modelData.model || qsTr("（先填模型名）"))
+                                  + " · " + (modelData.think ? qsTr("思考") : qsTr("不思考"))
+                                  + (modelData.est ? " · " + qsTr("每轮约 %1").arg(modelData.est) : "")
+                            font.family: serifFamily; font.pixelSize: Theme.px(12); font.features: Theme.tnum
+                            font.bold: modelData.key === ai.tier
+                            color: modelData.key === ai.tier ? Theme.textSoft : Theme.muted
+                        }
+                    }
+                }
+                // 高级：从接口刷新模型列表 / 手填模型、地址、自定义的单价
+                Text {
+                    objectName: "aiAdvToggle"
+                    text: (aiCard.adv || ai.provider === "custom" ? "▾ " : "▸ ") + qsTr("高级")
+                    font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.accent
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: aiCard.adv = !aiCard.adv }
+                }
+                Column {
+                    visible: aiCard.adv || ai.provider === "custom"
+                    width: parent.width
+                    spacing: Theme.px(8)
+                    SettingsRow {
+                        width: parent.width
+                        label: qsTr("模型")
+                        sub: ai.modelsState === "busy" ? qsTr("正在取列表…") : ai.modelsState === "ok" ? qsTr("点一个就用它；清空回到跟着档位。") : ai.modelsState
+                        TpButton { objectName: "aiModelsRefresh"; compact: true; text: qsTr("从接口刷新列表"); enabled: ai.modelsState !== "busy"; onClicked: ai.refreshModels() }
+                    }
+                    TpField {
+                        objectName: "aiModelInput"
+                        width: parent.width
+                        value: ai.manualModel
+                        placeholder: ai.provider === "custom" ? qsTr("模型名（必填）") : qsTr("跟着档位（现在是 %1）").arg(ai.tiers.length ? ai.tiers[1].model : "")
+                        onAccepted: ai.manualModel = text
+                        onEditingChanged: if (!editing) ai.manualModel = text
+                    }
+                    Flow {
+                        visible: ai.modelList.length > 0
+                        width: parent.width
+                        spacing: Theme.px(6)
+                        Repeater {
+                            model: ai.modelList.slice(0, 40)
+                            delegate: TpChip { required property string modelData; text: modelData; on: modelData === ai.model; onClicked: ai.manualModel = modelData }
+                        }
+                    }
+                    SettingsRow { width: parent.width; label: qsTr("接口地址"); sub: ai.provider === "custom" ? qsTr("兼容 OpenAI 的地址，一般到 /v1 为止（必填）") : qsTr("一般不用改；留空用默认") }
+                    TpField {
+                        objectName: "aiBaseInput"
+                        width: parent.width
+                        value: ai.base
+                        placeholder: ai.defaultBase || "https://…/v1"
+                        onAccepted: ai.base = text
+                        onEditingChanged: if (!editing) ai.base = text
+                    }
+                    Row {
+                        visible: ai.provider === "custom"
+                        spacing: Theme.px(8)
+                        Text { anchors.verticalCenter: parent.verticalCenter; text: qsTr("每百万 token（%1）输入").arg(ai.custom.cur); font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.textSoft }
+                        TpField { objectName: "aiPriceIn"; width: Theme.px(70); value: ai.custom.pin || ""; onEditingChanged: if (!editing) ai.setCustom("pin", text) }
+                        Text { anchors.verticalCenter: parent.verticalCenter; text: qsTr("输出"); font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.textSoft }
+                        TpField { objectName: "aiPriceOut"; width: Theme.px(70); value: ai.custom.pout || ""; onEditingChanged: if (!editing) ai.setCustom("pout", text) }
+                    }
+                    Text {
+                        visible: ai.provider === "custom"
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        text: qsTr("单价可以留空：留空只记 token，不算钱，也不算进月上限。")
+                        font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
+                    }
+                }
+                SettingsRow {
+                    width: parent.width
+                    label: qsTr("联网搜索")
+                    sub: qsTr("让 AI 查路线、开放时间等最新信息，每轮最多搜 3 次，每次另收一点费用（下个版本才用上）。")
+                    Segmented {
+                        objectName: "aiWeb"
+                        options: [{ key: "off", text: qsTr("关") }, { key: "on", text: qsTr("开") }]
+                        current: ai.web ? "on" : "off"
+                        onPicked: (k) => ai.web = k === "on"
                     }
                 }
                 SettingsRow {
                     width: parent.width
                     label: qsTr("每月上限")
-                    TpSelect {
-                        objectName: "aiCap"
-                        width: Theme.px(180)
-                        options: [{ key: "5", text: "$5" }]
-                        current: "5"
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.notReady() }
+                    sub: qsTr("各家按自己的币种计价，用汇率折成%1。到 80% 提醒，到了先停下，可以当场提高。").arg(ai.mainCur)
+                    Row {
+                        spacing: Theme.px(6)
+                        Text { anchors.verticalCenter: parent.verticalCenter; text: ai.mainCur; font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft }
+                        TpField {
+                            objectName: "aiCapInput"
+                            width: Theme.px(80)
+                            value: String(Math.round(ai.cap * 100) / 100)
+                            onAccepted: { const v = parseFloat(text); if (v >= 0) ai.cap = v }
+                            onEditingChanged: if (!editing) { const v = parseFloat(text); if (v >= 0 && Math.abs(v - ai.cap) > 0.004) ai.cap = v }
+                        }
                     }
+                }
+                SettingsRow {
+                    objectName: "aiUsed"
+                    width: parent.width
+                    label: qsTr("本月已用")
+                    sub: ai.usageRows.length ? "" : qsTr("这个月还没用过")
+                    Text { text: qsTr("约 %1 / %2").arg(ai.money(ai.used, ai.mainCur)).arg(ai.money(ai.cap, ai.mainCur)); font.family: serifFamily; font.pixelSize: Theme.px(13); font.features: Theme.tnum; color: ai.capReached ? Theme.danger : Theme.textSoft }
+                }
+                Repeater {
+                    model: ai.usageRows
+                    delegate: Text {
+                        required property var modelData
+                        width: parent ? parent.width : 0
+                        wrapMode: Text.Wrap
+                        text: modelData.name + "：" + modelData.text
+                        font.family: serifFamily; font.pixelSize: Theme.px(12); font.features: Theme.tnum; color: Theme.muted
+                    }
+                }
+                Text {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    text: qsTr("钥匙存在 Windows 凭据管理器里，不放进数据文件夹，导出和备份都不带。")
+                    font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
                 }
             }
 

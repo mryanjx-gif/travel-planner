@@ -38,3 +38,9 @@ target_link_libraries(tst_net PRIVATE tp_net Qt6::Test)
 target_compile_definitions(tst_net PRIVATE TP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 set_target_properties(tst_net PROPERTIES WIN32_EXECUTABLE OFF AUTOMOC ON)
 add_test(NAME tst_net COMMAND tst_net)
+
+# AI（0.13.0）：SSE 解析（两种接法）、用量和算钱、三档对应表、拼请求、钥匙校验、mdLite
+qt_add_executable(tst_ai tst_ai.cpp)
+target_link_libraries(tst_ai PRIVATE tp_ai Qt6::Test)
+set_target_properties(tst_ai PROPERTIES WIN32_EXECUTABLE OFF AUTOMOC ON)
+add_test(NAME tst_ai COMMAND tst_ai)

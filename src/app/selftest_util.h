@@ -26,6 +26,7 @@ class NavHistory;
 class RatesController;
 class NetController;
 class WeatherController;
+class AiController;
 class Locator;
 class FrameStats;
 class Settings;
@@ -125,6 +126,9 @@ void runPhotoMode(Report &r, AppController *app, map::MapController *mapc, QQuic
 void runCalendar(Report &r, AppController *app, QQuickWindow *win);
 void runCalendarWeek(Report &r, AppController *app, map::MapController *mapc, QQuickWindow *win);
 void runJournal(Report &r, AppController *app, QQuickWindow *win);
+// 0.13.0：AI 助手——本机假服务器模拟两种接法的流式回答、停止、卡住、截断、计费、模型列表、上限、钥匙、历史（selftest_ai.cpp）
+AiController *aiCtl();
+void runAi(Report &r, AppController *app, QQuickWindow *win, services::NetClient *net);
 // 0.9.1：性能——启动各步、拖地图每帧、换模式、数据重建、写设置、玻璃和标记各占多少（selftest_perf.cpp）
 FrameStats *frameStats();
 Settings *settingsObj();

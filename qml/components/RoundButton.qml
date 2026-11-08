@@ -21,7 +21,7 @@ Item {
         radius: width / 2
         liquid: !root.solid
         tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass && !root.solid ? 0.69 : 0.96)
-        edge: ma.containsMouse ? Theme.lineStrong : Theme.glassEdge
+        edge: root.on && root.label !== "" ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.7) : ma.containsMouse ? Theme.lineStrong : Theme.glassEdge   // AI 泡泡开着时主题色细边（I-11）
         scale: ma.pressed ? 0.9 : 1
         Behavior on scale { TpSpring {} }
         TpIcon {

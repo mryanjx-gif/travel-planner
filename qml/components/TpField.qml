@@ -24,6 +24,7 @@ Item {
     implicitWidth: Theme.px(200)
     function focusAll() { edit.forceActiveFocus(); edit.selectAll() }
     function clear() { edit.text = "" }
+    function focusEnd() { edit.forceActiveFocus(); edit.cursorPosition = edit.text.length }
     property bool syncing: false           // 正在把 value 写进输入框：这次文字变化不算用户打的
     property bool echoing: false           // 正在发 edited：这次 value 变化是打字的回音，不写回
     function syncText() { syncing = true; edit.text = value; syncing = false }
@@ -69,6 +70,7 @@ Item {
             }
             onCursorRectangleChanged: flick.ensureVisible(cursorRectangle)
             function enter(e) {
+                if (inputMethodComposing) { e.accepted = false; return }   // 0.13.0：输入法还在组字时 Enter 交给输入法（确认候选），不发出去
                 if (root.multiline && (!root.submitOnEnter || (e.modifiers & Qt.ShiftModifier))) e.accepted = false
                 else { root.accepted(); e.accepted = true }
             }

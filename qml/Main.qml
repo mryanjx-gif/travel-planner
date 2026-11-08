@@ -900,7 +900,8 @@ Window {
         if (plans.excludedCount > 0) act("filterAll", qsTr("清除筛选（全选）"))
         // 0.9.7：叠上其他旅程（左下胶囊去重复；Claude 加的入口，PO 可去掉）
         if (plans.overlayAvailable) act("overlay", plans.overlay ? qsTr("不叠其他旅程") : qsTr("叠上其他旅程"))
-        for (const t of [qsTr("AI 助手"), qsTr("导入 .trip"), qsTr("导出行程单 PDF"), qsTr("导出行程单长图"), qsTr("导出日历文件 .ics"), qsTr("导出计划文件 .trip"), qsTr("导出分享版"), qsTr("导出信息卡"), qsTr("批量导出")])
+        if (netc.allowed.ai) act("ai", qsTr("AI 助手"))   // 0.13.0
+        for (const t of [qsTr("导入 .trip"), qsTr("导出行程单 PDF"), qsTr("导出行程单长图"), qsTr("导出日历文件 .ics"), qsTr("导出计划文件 .trip"), qsTr("导出分享版"), qsTr("导出信息卡"), qsTr("批量导出")])
             act("notReady", t)
         act("fullscreen", qsTr("全屏"), "", "F11")
         act("dataFolder", qsTr("打开数据文件夹"))
@@ -930,6 +931,7 @@ Window {
         }
         const k = x.key
         if (k === "notReady") win.notReady()
+        else if (k === "ai") { if (!win.onMapPage) win.goPage("map"); aiPanel.open = true }
         else if (k === "new") win.newPlan()
         else if (k === "undo") app.undo()
         else if (k === "redo") app.redo()
@@ -1502,8 +1504,9 @@ Window {
     }
 
     Timer { running: shotPage === "ui-settings-narrow"; interval: 400; onTriggered: win.width = 620 }   // 截图：设置页的窄窗口
-    // ---- 0.12.3 AI 助手泡泡（占位，阶段 ⑦ 接功能）：我的位置上面一颗 ----
+    // ---- AI 助手泡泡（0.12.3 放好，0.13.0 接功能）：我的位置上面一颗；面板开着时玻璃 + 主题色细边（I-11）----
     RoundButton {
+        id: aiBtn
         objectName: "aiBtn"
         visible: locBtn.visible && netc.allowed.ai   // Electron：AI 那项关了（或离线）就不显示
         width: locBtn.width; height: width
@@ -1513,7 +1516,20 @@ Window {
         label: "AI"
         iconColor: Theme.accentInk
         tip: qsTr("AI 助手")
-        onClicked: win.notReady()
+        on: aiPanel.open
+        onClicked: aiPanel.open = !aiPanel.open
+    }
+    AiPanel {
+        id: aiPanel
+        width: Math.min(Theme.px(400), win.width - 2 * win.gap)
+        height: Math.max(Theme.px(320), Math.min(Theme.px(620), aiBtn.y - Theme.px(210)))   // 顶上让开右边的缩放按钮
+        x: win.width - width - win.gap
+        y: aiBtn.y - height - Theme.px(10)
+        z: 14
+        onCloseRequested: open = false
+        onSettingsRequested: { open = false; goPage("settings"); settings.showSection("ai") }
+        onToastRequested: (t, e) => toast.show(t, e)
+        Connections { target: aiBtn; function onVisibleChanged() { if (!aiBtn.visible) aiPanel.open = false } }   // 离线、关了 AI、打开右侧面板时跟着收起
     }
     // ---- 0.8.9 我的位置（M-26，PO 选 A：右下角单独一颗）----
     Item {
@@ -2735,6 +2751,8 @@ Window {
             if (shotPage === "ui-settings-doc-form") docDialog.show(planPage.documents()[1])
         }
         else if (shotPage === "ui-settings-net-off") { netc.offlineForShot(); goPage("settings") }
+        else if (shotPage.startsWith("ui-ai-")) { ai.shotSetup(shotPage); aiPanel.open = true }   // 0.13.0：AI 面板（对话 / 引导卡 / 第一次发送的提示）
+        else if (shotPage === "ui-settings-ai") { ai.shotSetup(shotPage); goPage("settings") }
         else if (shotPage.startsWith("ui-settings-") && shotPage !== "ui-settings-photos") goPage("settings")
         else if (shotPage === "ui-settings" || shotPage === "ui-backup" || shotPage === "ui-backup-running" || shotPage === "ui-devtools") goPage("settings")
         else if (shotPage === "ui-firstrun") dataChoice.forced = "firstRun"

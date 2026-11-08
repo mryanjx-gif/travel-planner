@@ -3,7 +3,7 @@
 # 规则（PO 2026-11-02）：大更新改第一位，中等更新改第二位，小修改改第三位；正式版之前是 0.x.y，正式版 1.0.0。
 cmake_minimum_required(VERSION 3.24)
 
-set(TP_VERSION "0.12.11")
+set(TP_VERSION "0.13.0")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TP_VERSION_NUMERIC "${TP_VERSION}")
 
 project(TravelPlannerNative
@@ -129,6 +129,21 @@ target_include_directories(tp_core PUBLIC src/app src/platform)
 target_link_libraries(tp_core PUBLIC tp_data Qt6::Core)
 set_target_properties(tp_core PROPERTIES AUTOMOC ON)
 
+# AI 助手（0.13.0）：服务商表、拼请求、SSE 解析、算钱、凭据管理器、流式请求。Qt Network，不加新库；单元测试 tst_ai
+add_library(tp_ai STATIC
+    src/ai/aiproviders.cpp src/ai/aiproviders.h
+    src/ai/aistream.cpp src/ai/aistream.h
+    src/ai/aiclient.cpp src/ai/aiclient.h
+    src/ai/aiprompt.cpp src/ai/aiprompt.h
+    src/platform/credentials.cpp src/platform/credentials.h
+)
+target_include_directories(tp_ai PUBLIC src/ai src/platform)
+target_link_libraries(tp_ai PUBLIC tp_core Qt6::Core Qt6::Network)
+if(WIN32)
+    target_link_libraries(tp_ai PUBLIC advapi32)   # CredWriteW / CredReadW / CredDeleteW（系统库）
+endif()
+set_target_properties(tp_ai PROPERTIES AUTOMOC ON)
+
 qt_add_executable(TravelPlanner WIN32
     src/app/main.cpp
     src/app/devtools.cpp src/app/devtools.h
@@ -143,13 +158,14 @@ qt_add_executable(TravelPlanner WIN32
     src/app/journalcontroller.cpp src/app/journalcontroller.h
     src/app/ratescontroller.cpp src/app/ratescontroller.h
     src/app/netcontroller.cpp src/app/netcontroller.h
+    src/app/aicontroller.cpp src/app/aicontroller.h
     src/app/weathercontroller.cpp src/app/weathercontroller.h
     src/app/planeditor.cpp src/app/planeditor.h
     src/app/locator.cpp src/app/locator.h
     src/app/thumbprovider.cpp src/app/thumbprovider.h
     src/app/framestats.cpp src/app/framestats.h
     src/app/selftest.cpp src/app/selftest.h src/app/selftest_util.cpp src/app/selftest_util.h
-    src/app/selftest_map.cpp src/app/selftest_routes.cpp src/app/selftest_unlock.cpp src/app/selftest_plans.cpp src/app/selftest_shell.cpp src/app/selftest_pages.cpp src/app/selftest_planpage.cpp src/app/selftest_money.cpp src/app/selftest_weather.cpp src/app/selftest_kit.cpp src/app/selftest_photos_tab.cpp src/app/selftest_library.cpp src/app/selftest_audit.cpp src/app/selftest_photomode.cpp src/app/selftest_calendar.cpp src/app/selftest_editor.cpp src/app/selftest_globe.cpp src/app/selftest_perf.cpp src/app/selftest_welcome.cpp
+    src/app/selftest_map.cpp src/app/selftest_routes.cpp src/app/selftest_unlock.cpp src/app/selftest_plans.cpp src/app/selftest_shell.cpp src/app/selftest_pages.cpp src/app/selftest_planpage.cpp src/app/selftest_money.cpp src/app/selftest_weather.cpp src/app/selftest_kit.cpp src/app/selftest_photos_tab.cpp src/app/selftest_library.cpp src/app/selftest_audit.cpp src/app/selftest_photomode.cpp src/app/selftest_calendar.cpp src/app/selftest_editor.cpp src/app/selftest_globe.cpp src/app/selftest_perf.cpp src/app/selftest_welcome.cpp src/app/selftest_ai.cpp
     src/platform/crashhandler.cpp src/platform/crashhandler.h
     src/platform/nativedialog.cpp src/platform/nativedialog.h
     src/platform/watchdog.cpp src/platform/watchdog.h
@@ -173,7 +189,7 @@ qt_add_executable(TravelPlanner WIN32
     src/map/skyitem.cpp src/map/skyitem.h
 )
 target_include_directories(TravelPlanner PRIVATE
-    "${CMAKE_BINARY_DIR}/generated" src/app src/platform src/map src/services)
+    "${CMAKE_BINARY_DIR}/generated" src/app src/platform src/map src/services src/ai)
 if(EXISTS "${TP_VULKAN_HEADERS}/vulkan/vulkan.h")
     target_include_directories(TravelPlanner SYSTEM PRIVATE "${TP_VULKAN_HEADERS}")
 endif()
@@ -187,7 +203,7 @@ foreach(f TpAnim TpMove TpSpring FocusRing TpCard TpDone GlassPanel TpButton Mod
           LinkText StatusFilterPill FilterMenu NowCard PlanSheet
           SplitBud TopBar AvatarMenu PlanListPanel LibraryView WishMonthBar WishDialog CommandPalette RoundButton TpIcon
           PlanEditor DateField TpField StylePopover MarkerShape ColorWheel EditOverlay DrawerGrip
-          SchedList RouteSketch RoundIcon MenuRow Lightbox PhotosTab MdEditor CalPlanCard CalPicker EmptyArt EmptyState Tour TpTip PeoplePane RowAct RowMenu BarHead)
+          AiPanel SchedList RouteSketch RoundIcon MenuRow Lightbox PhotosTab MdEditor CalPlanCard CalPicker EmptyArt EmptyState Tour TpTip PeoplePane RowAct RowMenu BarHead)
     set_source_files_properties(qml/components/${f}.qml PROPERTIES QT_RESOURCE_ALIAS ${f}.qml)
 endforeach()
 foreach(f SettingsPanel SettingsCard SettingsRow BackupSection AboutSection CalendarPage JournalPage LedgerPage PlanPage WelcomePage)
@@ -274,6 +290,7 @@ qt_add_qml_module(TravelPlanner
         qml/components/WishDialog.qml
         qml/components/CommandPalette.qml
         qml/components/RoundButton.qml
+        qml/components/AiPanel.qml
         qml/components/TpIcon.qml
         qml/components/PlanEditor.qml
         qml/components/DateField.qml
@@ -338,7 +355,7 @@ qt_add_shaders(TravelPlanner "tp_shaders_globe"
 
 # QRhi（rhi/qrhi.h）属于 Qt Gui 的半公开 API，要链接 GuiPrivate（仍是 Qt Gui 模块本身，LGPL-3）
 # 0.8.9：Qt Positioning（我的位置，LGPL-3，技术选型.md §4）；Windows 上用 Windows 定位服务的插件（windeployqt 自动带上）
-target_link_libraries(TravelPlanner PRIVATE tp_core tp_data tp_photo tp_map tp_net Qt6::Core Qt6::Gui Qt6::GuiPrivate Qt6::Quick Qt6::Network Qt6::Positioning)
+target_link_libraries(TravelPlanner PRIVATE tp_core tp_ai tp_data tp_photo tp_map tp_net Qt6::Core Qt6::Gui Qt6::GuiPrivate Qt6::Quick Qt6::Network Qt6::Positioning)
 if(WIN32)
     target_link_libraries(TravelPlanner PRIVATE psapi shell32 user32)
     # 0.8.0：进程代码页 UTF-8（maplibre 读本地样式文件用窄字符路径），见 src/app/app.manifest；和 Qt 生成的 manifest 合并

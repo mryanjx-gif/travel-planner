@@ -1250,3 +1250,96 @@ Windows 自带，不随程序分发。	Come with Windows; not distributed with t
 这一站还没有照片。	No photos for this stop yet.
 这一站还没有照片，点“添加照片”从电脑里选。	No photos for this stop yet. Click “Add photos” to pick some from your computer.
 还没出发的 %3 趟，预计花 %1 %2	%3 trips still to come, estimated %1 %2
+接下来两三个月适合去哪？各说一句理由。	Where is good to go in the next two or three months? One line of reasoning for each.
+出国要准备什么	Getting ready to go abroad
+第一次出国自由行，出发前要准备哪些东西？只列要点。	It's my first independent trip abroad. What should I prepare before leaving? Key points only.
+给我一份一周海岛旅行的行李清单，按类别分。	Give me a packing list for a one-week island trip, grouped by category.
+用 AI 助手要先填一家的 API 钥匙。钥匙在服务商的开发者平台申请，按用量付费，和网页版的会员订阅分开。	To use the AI assistant, add an API key from one provider first. Keys come from the provider's developer platform and are billed by usage, separately from any chat subscription.
+（当前）	 (current)
+中国大陆用不了	Not available in mainland China
+申请钥匙 ↗	Get a key ↗
+去设置里填钥匙	Add a key in Settings
+你问的话会发给你选的那家服务商。钥匙存在 Windows 凭据管理器里，不放进数据文件夹。	What you ask is sent to the provider you choose. Keys are kept in Windows Credential Manager, not in your data folder.
+可以问行程、交通、季节。这一版还看不到你的计划，也不会改它。	Ask about routes, transport or seasons. This version can't see your plans yet and won't change them.
+本月约 %1 / 上限 %2	About %1 this month / limit %2
+提高本月上限	Raise this month's limit
+去设置	Open Settings
+思考：	Thinking:
+第一次用 %1：你问的话和这段对话会发给 %1 处理，按它的条款保存。以后用这家不再提示，换一家时会再说一次。	First time using %1: your question and this conversation will be sent to %1 and kept under its terms. You won't see this again for %1; switching providers shows it once more.
+知道了，发送	OK, send
+先不发	Not now
+快	Fast
+均衡	Balanced
+细致	Thorough
+右下角的 AI 助手，用你自己的 API 钥匙；你问的话会发给你在设置 → AI 里选的那家。	The AI assistant in the bottom-right corner, using your own API key. What you ask is sent to the provider chosen in Settings → AI.
+你选的那家：Claude（Anthropic）、DeepSeek、通义千问（阿里云百炼）、Kimi（月之暗面）、豆包（火山方舟）或自定义	The provider you choose: Claude (Anthropic), DeepSeek, Qwen (Alibaba Cloud Model Studio), Kimi (Moonshot AI), Doubao (Volcengine Ark) or a custom one
+服务商	Provider
+你问的话和对话内容会发给这家处理。	Your questions and the conversation are sent to this provider.
+中国大陆用不了 Claude。	 Claude is not available in mainland China.
+自定义服务没有测试过，能不能用要看它是否兼容 OpenAI 接口。	 Custom providers are untested; they work only if they offer an OpenAI-compatible API.
+（未测试）	 (untested)
+API 钥匙	API key
+已存在 Windows 凭据管理器（末 4 位 %1）	Saved in Windows Credential Manager (ends in %1)
+还没有填。只收开发者平台的 API 钥匙（按用量付费），网页版的会员订阅不能用。	Not set. Only developer-platform API keys (billed by usage) work; chat subscriptions can't be used.
+粘贴新钥匙替换	Paste a new key to replace it
+粘贴 sk-ant- 开头的钥匙	Paste a key starting with sk-ant-
+粘贴钥匙	Paste the key
+钥匙已存好	Key saved
+回答方式	Answer style
+手填了模型，档位只管要不要思考。	A model is set by hand, so the style only decides whether it thinks first.
+一个档位同时定模型和要不要思考。	Each style picks both the model and whether it thinks first.
+（先填模型名）	(enter a model name)
+思考	thinks
+不思考	no thinking
+每轮约 %1	about %1 per turn
+高级	Advanced
+正在取列表…	Fetching the list…
+点一个就用它；清空回到跟着档位。	Click one to use it; clear the box to follow the style again.
+从接口刷新列表	Refresh from the API
+模型名（必填）	Model name (required)
+跟着档位（现在是 %1）	Follows the style (now %1)
+接口地址	API address
+兼容 OpenAI 的地址，一般到 /v1 为止（必填）	An OpenAI-compatible address, usually ending in /v1 (required)
+一般不用改；留空用默认	Usually leave as is; empty uses the default
+每百万 token（%1）输入	Per million tokens (%1): input
+输出	output
+单价可以留空：留空只记 token，不算钱，也不算进月上限。	Prices can be left empty: then only tokens are counted, with no cost and nothing toward the monthly limit.
+让 AI 查路线、开放时间等最新信息，每轮最多搜 3 次，每次另收一点费用（下个版本才用上）。	Lets the AI look up current routes, opening hours and so on, up to 3 searches per turn, each with a small extra charge (used from the next version).
+各家按自己的币种计价，用汇率折成%1。到 80% 提醒，到了先停下，可以当场提高。	Each provider bills in its own currency, converted to %1. You get a reminder at 80%; at the limit it stops, and you can raise the limit right there.
+本月已用	Used this month
+这个月还没用过	Nothing used this month
+约 %1 / %2	About %1 / %2
+钥匙存在 Windows 凭据管理器里，不放进数据文件夹，导出和备份都不带。	Keys are kept in Windows Credential Manager, not in your data folder, and are never included in exports or backups.
+连接卡住了（90 秒没有收到内容），已停下。可以再说一次。	The connection stalled (nothing received for 90 s) and was stopped. Please try again.
+网络出错：%1	Network error: %1
+先粘贴钥匙	Paste a key first
+钥匙里不能有空格或换行	The key can't contain spaces or line breaks
+格式不对：Claude 的 API 钥匙以 sk-ant- 开头（在 Claude 开发者平台申请，和 Claude 订阅分开）	Wrong format: Claude API keys start with sk-ant- (get one on the Claude developer platform; it's separate from a Claude subscription)
+钥匙不对或已经失效（%1）。在设置 → AI 里重新填。	The key is wrong or no longer valid (%1). Enter it again in Settings → AI.
+请求太多或余额不足（429），等一会儿再试，或者去服务商的网站看看账户。	Too many requests or not enough balance (429). Try again shortly, or check your account on the provider's site.
+连不上服务器，检查一下网络。	Can't reach the server. Check your connection.
+通义千问	Qwen
+豆包	Doubao
+没能存进 Windows 凭据管理器：%1	Couldn't save to Windows Credential Manager: %1
+联网关着（设置 → 联网）	Online services are off (Settings → Online)
+先填钥匙	Add a key first
+先填地址	Enter the address first
+拉不到列表（%1），可以手填模型名	Couldn't get the list (%1); you can type a model name
+连不上（%1），可以手填模型名	Couldn't connect (%1); you can type a model name
+这家没给列表，可以手填模型名	This provider didn't return a list; you can type a model name
+本月上限提高到 %1	This month's limit is now %1
+%1 次 · %2 token	%1 requests · %2 tokens
+这个月已经用了约 %1，到了上限 %2 的 80%。	About %1 used this month, 80% of the %2 limit.
+已用 %1 秒	%1 s so far
+已写 %1 字	%1 characters written
+正在思考	Thinking
+%1 秒没有新内容	nothing new for %1 s
+这段对话约 %1	This chat: ~%1
+AI 助手现在不能用：离线模式开着，或者设置 → 联网里关掉了“AI 助手”。	The AI assistant can't be used right now: offline mode is on, or “AI assistant” is turned off in Settings → Online.
+还没有填 %1 的钥匙：设置 → AI。	No key for %1 yet: Settings → AI.
+自定义服务要先在设置 → AI 里填地址和模型名。	For a custom provider, enter the address and model name in Settings → AI first.
+这个月已经用了约 %1，到了上限 %2，先停在这里。	About %1 used this month, which reaches the %2 limit, so it stops here.
+输入 %1 · 输出 %2 token	%1 in · %2 out tokens
+（缓存 %1）	 (%1 cached)
+没填单价，只记 token	no prices set, tokens only
+这次回答太长，被截断了。可以说“短一点”或者把问题拆开再问。	This answer was too long and got cut off. Ask for a shorter answer, or split the question.

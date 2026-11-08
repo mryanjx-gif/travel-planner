@@ -425,7 +425,10 @@ void runShell(Report &r, AppController *app, map::MapController *mapc, QQuickWin
         };
         nav->go(QStringLiteral("plan"));
         waitFor([win] { return shown(item(win, "aiBtn")); }, 1500);
-        stub(item(win, "aiBtn"), QStringLiteral("AI 泡泡点了提示还在做"));
+        click(win, item(win, "aiBtn"));   // 0.13.0 起是真的面板
+        r.check(waitFor([win] { QQuickItem *p = item(win, "aiPanel"); return p && p->property("open").toBool(); }, 800), QStringLiteral("AI 泡泡打开 AI 面板"));
+        click(win, item(win, "aiBtn"));
+        waitFor([win] { QQuickItem *p = item(win, "aiPanel"); return p && !p->isVisible(); }, 1500);
         click(win, item(win, "meBtn"));
         waitFor([win] { QQuickItem *m = item(win, "avatarMenu"); return m && m->property("open").toBool(); }, 800);
         pause(250);
@@ -436,7 +439,7 @@ void runShell(Report &r, AppController *app, map::MapController *mapc, QQuickWin
             if (v.toMap().value(QStringLiteral("key")) == QLatin1String("notReady")) ++stubs;
         if (t) t->setProperty("showing", false);
         call(win, "runCommand", QVariantMap{ { QStringLiteral("kind"), QStringLiteral("act") }, { QStringLiteral("key"), QStringLiteral("notReady") } });
-        r.check(stubs == 9 && waitFor(isStub, 800), QStringLiteral("Ctrl K 搜得到 9 个占位入口，选了提示还在做"), QString::number(stubs));
+        r.check(stubs == 8 && waitFor(isStub, 800), QStringLiteral("Ctrl K 搜得到 8 个占位入口（AI 助手 0.13.0 接上了），选了提示还在做"), QString::number(stubs));
 
         call(win, "pickPage", QStringLiteral("library"));
         waitFor([win] { return shown(item(win, "libImportTrip")); }, 2000);
@@ -463,11 +466,8 @@ void runShell(Report &r, AppController *app, map::MapController *mapc, QQuickWin
         }
         r.check(badNav.isEmpty() && shown(item(win, "setCard-look")), QStringLiteral("侧边栏 12 组都点得到"), badNav.join(QLatin1Char(' ')));
 
-        click(win, item(win, "setNav-ai"));
-        waitFor([win] { return shown(item(win, "aiKey")); }, 500);
-        stub(item(win, "aiKey"), QStringLiteral("AI 分组：密钥占位"));
-        stub(item(win, "aiModel"), QStringLiteral("AI 分组：默认模型占位"));
-        stub(item(win, "aiCap"), QStringLiteral("AI 分组：月上限占位"));
+        click(win, item(win, "setNav-ai"));   // 0.13.0：AI 分组的功能在自检 ai 分组里测，这里只看在不在
+        r.check(waitFor([win] { return shown(item(win, "aiProvider")) && shown(item(win, "aiKeySave")) && shown(item(win, "aiCapInput")); }, 800), QStringLiteral("AI 分组有服务商、钥匙、月上限"));
 
         // 新设置项写进 settings.json 并读回；字体真生效；头像第一个字
         const QString oFont = app->uiFont(), oName = app->greetName(), oHome = app->homeCountry(), oBase = app->startBase(), oProj = app->startProj();
