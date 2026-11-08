@@ -617,6 +617,8 @@ void AppController::conflictKept()
 }
 
 // ---------- 撤销 / 重做（D-13） ----------
+quint64 AppController::undoStateId() const { return m_store->isDirty() ? 0 : m_undo.stateId(); }
+
 void AppController::undoRedo(int dir)
 {
     if (m_store->state() == DataStore::State::None || m_store->isReadOnly()) return;

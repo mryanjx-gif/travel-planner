@@ -153,6 +153,38 @@ Column {
                                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: ai.pickGeo(root.p.mi, root.p.pi, row.modelData.k, cand.j) }
                                     }
                                 }
+                                // 新站点带的日程（0.13.3）：逐条勾，站点没勾时整组不写
+                                Text {
+                                    visible: !!row.modelData.sched
+                                    text: qsTr("日程")
+                                    font.family: serifFamily; font.pixelSize: Theme.px(11.5); font.bold: true; color: Theme.muted
+                                }
+                                Repeater {
+                                    model: row.modelData.sched || []
+                                    delegate: Item {
+                                        id: sch
+                                        required property var modelData
+                                        objectName: "aiSched-" + row.modelData.k + "-" + modelData.j
+                                        width: rowCol.width
+                                        height: Math.max(schChk.height, schText.height) + Theme.px(2)
+                                        TpCheck {
+                                            id: schChk
+                                            checked: sch.modelData.on
+                                            enabled: row.modelData.on && !row.checking
+                                            onToggled: ai.toggleSched(root.p.mi, root.p.pi, row.modelData.k, sch.modelData.j)
+                                        }
+                                        Text {
+                                            id: schText
+                                            x: schChk.width + Theme.px(6)
+                                            width: parent.width - x
+                                            wrapMode: Text.Wrap
+                                            textFormat: Text.PlainText
+                                            text: sch.modelData.text
+                                            font.family: serifFamily; font.pixelSize: Theme.px(11.5)
+                                            color: sch.modelData.on && row.modelData.on ? Theme.textSoft : Theme.muted
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

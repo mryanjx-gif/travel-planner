@@ -28,7 +28,7 @@ const char kRules[] =
     "读取和修改：\n"
     "- 计划简表里只有概要。要改或评估某个计划、而下面没有它的完整内容时，先调用 get_plans 读取（需要的几个一次读完），不要请用户去点开。\n"
     "- 所有修改都通过 propose_changes，用户逐条确认后才写入，所以放心提出完整方案；文字里不要再逐条复述改动。能改任何东西：新建 / 删除计划；站点增、删、改、挪；日程增、删、改、挪；交通住宿、待办、行李的增、删、改。\n"
-    "- 用 id 指明改哪一项：站点 stop_id；日程 stop_id + n（n 是 get_plans 给的序号）；booking_id、todo_id、packing_id。每一项写 plan_id。新建计划时给一个 new_id（例如 \"new1\"），同一次里往这个新计划加站点时 plan_id 写这个 new_id，站点按顺序加。\n"
+    "- 用 id 指明改哪一项：站点 stop_id；日程 stop_id + n（n 是 get_plans 给的序号）；booking_id、todo_id、packing_id。每一项写 plan_id。新建计划时给一个 new_id（例如 \"new1\"），同一次里往这个新计划加站点时 plan_id 写这个 new_id，站点按顺序加。新站点的日程直接写在 add_stop 的 schedule 里（新站点还没有 stop_id，不能用 add_schedule）。\n"
     "- 删除要有理由：只删用户要求的，或为了满足要求必须删的（比如回程提前，后面几天的站点），summary 里说清楚。\n"
     "- 新站点给出尽量准确的经纬度（app 会再用地名搜索核对）。\n"
     "- legMode 写在起点站点上，表示去下一站的方式：大巴、包车、打车、自驾 = drive；徒步、城市步行 = walk；火车、地铁 = train；船 = ferry；飞机 = flight（不写也是飞机）。拿不准的按最可能的标，用半句话说出来。\n"
@@ -99,7 +99,7 @@ WizardMsg wizardMessage(const QVariantMap &f, const QString &cur)
                             "1. 只追问缺了就做不出方案的（比如没写目的地）：一次只问一个最关键的问题，问完就停下等我回答，这一轮不调用 propose_changes。其他没写的合理假设，用半句话说明。\n"
                             "2. 信息够了就给粗略方案：一两句结论 + 每天一行（去哪几个点、怎么走、大约多久），同时调用 propose_changes 新建这个计划："
                             "create_plan（new_id 写 new1，status 写 planning，type 按路线 / 单一目的地选；有日期写 startDate、endDate；粗略攻略写进 guide，不超过 300 字）；"
-                            "没定日期时加一项 set_days；然后按顺序 add_stop（准确的经纬度、legMode、有日期时写 arriveDate / departDate，这一站做什么写进 notes，一两行）；"
+                            "没定日期时加一项 set_days；然后按顺序 add_stop（准确的经纬度、legMode、有日期时写 arriveDate / departDate，每天做什么写进这一站的 schedule（每项一件事：date、可选 time / end_time、text），notes 只留一两句提示）；"
                             "要订的交通、住宿、门票写成 add_todo，不要编造订单号、价格和班次；还没查的细节放进 gaps。\n"
                             "3. 人数、预算、节奏、兴趣用来定方案，不用写进计划。预算明显不够时用一句话说出来。");
     return m;

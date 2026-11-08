@@ -250,7 +250,9 @@ void runTools(Report &r, AppController *app, AiController *ai, FakeAi &fake, AiC
     // ---- Anthropic：读计划（带思考块）→ 自动续轮 → propose_changes（20 种 op）----
     const QJsonArray changes{
         J({ { "op", "create_plan" }, { "new_id", "new1" }, { "name", QStringLiteral("AI新计划") }, { "startDate", "2027-01-01" }, { "endDate", "2027-01-03" } }),
-        J({ { "op", "add_stop" }, { "plan_id", "new1" }, { "name", QStringLiteral("新站") }, { "lat", 35.01 }, { "lng", 135.01 } }),
+        J({ { "op", "add_stop" }, { "plan_id", "new1" }, { "name", QStringLiteral("新站") }, { "lat", 35.01 }, { "lng", 135.01 },
+            { "schedule", QJsonArray{ J({ { "date", "2027-01-01" }, { "time", "09:00" }, { "end_time", "11:00" }, { "text", QStringLiteral("清水寺") } }),
+                                      J({ { "date", "2027-01-01" }, { "text", QStringLiteral("取消的一条") } }), J({ { "text", QStringLiteral("祇园散步") } }) } } }),   // 0.13.3 新站点带日程
         J({ { "op", "update_plan" }, { "name", QStringLiteral("AI自检改") } }),
         J({ { "op", "delete_plan" }, { "plan_id", "p_aidel" } }),
         J({ { "op", "set_days" }, { "days", 5 } }),
@@ -310,10 +312,24 @@ void runTools(Report &r, AppController *app, AiController *ai, FakeAi &fake, AiC
     for (const QVariant &m : ai->messages()) actOk = actOk || m.toMap().value(QStringLiteral("act")).toStringList().join(u' ').contains(QStringLiteral("读了「AI自检」"));
     r.check(actOk, QStringLiteral("回答上面写读了哪个计划"));
 
+    // ---- 0.13.3 新站点带的日程逐条显示，取消一条 ----
+    const int mi = P.value(QStringLiteral("mi")).toInt();
+    QStringList schRows;
+    for (const QVariant &g : lastProps(ai).value(QStringLiteral("groups")).toList())
+        for (const QVariant &row : g.toMap().value(QStringLiteral("rows")).toList())
+            if (row.toMap().value(QStringLiteral("k")).toInt() == 1)
+                for (const QVariant &x : row.toMap().value(QStringLiteral("sched")).toList()) schRows << x.toMap().value(QStringLiteral("text")).toString();
+    r.check(schRows == QStringList{ QStringLiteral("01-01 09:00–11:00 清水寺"), QStringLiteral("01-01 取消的一条"), QStringLiteral("祇园散步") }, QStringLiteral("add_stop 带的日程在预览里逐条列出"), schRows.join(u'|'));
+    ai->toggleSched(mi, 0, 1, 1);
+    bool schOff = false;
+    for (const QVariant &g : lastProps(ai).value(QStringLiteral("groups")).toList())
+        for (const QVariant &row : g.toMap().value(QStringLiteral("rows")).toList())
+            if (row.toMap().value(QStringLiteral("k")).toInt() == 1) schOff = !row.toMap().value(QStringLiteral("sched")).toList().value(1).toMap().value(QStringLiteral("on")).toBool();
+    r.check(schOff, QStringLiteral("新站点的一条日程可以单独取消勾选"));
+
     // ---- 应用（含 AI 修改前备份）→ 撤销 → 重做 ----
     const int backups0 = countBeforeAi(store->dataDir());
     const json::Value pre = store->data();
-    const int mi = P.value(QStringLiteral("mi")).toInt();
     ai->applyProposal(mi, 0);
     P = lastProps(ai);
     r.check(P.value(QStringLiteral("state")) == QLatin1String("applied") && P.value(QStringLiteral("applied")).toInt() == 21, QStringLiteral("应用 21 项"), QString::number(P.value(QStringLiteral("applied")).toInt()));
@@ -341,6 +357,12 @@ void runTools(Report &r, AppController *app, AiController *ai, FakeAi &fake, AiC
     for (const json::Value &p : d[QStringLiteral("plans")].asArray())
         if (p[QStringLiteral("name")].toString() == QStringLiteral("AI新计划")) newOk = p[QStringLiteral("stops")].asArray().size() == 1 && p[QStringLiteral("startDate")].toString() == QLatin1String("2027-01-01");
     r.check(newOk, QStringLiteral("create_plan + 往新计划 add_stop"));
+    QStringList newSch;
+    for (const json::Value &p : d[QStringLiteral("plans")].asArray())
+        if (p[QStringLiteral("name")].toString() == QStringLiteral("AI新计划") && !p[QStringLiteral("stops")].asArray().empty())
+            for (const json::Value &it : p[QStringLiteral("stops")].asArray()[0][QStringLiteral("schedule")].asArray())
+                newSch << it[QStringLiteral("date")].toString() + u'/' + it[QStringLiteral("time")].toString() + u'/' + it[QStringLiteral("end")].toString() + u'/' + it[QStringLiteral("text")].toString();
+    r.check(newSch == QStringList{ QStringLiteral("2027-01-01/09:00/11:00/清水寺"), QStringLiteral("///祇园散步") }, QStringLiteral("add_stop 带日程：写成现有日程项（date / time / end / text），取消的那条没写"), newSch.join(u'|'));
     QString phPlan = QStringLiteral("?");
     for (const json::Value &ph : d[QStringLiteral("photos")].asArray()) if (ph[QStringLiteral("id")].toString() == QLatin1String("ph_aitest")) phPlan = ph[QStringLiteral("plan")].toString();
     r.check(phPlan.isEmpty(), QStringLiteral("删掉的站点的照片移到“未归类”"));
@@ -351,7 +373,7 @@ void runTools(Report &r, AppController *app, AiController *ai, FakeAi &fake, AiC
     const json::Value post = store->data();
     app->undo();
     r.check(jstr(store->data()[QStringLiteral("plans")]) == jstr(pre[QStringLiteral("plans")]) && jstr(store->data()[QStringLiteral("photos")]) == jstr(pre[QStringLiteral("photos")]),
-            QStringLiteral("Ctrl+Z 一步撤回全部 21 项（数据和应用前一样）"));
+            QStringLiteral("Ctrl+Z 一步撤回全部 21 项（含新站点的日程，数据和应用前一样）"));
     r.check(lastProps(ai).value(QStringLiteral("state")) == QLatin1String("undone"), QStringLiteral("预览标“已撤销”"));
     app->redo();
     r.check(jstr(store->data()[QStringLiteral("plans")]) == jstr(post[QStringLiteral("plans")]) && lastProps(ai).value(QStringLiteral("state")) == QLatin1String("applied"), QStringLiteral("Ctrl+Y 重做：数据回来，预览标回“已应用”"));
@@ -382,6 +404,30 @@ void runTools(Report &r, AppController *app, AiController *ai, FakeAi &fake, AiC
     // ---- 恢复历史：没应用的预览标“已过期” ----
     ai->setChatsFile(chats);
     r.check(lastProps(ai).value(QStringLiteral("state")) == QLatin1String("expired"), QStringLiteral("重新打开后，没应用的预览标“已过期”"), lastProps(ai).value(QStringLiteral("state")).toString());
+
+    // ---- 0.13.3 撤销栈满 30 步以后：预览按数据版本认，不靠步数 ----
+    ai->newChat();
+    auto edit = [&](int i) { store->modify([i](json::Value &dd) { dd.mutObject().set(QStringLiteral("_aiUndoTest"), json::Value(double(i))); }); app->commitStep(); };
+    for (int i = 0; i < data::UndoStack::kMaxSteps + 1; ++i) edit(i);
+    r.check(app->undoCount() == data::UndoStack::kMaxSteps, QStringLiteral("撤销栈先填满 30 步"), QString::number(app->undoCount()));
+    fake.script = { anthTool(QStringLiteral("toolu_u30"), QStringLiteral("propose_changes"), J({ { "summary", "u30" }, { "plan_id", "p_aitest" }, { "changes", QJsonArray{ J({ { "op", "add_todo" }, { "text", QStringLiteral("满栈待办") } }) } } }), false) };
+    ai->send(QStringLiteral("加一项"));
+    idle();
+    ai->applyProposal(lastProps(ai).value(QStringLiteral("mi")).toInt(), 0);
+    auto hasTodo = [store] { return jstr(store->data()).contains(QStringLiteral("满栈待办")); };
+    r.check(lastProps(ai).value(QStringLiteral("state")) == QLatin1String("applied") && hasTodo(), QStringLiteral("栈满时应用 AI 修改"));
+    edit(100);
+    app->undo();
+    r.check(lastProps(ai).value(QStringLiteral("state")) == QLatin1String("applied") && hasTodo(), QStringLiteral("撤销应用之后的一步：预览还是“已应用”（以前按步数会误标已撤销）"), lastProps(ai).value(QStringLiteral("state")).toString());
+    app->undo();
+    r.check(lastProps(ai).value(QStringLiteral("state")) == QLatin1String("undone") && !hasTodo(), QStringLiteral("再撤一步撤到应用前：标“已撤销”"), lastProps(ai).value(QStringLiteral("state")).toString());
+    app->redo();
+    r.check(lastProps(ai).value(QStringLiteral("state")) == QLatin1String("applied") && hasTodo(), QStringLiteral("重做：标回“已应用”"));
+    app->undo();
+    edit(101);   // 撤到应用前又改了别的：重做栈清空，AI 这次再也回不来
+    app->undo();
+    app->redo();
+    r.check(lastProps(ai).value(QStringLiteral("state")) == QLatin1String("undone") && !hasTodo(), QStringLiteral("撤销后改了别的再撤 / 重做：仍是“已撤销”"), lastProps(ai).value(QStringLiteral("state")).toString());
 
     // ---- OpenAI 兼容（DeepSeek）：工具调用往返，reasoning_content 回传；没有联网 ----
     ai->setProvider(QStringLiteral("deepseek"));

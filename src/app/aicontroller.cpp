@@ -1067,6 +1067,24 @@ void AiController::toggleChange(int mi, int pi, int k)
     putProp(mi, pi, am, props, *P, false);
 }
 
+void AiController::toggleSched(int mi, int pi, int k, int j)
+{
+    QJsonObject am; QJsonArray props;
+    QJsonObject *P = propRef(mi, pi, am, props);
+    if (!P || P->value(QStringLiteral("state")).toString() != QLatin1String("open")) return;
+    QJsonArray chs = P->value(QStringLiteral("changes")).toArray();
+    if (k < 0 || k >= chs.size()) return;
+    QJsonObject ch = chs.at(k).toObject();
+    QJsonArray off = ch.value(QStringLiteral("schOff")).toArray();
+    qsizetype at = off.size();
+    while (--at >= 0 && off.at(at).toInt() != j) {}
+    if (at >= 0) off.removeAt(at); else off.append(j);
+    ch.insert(QStringLiteral("schOff"), off);
+    chs.replace(k, ch);
+    P->insert(QStringLiteral("changes"), chs);
+    putProp(mi, pi, am, props, *P, false);
+}
+
 void AiController::toggleAll(int mi, int pi)
 {
     QJsonObject am; QJsonArray props;
@@ -1128,7 +1146,7 @@ void AiController::applyProposal(int mi, int pi, bool force)
     QJsonObject results = am.value(QStringLiteral("results")).toObject();
     results.insert(P.value(QStringLiteral("toolId")).toString(), result);
     am.insert(QStringLiteral("results"), results);
-    m_last = Last{ true, m_chatId, mi, pi, m_app->undoCount(), result };
+    m_last = Last{ true, m_chatId, mi, pi, m_app->undoStateId(), result };
     qInfo("AI 修改已应用：%d 项", a.n);
     if (m_onDeleted && !a.deleted.isEmpty()) m_onDeleted(a.deleted);
     if (a.needRoute) emit toast(tp::tr("有自驾 / 徒步段：到地图编辑器里点“现在计算”画出道路路线，再保存"), false);
@@ -1148,7 +1166,7 @@ void AiController::skipProposal(int mi, int pi)
 }
 
 // 撤销 / 重做：撤到这次应用之前 → "已撤销"并告诉 AI；重做回来 → "已应用"（Electron tp:undo）。
-// ponytail：靠撤销栈的步数判断，栈满 30 步以后再改再撤可能误标；要准就给每一步记 id
+// 按应用后那一版数据的编号认（0.13.3）：在重做栈里 = 撤销了，是现在或在撤销栈里 = 还在；挤出栈 / 换了分支就不动
 void AiController::onUndo(int dir)
 {
     if (!m_last.valid || m_last.chat != m_chatId || !m_app) return;
@@ -1157,10 +1175,11 @@ void AiController::onUndo(int dir)
     if (!P) return;
     const QString st = P->value(QStringLiteral("state")).toString();
     QString result;
-    if (dir < 0 && st == QLatin1String("applied") && m_app->undoCount() < m_last.mark) {
+    const int w = m_app->undoWhere(m_last.mark);
+    if (dir < 0 && st == QLatin1String("applied") && w < 0) {
         P->insert(QStringLiteral("state"), QStringLiteral("undone"));
         result = m_last.result + QStringLiteral("（之后用户按 Ctrl+Z 撤销了，数据已经回到应用前。）");
-    } else if (dir > 0 && st == QLatin1String("undone") && m_app->undoCount() >= m_last.mark) {
+    } else if (dir > 0 && st == QLatin1String("undone") && w > 0) {
         P->insert(QStringLiteral("state"), QStringLiteral("applied"));
         result = m_last.result;
     } else return;
@@ -1413,7 +1432,11 @@ void AiController::shotSetup(const QString &page)
         };
         const QJsonObject input{ { QStringLiteral("summary"), QStringLiteral("第二天加一站岚山，补上交通方式和两条日程") }, { QStringLiteral("plan_id"), pid },
             { QStringLiteral("changes"), QJsonArray{
-                QJsonObject{ { QStringLiteral("op"), QStringLiteral("add_stop") }, { QStringLiteral("name"), QStringLiteral("Arashiyama") }, { QStringLiteral("lat"), 35.0094 }, { QStringLiteral("lng"), 135.6668 }, { QStringLiteral("after_stop_id"), s1 }, { QStringLiteral("legMode"), QStringLiteral("train") } },
+                QJsonObject{ { QStringLiteral("op"), QStringLiteral("add_stop") }, { QStringLiteral("name"), QStringLiteral("Arashiyama") }, { QStringLiteral("lat"), 35.0094 }, { QStringLiteral("lng"), 135.6668 }, { QStringLiteral("after_stop_id"), s1 }, { QStringLiteral("legMode"), QStringLiteral("train") },
+                             { QStringLiteral("schedule"), QJsonArray{   // 0.13.3 新站点带日程
+                                 QJsonObject{ { QStringLiteral("time"), QStringLiteral("08:30") }, { QStringLiteral("end_time"), QStringLiteral("10:00") }, { QStringLiteral("text"), QStringLiteral("竹林小径、野宫神社") } },
+                                 QJsonObject{ { QStringLiteral("time"), QStringLiteral("10:30") }, { QStringLiteral("text"), QStringLiteral("天龙寺庭园") } },
+                                 QJsonObject{ { QStringLiteral("time"), QStringLiteral("13:00") }, { QStringLiteral("text"), QStringLiteral("渡月桥一带吃午饭") } } } } },
                 QJsonObject{ { QStringLiteral("op"), QStringLiteral("update_stop") }, { QStringLiteral("stop_id"), s1 }, { QStringLiteral("legMode"), QStringLiteral("train") } },
                 QJsonObject{ { QStringLiteral("op"), QStringLiteral("add_schedule") }, { QStringLiteral("stop_id"), s1 }, { QStringLiteral("time"), QStringLiteral("09:00") }, { QStringLiteral("text"), QStringLiteral("竹林小径，早去人少") } },
                 QJsonObject{ { QStringLiteral("op"), QStringLiteral("remove_stop") }, { QStringLiteral("stop_id"), QStringLiteral("s_gone") } },
@@ -1426,6 +1449,7 @@ void AiController::shotSetup(const QString &page)
         c0.insert(QStringLiteral("geo"), QJsonObject{ { QStringLiteral("state"), QStringLiteral("pick") }, { QStringLiteral("pick"), 0 }, { QStringLiteral("cands"), QJsonArray{
             QJsonObject{ { QStringLiteral("name"), QStringLiteral("Arashiyama") }, { QStringLiteral("addr"), QStringLiteral("Arashiyama, Ukyo Ward, Kyoto, Japan") }, { QStringLiteral("lat"), 35.0170 }, { QStringLiteral("lng"), 135.6770 } },
             QJsonObject{ { QStringLiteral("name"), QStringLiteral("Arashiyama Station") }, { QStringLiteral("addr"), QStringLiteral("Arashiyama Station, Nishikyo Ward, Kyoto, Japan") }, { QStringLiteral("lat"), 35.0122 }, { QStringLiteral("lng"), 135.6810 } } } } });
+        c0.insert(QStringLiteral("schOff"), QJsonArray{ 2 });   // 截图里取消一条
         chs.replace(0, c0);
         P.insert(QStringLiteral("changes"), chs);
         if (page.startsWith(QLatin1String("ui-ai-props"))) {

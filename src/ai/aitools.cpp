@@ -83,7 +83,8 @@ const char kDefs[] = R"JSON([
    "kind":{"type":"string","enum":["flight","train","bus","ferry","car","hotel","ticket","other"]},
    "title":{"type":"string"},"from":{"type":"string"},"to":{"type":"string"},
    "start":{"type":"string","description":"YYYY-MM-DDTHH:MM（当地时间）"},"end":{"type":"string","description":"YYYY-MM-DDTHH:MM"},
-   "ref":{"type":"string"},"cost":{"type":"number"}}}},
+   "ref":{"type":"string"},"cost":{"type":"number"},
+   "schedule":{"type":"array","description":"add_stop：新站点的日程（每天做什么），一项一件事","items":{"type":"object","required":["text"],"properties":{"date":{"type":"string","description":"YYYY-MM-DD"},"time":{"type":"string","description":"HH:MM"},"end_time":{"type":"string","description":"HH:MM"},"text":{"type":"string"}}}}}}},
   "gaps":{"type":"array","description":"这个方案还缺什么、哪些没查（订票网站、开放日期、具体时间、班次、价格、预约、住宿等）。每条一句话。",
    "items":{"type":"object","required":["text"],"properties":{"text":{"type":"string"},"search":{"type":"boolean","description":"要不要联网查"}}}}}}}
 ])JSON";
@@ -191,6 +192,18 @@ void locate(const Value &root, QJsonObject &ch, const QString &defPlan, const QS
 }
 
 QString cut(const QString &s, int n) { return s.size() > n ? s.left(n) + QStringLiteral("…") : s; }
+// AI 给的一条日程 → 数据格式里的日程项（date / time / end / text，数据格式.md 已有字段）；add_schedule 和 add_stop 的 schedule 共用
+json::Object schedItem(const QJsonObject &c)
+{
+    json::Object it;
+    it.set(L("date"), Value(okDate(cs(c, "date")) ? cs(c, "date") : QString()));
+    if (!cs(c, "time").isEmpty()) it.set(L("time"), Value(cs(c, "time")));
+    if (!cs(c, "time").isEmpty() && !cs(c, "end_time").isEmpty()) it.set(L("end"), Value(cs(c, "end_time")));
+    it.set(L("text"), Value(cs(c, "text")));
+    return it;
+}
+// add_stop 带的日程里第 j 条有没有被取消勾选（预览里逐条勾，ch.schOff 存取消的序号）
+bool schedOff(const QJsonObject &ch, int j) { return ch.value(L("schOff")).toArray().contains(j); }
 QString legZh(const QString &m)
 {
     if (m == QLatin1String("flight")) return tp::tr("飞机");
@@ -527,6 +540,19 @@ QVariantMap view(const Value &root, const QJsonObject &P)
                 row.insert(L("geo"), QVariantMap{ { L("state"), st }, { L("text"), t }, { L("cands"), st == QLatin1String("ok") ? QVariantList() : cl }, { L("pick"), g.value(L("pick")).toInt(-1) },
                                                   { L("ai"), hasNum(c, "lat") && hasNum(c, "lng") ? QStringLiteral("%1, %2").arg(c.value(L("lat")).toDouble(), 0, 'f', 4).arg(c.value(L("lng")).toDouble(), 0, 'f', 4) : QString() } });
             }
+            if (op == QLatin1String("add_stop") && !ch.contains(L("bad"))) {   // 新站点的日程逐条显示、可以取消
+                QVariantList sl;
+                const QJsonArray sch = c.value(L("schedule")).toArray();
+                for (int j = 0; j < sch.size(); ++j) {
+                    const QJsonObject it = sch.at(j).toObject();
+                    if (cs(it, "text").isEmpty()) continue;
+                    QStringList w;
+                    if (okDate(cs(it, "date"))) w << cs(it, "date").mid(5);
+                    if (!cs(it, "time").isEmpty()) w << cs(it, "time") + (cs(it, "end_time").isEmpty() ? QString() : QStringLiteral("–") + cs(it, "end_time"));
+                    sl << QVariantMap{ { L("j"), j }, { L("text"), (w.isEmpty() ? QString() : w.join(u' ') + u' ') + cs(it, "text") }, { L("on"), !schedOff(ch, j) } };
+                }
+                if (!sl.isEmpty()) row.insert(L("sched"), sl);
+            }
             if (ch.value(L("bad")).toString().isEmpty()) { ++nOk; if (ch.value(L("on")).toBool()) { ++nOn; if (isDel(op)) ++nDel; } }
             rows << row;
         }
@@ -632,6 +658,10 @@ Applied apply(Value &root, const QJsonObject &P, const std::function<QString(con
             if (!cs(c, "notes").isEmpty()) notes << cs(c, "notes");
             if (use.isEmpty()) notes << QStringLiteral("（坐标待核实：AI 给的，地名搜索没对上）");
             if (!notes.isEmpty()) so.set(L("notes"), Value(notes.join(u'\n')));
+            const QJsonArray sch = c.value(L("schedule")).toArray();   // 0.13.3 新站点带日程（没勾的不写）
+            for (int j = 0; j < sch.size(); ++j)
+                if (!schedOff(ch, j) && !cs(sch.at(j).toObject(), "text").isEmpty())
+                    listOf(s, L("schedule")).push_back(Value(schedItem(sch.at(j).toObject())));
             if (!cs(c, "legMode").isEmpty() && mode != QLatin1String("flight")) {
                 so.set(L("leg"), Value(json::Object()));
                 so.find(L("leg"))->mutObject().set(L("mode"), Value(mode));
@@ -699,12 +729,7 @@ Applied apply(Value &root, const QJsonObject &P, const std::function<QString(con
             json::Array &stops = stopsOf(plan);
             const int i = idxById(stops, ch.value(L("stop")).toString());
             if (i < 0 || cs(c, "text").isEmpty()) continue;
-            json::Object it;
-            it.set(L("date"), Value(okDate(cs(c, "date")) ? cs(c, "date") : QString()));
-            if (!cs(c, "time").isEmpty()) it.set(L("time"), Value(cs(c, "time")));
-            if (!cs(c, "time").isEmpty() && !cs(c, "end_time").isEmpty()) it.set(L("end"), Value(cs(c, "end_time")));
-            it.set(L("text"), Value(cs(c, "text")));
-            listOf(stops[i], L("schedule")).push_back(Value(std::move(it)));
+            listOf(stops[i], L("schedule")).push_back(Value(schedItem(c)));
             ++a.n;
         } else if (op == QLatin1String("update_schedule") || op == QLatin1String("remove_schedule")) {
             json::Array &stops = stopsOf(plan);

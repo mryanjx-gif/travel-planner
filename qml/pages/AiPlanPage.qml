@@ -125,6 +125,13 @@ Item {
             }
 
             // ---- 步数 ----
+            // 窄窗口（最长的步名放不下）时只留圆点，下面一行写"当前步名 · 2 / 5"，不截断（0.13.3）
+            FontMetrics { id: stepFm; font.family: serifFamily; font.pixelSize: Theme.px(12); font.bold: true }
+            readonly property bool narrowSteps: {
+                let m = 0
+                for (const s of root.steps) m = Math.max(m, stepFm.advanceWidth(s))
+                return m + Theme.px(6) > stepRow.width / root.steps.length
+            }
             Row {
                 id: stepRow
                 objectName: "aiPlanSteps"
@@ -140,7 +147,7 @@ Item {
                         readonly property bool done: index < root.step
                         objectName: "aiPlanStep-" + index
                         width: stepRow.width / root.steps.length
-                        height: Theme.px(52)
+                        height: col.narrowSteps ? Theme.px(28) : Theme.px(52)
                         Rectangle {   // 连线
                             visible: st.index > 0
                             x: -width / 2; y: Theme.px(13)
@@ -169,12 +176,22 @@ Item {
                             width: parent.width
                             horizontalAlignment: Text.AlignHCenter
                             elide: Text.ElideRight
+                            visible: !col.narrowSteps
                             text: st.modelData
                             font.family: serifFamily; font.pixelSize: Theme.px(12); font.bold: st.cur
                             color: st.cur ? Theme.text : Theme.muted
                         }
                     }
                 }
+            }
+            Text {
+                objectName: "aiPlanStepNarrow"
+                visible: ai.hasKey && col.narrowSteps
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.Wrap
+                text: root.steps[root.step] + "  ·  " + (root.step + 1) + " / " + root.steps.length
+                font.family: serifFamily; font.pixelSize: Theme.px(12.5); font.bold: true; color: Theme.text
             }
 
             // ---- 这一步的内容 ----

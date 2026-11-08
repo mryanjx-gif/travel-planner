@@ -181,6 +181,8 @@ public:
     void rollbackEditGroup();
     bool undoGrouped() const { return m_undo.inGroup(); }
     int undoCount() const { return m_undo.undoCount(); }
+    quint64 undoStateId() const;   // 现在这一版数据的编号（0.13.3 AI 撤销联动）；没存上就是 0（不知道）
+    int undoWhere(quint64 id) const { return m_undo.where(id); }
     bool conflictPending() const { return m_conflictPending; }
     // 截图、内存测试时不做自动备份
     void setAutoBackupAllowed(bool on) { m_autoBackupAllowed = on; }

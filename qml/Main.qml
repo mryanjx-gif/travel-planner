@@ -1508,6 +1508,7 @@ Window {
     }
 
     Timer { running: shotPage === "ui-settings-narrow"; interval: 400; onTriggered: win.width = 620 }   // 截图：设置页的窄窗口
+    Timer { running: shotPage === "ui-aiplan-narrow"; interval: 400; onTriggered: win.width = 500 }   // 截图：AI 向导的窄窗口（0.13.3）
     // ---- AI 助手泡泡（0.12.3 放好，0.13.0 接功能）：我的位置上面一颗；面板开着时玻璃 + 主题色细边（I-11）----
     RoundButton {
         id: aiBtn
@@ -2768,7 +2769,7 @@ Window {
         }
         else if (shotPage === "ui-settings-net-off") { netc.offlineForShot(); goPage("settings") }
         else if (shotPage.startsWith("ui-ai-")) { ai.shotSetup(shotPage); aiPanel.open = true; if (shotPage === "ui-ai-order") aiPanel.orderMode = true }
-        else if (shotPage.startsWith("ui-aiplan-")) { ai.shotSetup(shotPage); goPage("aiplan"); if (shotPage !== "ui-aiplan-guide") aiPlanPage.shotFill(Number(shotPage.slice(10))) }   // 0.13.2 向导每一步   // 0.13.0：AI 面板（对话 / 引导卡 / 第一次发送的提示）
+        else if (shotPage.startsWith("ui-aiplan-")) { ai.shotSetup(shotPage); goPage("aiplan"); if (shotPage !== "ui-aiplan-guide") aiPlanPage.shotFill(shotPage === "ui-aiplan-narrow" ? 2 : Number(shotPage.slice(10))) }   // 0.13.2 向导每一步   // 0.13.0：AI 面板（对话 / 引导卡 / 第一次发送的提示）
         else if (shotPage === "ui-settings-ai") { ai.shotSetup(shotPage); goPage("settings") }
         else if (shotPage.startsWith("ui-settings-") && shotPage !== "ui-settings-photos") goPage("settings")
         else if (shotPage === "ui-settings" || shotPage === "ui-backup" || shotPage === "ui-backup-running" || shotPage === "ui-devtools") goPage("settings")

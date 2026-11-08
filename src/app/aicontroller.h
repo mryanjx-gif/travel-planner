@@ -133,6 +133,7 @@ public:
     // 修改预览（mi = 消息序号，pi = 这条回答里的第几份预览，k = 第几项）
     Q_INVOKABLE void toggleChange(int mi, int pi, int k);
     Q_INVOKABLE void toggleAll(int mi, int pi);
+    Q_INVOKABLE void toggleSched(int mi, int pi, int k, int j);   // 0.13.3 add_stop 带的第 j 条日程
     Q_INVOKABLE void pickGeo(int mi, int pi, int k, int j);   // j = -1：用 AI 给的坐标
     Q_INVOKABLE void applyProposal(int mi, int pi, bool force = false);   // force：备份失败也应用
     Q_INVOKABLE void skipProposal(int mi, int pi);
@@ -231,7 +232,7 @@ private:
     // 这一问（含自动续轮）。kind：""（聊天）/ wizard（向导）/ order（从订单生成）；tok / amt / cur：几轮加起来的用量（每份方案用量，0.13.2）
     struct Run { qint64 t0 = 0; int autoN = 0; bool gapFill = false; QString planId, kind, pid, mdl; qint64 tok = 0; double amt = 0; QString cur; bool priced = true, props = false; } m_run;
     struct Research { bool on = false; qint64 start = 0, budget = 0; QStringList todo; int secs = 0; bool paused = false; } m_research;
-    struct Last { bool valid = false; QString chat; int mi = -1, pi = -1, mark = 0; QString result; } m_last;   // 最近一次应用（撤销联动）
+    struct Last { bool valid = false; QString chat; int mi = -1, pi = -1; quint64 mark = 0; QString result; } m_last;   // 最近一次应用（撤销联动）
     struct GeoJob { int gen; int mi; QString toolId; int k; };
     QList<GeoJob> m_geoQueue;
     bool m_geoBusy = false;

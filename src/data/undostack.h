@@ -9,6 +9,8 @@
 
 #include "jsonvalue.h"
 
+#include <QtGlobal>
+
 #include <deque>
 #include <optional>
 
@@ -31,6 +33,17 @@ public:
     bool canRedo() const { return !m_redo.empty(); }
     int undoCount() const { return int(m_undo.size()); }
     int redoCount() const { return int(m_redo.size()); }
+    // 0.13.3 每一版数据一个编号（每次记一步、撤销 / 重做换版时跟着走），AI 撤销联动按编号认，不靠步数。
+    // where(id)：1 = 这一版就是现在或在撤销栈里（改动还在），-1 = 在重做栈里（被撤销了），0 = 不知道（挤出栈或换了分支）
+    quint64 stateId() const { return m_savedId; }
+    int where(quint64 id) const
+    {
+        if (!id) return 0;
+        if (id == m_savedId) return 1;
+        for (quint64 x : m_undoIds) if (x == id) return 1;
+        for (quint64 x : m_redoIds) if (x == id) return -1;
+        return 0;
+    }
     // 撤销 / 重做记录里的每一版（含"上次保存时的样子"），清理照片时用：撤销回去还要用到的文件不能删（0.7.0）
     template <class F> void forEachSnapshot(F f) const
     {
@@ -61,10 +74,13 @@ public:
     };
 
 private:
-    std::optional<json::Value> step(std::deque<json::Value> &from, std::deque<json::Value> &to, const json::Value &current);
+    std::optional<json::Value> step(std::deque<json::Value> &from, std::deque<json::Value> &to,
+                                    std::deque<quint64> &fromIds, std::deque<quint64> &toIds, const json::Value &current);
 
     std::deque<json::Value> m_undo, m_redo;
+    std::deque<quint64> m_undoIds, m_redoIds;   // 和 m_undo / m_redo 一一对应
     json::Value m_saved;
+    quint64 m_savedId = 0, m_nextId = 0;
     bool m_suppressed = false;
     bool m_group = false, m_groupPushed = false;
 };
