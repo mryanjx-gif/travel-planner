@@ -51,7 +51,7 @@ Window {
     // calendar / journal / ledger（整页）、settings。goPage("map") = 回到当前模式
     readonly property bool settingsOpen: nav.page === "settings"
     readonly property var modeKeys: ["plan", "wish", "foot", "photo"]
-    readonly property var fullPageKeys: ["calendar", "journal", "ledger"]
+    readonly property var fullPageKeys: ["calendar", "journal", "ledger", "aiplan"]   // aiplan：0.13.2 让 AI 帮我规划
     readonly property bool onMapPage: modeKeys.indexOf(nav.page) >= 0
     readonly property bool fullPageOpen: fullPageKeys.indexOf(nav.page) >= 0
     // 0.10.0 完整计划页（S-02）：nav 的页面 "trip"，参数 { id }。地图还在后面露着、照常能拖；mapLive = 地图正显示着（模式页或计划页）
@@ -699,6 +699,7 @@ Window {
         pageLabel: {
             if (nav.page === "plan") return plans.libraryOpen ? qsTr("计划库") : ""
             if (nav.page === "photo" && win.albumOpen) return qsTr("相册")
+            if (nav.page === "aiplan") return qsTr("AI 规划")
             const it = win.navPages.find(x => x.key === nav.page); return it ? it.name : ""
         }
         pages: win.barPages
@@ -726,6 +727,8 @@ Window {
         hidePageLabel: !win.wide && !win.fullPageOpen   // 0.12.10：整页不再自己写页名，名字一直留在 ⋯ 上
         overPage: win.fullPageOpen
         onNewClicked: win.newPlan()
+        showAi: netc.allowed.ai
+        onAiPlanClicked: win.goPage("aiplan")
     }
 
     // 点 ⋯ 里的一颗（Electron：点一颗 = 去那一页；点当前页那一颗 = 回地图）。0.8.10：点当前模式那一颗 = 回"计划"
@@ -901,6 +904,7 @@ Window {
         // 0.9.7：叠上其他旅程（左下胶囊去重复；Claude 加的入口，PO 可去掉）
         if (plans.overlayAvailable) act("overlay", plans.overlay ? qsTr("不叠其他旅程") : qsTr("叠上其他旅程"))
         if (netc.allowed.ai) act("ai", qsTr("AI 助手"))   // 0.13.0
+        if (netc.allowed.ai) page("aiplan", qsTr("让 AI 帮我规划"))   // 0.13.2 整页向导
         for (const t of [qsTr("导入 .trip"), qsTr("导出行程单 PDF"), qsTr("导出行程单长图"), qsTr("导出日历文件 .ics"), qsTr("导出计划文件 .trip"), qsTr("导出分享版"), qsTr("导出信息卡"), qsTr("批量导出")])
             act("notReady", t)
         act("fullscreen", qsTr("全屏"), "", "F11")
@@ -1975,6 +1979,18 @@ Window {
         onOpenPlan: (id) => { win.tripTab = "budget"; win.openTrip(id, -1) }
         onOpenLibrary: win.openLibrary()
     }
+    // ---- 0.13.2 让 AI 帮我规划（整页向导）：提交后回地图、打开 AI 面板接着聊 ----
+    AiPlanPage {
+        id: aiPlanPage
+        objectName: "aiPlanPage"
+        anchors.fill: parent
+        anchors.margins: win.gap
+        anchors.topMargin: 0
+        z: 20
+        shown: nav.page === "aiplan"
+        onSettingsRequested: { win.goPage("settings"); settings.showSection("ai") }
+        onSubmitted: { win.goPage("map"); aiPanel.open = true }
+    }
     // ---- 0.11.2 日历、游记 ----
     CalendarPage {
         id: calendarPage
@@ -2751,7 +2767,8 @@ Window {
             if (shotPage === "ui-settings-doc-form") docDialog.show(planPage.documents()[1])
         }
         else if (shotPage === "ui-settings-net-off") { netc.offlineForShot(); goPage("settings") }
-        else if (shotPage.startsWith("ui-ai-")) { ai.shotSetup(shotPage); aiPanel.open = true }   // 0.13.0：AI 面板（对话 / 引导卡 / 第一次发送的提示）
+        else if (shotPage.startsWith("ui-ai-")) { ai.shotSetup(shotPage); aiPanel.open = true; if (shotPage === "ui-ai-order") aiPanel.orderMode = true }
+        else if (shotPage.startsWith("ui-aiplan-")) { ai.shotSetup(shotPage); goPage("aiplan"); if (shotPage !== "ui-aiplan-guide") aiPlanPage.shotFill(Number(shotPage.slice(10))) }   // 0.13.2 向导每一步   // 0.13.0：AI 面板（对话 / 引导卡 / 第一次发送的提示）
         else if (shotPage === "ui-settings-ai") { ai.shotSetup(shotPage); goPage("settings") }
         else if (shotPage.startsWith("ui-settings-") && shotPage !== "ui-settings-photos") goPage("settings")
         else if (shotPage === "ui-settings" || shotPage === "ui-backup" || shotPage === "ui-backup-running" || shotPage === "ui-devtools") goPage("settings")

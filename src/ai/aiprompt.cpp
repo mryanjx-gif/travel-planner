@@ -1,5 +1,7 @@
 #include "aiprompt.h"
 
+#include "translator.h"
+
 #include <QTimeZone>
 
 namespace tp::ai {
@@ -57,5 +59,58 @@ QString systemTail(const QDateTime &now, const QString &page, const QString &pla
                             : QStringLiteral("\n\n当前计划的完整内容（JSON）：\n") + planJson;
     return t;
 }
+
+WizardMsg wizardMessage(const QVariantMap &f, const QString &cur)
+{
+    auto v = [&f](const char *k) { return f.value(QLatin1String(k)).toString().trimmed(); };
+    QStringList zh, ui;
+    auto add = [&](const QString &kZh, const QString &kUi, const QString &val) { if (val.isEmpty()) return; zh << QStringLiteral("- %1：%2").arg(kZh, val); ui << QStringLiteral("- %1：%2").arg(kUi, val); };
+    add(QStringLiteral("出发地"), tp::tr("出发地"), v("from"));
+    add(QStringLiteral("目的地"), tp::tr("目的地"), v("to"));
+    if (!v("start").isEmpty() || !v("end").isEmpty()) {
+        const QString d = v("start") + QStringLiteral(" — ") + v("end");
+        add(QStringLiteral("日期"), tp::tr("日期"), d);
+    } else if (v("days").toInt() > 0) {
+        zh << QStringLiteral("- 天数：%1 天（日期没定）").arg(v("days").toInt());
+        ui << QStringLiteral("- %1").arg(tp::tr("%1 天").arg(v("days").toInt()));
+    }
+    if (v("people").toInt() > 0) { zh << QStringLiteral("- 人数：%1 人").arg(v("people").toInt()); ui << QStringLiteral("- %1").arg(tp::tr("%1 人").arg(v("people").toInt())); }
+    if (v("budget").toDouble() > 0) {
+        zh << QStringLiteral("- 预算：约 %1 %2（所有人合计）").arg(cur, v("budget"));
+        ui << QStringLiteral("- %1：%2 %3").arg(tp::tr("预算"), cur, v("budget"));
+    }
+    const QString pace = v("pace");
+    if (!pace.isEmpty()) {
+        const QString pz = pace == QLatin1String("slow") ? QStringLiteral("松（每天少几个点，留出空闲）") : pace == QLatin1String("fast") ? QStringLiteral("紧（每天多看几个点）") : QStringLiteral("适中");
+        const QString pu = pace == QLatin1String("slow") ? tp::tr("松") : pace == QLatin1String("fast") ? tp::tr("紧") : tp::tr("适中");
+        zh << QStringLiteral("- 节奏：") + pz;
+        ui << QStringLiteral("- %1：%2").arg(tp::tr("节奏"), pu);
+    }
+    const QStringList ints = f.value(QStringLiteral("interests")).toStringList();
+    if (!ints.isEmpty()) add(QStringLiteral("兴趣"), tp::tr("兴趣"), ints.join(QStringLiteral("、")));
+    add(QStringLiteral("必去"), tp::tr("必去"), v("must"));
+    add(QStringLiteral("不去"), tp::tr("不去"), v("avoid"));
+
+    WizardMsg m;
+    m.shown = tp::tr("用 AI 规划一趟新旅行") + (ui.isEmpty() ? QString() : QStringLiteral("\n") + ui.join(u'\n'));
+    m.text = QStringLiteral("我想规划一趟新的旅行。下面是我在「让 AI 帮我规划」里填的，没写的项是我跳过了：\n")
+           + (zh.isEmpty() ? QStringLiteral("- （全部跳过了）") : zh.join(u'\n'))
+           + QStringLiteral("\n\n请这样做：\n"
+                            "1. 只追问缺了就做不出方案的（比如没写目的地）：一次只问一个最关键的问题，问完就停下等我回答，这一轮不调用 propose_changes。其他没写的合理假设，用半句话说明。\n"
+                            "2. 信息够了就给粗略方案：一两句结论 + 每天一行（去哪几个点、怎么走、大约多久），同时调用 propose_changes 新建这个计划："
+                            "create_plan（new_id 写 new1，status 写 planning，type 按路线 / 单一目的地选；有日期写 startDate、endDate；粗略攻略写进 guide，不超过 300 字）；"
+                            "没定日期时加一项 set_days；然后按顺序 add_stop（准确的经纬度、legMode、有日期时写 arriveDate / departDate，这一站做什么写进 notes，一两行）；"
+                            "要订的交通、住宿、门票写成 add_todo，不要编造订单号、价格和班次；还没查的细节放进 gaps。\n"
+                            "3. 人数、预算、节奏、兴趣用来定方案，不用写进计划。预算明显不够时用一句话说出来。");
+    return m;
+}
+
+QString orderTask(const QString &planId)
+{
+    return QStringLiteral("现在的任务：用户会粘贴订单确认邮件或 PDF 里复制的文字。把里面的交通和住宿整理成 add_booking，只调用 propose_changes（plan_id 写 %1），不要做别的。"
+                          "kind 按交通方式或住宿选；时间写成当地时间 YYYY-MM-DDTHH:MM；订单号放 ref，金额放 cost（只填数字）。看不出来的字段留空，不要猜。").arg(planId);
+}
+
+QString orderMessage(const QString &pasted) { return QStringLiteral("下面是订单确认的文字，请整理成交通住宿：\n\n") + pasted; }
 
 } // namespace tp::ai

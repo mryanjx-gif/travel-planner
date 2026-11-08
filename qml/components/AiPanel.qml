@@ -10,6 +10,7 @@ GlassPanel {
     objectName: "aiPanel"
     property bool open: false
     property bool histOpen: false
+    property bool orderMode: false   // 0.13.2 从订单生成（I-12）：下一句是粘贴的订单文字
     signal settingsRequested()
     signal closeRequested()
     signal toastRequested(string text, bool error)
@@ -20,11 +21,12 @@ GlassPanel {
     Behavior on opacity { TpAnim { shown: root.open } }
     transform: Translate { y: root.open || !Theme.motion ? 0 : Theme.px(16) }
 
-    onOpenChanged: if (open) { histOpen = false; focusTimer.start() }
+    onOpenChanged: if (open) { histOpen = false; focusTimer.start() } else orderMode = false
     Timer { id: focusTimer; interval: 60; onTriggered: if (ai.hasKey) input.focusEnd() }
     function send(text) {
         const t = (text === undefined ? input.text : text).trim()
         if (t === "" || ai.busy) return
+        if (root.orderMode) { root.orderMode = false; if (ai.sendOrder(t) || ai.pendingTell !== "") input.clear(); return }
         if (ai.send(t) || ai.pendingTell !== "") input.clear()
     }
     // 快捷动作（Electron quickActs 没选中计划时的三个；0.13.1 有了计划上下文才答得上来）
@@ -108,59 +110,10 @@ GlassPanel {
             visible: !ai.hasKey
             contentHeight: guideCol.height
             boundsBehavior: Flickable.StopAtBounds
-            Column {
+            AiKeyGuide {
                 id: guideCol
                 width: parent.width
-                spacing: Theme.px(10)
-                Text {
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    text: qsTr("用 AI 助手要先填一家的 API 钥匙。钥匙在服务商的开发者平台申请，按用量付费，和网页版的会员订阅分开。")
-                    font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.text; lineHeight: 1.25
-                }
-                Repeater {
-                    model: ai.providers.filter(p => p.id !== "custom")
-                    delegate: Rectangle {
-                        id: gp
-                        required property var modelData
-                        objectName: "aiGuide-" + modelData.id
-                        width: guideCol.width
-                        height: Theme.px(46)
-                        radius: Theme.radiusSmall
-                        color: gpMa.containsMouse ? "#ffffff" : Qt.rgba(1, 1, 1, 0.6)
-                        border.width: 1; border.color: Theme.line
-                        Column {
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: Theme.px(12)
-                            width: parent.width - Theme.px(120)
-                            Text { text: gp.modelData.name + (gp.modelData.id === ai.provider ? qsTr("（当前）") : ""); font.family: serifFamily; font.pixelSize: Theme.px(13.5); font.bold: true; color: Theme.text }
-                            Text {
-                                visible: gp.modelData.chinaBlocked
-                                text: qsTr("中国大陆用不了")
-                                font.family: serifFamily; font.pixelSize: Theme.px(11.5); color: Theme.muted
-                            }
-                        }
-                        Text {
-                            anchors.right: parent.right; anchors.rightMargin: Theme.px(12)
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: qsTr("申请钥匙 ↗")
-                            font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.accent
-                        }
-                        MouseArea { id: gpMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: ai.openSignup(gp.modelData.id) }
-                    }
-                }
-                TpButton {
-                    objectName: "aiGuideSettings"
-                    kind: "primary"
-                    text: qsTr("去设置里填钥匙")
-                    onClicked: root.settingsRequested()
-                }
-                Text {
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    text: qsTr("你问的话会发给你选的那家服务商。钥匙存在 Windows 凭据管理器里，不放进数据文件夹。")
-                    font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
-                }
+                onSettingsRequested: root.settingsRequested()
             }
         }
 
@@ -197,6 +150,13 @@ GlassPanel {
                                 text: modelData.t
                                 onClicked: root.send(modelData.q)
                             }
+                        }
+                        // 0.13.2 I-12（Electron quickActs 的"从订单生成交通住宿"）：切到订单模式，下一句粘贴订单文字
+                        TpChip {
+                            objectName: "aiQuick-order"
+                            text: qsTr("从订单生成交通住宿")
+                            on: root.orderMode
+                            onClicked: { root.orderMode = !root.orderMode; input.focusEnd() }
                         }
                     }
                     Text {
@@ -466,6 +426,27 @@ GlassPanel {
                 }
             }
         }
+        Item {
+            objectName: "aiOrderBar"
+            visible: root.orderMode && !ai.busy
+            width: parent.width
+            height: Theme.px(22)
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width - orderCancel.width - Theme.px(8)
+                elide: Text.ElideRight
+                text: qsTr("从订单生成交通住宿 · 用“快”档模型，只出修改预览")
+                font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.accentInk
+            }
+            Text {
+                id: orderCancel
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("取消")
+                font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.accent
+                MouseArea { anchors.fill: parent; anchors.margins: -Theme.px(4); cursorShape: Qt.PointingHandCursor; onClicked: root.orderMode = false }
+            }
+        }
         Text {
             objectName: "aiRun"
             visible: ai.runText !== ""
@@ -483,7 +464,7 @@ GlassPanel {
                 multiline: true
                 maxLines: 6
                 submitOnEnter: true
-                placeholder: qsTr("问点什么（Enter 发送，Shift+Enter 换行）")
+                placeholder: root.orderMode ? qsTr("把订单确认邮件或 PDF 里的文字粘贴到这里") : qsTr("问点什么（Enter 发送，Shift+Enter 换行）")
                 onAccepted: root.send()
                 onEscaped: root.closeRequested()
             }

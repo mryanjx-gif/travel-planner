@@ -341,6 +341,24 @@ QJsonArray openAiTools(const QString &providerId, bool web)
     return a;
 }
 
+QJsonArray orderTools(bool anthropic, const QString &providerId)
+{
+    QJsonArray out;
+    for (const auto &v : anthropic ? anthropicTools(false) : openAiTools(providerId, false)) {
+        const QJsonObject o = v.toObject();
+        if ((anthropic ? o.value(L("name")) : o.value(L("function")).toObject().value(L("name"))).toString() == QLatin1String("propose_changes")) out.append(o);
+    }
+    return out;
+}
+
+QJsonValue orderChoice(const QString &id)
+{
+    if (id == QLatin1String("claude")) return QJsonObject{ { L("type"), L("tool") }, { L("name"), L("propose_changes") } };
+    if (id == QLatin1String("deepseek") || id == QLatin1String("qwen") || id == QLatin1String("doubao"))
+        return QJsonObject{ { L("type"), L("function") }, { L("function"), QJsonObject{ { L("name"), L("propose_changes") } } } };
+    return {};
+}
+
 // ---------------- 上下文 ----------------
 
 QString planForAi(const Value &root, const Value &plan, bool noMoney)

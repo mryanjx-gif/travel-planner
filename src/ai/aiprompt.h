@@ -4,6 +4,7 @@
 
 #include <QDateTime>
 #include <QString>
+#include <QVariantMap>
 
 namespace tp::ai {
 
@@ -12,5 +13,13 @@ QString systemHead(const QString &plansSummaryJson);
 // web：这次能不能联网（canWeb = 这家有联网能力）；planJson：当前计划的完整内容（空 = 没选中）
 QString systemTail(const QDateTime &now, const QString &page, const QString &planName, const QString &planId, const QString &live,
                    bool web, bool canWeb, const QString &planJson);
+
+// 0.13.2 引导式规划（整页向导）：表单 → 发给 AI 的一条消息（text，中文，含怎么做）+ 对话里显示的（shown，界面语言）。
+// form：from、to、start、end、days、people、budget、pace（slow / normal / fast）、interests（文字列表）、must、avoid；空的 = 跳过了。cur = 主币种
+struct WizardMsg { QString text, shown; };
+WizardMsg wizardMessage(const QVariantMap &form, const QString &cur);
+// 0.13.2 从订单生成（I-12）：system 后半段加的任务说明，和用户消息的开头
+QString orderTask(const QString &planId);
+QString orderMessage(const QString &pasted);
 
 } // namespace tp::ai

@@ -878,6 +878,34 @@ GlassPanel {
                         font.family: serifFamily; font.pixelSize: Theme.px(12); font.features: Theme.tnum; color: Theme.muted
                     }
                 }
+                // 0.13.2 每份方案的用量（向导一次、从订单生成一次、之后每次出修改的那一问；几轮加起来），最近 10 条
+                SettingsRow {
+                    objectName: "aiPlanUsage"
+                    width: parent.width
+                    label: qsTr("最近的方案用量")
+                    sub: ai.planUsage.length ? qsTr("向导规划、从订单生成和每次提出修改的那一问，几轮加起来") : qsTr("还没有生成过方案")
+                }
+                Repeater {
+                    model: ai.planUsage.slice(0, 10)
+                    delegate: Column {
+                        required property var modelData
+                        required property int index
+                        objectName: "aiPlanUsage-" + index
+                        width: parent ? parent.width : 0
+                        Text {
+                            width: parent.width
+                            elide: Text.ElideRight
+                            text: modelData.time + " · " + modelData.kind
+                            font.family: serifFamily; font.pixelSize: Theme.px(12.5); font.features: Theme.tnum; color: Theme.textSoft
+                        }
+                        Text {
+                            width: parent.width
+                            wrapMode: Text.Wrap
+                            text: [modelData.provider, modelData.model, modelData.tok, modelData.cost].filter(x => x).join(" · ")
+                            font.family: serifFamily; font.pixelSize: Theme.px(12); font.features: Theme.tnum; color: Theme.muted
+                        }
+                    }
+                }
                 Text {
                     width: parent.width
                     wrapMode: Text.Wrap

@@ -1411,3 +1411,57 @@ AI 助手现在不能用：离线模式开着，或者设置 → 联网里关掉
 找不到这条待办	To-do not found
 找不到这条行李	Packing item not found
 要联网查	needs a web search
+# 0.13.2 引导式规划、从订单生成、方案用量
+人数预算	People & budget
+节奏兴趣	Pace & interests
+必去不去	Musts & skips
+美食	Food
+历史古迹	Historic sites
+摄影	Photography
+亲子	Family-friendly
+徒步登山	Hiking
+AI 正在回答上一句，等它写完再试。	The AI is still answering. Try again when it's done.
+没发出去，可以再试一次。	Not sent. You can try again.
+让 AI 帮我规划	Plan with AI
+填几项就行，每一步都能跳过。AI 先出一份粗略方案，改动都先给你预览，之后在 AI 助手里接着细化。	Fill in a few things — every step can be skipped. The AI drafts a rough plan, shows every change as a preview first, and you refine it in the AI assistant.
+从哪里出发	Leaving from
+城市，比如 上海	A city, e.g. Shanghai
+想去哪里	Where to
+城市、国家或一条路线，比如 京都、北海道环线	A city, country or route, e.g. Kyoto, a Hokkaido loop
+还没想好可以跳过，AI 会先问你。	Not sure yet? Skip it and the AI will ask.
+定了日期	Fixed dates
+只定天数	Just the length
+几个人	How many people
+人	people
+预算（所有人合计）	Budget (everyone combined)
+不填就不考虑	Leave empty to ignore
+人数和预算只用来定方案，不会写进计划。	People and budget only shape the plan; they aren't saved into it.
+节奏	Pace
+松	Relaxed
+适中	Moderate
+紧	Packed
+兴趣（可以多选）	Interests (pick any)
+一定要去的	Must-sees
+地方、店、活动都行，比如 伏见稻荷、岚山小火车	Places, shops or activities, e.g. Fushimi Inari, Sagano Romantic Train
+不想去的	Rather skip
+比如 人太多的景点、红眼航班	e.g. crowded sights, red-eye flights
+上一步	Back
+让 AI 规划	Plan it
+会发给 %1（%2）。生成后转到地图上的 AI 助手，新计划要你在预览里勾选、点“应用”才写入。	This goes to %1 (%2). Afterwards you'll continue in the AI assistant on the map; the new trip is only saved after you tick it in the preview and click Apply.
+没填模型	no model set
+从订单生成交通住宿 · 用“快”档模型，只出修改预览	Bookings from an order · uses the Fast model, preview only
+把订单确认邮件或 PDF 里的文字粘贴到这里	Paste the text of a booking confirmation email or PDF here
+AI 规划	AI planning
+最近的方案用量	Recent plan usage
+向导规划、从订单生成和每次提出修改的那一问，几轮加起来	Wizard plans, bookings from orders and each request that proposed changes, all rounds added up
+还没有生成过方案	No plans generated yet
+向导规划	Wizard plan
+%1 token	%1 tokens
+没填单价	no price set
+这次没整理出交通住宿。可以把订单文字删短一点再试，或者在设置 → AI 换一家服务商。	No bookings came out this time. Try a shorter piece of the order text, or switch provider in Settings → AI.
+%1 人	%1 people
+兴趣	Interests
+必去	Must-see
+不去	Skip
+用 AI 规划一趟新旅行	Plan a new trip with AI
+去哪儿	Where to

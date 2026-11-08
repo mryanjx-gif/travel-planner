@@ -81,6 +81,8 @@ struct ChatExtra {
     QString systemTail;
     QJsonArray tools;
     bool search = false;   // 千问 enable_search
+    QJsonValue toolChoice; // 0.13.2 从订单生成：强制调用的工具（已按接法写好；空 = 不强制）
+    int maxTokens = 0;     // 0 = 服务商默认
 };
 // messages：[{role: "user" / "assistant", text}]，或已经按接法拼好的消息（带 content / tool_calls、role = tool）原样发；base 为空用服务商默认地址
 Request buildChat(const Provider &p, const QString &base, const QString &key, const QString &model, bool think, const QString &effort,

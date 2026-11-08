@@ -45,6 +45,8 @@ Item {
     signal listClicked()
     signal menuClicked()
     signal newClicked()                    // 0.8.9：新建计划（PO 2026-11-08：自成一颗灰玻璃泡泡，在列表 | 头像胶囊左边）
+    signal aiPlanClicked()                 // 0.13.2：泡泡右边一格"AI" = 让 AI 帮我规划（PO 已批）
+    property bool showAi: false            // AI 助手能用（没离线、没关掉）时才有那一格
     property bool showNew: true
     property bool compact: false           // ≤ 900（S-15）："新建计划"只剩 ＋、边距 10
     property bool hidePageLabel: false     // ≤ 1100（S-15）：⋯ 旁边不显示页名
@@ -324,9 +326,9 @@ Item {
             readonly property int grey: shotPage.startsWith("newbtn-grey") ? Number(shotPage.charAt(11)) : 2
             readonly property var greys: [[222, 228, 233], [205, 213, 220], [186, 196, 205]]
             readonly property var g: greys[Math.max(1, Math.min(3, grey)) - 1]
-            width: newRow.implicitWidth + Theme.px(root.compact ? 26 : 30)
+            width: newRow.implicitWidth + Theme.px(root.compact ? 26 : 30) + (aiPart.visible ? aiPart.width : 0)
             height: root.btnH
-            scale: newMa.pressed ? 0.95 : 1
+            scale: newMa.pressed || aiMa.pressed ? 0.95 : 1
             Behavior on scale { TpSpring {} }
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("新建计划")
@@ -337,11 +339,12 @@ Item {
                 // 0.12.11 压在整页上（日历、游记、账本）和旁边胶囊一样用接近实底的白，不然一颗灰一颗白
                 tint: root.overPage ? Qt.rgba(250 / 255, 252 / 255, 253 / 255, 0.96)
                                     : Qt.rgba(newBtn.g[0] / 255, newBtn.g[1] / 255, newBtn.g[2] / 255, Theme.glass ? 0.69 : 0.96)
-                edge: newMa.containsMouse ? Theme.lineStrong : Theme.glassEdge
+                edge: newMa.containsMouse || aiMa.containsMouse ? Theme.lineStrong : Theme.glassEdge
             }
             Row {
                 id: newRow
-                anchors.centerIn: parent
+                x: Theme.px(root.compact ? 13 : 15)
+                anchors.verticalCenter: parent.verticalCenter
                 spacing: Theme.px(4)
                 // 深一点的 accentInk：最深那档灰上 accent 对比度不到 4.5
                 TpIcon { name: "plus"; color: Theme.accentInk; width: Theme.px(16); height: width; stroke: 2.2; anchors.verticalCenter: parent.verticalCenter }
@@ -353,7 +356,28 @@ Item {
                 }
             }
             TpTip { text: qsTr("新建计划"); show: newMa.containsMouse && root.compact }
-            MouseArea { id: newMa; hoverEnabled: true; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.newClicked() }
+            MouseArea { id: newMa; hoverEnabled: true; width: parent.width - (aiPart.visible ? aiPart.width : 0); height: parent.height; cursorShape: Qt.PointingHandCursor; onClicked: root.newClicked() }
+            // 0.13.2 让 AI 帮我规划：同一颗泡泡右边隔一道细线的"AI"（点"新建计划"仍然一下就开编辑器）
+            Item {
+                id: aiPart
+                objectName: "newAiBtn"
+                visible: root.showAi
+                anchors.right: parent.right
+                width: Theme.px(38)
+                height: parent.height
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("让 AI 帮我规划")
+                Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 1; height: parent.height * 0.5; color: Qt.rgba(Theme.accentInk.r, Theme.accentInk.g, Theme.accentInk.b, 0.25) }
+                Text {
+                    anchors.centerIn: parent
+                    anchors.horizontalCenterOffset: -Theme.px(2)
+                    text: "AI"
+                    font.family: serifFamily; font.pixelSize: Theme.px(13); font.bold: true
+                    color: aiMa.containsMouse ? Theme.accent : Theme.accentInk
+                }
+                MouseArea { id: aiMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.aiPlanClicked() }
+                TpTip { text: qsTr("让 AI 帮我规划"); show: aiMa.containsMouse || shotPage === "ui-newbtn-ai" }
+            }
         }
 
         Item {

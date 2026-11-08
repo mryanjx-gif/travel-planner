@@ -27,6 +27,11 @@ bool canSearch(const QString &providerId);
 QJsonArray defs();                                         // get_plans、research_status、propose_changes
 QJsonArray anthropicTools(bool web);                       // + web_search 服务器工具
 QJsonArray openAiTools(const QString &providerId, bool web);   // function 形状；Kimi 联网时 + $web_search
+// 0.13.2 从订单生成（I-12）：只给 propose_changes；能强制的家强制调用它。
+// Claude {type: tool}；DeepSeek / 千问 / 豆包 {type: function}（千问要先关思考，调用方负责）；
+// Kimi（一直思考，强制不确定）和自定义（接法不明）返回空 = 不强制，靠提示词要求，没调用时对话里说明
+QJsonArray orderTools(bool anthropic, const QString &providerId);
+QJsonValue orderChoice(const QString &providerId);
 
 // ---- 上下文（I-10）----
 // 发给 AI 的计划：去掉照片、折线、样式、localEmergency；noMoney 时去掉消费、预算、订单号和金额。紧凑 JSON

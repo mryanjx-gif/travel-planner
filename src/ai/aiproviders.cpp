@@ -165,7 +165,8 @@ Request buildChat(const Provider &p, const QString &base, const QString &key, co
     };
     Request r;
     const QString b = base.isEmpty() ? p.base : base;
-    QJsonObject body{ { QStringLiteral("model"), model }, { QStringLiteral("max_tokens"), p.maxTokens }, { QStringLiteral("stream"), true } };
+    QJsonObject body{ { QStringLiteral("model"), model }, { QStringLiteral("max_tokens"), x.maxTokens > 0 ? x.maxTokens : p.maxTokens }, { QStringLiteral("stream"), true } };
+    if (!x.toolChoice.isUndefined() && !x.toolChoice.isNull()) body.insert(QStringLiteral("tool_choice"), x.toolChoice);
     if (p.kind == Kind::Anthropic) {
         r.url = joinUrl(b, QStringLiteral("/messages"));
         r.headers = { { "x-api-key", key.toUtf8() }, { "anthropic-version", "2023-06-01" } };

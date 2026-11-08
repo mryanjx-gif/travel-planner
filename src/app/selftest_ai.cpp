@@ -12,9 +12,11 @@
 #include "planedit.h"
 #include "jsonio.h"
 #include "netclient.h"
+#include "plancontroller.h"
 #include "settings.h"
 
 #include <QCoreApplication>
+#include <QDate>
 #include <QDir>
 #include <QGuiApplication>
 #include <QInputMethodEvent>
@@ -472,6 +474,218 @@ void runTools(Report &r, AppController *app, AiController *ai, FakeAi &fake, AiC
     ai->newChat();
 }
 
+
+// ---------------- 0.13.2 引导式规划（整页向导）、从订单生成、每份方案的用量 ----------------
+
+QJsonArray usagePlans(Settings *st) { return QJsonDocument::fromJson(json::stringify(st->value(QStringLiteral("aiUsage")), 0).toUtf8()).object().value(QStringLiteral("plans")).toArray(); }
+QString lastUserBody(const QByteArray &body)
+{
+    const QJsonArray ms = QJsonDocument::fromJson(body).object().value(QStringLiteral("messages")).toArray();
+    for (qsizetype i = ms.size() - 1; i >= 0; --i) {
+        const QJsonObject m = ms.at(i).toObject();
+        if (m.value(QStringLiteral("role")) != QLatin1String("user")) continue;
+        if (m.value(QStringLiteral("content")).isString()) return m.value(QStringLiteral("content")).toString();
+        QString t;
+        for (const auto &b : m.value(QStringLiteral("content")).toArray()) t += b.toObject().value(QStringLiteral("text")).toString();
+        return t;
+    }
+    return {};
+}
+
+void runPlanWizard(Report &r, AppController *app, AiController *ai, FakeAi &fake, QQuickWindow *win, services::NetClient *net, Settings *st, const QString &key, const QString &prefix)
+{
+    r.section(QStringLiteral("0.13.2 让 AI 帮我规划、从订单生成、方案用量"));
+    data::DataStore *store = app->store();
+    const auto idle = [&](int ms = 8000) { return waitFor([ai] { return !ai->busy(); }, ms); };
+    const json::Value original = store->data();
+    store->modify([](json::Value &d) {
+        const json::Value p = json::parse(QString::fromUtf8(R"({"id":"p_ord","name":"订单自检","type":"route","status":"planning","startDate":"2026-12-01","endDate":"2026-12-04",
+            "stops":[{"id":"s_o1","name":"Tokyo","lat":35.68,"lng":139.76,"schedule":[]}],"bookings":[]})"));
+        d.mutObject().find(QStringLiteral("plans"))->mutArray().push_back(p);
+    });
+    app->commitStep();
+    ai->setProvider(QStringLiteral("claude"));
+    ai->setTier(QStringLiteral("balanced"));
+    ai->newChat();
+    st->setValue(QStringLiteral("aiUsage"), json::Value());
+    ai->setCap(1000);
+
+    QQuickItem *page = findItem(win->contentItem(), QStringLiteral("aiPlanPage"));
+    QQuickItem *panel = findItem(win->contentItem(), QStringLiteral("aiPanel"));
+    const auto call = [&](const char *fn) { if (page) QMetaObject::invokeMethod(page, fn); };
+    const auto stepIs = [&](int n) {
+        QQuickItem *box = findItem(win->contentItem(), QStringLiteral("aiPlanPage-%1").arg(n));
+        return page && page->property("step").toInt() == n && box && box->isVisible();
+    };
+    QMetaObject::invokeMethod(win, "goPage", Q_ARG(QVariant, QStringLiteral("aiplan")));
+    r.check(page && waitFor([page] { return page->isVisible() && page->opacity() > 0.9; }, 2000), QStringLiteral("整页向导打开了（goPage aiplan）"));
+    if (!page) return;
+
+    // 没钥匙：只有引导卡
+    ai->clearKey();
+    QQuickItem *guide = findItem(win->contentItem(), QStringLiteral("aiPlanGuide"));
+    QQuickItem *steps = findItem(win->contentItem(), QStringLiteral("aiPlanSteps"));
+    r.check(guide && steps && waitFor([guide, steps] { return guide->isVisible() && !steps->isVisible(); }, 1000), QStringLiteral("没钥匙时向导首页是引导卡，没有步骤"));
+    ai->setKey(key);
+    r.check(waitFor([guide, steps] { return !guide->isVisible() && steps->isVisible(); }, 1000) && stepIs(0), QStringLiteral("有钥匙：第 1 步（出发地、目的地）"));
+
+    // 上一步 / 下一步 / 跳过
+    call("back");
+    QQuickItem *backBtn = findItem(win->contentItem(), QStringLiteral("aiPlanBack"));
+    r.check(stepIs(0) && backBtn && !backBtn->isVisible(), QStringLiteral("第 1 步没有上一步"));
+    page->setProperty("fFrom", QStringLiteral("上海"));
+    page->setProperty("fTo", QStringLiteral("京都"));
+    call("next");
+    r.check(stepIs(1) && backBtn->isVisible(), QStringLiteral("下一步 → 第 2 步（日期或天数）"));
+    page->setProperty("dateMode", QStringLiteral("days"));
+    page->setProperty("fDays", QStringLiteral("9"));
+    call("skip");
+    r.check(stepIs(2) && page->property("fDays").toString().isEmpty(), QStringLiteral("跳过：清掉这一步填的，到第 3 步"));
+    call("back");
+    r.check(stepIs(1) && page->property("fFrom").toString() == QStringLiteral("上海"), QStringLiteral("上一步回到第 2 步，前面填的还在"), QStringLiteral("step=%1 from=%2 box=%3").arg(page->property("step").toInt()).arg(page->property("fFrom").toString()).arg(findItem(win->contentItem(), QStringLiteral("aiPlanPage-1")) ? findItem(win->contentItem(), QStringLiteral("aiPlanPage-1"))->isVisible() : -1));
+    page->setProperty("fDays", QStringLiteral("5"));
+    call("next");
+    page->setProperty("fPeople", QStringLiteral("2"));
+    page->setProperty("fBudget", QStringLiteral("8000"));
+    call("next");
+    r.check(stepIs(3), QStringLiteral("第 4 步（节奏、兴趣）"));
+    page->setProperty("fPace", QStringLiteral("slow"));
+    QMetaObject::invokeMethod(page, "toggleInterest", Q_ARG(QVariant, QStringLiteral("美食")));
+    QMetaObject::invokeMethod(page, "toggleInterest", Q_ARG(QVariant, QStringLiteral("摄影")));
+    QMetaObject::invokeMethod(page, "toggleInterest", Q_ARG(QVariant, QStringLiteral("摄影")));
+    r.check(page->property("fInterests").toStringList() == QStringList{ QStringLiteral("美食") }, QStringLiteral("兴趣可多选，再点一下取消"));
+    call("next");
+    r.check(stepIs(4), QStringLiteral("第 5 步（必去 / 不去）"));
+    page->setProperty("fMust", QStringLiteral("伏见稻荷"));
+
+    // 发送前检查：到上限、离线 → 留在向导页说明，不发
+    const int req0 = fake.requests;
+    ai->setCap(0.0000001);
+    st->setValue(QStringLiteral("aiUsage"), json::parse(QStringLiteral(R"({"m":"%1","by":{"claude":{"amt":1,"cur":"USD","n":1,"tok":1}}})").arg(QDate::currentDate().toString(QStringLiteral("yyyy-MM")))));
+    call("next");
+    r.check(page->property("blockText").toString().contains(QStringLiteral("上限")) && page->property("shown").toBool() && fake.requests == req0, QStringLiteral("到上限：向导里说明、不发、不离开"), page->property("blockText").toString());
+    st->setValue(QStringLiteral("aiUsage"), json::Value());
+    ai->setCap(1000);
+    net->setOffline(true);
+    call("next");
+    r.check(page->property("blockText").toString().contains(QStringLiteral("离线")) && fake.requests == req0, QStringLiteral("离线：向导里说明、不发"), page->property("blockText").toString());
+    net->setOffline(false);
+
+    // 提交（第 5 步点跳过 = 必去清掉再提交）：读计划 → 自动续轮 → propose_changes 出新计划
+    ai->send(QStringLiteral("先说一句（让对话不是空的）")); idle();
+    const QString oldChat = ai->chatId();
+    fake.bodies.clear();
+    const QJsonArray wiz{ J({ { "op", "create_plan" }, { "new_id", "new1" }, { "name", QStringLiteral("京都五日") }, { "status", "planning" }, { "guide", QStringLiteral("粗略攻略") } }),
+                          J({ { "op", "set_days" }, { "plan_id", "new1" }, { "days", 5 } }),
+                          J({ { "op", "add_stop" }, { "plan_id", "new1" }, { "name", QStringLiteral("Kyoto") }, { "lat", 35.0 }, { "lng", 135.76 }, { "legMode", "train" } }) };
+    fake.script = { anthTool(QStringLiteral("toolu_wr"), QStringLiteral("get_plans"), J({ { "plan_ids", QJsonArray{ "p_ord" } } }), false),
+                    anthTool(QStringLiteral("toolu_wp"), QStringLiteral("propose_changes"), J({ { "summary", QStringLiteral("新建京都五日") }, { "changes", wiz } }), false, QStringLiteral("每天一行的粗略方案。")) };
+    call("skip");
+    r.check(idle() && fake.bodies.size() == 2, QStringLiteral("向导提交后发出去（读计划后自动续一轮）"), QString::number(fake.bodies.size()));
+    const QString wmsg = lastUserBody(fake.bodies.value(0));
+    r.check(wmsg.contains(QStringLiteral("出发地：上海")) && wmsg.contains(QStringLiteral("目的地：京都")) && wmsg.contains(QStringLiteral("天数：5 天")) && wmsg.contains(QStringLiteral("人数：2 人"))
+            && wmsg.contains(QStringLiteral("预算：约")) && wmsg.contains(QStringLiteral("8000")) && wmsg.contains(QStringLiteral("节奏：松")) && wmsg.contains(QStringLiteral("兴趣：美食"))
+            && !wmsg.contains(QStringLiteral("必去")) && wmsg.contains(QStringLiteral("propose_changes")) && wmsg.contains(QStringLiteral("只问一个")),
+            QStringLiteral("发给 AI 的消息：填了的每一项、跳过的不写、只追问缺的、用 propose_changes 出新计划"), wmsg.left(300));
+    const QJsonArray wsys = QJsonDocument::fromJson(fake.bodies.value(0)).object().value(QStringLiteral("system")).toArray();
+    r.check(wsys.size() == 2 && wsys.at(1).toObject().value(QStringLiteral("text")).toString().contains(QStringLiteral("没有选中计划")), QStringLiteral("向导不带地图上选中的计划"));
+    const QVariantList wm = ai->messages();
+    r.check(ai->chatId() != oldChat && !wm.isEmpty() && wm.first().toMap().value(QStringLiteral("text")).toString().startsWith(QStringLiteral("用 AI 规划一趟新旅行")),
+            QStringLiteral("开了一段新对话，对话里显示整理过的表单"), wm.isEmpty() ? QString() : wm.first().toMap().value(QStringLiteral("text")).toString());
+    r.check(panel && waitFor([page, panel] { return !page->property("shown").toBool() && panel->property("open").toBool(); }, 2000), QStringLiteral("转到地图上的 AI 面板"));
+    r.check(page->property("fFrom").toString().isEmpty() && page->property("step").toInt() == 0, QStringLiteral("向导清空、回到第 1 步"));
+    const QVariantMap wp = lastProps(ai);
+    r.check(wp.value(QStringLiteral("state")).toString() == QLatin1String("open") && wp.value(QStringLiteral("total")).toInt() == 3 && wp.value(QStringLiteral("nOk")).toInt() == 3, QStringLiteral("新计划先出预览（还没写入）"), QString::fromUtf8(QJsonDocument::fromVariant(wp).toJson(QJsonDocument::Compact)).left(200));
+    QJsonArray up = usagePlans(st);
+    const double sonnet = (3000 * 2.0 + 300 * 10.0) / 1e6;
+    r.check(up.size() == 1 && up.at(0).toObject().value(QStringLiteral("k")) == QLatin1String("wizard") && up.at(0).toObject().value(QStringLiteral("tok")).toInteger() == 6600
+            && qAbs(up.at(0).toObject().value(QStringLiteral("amt")).toDouble() - 2 * sonnet) < 1e-9 && up.at(0).toObject().value(QStringLiteral("m")) == QLatin1String("claude-sonnet-5-5"),
+            QStringLiteral("方案用量：向导一次 = 两轮的 token 和花费加起来"), QString::fromUtf8(QJsonDocument(up).toJson(QJsonDocument::Compact)));
+    if (panel) panel->setProperty("open", false);
+
+    // 之后的修改也记；普通聊天不记
+    fake.script = { anthTool(QStringLiteral("toolu_e1"), QStringLiteral("propose_changes"), J({ { "summary", QStringLiteral("改") }, { "plan_id", "p_ord" }, { "changes", QJsonArray{ J({ { "op", "add_todo" }, { "text", QStringLiteral("订酒店") } }) } } }), false, QStringLiteral("加了待办。")) };
+    ai->send(QStringLiteral("加个待办")); idle();
+    ai->send(QStringLiteral("随便聊聊")); idle();
+    up = usagePlans(st);
+    r.check(up.size() == 2 && up.at(0).toObject().value(QStringLiteral("k")) == QLatin1String("edit") && ai->planUsage().size() == 2
+            && ai->planUsage().at(0).toMap().value(QStringLiteral("cost")).toString().startsWith(u'$'), QStringLiteral("之后提出修改的那一问也记（最新的在前）；普通聊天不记"), QString::number(up.size()));
+
+    // ---- 从订单生成：Anthropic 强制 propose_changes、快档模型 ----
+    if (PlanController *pc = plansCtl()) pc->openPlan(QStringLiteral("p_ord"), false);
+    ai->newChat();
+    fake.bodies.clear();
+    const QJsonObject ordIn = J({ { "summary", QStringLiteral("加上航班") }, { "plan_id", "p_ord" }, { "changes", QJsonArray{ J({ { "op", "add_booking" }, { "kind", "flight" }, { "title", "NH 920" }, { "start", "2026-12-01T09:30" }, { "ref", "ABC123" } }) } } });
+    fake.script = { anthTool(QStringLiteral("toolu_o1"), QStringLiteral("propose_changes"), ordIn, false) };
+    r.check(ai->sendOrder(QStringLiteral("ANA NH920 上海浦东 → 东京羽田 2026-12-01 09:30 订单号 ABC123")) && idle(), QStringLiteral("从订单生成发出去了"));
+    QJsonObject ob = QJsonDocument::fromJson(fake.bodies.value(0)).object();
+    const QJsonArray otools = ob.value(QStringLiteral("tools")).toArray();
+    r.check(otools.size() == 1 && otools.at(0).toObject().value(QStringLiteral("name")) == QLatin1String("propose_changes")
+            && ob.value(QStringLiteral("tool_choice")).toObject() == J({ { "type", "tool" }, { "name", "propose_changes" } })
+            && ob.value(QStringLiteral("model")).toString() == QLatin1String("claude-haiku-5-5") && !ob.contains(QStringLiteral("thinking")) && ob.value(QStringLiteral("max_tokens")).toInt() == 4000,
+            QStringLiteral("Anthropic：只给 propose_changes、tool_choice 强制、快档 claude-haiku-5-5、不思考、4000 token"), QString::fromUtf8(QJsonDocument(ob.value(QStringLiteral("tool_choice")).toObject()).toJson(QJsonDocument::Compact)) + ob.value(QStringLiteral("model")).toString());
+    r.check(ob.value(QStringLiteral("system")).toArray().at(1).toObject().value(QStringLiteral("text")).toString().contains(QStringLiteral("订单确认")) && lastUserBody(fake.bodies.value(0)).contains(QStringLiteral("ABC123")),
+            QStringLiteral("system 加了订单任务，用户消息带订单文字"));
+    const QVariantMap op = lastProps(ai);
+    up = usagePlans(st);
+    const double haiku = (3000 * 0.10 + 300 * 0.50) / 1e6;
+    r.check(op.value(QStringLiteral("state")).toString() == QLatin1String("open") && op.value(QStringLiteral("nOk")).toInt() == 1 && up.at(0).toObject().value(QStringLiteral("k")) == QLatin1String("order")
+            && up.at(0).toObject().value(QStringLiteral("m")) == QLatin1String("claude-haiku-5-5") && qAbs(up.at(0).toObject().value(QStringLiteral("amt")).toDouble() - haiku) < 1e-12,
+            QStringLiteral("出交通住宿预览；按快档的价钱记一次方案用量"), QString::fromUtf8(QJsonDocument(up.at(0).toObject()).toJson(QJsonDocument::Compact)));
+
+    // OpenAI 兼容：DeepSeek {type: function}、不思考
+    ai->setProvider(QStringLiteral("deepseek"));
+    fake.bodies.clear();
+    fake.script = { oaTools({ { QStringLiteral("call_o2"), QStringLiteral("propose_changes"), ordIn } }) };
+    ai->sendOrder(QStringLiteral("订单 ABC123")); idle();
+    ob = QJsonDocument::fromJson(fake.bodies.value(0)).object();
+    const QJsonObject fnChoice = J({ { "type", "function" }, { "function", J({ { "name", "propose_changes" } }) } });
+    r.check(ob.value(QStringLiteral("tool_choice")).toObject() == fnChoice && ob.value(QStringLiteral("tools")).toArray().size() == 1 && ob.value(QStringLiteral("model")).toString() == QLatin1String("deepseek-flash")
+            && ob.value(QStringLiteral("thinking")).toObject().value(QStringLiteral("type")).toString() == QLatin1String("disabled") && !lastProps(ai).isEmpty(),
+            QStringLiteral("OpenAI 兼容（DeepSeek）：tool_choice {type: function}、快档不思考、出预览"), QString::fromUtf8(QJsonDocument(ob.value(QStringLiteral("tool_choice")).toObject()).toJson(QJsonDocument::Compact)));
+
+    // 千问：细致档本来思考 → 从订单生成关掉思考再强制；第一次发给千问先提示，确认后仍按订单发
+    ai->setProvider(QStringLiteral("qwen"));
+    ai->setTier(QStringLiteral("careful"));
+    ai->setKey(QStringLiteral("sk-selftest-qwen-1234"));
+    fake.bodies.clear();
+    fake.script = { oaTools({ { QStringLiteral("call_o3"), QStringLiteral("propose_changes"), ordIn } }) };
+    r.check(!ai->sendOrder(QStringLiteral("订单 ABC123")) && ai->pendingTell() == QStringLiteral("通义千问"), QStringLiteral("第一次发给千问先提示"));
+    ai->confirmTell(); idle();
+    ob = QJsonDocument::fromJson(fake.bodies.value(0)).object();
+    r.check(ob.value(QStringLiteral("enable_thinking")) == QJsonValue(false) && ob.value(QStringLiteral("tool_choice")).toObject() == fnChoice && ob.value(QStringLiteral("model")).toString() == QLatin1String("qwen3.8-flash")
+            && lastUserBody(fake.bodies.value(0)).contains(QStringLiteral("订单确认")),
+            QStringLiteral("千问：关思考（enable_thinking false）再强制 tool_choice，快档 qwen3.8-flash；确认提示后仍按订单发"), QString::fromUtf8(QJsonDocument(ob).toJson(QJsonDocument::Compact)).left(240));
+    ai->setTier(QStringLiteral("balanced"));
+
+    // Kimi：一直思考、不强制（靠提示词）；没给修改时对话里说明
+    ai->setProvider(QStringLiteral("kimi"));
+    ai->setKey(QStringLiteral("sk-selftest-kimi-1234"));
+    fake.bodies.clear();
+    fake.script = { oaTools({}, QStringLiteral("看不出订单内容。")) };
+    ai->sendOrder(QStringLiteral("乱七八糟")); ai->confirmTell(); idle();
+    ob = QJsonDocument::fromJson(fake.bodies.value(0)).object();
+    r.check(!ob.contains(QStringLiteral("tool_choice")) && ob.value(QStringLiteral("tools")).toArray().size() == 1 && lastMsg(ai).value(QStringLiteral("text")).toString().contains(QStringLiteral("没整理出")),
+            QStringLiteral("Kimi：不强制（只给 propose_changes），没给修改时说明"), lastMsg(ai).value(QStringLiteral("text")).toString());
+
+    // 没选中计划：不发
+    ai->setProvider(QStringLiteral("claude"));
+    for (int i = 0; i < 6; ++i) {   // Esc 一层层关，直到取消地图上选中的计划
+        QVariant name;
+        QMetaObject::invokeMethod(win, "escOnce", Q_RETURN_ARG(QVariant, name));
+        if (name.toString() == QLatin1String("sheet") || name.toString().isEmpty()) break;
+    }
+    const int req1 = fake.requests;
+    r.check(!ai->sendOrder(QStringLiteral("订单")) && fake.requests == req1 && lastMsg(ai).value(QStringLiteral("text")).toString().contains(QStringLiteral("先在地图上点开")), QStringLiteral("没选中计划时不发，说先点开计划"));
+
+    // 还原
+    fake.script.clear();
+    store->modify([&original](json::Value &dd) { dd = original; });
+    app->commitStep();
+    ai->newChat();
+    Q_UNUSED(prefix);
+}
+
 } // namespace
 
 void runAi(Report &r, AppController *app, QQuickWindow *win, services::NetClient *net)
@@ -494,7 +708,7 @@ void runAi(Report &r, AppController *app, QQuickWindow *win, services::NetClient
     st->setValue(QStringLiteral("aiUsage"), json::Value());
     net->setOffline(false);
     net->setServiceEnabled(QStringLiteral("ai"), true);
-    for (const char *id : { "claude", "deepseek", "custom", "kimi" }) platform::credentials::remove(prefix + QLatin1String(id));
+    for (const char *id : { "claude", "deepseek", "custom", "kimi", "qwen" }) platform::credentials::remove(prefix + QLatin1String(id));
     AiController::TestHooks h;
     h.credPrefix = prefix;
     h.chatsFile = chats;
@@ -664,9 +878,10 @@ void runAi(Report &r, AppController *app, QQuickWindow *win, services::NetClient
     if (panel) panel->setProperty("open", false);
 
     runTools(r, app, ai, fake, h, chats);   // 0.13.1
+    runPlanWizard(r, app, ai, fake, win, net, st, key, prefix);   // 0.13.2
 
     // 收尾：删掉测试钥匙、还原设置
-    for (const char *id : { "claude", "deepseek", "custom", "kimi" }) platform::credentials::remove(prefix + QLatin1String(id));
+    for (const char *id : { "claude", "deepseek", "custom", "kimi", "qwen" }) platform::credentials::remove(prefix + QLatin1String(id));
     st->setValue(QStringLiteral("ai"), oldAi);
     st->setValue(QStringLiteral("aiUsage"), oldUsage);
     st->save();

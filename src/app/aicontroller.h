@@ -65,6 +65,7 @@ class AiController : public QObject
     Q_PROPERTY(QVariantList chats READ chats NOTIFY chatsChanged)
     Q_PROPERTY(QString chatId READ chatId NOTIFY chatsChanged)
     Q_PROPERTY(QString convCost READ convCost NOTIFY messagesChanged)   // 这段对话约多少（主币种）
+    Q_PROPERTY(QVariantList planUsage READ planUsage NOTIFY usageChanged)   // 0.13.2 最近的方案用量：time、provider、model、tok、cost、kind
 
 public:
     AiController(Settings *settings, services::NetClient *net, RatesController *rates, QObject *parent = nullptr);
@@ -111,6 +112,7 @@ public:
     QVariantList chats() const;
     QString chatId() const { return m_chatId; }
     QString convCost() const;
+    QVariantList planUsage() const;
 
     // 钥匙：返回空 = 存好了，否则是原因
     Q_INVOKABLE QString setKey(const QString &key);
@@ -119,6 +121,12 @@ public:
     Q_INVOKABLE void refreshModels();
     // 发一句话：返回 false = 没发（没钥匙、离线、到上限会在对话里说明；第一次发给这家时先等确认）
     Q_INVOKABLE bool send(const QString &text);
+    // 0.13.2：发送前检查（离线 / 钥匙 / 自定义没填 / 到上限），空 = 能发。向导提交前先问，拦下就留在向导页
+    Q_INVOKABLE QString blockReason() const;
+    // 0.13.2 引导式规划：表单（见 aiprompt.h wizardMessage）→ 开一段新对话发出去；返回值同 send
+    Q_INVOKABLE bool planWizard(const QVariantMap &form);
+    // 0.13.2 从订单生成（I-12）：粘贴的订单文字 → 当前计划的交通住宿（快档模型、只给 propose_changes、能强制就强制）
+    Q_INVOKABLE bool sendOrder(const QString &text);
     Q_INVOKABLE void confirmTell();
     Q_INVOKABLE void cancelTell();
     Q_INVOKABLE void stop();
@@ -173,8 +181,10 @@ private:
     QString effort() const;
     const ai::Price *price(ai::Price *customBuf) const;
     void note(const QString &text, const QString &kind = QString());
-    bool sendWith(const QString &text, const QString &shown, bool gapFill, bool keepResearch);
-    void doSend(const QString &text, const QString &shown, bool gapFill, bool keepResearch);
+    QString blockReason(QString *kind) const;
+    bool sendWith(const QString &text, const QString &shown, bool gapFill, bool keepResearch, const QString &kind = QString());
+    void doSend(const QString &text, const QString &shown, bool gapFill, bool keepResearch, const QString &kind);
+    void recordPlan();
     void run();
     QJsonArray apiHistory(ai::Kind kind) const;
     QString currentPlanId() const;
@@ -204,6 +214,7 @@ private:
     QJsonArray m_msgs;        // {role: user/assistant/note, text, thinking, provider, model, meta, error, kind}
     QString m_chatId;
     QString m_pending;        // 等确认"会发给 X"的那句话
+    QString m_pendingShown, m_pendingKind;
     QString m_credPrefix = QStringLiteral("TravelPlannerNative/ai/");
     QString m_chatsFile;
     TestHooks m_hooks;
@@ -217,7 +228,8 @@ private:
     services::Geocoder *m_geocoder = nullptr;
     std::function<QVariantMap()> m_where;
     std::function<void(const QStringList &)> m_onDeleted;
-    struct Run { qint64 t0 = 0; int autoN = 0; bool gapFill = false; QString planId; } m_run;   // 这一问（含自动续轮）
+    // 这一问（含自动续轮）。kind：""（聊天）/ wizard（向导）/ order（从订单生成）；tok / amt / cur：几轮加起来的用量（每份方案用量，0.13.2）
+    struct Run { qint64 t0 = 0; int autoN = 0; bool gapFill = false; QString planId, kind, pid, mdl; qint64 tok = 0; double amt = 0; QString cur; bool priced = true, props = false; } m_run;
     struct Research { bool on = false; qint64 start = 0, budget = 0; QStringList todo; int secs = 0; bool paused = false; } m_research;
     struct Last { bool valid = false; QString chat; int mi = -1, pi = -1, mark = 0; QString result; } m_last;   // 最近一次应用（撤销联动）
     struct GeoJob { int gen; int mi; QString toolId; int k; };

@@ -369,7 +369,45 @@ void AiController::raiseCap()
 QJsonObject AiController::usageObj() const
 {
     const QJsonObject u = toQ(m_settings->value(QStringLiteral("aiUsage")));
-    return u.value(QStringLiteral("m")).toString() == monthKey() ? u : QJsonObject{ { QStringLiteral("m"), monthKey() } };
+    if (u.value(QStringLiteral("m")).toString() == monthKey()) return u;
+    QJsonObject fresh{ { QStringLiteral("m"), monthKey() } };
+    if (u.contains(QStringLiteral("plans"))) fresh.insert(QStringLiteral("plans"), u.value(QStringLiteral("plans")));   // 方案用量跨月留着
+    return fresh;
+}
+
+// 0.13.2 每份方案的用量（向导一次、从订单生成一次、之后每次出修改的一问）：一问里几轮（含自动续轮）的 token 和花费加起来，
+// 记在 aiUsage.plans（最新的在前，留 30 条）：t 时间、p 服务商、m 模型、tok、amt + cur（没单价时没有）、k（wizard / order / edit）
+void AiController::recordPlan()
+{
+    const Run &r = m_run;
+    if (r.tok <= 0 || (r.kind.isEmpty() && !r.props)) return;
+    QJsonObject u = usageObj();
+    QJsonArray a = u.value(QStringLiteral("plans")).toArray();
+    QJsonObject e{ { QStringLiteral("t"), QDateTime::currentDateTime().toString(Qt::ISODate) }, { QStringLiteral("p"), r.pid }, { QStringLiteral("m"), r.mdl },
+                   { QStringLiteral("tok"), r.tok }, { QStringLiteral("k"), r.kind.isEmpty() ? QStringLiteral("edit") : r.kind } };
+    if (r.priced) { e.insert(QStringLiteral("amt"), r.amt); e.insert(QStringLiteral("cur"), r.cur); }
+    a.prepend(e);
+    while (a.size() > 30) a.removeLast();
+    u.insert(QStringLiteral("plans"), a);
+    m_settings->setValue(QStringLiteral("aiUsage"), fromQ(u));
+    m_settings->save();
+    emit usageChanged();
+}
+
+QVariantList AiController::planUsage() const
+{
+    QVariantList out;
+    for (const auto &v : usageObj().value(QStringLiteral("plans")).toArray()) {
+        const QJsonObject o = v.toObject();
+        const QString k = o.value(QStringLiteral("k")).toString();
+        const QDateTime t = QDateTime::fromString(o.value(QStringLiteral("t")).toString(), Qt::ISODate);
+        out << QVariantMap{ { QStringLiteral("time"), t.toString(QStringLiteral("yyyy-MM-dd HH:mm")) },
+                            { QStringLiteral("kind"), k == QLatin1String("wizard") ? tp::tr("向导规划") : k == QLatin1String("order") ? tp::tr("从订单生成") : tp::tr("修改") },
+                            { QStringLiteral("provider"), providerLabel(o.value(QStringLiteral("p")).toString()) }, { QStringLiteral("model"), o.value(QStringLiteral("m")).toString() },
+                            { QStringLiteral("tok"), tp::tr("%1 token").arg(QLocale().toString(o.value(QStringLiteral("tok")).toInteger())) },
+                            { QStringLiteral("cost"), o.contains(QStringLiteral("amt")) ? money(o.value(QStringLiteral("amt")).toDouble(), o.value(QStringLiteral("cur")).toString()) : tp::tr("没填单价") } };
+    }
+    return out;
 }
 
 double AiController::used() const
@@ -532,24 +570,52 @@ QString AiController::convCost() const
 
 bool AiController::send(const QString &text) { return sendWith(text, QString(), false, false); }
 
-bool AiController::sendWith(const QString &text, const QString &shown, bool gapFill, bool keepResearch)
+QString AiController::blockReason() const { return blockReason(nullptr); }
+
+QString AiController::blockReason(QString *kind) const
+{
+    if (kind) kind->clear();
+    if (!m_net->allows(QStringLiteral("ai"))) return tp::tr("AI 助手现在不能用：离线模式开着，或者设置 → 联网里关掉了“AI 助手”。");
+    if (!hasKey()) { if (kind) *kind = QStringLiteral("nokey"); return tp::tr("还没有填 %1 的钥匙：设置 → AI。").arg(providerName()); }
+    if (m_provider == QLatin1String("custom") && (base().isEmpty() || model().isEmpty())) return tp::tr("自定义服务要先在设置 → AI 里填地址和模型名。");
+    if (capReached()) { if (kind) *kind = QStringLiteral("cap"); return tp::tr("这个月已经用了约 %1，到了上限 %2，先停在这里。").arg(money(used(), mainCur()), money(cap(), mainCur())); }
+    return {};
+}
+
+bool AiController::sendWith(const QString &text, const QString &shown, bool gapFill, bool keepResearch, const QString &runKind)
 {
     const QString t = text.trimmed();
     if (t.isEmpty() || busy()) return false;
-    if (!m_net->allows(QStringLiteral("ai"))) { note(tp::tr("AI 助手现在不能用：离线模式开着，或者设置 → 联网里关掉了“AI 助手”。")); return false; }
-    if (!hasKey()) { note(tp::tr("还没有填 %1 的钥匙：设置 → AI。").arg(providerName()), QStringLiteral("nokey")); return false; }
-    if (m_provider == QLatin1String("custom") && (base().isEmpty() || model().isEmpty())) { note(tp::tr("自定义服务要先在设置 → AI 里填地址和模型名。")); return false; }
-    if (capReached()) {
-        note(tp::tr("这个月已经用了约 %1，到了上限 %2，先停在这里。").arg(money(used(), mainCur()), money(cap(), mainCur())), QStringLiteral("cap"));
-        return false;
-    }
+    QString kind;
+    const QString why = blockReason(&kind);
+    if (!why.isEmpty()) { note(why, kind); return false; }
     if (!conf().value(QStringLiteral("told")).toArray().contains(m_provider)) {
         m_pending = t;
+        m_pendingShown = shown;
+        m_pendingKind = runKind;
         emit tellChanged();
         return false;
     }
-    doSend(t, shown, gapFill, keepResearch);
+    doSend(t, shown, gapFill, keepResearch, runKind);
     return true;
+}
+
+bool AiController::planWizard(const QVariantMap &form)
+{
+    if (busy() || !blockReason().isEmpty()) return false;
+    bool empty = true;   // 当前这段还没说过话就接着用，否则开一段新的
+    for (const auto &v : m_msgs) if (v.toObject().value(QStringLiteral("role")) != QLatin1String("note")) empty = false;
+    if (!empty) newChat();
+    const WizardMsg w = wizardMessage(form, mainCur());
+    return sendWith(w.text, w.shown, false, false, QStringLiteral("wizard"));
+}
+
+bool AiController::sendOrder(const QString &text)
+{
+    const QString t = text.trimmed();
+    if (t.isEmpty() || busy()) return false;
+    if (currentPlanId().isEmpty()) { note(tp::tr("先在地图上点开要加交通住宿的那个计划，再粘贴订单文字。")); return false; }
+    return sendWith(orderMessage(t), t, false, false, QStringLiteral("order"));
 }
 
 void AiController::confirmTell()
@@ -558,13 +624,15 @@ void AiController::confirmTell()
     QJsonArray told = conf().value(QStringLiteral("told")).toArray();
     if (!told.contains(m_provider)) told.append(m_provider);
     setConf(QStringLiteral("told"), told);
-    const QString t = m_pending;
+    const QString t = m_pending, shown = m_pendingShown, kind = m_pendingKind;
     m_pending.clear();
+    m_pendingShown.clear();
+    m_pendingKind.clear();
     emit tellChanged();
-    doSend(t, QString(), false, false);
+    doSend(t, shown, false, false, kind);
 }
 
-void AiController::cancelTell() { m_pending.clear(); emit tellChanged(); }
+void AiController::cancelTell() { m_pending.clear(); m_pendingShown.clear(); m_pendingKind.clear(); emit tellChanged(); }
 
 QString AiController::currentPlanId() const
 {
@@ -576,7 +644,7 @@ QString AiController::currentPlanId() const
     return live;
 }
 
-void AiController::doSend(const QString &text, const QString &shown, bool gapFill, bool keepResearch)
+void AiController::doSend(const QString &text, const QString &shown, bool gapFill, bool keepResearch, const QString &kind)
 {
     if (!keepResearch) m_research = Research();
     QJsonObject u{ { QStringLiteral("role"), QStringLiteral("user") }, { QStringLiteral("text"), text } };
@@ -585,7 +653,8 @@ void AiController::doSend(const QString &text, const QString &shown, bool gapFil
     m_run = Run();
     m_run.t0 = nowMs();
     m_run.gapFill = gapFill;
-    m_run.planId = currentPlanId();
+    m_run.kind = kind;
+    m_run.planId = kind == QLatin1String("wizard") ? QString() : currentPlanId();   // 向导是新计划，不带地图上选中的那个
     run();
 }
 
@@ -677,9 +746,10 @@ QJsonArray AiController::apiHistory(Kind kind) const
 void AiController::run()
 {
     const Provider *p = ai::provider(m_provider);
+    const bool order = m_run.kind == QLatin1String("order");
     const bool canWeb = tools::canSearch(m_provider);
-    const bool web = canWeb && (this->web() || m_run.gapFill);
-    if (!m_run.planId.isEmpty() && !tp::map::planedit::findPlan(root(), m_run.planId)) m_run.planId = currentPlanId();
+    const bool web = canWeb && !order && (this->web() || m_run.gapFill);
+    if (!m_run.planId.isEmpty() && !tp::map::planedit::findPlan(root(), m_run.planId)) m_run.planId = m_run.kind == QLatin1String("wizard") ? QString() : currentPlanId();
     const json::Value *plan = m_run.planId.isEmpty() ? nullptr : tp::map::planedit::findPlan(root(), m_run.planId);
     const QVariantMap w = m_where ? m_where() : QVariantMap();
     const QString today = (w.value(QStringLiteral("today")).toString().isEmpty() ? QDate::currentDate().toString(Qt::ISODate) : w.value(QStringLiteral("today")).toString());
@@ -690,19 +760,33 @@ void AiController::run()
                               m_run.planId, live, web, canWeb, plan ? tools::planForAi(root(), *plan, noMoney()) : QString());
     x.tools = p->kind == Kind::Anthropic ? tools::anthropicTools(web) : tools::openAiTools(m_provider, web);
     x.search = web && m_provider == QLatin1String("qwen");
+    // 从订单生成（I-12）：Electron 固定 Haiku → 这里用当前服务商"快"档的模型、不思考（Kimi 关不掉）；只给 propose_changes，能强制就强制；4000 token
+    QString mdl = model();
+    m_run.pid = m_provider;
+    bool th = think();
+    QString eff = effort();
+    if (order) {
+        if (m_provider != QLatin1String("custom")) { mdl = p->tiers[0].model; eff = p->tiers[0].effort; }
+        th = m_provider == QLatin1String("kimi");   // 千问思考模式下不能强制 tool_choice，所以关掉思考（快档本来也不思考）
+        x.tools = tools::orderTools(p->kind == Kind::Anthropic, m_provider);
+        x.toolChoice = tools::orderChoice(m_provider);
+        x.maxTokens = 4000;
+        x.systemTail += QStringLiteral("\n\n") + orderTask(m_run.planId);
+    }
+    m_run.mdl = mdl;
     const QJsonArray hist = apiHistory(p->kind);
     m_msgs.append(QJsonObject{ { QStringLiteral("role"), QStringLiteral("assistant") }, { QStringLiteral("text"), QString() },
-                               { QStringLiteral("provider"), m_provider }, { QStringLiteral("model"), model() },
+                               { QStringLiteral("provider"), m_provider }, { QStringLiteral("model"), mdl },
                                { QStringLiteral("api"), p->kind == Kind::Anthropic ? QStringLiteral("anthropic") : QStringLiteral("openai") },
                                { QStringLiteral("noWeb"), !web }, { QStringLiteral("planId"), m_run.planId } });
-    const Request r = buildChat(*p, base(), keyFor(m_provider), model(), think(), effort(), head, hist, x);
+    const Request r = buildChat(*p, base(), keyFor(m_provider), mdl, th, eff, head, hist, x);
     m_client.setNoByteMs(m_hooks.noByteMs > 0 ? m_hooks.noByteMs : 90000);
     m_lastEventMs = nowMs();
     m_guardStalled = false;
     m_doneSeen = 0;
     m_client.start(r, p->kind);
     m_tick.start();
-    qInfo("AI 发送：%s %s 思考=%d 联网=%d 自动第 %d 轮", qUtf8Printable(m_provider), qUtf8Printable(model()), int(think()), int(web), m_run.autoN);
+    qInfo("AI 发送：%s %s 思考=%d 联网=%d 自动第 %d 轮%s", qUtf8Printable(m_provider), qUtf8Printable(mdl), int(th), int(web), m_run.autoN, order ? "（从订单生成）" : "");
     emit busyChanged();
     emit messagesChanged();
     emit liveChanged();
@@ -730,6 +814,7 @@ void AiController::prepareProposal(int mi, const QString &toolId, const QJsonObj
     for (const auto &v : props) if (v.toObject().value(QStringLiteral("toolId")).toString() == toolId) return;
     const QJsonObject P = tools::prepare(root(), input, am.value(QStringLiteral("planId")).toString(), toolId, truncated);
     props.append(P);
+    m_run.props = true;
     am.insert(QStringLiteral("props"), props);
     m_msgs.replace(mi, am);
     // add_stop 用 Nominatim 核坐标（Geocoder 自己守每秒最多 1 次和缓存）
@@ -928,7 +1013,7 @@ void AiController::onFinished(const QString &error, bool aborted, bool stalled)
     const Provider *p = ai::provider(pid);
     if (usage.any() && p) {
         Price buf;
-        const Price *pr = pid == m_provider ? price(&buf) : priceFor(*p, am.value(QStringLiteral("model")).toString());
+        const Price *pr = pid == QLatin1String("custom") ? price(&buf) : priceFor(*p, am.value(QStringLiteral("model")).toString());   // 按这条实际用的模型（从订单生成用快档）
         const QString cur = pid == QLatin1String("custom") ? custom().value(QStringLiteral("cur")).toString() : p->currency;
         const double c = ai::cost(pr, p->searchPrice, usage);
         const qint64 tok = usage.inTotal() + usage.output;
@@ -940,6 +1025,9 @@ void AiController::onFinished(const QString &error, bool aborted, bool stalled)
         am.insert(QStringLiteral("meta"), meta);
         m_msgs.replace(mi, am);
         record(pid, c, cur, tok);
+        m_run.tok += tok;
+        if (c >= 0) m_run.amt += c; else m_run.priced = false;
+        m_run.cur = cur;
     } else {
         m_msgs.replace(mi, am);
     }
@@ -953,6 +1041,10 @@ void AiController::onFinished(const QString &error, bool aborted, bool stalled)
         return;
     }
     if (!go.isEmpty()) note(tp::tr("自动续轮次数到上限了，停在这里。可以接着说“继续”。"));
+    // 从订单生成：Kimi / 自定义不强制调用，没给修改时说一句
+    if (m_run.kind == QLatin1String("order") && err.isEmpty() && m_msgs.at(mi).toObject().value(QStringLiteral("props")).toArray().isEmpty())
+        note(tp::tr("这次没整理出交通住宿。可以把订单文字删短一点再试，或者在设置 → AI 换一家服务商。"));
+    recordPlan();
     emit busyChanged();
     emit messagesChanged();
     emit liveChanged();
@@ -1286,7 +1378,7 @@ void AiController::shotSetup(const QString &page)
     if (!m_credPrefix.contains(QLatin1String("-test"))) return;   // 只在截图 / 自检时
     m_provider = QStringLiteral("claude");
     m_tier = QStringLiteral("balanced");
-    if (page == QLatin1String("ui-ai-guide")) platform::credentials::remove(credTarget(m_provider));
+    if (page == QLatin1String("ui-ai-guide") || page == QLatin1String("ui-aiplan-guide")) platform::credentials::remove(credTarget(m_provider));
     else platform::credentials::write(credTarget(m_provider), QStringLiteral("sk-ant-test-0000000000000000000000-shot"));
     loadKeys();
     m_msgs = QJsonArray();
@@ -1294,7 +1386,12 @@ void AiController::shotSetup(const QString &page)
     if (page == QLatin1String("ui-ai-chat") || page == QLatin1String("ui-settings-ai")) {
         m_settings->setValue(QStringLiteral("aiUsage"), fromQ(QJsonObject{ { QStringLiteral("m"), monthKey() }, { QStringLiteral("by"), QJsonObject{
             { QStringLiteral("claude"), QJsonObject{ { QStringLiteral("amt"), 0.42 }, { QStringLiteral("cur"), QStringLiteral("USD") }, { QStringLiteral("n"), 12 }, { QStringLiteral("tok"), 96000 } } },
-            { QStringLiteral("deepseek"), QJsonObject{ { QStringLiteral("amt"), 0.36 }, { QStringLiteral("cur"), QStringLiteral("CNY") }, { QStringLiteral("n"), 5 }, { QStringLiteral("tok"), 41000 } } } } } }));
+            { QStringLiteral("deepseek"), QJsonObject{ { QStringLiteral("amt"), 0.36 }, { QStringLiteral("cur"), QStringLiteral("CNY") }, { QStringLiteral("n"), 5 }, { QStringLiteral("tok"), 41000 } } } } },
+            // 0.13.2 最近的方案用量
+            { QStringLiteral("plans"), QJsonArray{
+                QJsonObject{ { QStringLiteral("t"), QStringLiteral("2026-11-08T15:42:00") }, { QStringLiteral("p"), QStringLiteral("claude") }, { QStringLiteral("m"), QStringLiteral("claude-haiku-5-5") }, { QStringLiteral("tok"), 6400 }, { QStringLiteral("amt"), 0.0012 }, { QStringLiteral("cur"), QStringLiteral("USD") }, { QStringLiteral("k"), QStringLiteral("order") } },
+                QJsonObject{ { QStringLiteral("t"), QStringLiteral("2026-11-08T15:20:00") }, { QStringLiteral("p"), QStringLiteral("claude") }, { QStringLiteral("m"), QStringLiteral("claude-sonnet-5-5") }, { QStringLiteral("tok"), 21500 }, { QStringLiteral("amt"), 0.081 }, { QStringLiteral("cur"), QStringLiteral("USD") }, { QStringLiteral("k"), QStringLiteral("edit") } },
+                QJsonObject{ { QStringLiteral("t"), QStringLiteral("2026-11-08T15:02:00") }, { QStringLiteral("p"), QStringLiteral("deepseek") }, { QStringLiteral("m"), QStringLiteral("deepseek-flash") }, { QStringLiteral("tok"), 34800 }, { QStringLiteral("amt"), 0.11 }, { QStringLiteral("cur"), QStringLiteral("CNY") }, { QStringLiteral("k"), QStringLiteral("wizard") } } } } }));
     }
     if (page == QLatin1String("ui-ai-chat")) {
         m_msgs.append(QJsonObject{ { QStringLiteral("role"), QStringLiteral("user") }, { QStringLiteral("text"), QStringLiteral("十月去京都，红叶大概什么时候最好？") } });

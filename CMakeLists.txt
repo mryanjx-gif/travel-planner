@@ -3,7 +3,7 @@
 # 规则（PO 2026-11-02）：大更新改第一位，中等更新改第二位，小修改改第三位；正式版之前是 0.x.y，正式版 1.0.0。
 cmake_minimum_required(VERSION 3.24)
 
-set(TP_VERSION "0.13.1")
+set(TP_VERSION "0.13.2")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TP_VERSION_NUMERIC "${TP_VERSION}")
 
 project(TravelPlannerNative
@@ -292,6 +292,7 @@ qt_add_qml_module(TravelPlanner
         qml/components/CommandPalette.qml
         qml/components/RoundButton.qml
         qml/components/AiPanel.qml
+        qml/components/AiKeyGuide.qml
         qml/components/AiProposal.qml
         qml/components/TpIcon.qml
         qml/components/PlanEditor.qml
@@ -316,6 +317,7 @@ qt_add_qml_module(TravelPlanner
         qml/pages/CalendarPage.qml
         qml/pages/JournalPage.qml
         qml/pages/LedgerPage.qml
+        qml/pages/AiPlanPage.qml
         qml/pages/WelcomePage.qml
         qml/pages/PlanPage.qml
 )
