@@ -44,3 +44,10 @@ qt_add_executable(tst_ai tst_ai.cpp)
 target_link_libraries(tst_ai PRIVATE tp_ai Qt6::Test)
 set_target_properties(tst_ai PROPERTIES WIN32_EXECUTABLE OFF AUTOMOC ON)
 add_test(NAME tst_ai COMMAND tst_ai)
+
+# 0.14.0 导出：.ics 和 Electron 对照、分页、长图上限、PDF
+qt_add_executable(tst_export tst_export.cpp)
+target_link_libraries(tst_export PRIVATE tp_export Qt6::Test Qt6::Gui)
+target_compile_definitions(tst_export PRIVATE TP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+set_target_properties(tst_export PROPERTIES WIN32_EXECUTABLE OFF AUTOMOC ON)
+add_test(NAME tst_export COMMAND tst_export)

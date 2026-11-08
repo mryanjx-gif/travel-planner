@@ -1465,3 +1465,35 @@ AI 规划	AI planning
 不去	Skip
 用 AI 规划一趟新旅行	Plan a new trip with AI
 去哪儿	Where to
+# 0.14.0 导出
+（%1）	 (%1)
+1 天	1 day
+1 站	1 stop
+费用	Cost
+文件写不进去	Couldn't write the file
+后面还有内容，长图放不下了；完整的行程单请导出 PDF。	There's more, but it doesn't fit in the long image. Export a PDF for the full itinerary.
+旅行	Trip
+%1：%2	%1: %2
+没有选文件	No file chosen
+还没有填紧急信息。在“行李与待办”里填当地电话，在“设置 → 证件与紧急信息”里填保险和联系人。	No emergency info yet. Add local numbers under Packing & to-dos, and insurance and contacts in Settings → Documents & emergency.
+已保存：%1（%2 项）。发到手机上打开，或在日历 app 里导入	Saved: %1 (%2 items). Open it on your phone or import it into your calendar app
+已保存：%1。行程太长，长图只放下了前面一部分，完整的请导出 PDF	Saved: %1. The trip is long, so the image only holds the first part — export a PDF for the full itinerary
+导出日历文件	Export calendar file
+日历 .ics	Calendar .ics
+长图（适合发手机）	Long image (for phones)
+包含	Include
+消费（费用和消费明细）	Spending (costs and expense list)
+紧急信息（保险、紧急联系人、当地电话）	Emergency info (insurance, contacts, local numbers)
+导入手机日历：计划日期（全天）、交通住宿、每天的日程，共 %1 项。时间按当地时间写，不带时区。	For your phone calendar: trip dates (all-day), bookings and daily schedule — %1 items. Times are local, with no time zone.
+第一页预览	First page preview
+导出到	Export to
+图片	Image
+还有 %1 段路线没按道路算	%1 route segment(s) not calculated yet
+这些自驾 / 徒步段现在画的是直线。直接导出的话，行程单的路线简图上也是直线。	These drive / walk segments are drawn as straight lines. If you export now, the route sketch in the itinerary shows straight lines too.
+先算好再导出	Calculate first, then export
+约 %1 分钟，算完自动保存，然后接着导出	About %1 min, saved automatically, then the export continues
+道路路线已关闭（设置 → 联网服务），现在没法算	Road routing is turned off (Settings → Online services)
+直接导出	Export now
+路线简图上先画直线	The route sketch shows straight lines
+%1 段没算出来，导出后按直线显示	%1 segment(s) couldn't be calculated and will show as straight lines
+先打开或在地图上选中一个计划	Open a plan or select one on the map first

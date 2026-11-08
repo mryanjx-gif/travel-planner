@@ -1,0 +1,104 @@
+{
+ "now": "2026-11-08T03:04:05Z",
+ "plan": {
+  "id": "p1",
+  "name": "北海道, 冬天; 泡温泉",
+  "startDate": "2026-12-05",
+  "endDate": "2026-12-12",
+  "notes": "第一行\n第二行，带逗号, 和分号; 还有反斜杠 \\ 结束",
+  "bookings": [
+   {
+    "id": "b1",
+    "kind": "flight",
+    "title": "NH 123",
+    "from": "上海浦东",
+    "to": "札幌新千岁",
+    "start": "2026-12-05T09:30",
+    "ref": "ABC123",
+    "notes": "靠窗"
+   },
+   {
+    "id": "b2",
+    "kind": "hotel",
+    "title": "定山溪温泉酒店",
+    "start": "2026-12-05",
+    "end": "2026-12-08"
+   },
+   {
+    "id": "b3",
+    "kind": "train",
+    "title": "JR 特急",
+    "from": "札幌",
+    "to": "小樽",
+    "start": "2026-12-08T10:00",
+    "end": "2026-12-08T10:45"
+   },
+   {
+    "id": "b4",
+    "kind": "ticket",
+    "title": "白色恋人公园",
+    "start": "2026-12-09"
+   },
+   {
+    "id": "b5",
+    "kind": "other",
+    "title": "没日期的不导出"
+   }
+  ],
+  "stops": [
+   {
+    "id": "s1",
+    "name": "札幌",
+    "lat": 43.06,
+    "lng": 141.35,
+    "order": 0,
+    "schedule": [
+     {
+      "date": "2026-12-06",
+      "time": "09:00",
+      "end": "11:30",
+      "text": "二条市场吃早饭"
+     },
+     {
+      "date": "2026-12-06",
+      "text": "这是一条很长很长的日程，用来测试每行七十五个字节的折行规则：中文一个字三个字节，所以大概二十五个字就要折一次行，再加点英文 ABC def 混在一起看看"
+     },
+     {
+      "date": "2026-12-07",
+      "time": "19:00",
+      "text": "大通公园看灯\n第二行描述"
+     },
+     {
+      "text": "没日期，不导出"
+     }
+    ]
+   },
+   {
+    "id": "s2",
+    "name": "小樽",
+    "lat": 43.19,
+    "lng": 141,
+    "order": 1,
+    "schedule": [
+     {
+      "date": "2026-12-08",
+      "time": "13:00",
+      "end": "12:00",
+      "text": "运河"
+     }
+    ]
+   },
+   {
+    "name": "没坐标的站",
+    "schedule": [
+     {
+      "date": "2026-12-09",
+      "text": "x"
+     }
+    ]
+   }
+  ]
+ },
+ "count": 9,
+ "text": "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//TravelPlanner//Travel Planner//ZH\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\nX-WR-CALNAME:北海道\\, 冬天\\; 泡温泉\r\nBEGIN:VEVENT\r\nUID:p1@travelplanner\r\nDTSTAMP:20261108T030405Z\r\nDTSTART;VALUE=DATE:20261205\r\nDTEND;VALUE=DATE:20261213\r\nSUMMARY:北海道\\, 冬天\\; 泡温泉\r\nDESCRIPTION:第一行\\n第二行，带逗号\\, 和分号\\; 还有反斜杠 \r\n \\\\ 结束\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:b1@travelplanner\r\nDTSTAMP:20261108T030405Z\r\nDTSTART:20261205T093000\r\nDTEND:20261205T103000\r\nSUMMARY:机票：NH 123\r\nLOCATION:上海浦东 → 札幌新千岁\r\nDESCRIPTION:订单号：ABC123\\n靠窗\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:b2@travelplanner\r\nDTSTAMP:20261108T030405Z\r\nDTSTART;VALUE=DATE:20261205\r\nDTEND;VALUE=DATE:20261208\r\nSUMMARY:住宿：定山溪温泉酒店\r\nLOCATION:定山溪温泉酒店\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:b3@travelplanner\r\nDTSTAMP:20261108T030405Z\r\nDTSTART:20261208T100000\r\nDTEND:20261208T104500\r\nSUMMARY:火车：JR 特急\r\nLOCATION:札幌 → 小樽\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:b4@travelplanner\r\nDTSTAMP:20261108T030405Z\r\nDTSTART;VALUE=DATE:20261209\r\nDTEND;VALUE=DATE:20261210\r\nSUMMARY:门票：白色恋人公园\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:p1-s1-0@travelplanner\r\nDTSTAMP:20261108T030405Z\r\nDTSTART:20261206T090000\r\nDTEND:20261206T113000\r\nSUMMARY:二条市场吃早饭\r\nLOCATION:札幌\r\nDESCRIPTION:二条市场吃早饭\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:p1-s1-1@travelplanner\r\nDTSTAMP:20261108T030405Z\r\nDTSTART;VALUE=DATE:20261206\r\nDTEND;VALUE=DATE:20261207\r\nSUMMARY:这是一条很长很长的日程，用来测试每行七十五个\r\n 字节的折行规则：中文一个字三个字节，所以大概二十\r\n 五个字就要折一次行，再加点英\r\nLOCATION:札幌\r\nDESCRIPTION:这是一条很长很长的日程，用来测试每行七十五\r\n 个字节的折行规则：中文一个字三个字节，所以大概二\r\n 十五个字就要折一次行，再加点英文 ABC def 混在一起看\r\n 看\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:p1-s1-2@travelplanner\r\nDTSTAMP:20261108T030405Z\r\nDTSTART:20261207T190000\r\nDTEND:20261207T200000\r\nSUMMARY:大通公园看灯\r\nLOCATION:札幌\r\nDESCRIPTION:大通公园看灯\\n第二行描述\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:p1-s2-0@travelplanner\r\nDTSTAMP:20261108T030405Z\r\nDTSTART:20261208T130000\r\nDTEND:20261208T140000\r\nSUMMARY:运河\r\nLOCATION:小樽\r\nDESCRIPTION:运河\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+}

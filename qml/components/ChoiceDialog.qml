@@ -45,6 +45,8 @@ ModalLayer {
             title: modelData.title
             detail: modelData.detail || ""
             danger: !!modelData.danger
+            enabled: !modelData.disabled   // 0.14.0：暂时不能选的（比如联网关了）
+            opacity: enabled ? 1 : 0.5
             onClicked: root.chosen(modelData.key)
         }
     }

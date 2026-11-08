@@ -393,6 +393,7 @@ Item {
                 onClicked: { moreMenu.open = false; root.toggleNext(root.sheet.id, !root.sheet.isNext) }
             }
             Rectangle { width: parent.width; height: 1; color: Theme.line; visible: !root.sheet.readOnly }
+            MenuRow { objectName: "sheetExport"; text: qsTr("导出…"); onClicked: { moreMenu.open = false; win.openExport(root.sheet.id, "itinerary", "pdf") } }   // 0.14.0
             MenuRow { visible: !root.sheet.readOnly; text: qsTr("删除计划…"); danger: true; onClicked: { moreMenu.open = false; root.deleteRequested(root.sheet.id, root.sheet.name || "") } }
         }
     }

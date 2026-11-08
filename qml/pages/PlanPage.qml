@@ -1049,7 +1049,7 @@ Item {
         onClicked: root.closeRequested()
     }
 
-    // ---- ⋯ 菜单（"导出"是占位，阶段 ⑧ 接功能）----
+    // ---- ⋯ 菜单（0.14.0 导出接上；.trip、分享版是 0.14.1）----
     Rectangle {
         objectName: "tripMenu"
         visible: root.menuOpen
@@ -1101,7 +1101,14 @@ Item {
                     required property var modelData
                     objectName: "tripExport" + modelData.key
                     text: modelData.text
-                    onClicked: { root.menuOpen = false; win.notReady() }
+                    onClicked: {
+                        root.menuOpen = false
+                        const k = modelData.key
+                        if (k === "Pdf" || k === "Image") win.openExport(root.info.id, "itinerary", k === "Pdf" ? "pdf" : "png")
+                        else if (k === "Ics") win.openExport(root.info.id, "ics", "pdf")
+                        else if (k === "Card") win.openExport(root.info.id, "card", "png")
+                        else win.notReady()
+                    }
                 }
             }
         }

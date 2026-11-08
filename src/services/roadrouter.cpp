@@ -128,6 +128,21 @@ void RoadRouter::stop()
     if (m_running) m_stopReq = true;
 }
 
+int RoadRouter::pendingFor(const QString &planId) const
+{
+    if (!m_store || m_store->isReadOnly()) return 0;
+    int n = 0;
+    for (const roads::Pending &p : roads::pendingLegs(m_store->data(), excluded())) n += planId.isEmpty() || p.planId == planId;
+    return n;
+}
+
+void RoadRouter::startFor(const QString &planId)
+{
+    m_only = planId;
+    start();
+    m_only.clear();
+}
+
 void RoadRouter::start()
 {
     if (m_running || !m_store || m_store->isReadOnly()) return;
@@ -136,6 +151,7 @@ void RoadRouter::start()
         if (!why.isEmpty()) { emit message(why, true); return; }
     }
     m_list = roads::pendingLegs(m_store->data(), excluded());
+    if (!m_only.isEmpty()) m_list.removeIf([this](const roads::Pending &p) { return p.planId != m_only; });
     if (m_list.isEmpty()) { recount(); return; }
     m_running = true;
     m_stopReq = false;

@@ -862,6 +862,8 @@ Window {
     }
     // 0.12.3 占位入口（AI、导入导出）统一走这里：外观和真按钮一样，点了提示还在做
     function notReady() { toast.show(qsTr("这个功能还在做"), false) }
+    // 0.14.0 导出对话框：kind = itinerary / card / ics，format = pdf / png
+    function openExport(id, kind, format) { exportDialog.show(id, kind, format) }
     // 0.12.9 删除后撤销：fn 真的删了才提示（返回 false = 没删）。前后各存一步，撤销只退这一下；
     // 删完又改过，按钮不能再退（退的会是后面的改动），提示用 Ctrl+Z
     function deleteWithUndo(fn, msg) {
@@ -905,7 +907,12 @@ Window {
         if (plans.overlayAvailable) act("overlay", plans.overlay ? qsTr("不叠其他旅程") : qsTr("叠上其他旅程"))
         if (netc.allowed.ai) act("ai", qsTr("AI 助手"))   // 0.13.0
         if (netc.allowed.ai) page("aiplan", qsTr("让 AI 帮我规划"))   // 0.13.2 整页向导
-        for (const t of [qsTr("导入 .trip"), qsTr("导出行程单 PDF"), qsTr("导出行程单长图"), qsTr("导出日历文件 .ics"), qsTr("导出计划文件 .trip"), qsTr("导出分享版"), qsTr("导出信息卡"), qsTr("批量导出")])
+        // 0.14.0 导出（行程单、长图、.ics、信息卡）对打开的计划，没打开时对地图上选中的；.trip、分享版、批量还在做（0.14.1）
+        act("export:itinerary:pdf", qsTr("导出行程单 PDF"))
+        act("export:itinerary:png", qsTr("导出行程单长图"))
+        act("export:ics:pdf", qsTr("导出日历文件 .ics"))
+        act("export:card:png", qsTr("导出信息卡"))
+        for (const t of [qsTr("导入 .trip"), qsTr("导出计划文件 .trip"), qsTr("导出分享版"), qsTr("批量导出")])
             act("notReady", t)
         act("fullscreen", qsTr("全屏"), "", "F11")
         act("dataFolder", qsTr("打开数据文件夹"))
@@ -935,6 +942,11 @@ Window {
         }
         const k = x.key
         if (k === "notReady") win.notReady()
+        else if (k.startsWith("export:")) {
+            const id = nav.page === "trip" ? planPage.planId : mapc.markers.selectedPlan
+            if (!id) toast.show(qsTr("先打开或在地图上选中一个计划"), false)
+            else win.openExport(id, k.split(":")[1], k.split(":")[2])
+        }
         else if (k === "ai") { if (!win.onMapPage) win.goPage("map"); aiPanel.open = true }
         else if (k === "new") win.newPlan()
         else if (k === "undo") app.undo()
@@ -1523,6 +1535,9 @@ Window {
         tip: qsTr("AI 助手")
         on: aiPanel.open
         onClicked: aiPanel.open = !aiPanel.open
+    }
+    ExportDialog {
+        id: exportDialog
     }
     AiPanel {
         id: aiPanel
@@ -2982,6 +2997,7 @@ Window {
             // 0.10.4：trip-packing = 行李与待办（M1、M2、紧急信息）；trip-packing-paste = M4；trip-emergency-form；trip-journal；trip-guide = 读；trip-guide-edit = 写和预览；
             // trip-guide-new = 空攻略；*-narrow = 500 宽。数据是副本，改了不要紧
             if (win.kitShot || win.photosShot) tripShot2.start()
+            if (shotPage.startsWith("trip-export")) tripShot2.start()   // 0.14.0 导出对话框
             if (win.moneyShot) {
                 win.seedMoney()
                 if (shotPage === "trip-settle" || shotPage.startsWith("trip-split") || shotPage.startsWith("trip-share")) win.seedSplit()
@@ -2996,6 +3012,12 @@ Window {
             if (shotPage === "trip-scroll") { planPanel.pickStop(2); planPanel.reveal(2, true); return }
             if (shotPage === "trip-elev") { planPanel.reveal(1, true); planPanel.beginElev(1); return }
             if (win.kitShot) { win.runKitShot(); return }
+            if (shotPage.startsWith("trip-export")) {
+                planPage.seedKitForShot()   // 信息卡要有紧急信息
+                win.openExport(planPage.planId, shotPage === "trip-export-card" ? "card" : "itinerary", "pdf")
+                if (shotPage === "trip-export-roads") exportDialog.shotRoads(3)
+                return
+            }
             if (win.photosShot) { win.runPhotosShot(); return }
             if (win.moneyShot) {
                 planPanel.openTab(shotPage === "trip-bookings" || shotPage === "trip-booking-form" ? "bookings" : shotPage === "trip-stopbooks" ? "itinerary" : "budget")

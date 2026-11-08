@@ -1,4 +1,4 @@
-// 计划页的"行李与待办"标签（0.10.4，P-09、P-10）。PO 选 1A 左右两列（窄窗口一列）、2A 紧急信息卡放在底下、改的时候弹出表单；"导出信息卡"是占位，阶段 ⑧ 接功能。
+// 计划页的"行李与待办"标签（0.10.4，P-09、P-10）。PO 选 1A 左右两列（窄窗口一列）、2A 紧急信息卡放在底下、改的时候弹出表单；"导出信息卡" 0.14.0 接上。
 // kit = planPage.info.kit（plans::kitInfo）。
 import QtQuick
 import TPApp
@@ -111,7 +111,7 @@ Column {
                 width: parent.width
                 height: emTitle.implicitHeight
                 Text { id: emTitle; text: qsTr("紧急信息"); font.family: serifFamily; font.pixelSize: Theme.px(15); font.bold: true; color: Theme.text }
-                LinkText { objectName: "kitExportCard"; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; small: true; text: qsTr("导出信息卡"); onClicked: win.notReady() }
+                LinkText { objectName: "kitExportCard"; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; small: true; text: qsTr("导出信息卡"); onClicked: win.openExport(planPage.planId, "card", "png") }
             }
             Flow {
                 width: parent.width

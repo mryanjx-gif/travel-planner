@@ -58,6 +58,7 @@
 #include "paths.h"
 #include "photocontroller.h"
 #include "plancontroller.h"
+#include "exportcontroller.h"
 #include "calendarcontroller.h"
 #include "journalcontroller.h"
 #include "planpagecontroller.h"
@@ -368,6 +369,9 @@ int main(int argc, char *argv[])
     }
     rates.setUsedProvider([&store] { return tp::map::plans::usedCurrencies(store.data()); });   // 0.12.6 缺哪种再补
     tp::app::PlanPageController planPage(&ctl, &plans, &store, &net, &rates, &settings);   // 0.10.0 完整计划页
+    // 0.14.0 导出：行程单 / 信息卡一律用打包的思源宋体（嵌进 PDF），封面用打包的省界
+    tp::app::ExportController exporter(&store, { uiFamily(QString()), appDir + QStringLiteral("/assets/admin"), Paths::cacheDir() + QStringLiteral("/export"),
+                                                 [&plans] { return plans.today(); }, [&rates] { return rates.main(); } });
     tp::app::WeatherController weather(&planPage, &plans, &store, &net);   // 0.10.3 预报和往年气候
     tp::app::CalendarController calendar(&ctl, &plans, &settings, &store, &mapc);   // 0.11.2 日历
     calendar.setPersist(!testRun);
@@ -438,6 +442,7 @@ int main(int argc, char *argv[])
     ctx->setContextProperty("roads", &roads);
     ctx->setContextProperty("editor", &editor);
     ctx->setContextProperty("planPage", &planPage);
+    ctx->setContextProperty("exporter", &exporter);
     ctx->setContextProperty("calendar", &calendar);
     ctx->setContextProperty("journal", &journal);
     ctx->setContextProperty("rates", &rates);
@@ -673,6 +678,7 @@ int main(int argc, char *argv[])
         tp::app::SelfTest::setPlanPage(&planPage, &nav, &rates);
         tp::app::SelfTest::setNetCtl(&netc);
         tp::app::SelfTest::setAi(&ai);
+        tp::app::SelfTest::setExporter(&exporter);
         tp::app::SelfTest::setWeather(&weather);
         tp::app::SelfTest::start(QDir::fromNativeSeparators(selftestReport), &ctl, &photos, &mapc, win,
                                  GraphicsBackend::displayName(backend.api) + (backend.deviceInfo.isEmpty() ? QString() : QStringLiteral(" · ") + backend.deviceInfo),

@@ -56,6 +56,7 @@ $AllPages = @(
     'journal|zh', 'journal|en', 'journal-empty|zh', 'journal-empty|en', 'journal-read|zh', 'journal-edit|zh', 'journal-edit|en', 'journal-edit-narrow|zh',
     'heic-album|zh', 'heic-lightbox|zh', 'heic-off-album|zh', 'heic-off-album|en', 'heic-off-lightbox|zh', 'heic-off-lightbox|en',
     'ui-aiplan-0|zh', 'ui-aiplan-0|en', 'ui-aiplan-1|zh', 'ui-aiplan-2|zh', 'ui-aiplan-3|zh', 'ui-aiplan-3|en', 'ui-aiplan-4|zh', 'ui-aiplan-4|en', 'ui-aiplan-guide|zh', 'ui-aiplan-narrow|zh', 'ui-aiplan-narrow|en', 'ui-newbtn-ai|zh', 'ui-ai-order|zh',
+    'trip-export|zh', 'trip-export|en', 'trip-export-card|zh', 'trip-export-roads|zh', 'trip-export-roads|en',
     'newbtn-grey1|zh', 'newbtn-grey2|zh', 'newbtn-grey3|zh', 'newbtn-grey1-sat|zh', 'newbtn-grey2-sat|zh', 'newbtn-grey3-sat|zh',
     'street|zh|hide'
 )

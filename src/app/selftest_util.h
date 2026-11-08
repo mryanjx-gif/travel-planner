@@ -27,6 +27,7 @@ class RatesController;
 class NetController;
 class WeatherController;
 class AiController;
+class ExportController;
 class Locator;
 class FrameStats;
 class Settings;
@@ -129,6 +130,10 @@ void runJournal(Report &r, AppController *app, QQuickWindow *win);
 // 0.13.0：AI 助手——本机假服务器模拟两种接法的流式回答、停止、卡住、截断、计费、模型列表、上限、钥匙、历史（selftest_ai.cpp）
 AiController *aiCtl();
 void runAi(Report &r, AppController *app, QQuickWindow *win, services::NetClient *net);
+// 0.14.0：导出——预览、勾选影响输出、PDF / 长图 / 信息卡 / .ics 写到临时文件夹、导出前算路三个按钮、入口（selftest_export.cpp）
+ExportController *exporterCtl();
+QString reportDir();   // 自检报告所在的文件夹（导出的页面图放这里给人看）
+void runExport(Report &r, AppController *app, QQuickWindow *win, services::RoadRouter *roads);
 // 0.9.1：性能——启动各步、拖地图每帧、换模式、数据重建、写设置、玻璃和标记各占多少（selftest_perf.cpp）
 FrameStats *frameStats();
 Settings *settingsObj();
