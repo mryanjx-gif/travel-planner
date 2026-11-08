@@ -630,6 +630,7 @@ Applied apply(Value &root, const QJsonObject &P, const std::function<QString(con
         if (pi < 0) continue;
         Value &plan = *mutPlanAt(root, pi);
         const QString pid = str(plan, "id");
+        if (!a.touched.contains(pid)) a.touched << pid;
         json::Object &po = plan.mutObject();
         if (op == QLatin1String("update_plan")) {
             if (!cs(c, "name").isEmpty()) po.set(L("name"), Value(cs(c, "name")));

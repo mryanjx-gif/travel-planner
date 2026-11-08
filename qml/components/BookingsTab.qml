@@ -94,7 +94,7 @@ Column {
         visible: root.count === 0
         width: parent.width
         wrapMode: Text.Wrap
-        text: qsTr("还没有记录。订好机票、酒店后点上面的按钮记一下：时间、订单号、费用都放在这里，出发前一页看全。")
+        text: qsTr("还没有交通住宿。")
         font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.muted
     }
 

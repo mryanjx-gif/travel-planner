@@ -234,7 +234,7 @@ Item {
                     width: Math.min(parent.width, Theme.px(460))
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.Wrap
-                    text: qsTr("点“写一篇”，或者在计划页的“游记”标签里写。正文里可以插入那个计划的照片。")
+                    text: qsTr("还没有游记。")
                     font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.muted
                 }
             }
@@ -458,7 +458,7 @@ Item {
                 delay: 900
                 bodyFont: 15
                 tools: ["h1", "h2", "b", "ul", "quote", "link", "pic", "file"]
-                placeholder: qsTr("开始写……\n\n空一行 = 新段落。插入的照片单独占一行。")
+                placeholder: qsTr("开始写…")
                 viewH: Math.max(Theme.px(240), editFlick.height - Theme.px(root.narrow ? 330 : 250) - (root.stripRows.length > 0 ? (root.stripOpen ? Theme.px(120) : Theme.px(30)) : 0))
                 onEdited: root.saveNow()
                 onLinkRequested: (s) => root.linkRequested(s)

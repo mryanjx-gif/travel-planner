@@ -57,6 +57,7 @@ struct Applied {
     QJsonObject created;      // new_id → 真的 id
     bool needRoute = false;   // 有自驾 / 徒步段要重新算路
     QStringList deleted;      // 删掉的计划 id
+    QStringList touched;      // 1.1.0 改过的计划 id（算路排队用）
 };
 // 应用勾选的项。顺序照 Electron：先新建计划 → 其余按 AI 给的顺序 → 删除计划放最后。newId(prefix) 生成 id
 Applied apply(json::Value &root, const QJsonObject &P, const std::function<QString(const QString &)> &newId);

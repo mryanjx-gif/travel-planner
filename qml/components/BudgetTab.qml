@@ -187,7 +187,7 @@ Column {
                 visible: (root.money.bookingOnly || 0) > 0
                 width: parent.width
                 wrapMode: Text.Wrap
-                text: qsTr("交通住宿的费用（%1）没有算进结算。要分摊，就到那条记录里勾“记一笔到消费”。").arg(Fmt.money(root.money.bookingOnly, root.cur))
+                text: qsTr("交通住宿的费用（%1）没算进结算。").arg(Fmt.money(root.money.bookingOnly, root.cur))
                 font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
             }
         }
@@ -381,7 +381,7 @@ Column {
         visible: root.rows.length === 0
         width: parent.width
         wrapMode: Text.Wrap
-        text: qsTr("还没有记账。旅途中随手记，回来就知道钱花在哪了。和别人一起出去时，点上面的“同行人”添加，就能分账。")
+        text: qsTr("还没有记账。")
         font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.muted
     }
 

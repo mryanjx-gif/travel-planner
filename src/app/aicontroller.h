@@ -93,6 +93,7 @@ public:
     void setNoMoney(bool on);
     // 0.13.1 改计划要用的：数据、保存和撤销、地名搜索；where() 返回 { page, planId（详情页打开的 / 地图上选中的）, today }；
     // onDeleted：应用时删掉了计划（地图上选中的是它就取消选中）
+    void setEditorHooks(std::function<QString()> close, std::function<void(const QString &)> reopen) { m_editorClose = std::move(close); m_editorReopen = std::move(reopen); }
     void setPlanContext(AppController *app, data::DataStore *store, services::Geocoder *geocoder,
                         std::function<QVariantMap()> where, std::function<void(const QStringList &)> onDeleted);
     QString mainCur() const;
@@ -160,6 +161,7 @@ public:
 
 signals:
     void changed();
+    void routeNeeded(const QStringList &planIds);   // 1.1.0 应用后有自驾 / 徒步段要算
     void keysChanged();
     void usageChanged();
     void modelsChanged();
@@ -229,6 +231,8 @@ private:
     services::Geocoder *m_geocoder = nullptr;
     std::function<QVariantMap()> m_where;
     std::function<void(const QStringList &)> m_onDeleted;
+    std::function<QString()> m_editorClose;               // 1.1.0 完成编辑器，返回计划 id（空 = 没关成）
+    std::function<void(const QString &)> m_editorReopen;
     // 这一问（含自动续轮）。kind：""（聊天）/ wizard（向导）/ order（从订单生成）；tok / amt / cur：几轮加起来的用量（每份方案用量，0.13.2）
     struct Run { qint64 t0 = 0; int autoN = 0; bool gapFill = false; QString planId, kind, pid, mdl; qint64 tok = 0; double amt = 0; QString cur; bool priced = true, props = false; } m_run;
     struct Research { bool on = false; qint64 start = 0, budget = 0; QStringList todo; int secs = 0; bool paused = false; } m_research;

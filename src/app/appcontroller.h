@@ -193,6 +193,8 @@ public:
     Q_INVOKABLE void toggleFullscreen();          // F11（W-04）
     Q_INVOKABLE void zoom(int dir);                 // +1 放大一档 / -1 缩小一档 / 0 原始大小
     Q_INVOKABLE void openDataFolder();
+    // 1.1.0 导出问题报告：日志文件夹 + info（版本、显卡后端）打成 zip 放桌面；不含旅行数据和 AI 钥匙。返回 {ok, name | error}
+    Q_INVOKABLE QVariantMap exportReport(const QString &info);
     Q_INVOKABLE QString changelogText() const;   // 打包的 CHANGELOG.md，从第一个版本开始（0.12.5）
     Q_INVOKABLE QString licensesDir() const;     // 授权全文所在的文件夹
     Q_INVOKABLE bool openLicensesDir();

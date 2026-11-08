@@ -160,7 +160,7 @@ Item {
         onDropped: (d) => {
             const f = d.urls.map(u => String(u)).find(u => trips.isTripFile(u))
             if (f) root.importTrip(f)
-            else root.fail(qsTr("这里只能拖入 .trip 计划文件（照片请在相册里点“导入照片”）"))
+            else root.fail(qsTr("这里只能拖入 .trip 文件"))
         }
     }
     property bool hintShot: false   // 截图用
@@ -271,12 +271,12 @@ Item {
         }
         Repeater {
             model: conflict.electron
-                   ? [{ key: "replace", title: qsTr("覆盖"), detail: qsTr("用 Electron 版的替换这里的（这里的游记和照片记录也换成 Electron 版的）") },
+                   ? [{ key: "replace", title: qsTr("覆盖"), detail: qsTr("用 Electron 版替换这里的（含游记和照片记录）") },
                       { key: "copy", title: qsTr("另存一份"), detail: qsTr("两个都留，导入的名字后面加“（导入）”") },
                       { key: "skip", title: qsTr("跳过"), detail: qsTr("留着这里的，这一个不导入") }]
                    : [{ key: "replace", title: qsTr("覆盖"), detail: qsTr("用导入的替换现在的（现在的游记也换成导入的）") },
                       { key: "copy", title: qsTr("另存一份"), detail: qsTr("两个都留，导入的名字后面加“（导入）”") },
-                      { key: "merge", title: qsTr("只合并消费和照片"), detail: qsTr("各记各的账时用：把对方的消费、同行人、照片和游记加进来，不会重复，也不会丢掉你记的") }]
+                      { key: "merge", title: qsTr("只合并消费和照片"), detail: qsTr("合并对方的消费、同行人、照片和游记") }]
             delegate: ChoiceCard {
                 required property var modelData
                 objectName: "tripConflict-" + modelData.key
@@ -321,8 +321,8 @@ Item {
             width: parent.width
             spacing: Theme.px(6)
             Repeater {
-                model: [{ key: "trip", title: qsTr("计划文件 .trip"), detail: qsTr("对方也装了旅行计划，点“导入 .trip”或拖进窗口；导入后能看、能改") },
-                        { key: "share", title: qsTr("分享版文件夹"), detail: qsTr("去掉私人内容的一份数据，对方用“更换数据文件夹”打开查看") }]
+                model: [{ key: "trip", title: qsTr("计划文件 .trip"), detail: qsTr("对方用“导入 .trip”或拖进窗口打开") },
+                        { key: "share", title: qsTr("分享版文件夹"), detail: qsTr("去掉私人内容的数据副本") }]
                 delegate: ChoiceCard {
                     required property var modelData
                     objectName: "tripBulkFmt-" + modelData.key
@@ -379,7 +379,7 @@ Item {
             width: parent.width
             wrapMode: Text.Wrap
             lineHeight: 1.25
-            text: qsTr("复制一份数据，去掉私人内容，对方用“更换数据文件夹”打开。紧急信息卡、证件、当地紧急电话一律去掉。")
+            text: qsTr("复制一份数据，去掉私人内容、紧急信息和证件。")
             font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted
         }
         Column {
@@ -412,7 +412,7 @@ Item {
             width: parent.width
             wrapMode: Text.Wrap
             lineHeight: 1.25
-            text: qsTr("只带有来源记录、而且来源是 Wikimedia、NASA 或自己拍的照片；来源是 Google 地图的一律不带。")
+            text: qsTr("只带来源是 Wikimedia、NASA 或自己拍的照片。")
             font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
         }
         TpCheck {
@@ -425,7 +425,7 @@ Item {
             width: parent.width
             enabled: !!shareDlg.opts.allPhotos
             opacity: enabled ? 1 : 0.5
-            text: qsTr("没有来源记录的站点照片也带上（只在“全部可分发的”时有效；确定是自己拍的才勾）")
+            text: qsTr("没有来源记录的站点照片也带上（确定是自己拍的才勾）")
             checked: !!shareDlg.opts.unknownStops
             onToggled: (c) => shareDlg.setOpt("unknownStops", c)
         }
@@ -454,7 +454,7 @@ Item {
             const p = [r.count > 1 ? qsTr("已导出 %1 个分享版文件夹到：").arg(r.count) + r.dir : qsTr("已导出到：") + r.dir,
                        qsTr("照片 %1 张").arg(r.photos) + (r.skipped ? qsTr("，%1 张不能分发的没带").arg(r.skipped) : "")
                        + (r.missing ? qsTr("，%1 张找不到文件").arg(r.missing) : ""),
-                       qsTr("文件夹里有“照片署名.txt”，转发时请一起带上。对方在“设置 → 数据 → 数据文件夹”里选这个文件夹就能看。")]
+                       qsTr("转发时带上“照片署名.txt”。对方在设置里选这个文件夹就能看。")]
             paragraphs = p
             root.lastResult = p[0]
             open = true
@@ -469,11 +469,11 @@ Item {
         property int count: 0
         readonly property bool canNet: !!netc.allowed.routing
         title: count === 1 ? qsTr("还有 1 段路线没按道路算") : qsTr("还有 %1 段路线没按道路算").arg(count)
-        message: qsTr("这些自驾 / 徒步段现在画的是直线。直接导出的话，对方打开也是直线，要他自己联网点“现在计算”。")
+        message: qsTr("这些自驾 / 徒步段还是直线，对方打开也是直线。")
         cancelKey: "cancel"
         options: [
             { key: "calc", disabled: !canNet, title: qsTr("先算好再导出"),
-              detail: canNet ? qsTr("约 %1 分钟，算完自动保存；对方打开就是道路路线，不用再算").arg(Math.max(1, Math.ceil(count * 1.4 / 60)))
+              detail: canNet ? qsTr("约 %1 分钟，算完自动保存").arg(Math.max(1, Math.ceil(count * 1.4 / 60)))
                              : qsTr("道路路线已关闭（设置 → 联网服务），现在没法算") },
             { key: "skip", title: qsTr("直接导出"), detail: qsTr("对方那边先显示直线") },
             { key: "cancel", title: qsTr("取消"), detail: "" }

@@ -489,7 +489,7 @@ void runSplit(Report &r, AppController *app, QQuickWindow *win, PlanPageControll
     openPeople();
     r.check(pd->property("open").toBool(), QStringLiteral("点按钮打开同行人窗口"));
     const QString hint = text(findItem(pd, QStringLiteral("peopleHint")));
-    r.check(hint == tp::tr("再加一个人，已有的 %1 笔和交通住宿的 %2 笔，会变成 %3 人平摊。").arg(1).arg(1).arg(2) + QLatin1Char('\n') + tp::tr("单独改过分摊的不变。") + QLatin1Char('\n') + tp::tr("第一次加别人时会自动带上“我”。"), QStringLiteral("写明这次会变几笔"), hint);
+    r.check(hint == tp::tr("加一人后，%1 笔消费和 %2 笔交通住宿改为 %3 人平摊。").arg(1).arg(1).arg(2) + QLatin1Char('\n') + tp::tr("单独改过分摊的不变。") + QLatin1Char('\n') + tp::tr("第一次加别人时会自动带上“我”。"), QStringLiteral("写明这次会变几笔"), hint);
     waitFor([&] { return !store->isDirty(); }, 3000);   // 前面的改动先存成自己的一步
     const int undo0 = app->undoCount();
     fill(win, addName, QStringLiteral("小王"));

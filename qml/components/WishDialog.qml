@@ -42,10 +42,10 @@ ModalLayer {
         if (kind === "start") {
             if (badRange) return
             if (plans.startPlan(planId, start, end)) { open = false; root.started(planName) }
-            else win.showError(qsTr("没有改成：数据现在只能看、不能改，或者这个计划已经不在了。"))
+            else win.showError(qsTr("没改成：数据只读，或计划已不在。"))
         } else {
             if (plans.setSeasonRef(planId, ref)) open = false
-            else win.showError(qsTr("没有改成：数据现在只能看、不能改，或者这个计划已经不在了。"))
+            else win.showError(qsTr("没改成：数据只读，或计划已不在。"))
         }
     }
 

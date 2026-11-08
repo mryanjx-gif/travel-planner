@@ -456,7 +456,7 @@ Item {
         title: root.wishMode ? qsTr("还没有想去的地方") : root.footMode ? qsTr("还没有走过的足迹") : qsTr("还没有计划")
         detail: root.wishMode ? qsTr("看到喜欢的目的地，先记在这里，以后再排日期。")
               : root.footMode ? qsTr("旅程完成后，路线和去过的地方都会留在这里。")
-              : qsTr("把想走的路线记下来：站点、日期、预算和行李都放在一个计划里。")
+              : qsTr("还没有计划。")
         action: root.wishMode ? qsTr("添加想去的地方") : root.footMode ? qsTr("记一趟走过的旅程") : qsTr("新建计划")
         onActed: root.wishMode ? root.newWishClicked() : root.footMode ? root.newFootClicked() : root.newPlanClicked()
     }
@@ -482,7 +482,7 @@ Item {
         wrapMode: Text.WordWrap
         maximumLineCount: 2
         elide: Text.ElideRight
-        text: qsTr("共 %1 个计划 · 计划中 %2 · 想去 %3 · 已完成 %4").arg(root.info.total || 0).arg(root.info.planning || 0).arg(root.info.wish || 0).arg(root.info.completed || 0)
+        text: qsTr("共 %1 · 计划中 %2 · 想去 %3 · 已完成 %4").arg(root.info.total || 0).arg(root.info.planning || 0).arg(root.info.wish || 0).arg(root.info.completed || 0)
         font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
     }
 }

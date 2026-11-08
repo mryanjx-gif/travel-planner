@@ -34,7 +34,7 @@ Column {
         visible: root.rows.length === 0
         width: parent.width
         wrapMode: Text.Wrap
-        text: qsTr("还没有游记。可以按天写，也可以一篇写完整个旅程；正文里可以插入这个计划的照片。")
+        text: qsTr("还没有游记。")
         font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.muted
     }
     Repeater {

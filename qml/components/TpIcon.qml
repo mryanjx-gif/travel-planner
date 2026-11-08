@@ -162,6 +162,12 @@ Canvas {
             circle(c, 12, 12, 9); poly(c, [12, 7, 12, 12, 15, 14]); break
         case "send":
             poly(c, [12, 19, 12, 5]); poly(c, [6, 11, 12, 5, 18, 11]); break
+        case "spark": {   // 1.1.0 编辑器顶部的 AI（Electron assistant.js SPARK，实心）
+            const star = (pts) => { c.beginPath(); c.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]); c.closePath(); c.fill() }
+            star([12, 3, 13.8, 7.9, 19, 9.7, 13.8, 11.5, 12, 16.4, 10.2, 11.5, 5, 9.7, 10.2, 7.9])
+            star([18.5, 15.5, 19.3, 17.7, 21.5, 18.5, 19.3, 19.3, 18.5, 21.5, 17.7, 19.3, 15.5, 18.5, 17.7, 17.7])
+            break
+        }
         case "square":
             rrect(c, 7, 7, 10, 10, 2); c.fill(); break
         case "mic":

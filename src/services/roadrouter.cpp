@@ -20,6 +20,33 @@ RoadRouter::RoadRouter(QObject *parent) : QObject(parent)
     m_recount.setSingleShot(true);
     m_recount.setInterval(200);   // 连续改几次只数一次
     connect(&m_recount, &QTimer::timeout, this, &RoadRouter::recount);
+    m_retry.setInterval(30000);
+    connect(&m_retry, &QTimer::timeout, this, &RoadRouter::tryQueue);
+}
+
+void RoadRouter::autoFor(const QStringList &planIds)
+{
+    if (!m_autoOn) return;
+    for (const QString &id : planIds)
+        if (!id.isEmpty() && !m_queue.contains(id)) m_queue << id;
+    tryQueue();
+}
+
+void RoadRouter::tryQueue()
+{
+    if (m_queue.isEmpty()) { m_retry.stop(); return; }
+    m_retry.start();
+    if (m_running || !m_store || m_store->isReadOnly()) return;
+    if (m_net && !m_net->allows(QStringLiteral("routing"))) return;   // 离线 / 关了道路路线：等
+    if (m_blocker && !m_blocker().isEmpty()) return;                  // 编辑器开着：等
+    // 上次断网没算出来的段这次再试
+    for (const roads::Pending &p : roads::pendingLegs(m_store->data(), {}))
+        if (m_queue.contains(p.planId)) m_sessionFail.remove(p.key);
+    if (pendingForIds(m_queue) == 0) { m_queue.clear(); m_retry.stop(); recount(); return; }
+    m_autoIds = m_queue;
+    m_netFail = false;
+    startForIds(m_autoIds);
+    if (!m_running) m_autoIds.clear();
 }
 
 void RoadRouter::setStore(tp::data::DataStore *store)
@@ -253,6 +280,8 @@ void RoadRouter::onResult(const roads::Pending &leg, int status, const QByteArra
         m_lastMsg.insert(leg.key, msg);
         if (r.permanent()) remember(leg.key, msg);
         else m_sessionFail.insert(leg.key);
+        // 自动算碰上没回内容的连接错误（断网、离线）：这轮停下，排队等联网
+        if (!m_autoIds.isEmpty() && !haveBody && Err(netError) != Err::Http) { m_netFail = true; m_stopReq = true; }
         qInfo("道路路线：「%s」第 %d 段没算出来：%s", qUtf8Printable(leg.planName), leg.legNo + 1, qUtf8Printable(msg));
     }
     emit legDone(leg.key, ok);
@@ -265,6 +294,13 @@ void RoadRouter::finish()
     m_running = false;
     m_done = true;
     m_stopReq = false;
+    if (!m_autoIds.isEmpty()) {
+        // 自动算：全好了或只是断网就不出提示条；断网的计划留在队里
+        m_done = m_fail > (m_netFail ? 1 : 0);
+        if (!m_netFail) for (const QString &id : std::as_const(m_autoIds)) m_queue.removeAll(id);
+        if (m_queue.isEmpty()) m_retry.stop();
+        m_autoIds.clear();
+    }
     qInfo("道路路线：算完了，好了 %d 段、没算出来 %d 段（共 %d 段）", m_ok, m_fail, m_total);
     // Electron v5.10.1：算完自动保存
     if (m_store && m_store->isDirty() && m_ok && m_save) m_save(true);

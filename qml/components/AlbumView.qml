@@ -168,7 +168,7 @@ Item {
                 Text {
                     width: parent.width
                     wrapMode: Text.Wrap
-                    text: Fmt.one(qsTr("%1 张 HEIC 照片显示不了：这台电脑要装 Microsoft Store 里的两个扩展。HEVC 扩展有的电脑要付费。").arg(root.album.heic))
+                    text: Fmt.one(qsTr("%1 张 HEIC 照片显示不了，要装 HEIF / HEVC 扩展。").arg(root.album.heic))
                     font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: "#7a5a1c"
                 }
                 Row {
@@ -196,7 +196,7 @@ Item {
                 Text {
                     width: parent.width
                     wrapMode: Text.Wrap
-                    text: Fmt.one(qsTr("有 %1 张照片找不到文件。记录还在，可能是数据文件夹里的 photos 被移动或删除了，放回原位置就能显示。").arg(root.lostCount))
+                    text: Fmt.one(qsTr("%1 张照片找不到文件，放回原处就能显示。").arg(root.lostCount))
                     font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.text
                 }
                 Row {
@@ -511,7 +511,7 @@ Item {
         wrapMode: Text.Wrap
         lineHeight: 1.4
         text: root.album.view === "fav" ? qsTr("还没有精选。鼠标放在照片上，点右上角的星星。")
-            : root.album.view === "inbox" ? qsTr("没有未归类的照片。导入时认不出属于哪个计划的照片会放在这里。")
+            : root.album.view === "inbox" ? qsTr("没有未归类的照片。")
             : qsTr("还没有归到计划的照片。")
         font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted
     }

@@ -32,7 +32,7 @@ ModalLayer {
         const pn = planChoices.find(x => x.key === planId), sn = stopChoices.find(x => x.key === stopId)
         const n = ids.length
         if (photos.assign(ids, planId, stopId)) { open = false; root.assigned(n, pn ? pn.text : "", sn ? sn.text.replace(/^\d+\.\s*/, "") : "") }
-        else win.showError(qsTr("没有归进去：数据现在只能看、不能改，或者计划已经不在了。"))
+        else win.showError(qsTr("没归进去：数据只读，或计划已不在。"))
     }
 
     Text {

@@ -67,7 +67,7 @@ Column {
             hasTools: (root.kit.dueOver || 0) + (root.kit.dueSoon || 0) > 0
             width: root.cardW
             title: qsTr("待办")
-            placeholder: qsTr("比如：办签证、换汇、订租车，回车")
+            placeholder: qsTr("加待办")
             rows: root.kit.todos || []
             doneCount: root.kit.todoDone || 0
             readOnly: root.readOnly
@@ -134,7 +134,7 @@ Column {
                         visible: root.local.length === 0
                         width: parent.width
                         wrapMode: Text.Wrap
-                        text: qsTr("还没填。出发前查一下当地的报警、急救电话和中国使领馆电话（外交部“中国领事”、当地政府网站）。")
+                        text: qsTr("还没填当地报警、急救和使领馆电话。")
                         font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.muted
                     }
                 }

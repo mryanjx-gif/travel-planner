@@ -20,6 +20,8 @@
 #include "version.h"
 #include "windowstate.h"
 
+#include "miniz.h"
+
 #include <QClipboard>
 #include <QCoreApplication>
 #include <QDateTime>
@@ -31,8 +33,11 @@
 #include <QLocale>
 #include <QQmlEngine>
 #include <QQuickWindow>
+#include <QStandardPaths>
+#include <QSysInfo>
 #include <QThread>
 #include <QTimer>
+#include <cstring>
 #include <stdexcept>
 #include <QUrl>
 
@@ -913,6 +918,38 @@ void AppController::finishQuit()
     if (m_keeper) m_keeper->rememberNow();
     if (m_tray) m_tray->hide();
     QCoreApplication::exit(0);
+}
+
+QVariantMap AppController::exportReport(const QString &info)
+{
+    const QString name = QStringLiteral("TravelPlanner-report-%1.zip").arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss")));
+    const QString path = QDir(QStandardPaths::writableLocation(QStandardPaths::DesktopLocation)).filePath(name);
+    const auto fail = [](const QString &why) { qWarning("导出问题报告失败：%s", qUtf8Printable(why)); return QVariantMap{ { QStringLiteral("ok"), false }, { QStringLiteral("error"), why } }; };
+    mz_zip_archive zip;
+    std::memset(&zip, 0, sizeof zip);
+    if (!mz_zip_writer_init_heap(&zip, 0, 1 << 20)) return fail(QStringLiteral("zip"));
+    const QByteArray about = (QStringLiteral("TravelPlanner %1\nQt %2\n%3\n").arg(QStringLiteral(TP_VERSION_STRING), QString::fromLatin1(qVersion()), QSysInfo::prettyProductName()) + info + u'\n').toUtf8();
+    bool ok = mz_zip_writer_add_mem(&zip, "info.txt", about.constData(), size_t(about.size()), 6);
+    // 只拿日志文件夹第一层的文件（app.log、errors.log 和滚动的旧日志）
+    const QFileInfoList logs = QDir(Paths::logDir()).entryInfoList(QDir::Files);
+    for (const QFileInfo &fi : logs) {
+        if (!ok) break;
+        QFile f(fi.absoluteFilePath());
+        if (!f.open(QIODevice::ReadOnly)) continue;
+        const QByteArray b = f.read(32 << 20);
+        ok = mz_zip_writer_add_mem(&zip, ("logs/" + fi.fileName()).toUtf8().constData(), b.constData(), size_t(b.size()), 6);
+    }
+    void *buf = nullptr;
+    size_t len = 0;
+    if (ok) ok = mz_zip_writer_finalize_heap_archive(&zip, &buf, &len);
+    QByteArray bytes = ok ? QByteArray(static_cast<const char *>(buf), qsizetype(len)) : QByteArray();
+    mz_zip_writer_end(&zip);
+    if (!ok) return fail(QStringLiteral("zip"));
+    QFile out(path);
+    if (!out.open(QIODevice::WriteOnly) || out.write(bytes) != bytes.size()) return fail(QDir::toNativeSeparators(path));
+    out.close();
+    qInfo("导出问题报告：%s（%d 个日志文件）", qUtf8Printable(path), int(logs.size()));
+    return { { QStringLiteral("ok"), true }, { QStringLiteral("name"), name }, { QStringLiteral("path"), path } };
 }
 
 void AppController::openDataFolder()

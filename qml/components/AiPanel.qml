@@ -11,6 +11,8 @@ GlassPanel {
     property bool open: false
     property bool histOpen: false
     property bool orderMode: false   // 0.13.2 从订单生成（I-12）：下一句是粘贴的订单文字
+    property bool backEdit: false    // 1.1.0 窄窗口盖在编辑器上：顶部"回到编辑"
+    signal backRequested()
     signal settingsRequested()
     signal closeRequested()
     signal toastRequested(string text, bool error)
@@ -47,7 +49,14 @@ GlassPanel {
         Column {
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width - btns.width - Theme.px(8)
-            Text { text: qsTr("AI 助手"); font.family: serifFamily; font.pixelSize: Theme.px(16); font.bold: true; color: Theme.text }
+            Text {
+                objectName: "aiBackEdit"
+                visible: root.backEdit
+                text: "‹ " + qsTr("回到编辑")
+                font.family: serifFamily; font.pixelSize: Theme.px(16); font.bold: true; color: Theme.accent
+                MouseArea { anchors.fill: parent; anchors.margins: -Theme.px(4); cursorShape: Qt.PointingHandCursor; onClicked: root.backRequested() }
+            }
+            Text { visible: !root.backEdit; text: qsTr("AI 助手"); font.family: serifFamily; font.pixelSize: Theme.px(16); font.bold: true; color: Theme.text }
             Text {
                 objectName: "aiHeadModel"
                 width: parent.width
@@ -136,7 +145,7 @@ GlassPanel {
                     Text {
                         width: parent.width
                         wrapMode: Text.Wrap
-                        text: qsTr("可以问行程、交通、季节，或者让我改某个计划。改动会先给你预览，勾选后才写入。") + (ai.noMoney ? (app.lang === "en" ? " " : "") + qsTr("发给 AI 的内容不含消费和订单号。") : "")
+                        text: qsTr("问行程、交通，或让我改计划。改动先预览。") + (ai.noMoney ? (app.lang === "en" ? " " : "") + qsTr("发给 AI 的内容不含消费和订单号。") : "")
                         font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.text
                     }
                     Flow {
@@ -315,6 +324,30 @@ GlassPanel {
                             }
                         }
                     }
+                    // 1.1.0 Claude 的来源：默认收起的灰色小字，点开列网址（Anthropic 要求，技术选型.md §11）
+                    Column {
+                        id: srcCol
+                        objectName: "aiSources"
+                        visible: !botCol.live && (msg.modelData.sources || []).length > 0
+                        width: parent.width
+                        property bool open: false
+                        Text {
+                            text: qsTr("来源") + (srcCol.open ? " ▴" : " ▾")
+                            font.family: serifFamily; font.pixelSize: Theme.px(11); color: Theme.muted
+                            MouseArea { anchors.fill: parent; anchors.margins: -Theme.px(4); cursorShape: Qt.PointingHandCursor; onClicked: srcCol.open = !srcCol.open }
+                        }
+                        Repeater {
+                            model: srcCol.open ? (msg.modelData.sources || []) : []
+                            delegate: Text {
+                                required property var modelData
+                                width: srcCol.width
+                                elide: Text.ElideRight
+                                text: modelData
+                                font.family: serifFamily; font.pixelSize: Theme.px(11); color: Theme.muted
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Qt.openUrlExternally(parent.modelData) }
+                            }
+                        }
+                    }
                     Repeater {
                         model: msg.modelData.props || []
                         delegate: AiProposal {
@@ -416,7 +449,7 @@ GlassPanel {
                 Text {
                     width: parent.width
                     wrapMode: Text.Wrap
-                    text: qsTr("第一次用 %1：你问的话和这段对话会发给 %1 处理，按它的条款保存。以后用这家不再提示，换一家时会再说一次。").arg(ai.pendingTell)
+                    text: qsTr("第一次用 %1：对话会发给 %1，按它的条款保存。").arg(ai.pendingTell)
                     font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.text
                 }
                 Row {
@@ -465,7 +498,7 @@ GlassPanel {
                 multiline: true
                 maxLines: 6
                 submitOnEnter: true
-                placeholder: root.orderMode ? qsTr("把订单确认邮件或 PDF 里的文字粘贴到这里") : qsTr("问点什么（Enter 发送，Shift+Enter 换行）")
+                placeholder: root.orderMode ? qsTr("把订单确认邮件或 PDF 里的文字粘贴到这里") : qsTr("问点什么")
                 onAccepted: root.send()
                 onEscaped: root.closeRequested()
             }
@@ -475,13 +508,12 @@ GlassPanel {
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 width: Theme.px(34); height: width; radius: width / 2
-                color: ai.busy ? Theme.textSoft : Theme.accent
-                opacity: ai.busy || input.text.trim() !== "" ? 1 : 0.4
+                color: ai.busy ? Theme.textSoft : input.text.trim() !== "" ? Theme.accent : Theme.faint   // 1.1.0 没输入时灰
                 Accessible.role: Accessible.Button
                 Accessible.name: ai.busy ? qsTr("停止") : qsTr("发送")
                 TpIcon { anchors.centerIn: parent; width: Theme.px(17); height: width; name: ai.busy ? "square" : "send"; color: "#ffffff"; stroke: 2.2 }
                 MouseArea { id: sendMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: ai.busy ? ai.stop() : root.send() }
-                TpTip { text: ai.busy ? qsTr("停止") : qsTr("发送（Enter；Shift+Enter 换行）"); show: sendMa.containsMouse }
+                TpTip { text: ai.busy ? qsTr("停止") : qsTr("发送"); show: sendMa.containsMouse }
             }
         }
         Item {
@@ -513,11 +545,11 @@ GlassPanel {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         input.focusEnd()
-                        if (app.listPref("aiVoiceHint") === "") { app.setListPref("aiVoiceHint", "1"); root.toastRequested(qsTr("用的是 Windows 自带的语音输入；中文要先装中文语言包（Windows 设置 → 时间和语言 → 语言和区域）"), false) }
+                        if (app.listPref("aiVoiceHint") === "") { app.setListPref("aiVoiceHint", "1"); root.toastRequested(qsTr("用的是 Windows 语音输入；中文要先装中文语言包。"), false) }
                         if (!ai.voice()) root.toastRequested(qsTr("没能自动打开语音输入，直接按 Win+H 也可以"), true)
                     }
                 }
-                TpTip { text: qsTr("语音输入（Windows 自带，也可以直接按 Win+H）"); show: micMa.containsMouse }
+                TpTip { text: qsTr("语音输入（Win+H）"); show: micMa.containsMouse }
             }
             Text {
                 anchors.right: parent.right

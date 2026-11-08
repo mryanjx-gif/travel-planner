@@ -14,6 +14,7 @@ Item {
     property real fontSize: 13.5
     property bool bold: false
     property int maxLength: 0              // > 0：最多几个字（0.12.3 设置里的名字）
+    property real rightPad: 0              // 1.1.0 右边留给放在框里的按钮（地名搜索的发送键）
     property bool submitOnEnter: false     // 多行时 Enter 发 accepted()、Shift + Enter 换行（0.10.0 就地改日程）
     readonly property alias text: edit.text
     readonly property bool editing: edit.activeFocus
@@ -42,7 +43,7 @@ Item {
     Flickable {
         id: flick
         x: Theme.px(10); y: root.multiline ? Theme.px(7) : 0
-        width: parent.width - Theme.px(20)
+        width: parent.width - Theme.px(20) - root.rightPad
         height: root.multiline ? parent.height - Theme.px(14) : parent.height
         contentWidth: width
         contentHeight: edit.contentHeight

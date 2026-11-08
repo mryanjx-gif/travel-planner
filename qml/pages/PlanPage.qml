@@ -82,8 +82,8 @@ Item {
         elevEdit = -1
     }
     function altWarnText(w) {
-        if (w.kind === "run") return qsTr("到第 %1 站时已经连续 %2 晚在 3000 m 以上往上走，中间没有休整日（建议每 3–4 天一天不往上）").arg(w.stop).arg(w.nights)
-        const head = qsTr("第 %1 → %2 站：睡觉的海拔从 %3 m 升到 %4 m").arg(w.from).arg(w.to).arg(Fmt.num(w.fromE)).arg(Fmt.num(w.toE))
+        if (w.kind === "run") return qsTr("到第 %1 站已连续 %2 晚在 3000 m 以上升高，没有休整日").arg(w.stop).arg(w.nights)
+        const head = qsTr("第 %1 → %2 站：睡眠海拔 %3 → %4 m").arg(w.from).arg(w.to).arg(Fmt.num(w.fromE)).arg(Fmt.num(w.toE))
         return head + (w.days > 1 ? qsTr("（+%1 m，%2 天），超过每天 500 m").arg(Fmt.num(w.gain)).arg(w.days) : qsTr("（+%1 m），超过每天 500 m").arg(Fmt.num(w.gain)))
     }
     function altTagText(t) { return t === "rise" ? qsTr("上升太快") : t === "high" ? qsTr("3000 m 以上") : "" }
@@ -166,7 +166,7 @@ Item {
         const kind = w.docKind === "passport" ? qsTr("护照") : w.docKind === "visa" ? qsTr("签证") : qsTr("其他证件")
         const name = [w.owner, kind, w.label].filter(x => x).join(" · ")
         if (w.kind === "passportExpired") return qsTr("%1 在 %2 已经过期，出发前要换新护照").arg(name).arg(w.expires)
-        if (w.kind === "passport6m") return qsTr("%1 在 %2 到期，离回程（%3）不足 6 个月；很多国家要求护照有效期在 6 个月以上").arg(name).arg(w.expires).arg(w.end)
+        if (w.kind === "passport6m") return qsTr("%1 %2 到期，离回程（%3）不足 6 个月").arg(name).arg(w.expires).arg(w.end)
         return qsTr("%1 在 %2 到期，早于回程（%3）").arg(name).arg(w.expires).arg(w.end)
     }
     function seasonLabel(k) { return k === "best" ? qsTr("最适合") : k === "nice" ? qsTr("不错") : k === "meh" ? qsTr("有点热/人多") : k === "bad" ? qsTr("不推荐") : "" }
@@ -417,7 +417,7 @@ Item {
                     Text {
                         width: parent.width
                         wrapMode: Text.Wrap
-                        text: qsTr("参照 Wilderness Medical Society 2019 年指南：3000 m 以上，睡觉的海拔每天升高不超过 500 m，每 3–4 天休整一天。只是提醒，不是医疗建议。海拔数据来自 90 m 网格的地形数据，可以点站点里的海拔手动改。")
+                        text: qsTr("参照 WMS 2019 指南：3000 m 以上睡眠海拔每天升不超过 500 m，每 3–4 天休整一天。不是医疗建议。")
                         font.family: serifFamily; font.pixelSize: Theme.px(11.5); color: "#8f7440"
                     }
                 }
@@ -619,7 +619,7 @@ Item {
                 objectName: "tripWxRetry"
                 visible: root.tab === "itinerary" && weather.forecastFailed
                 small: true
-                text: qsTr("天气预报没取到（可能没联网，或者服务暂时不可用）· 重试")
+                text: qsTr("天气预报没取到 · 重试")
                 onClicked: weather.retryForecast()
             }
             Item { id: navSpace; width: parent.width; height: root.stepping && root.tab === "itinerary" ? root.navH : 0 }
@@ -638,7 +638,7 @@ Item {
                     visible: root.stops.length > 0 && weather.climateAvailable && !weather.climateShown
                     anchors.right: parent.right
                     small: true
-                    text: weather.climateBusy ? qsTr("取数据中…") : weather.climateError ? qsTr("往年气候没取到（可能没联网，或者服务暂时不可用）· 重试") : qsTr("往年同月气候")
+                    text: weather.climateBusy ? qsTr("取数据中…") : weather.climateError ? qsTr("往年气候没取到 · 重试") : qsTr("往年同月气候")
                     onClicked: if (!weather.climateBusy) weather.fetchClimate()
                 }
             }

@@ -40,14 +40,14 @@ GlassPanel {
     readonly property var footSections: [{ key: "keys", text: qsTr("快捷键") }, { key: "about", text: qsTr("关于") }]
     // 联网服务（Electron prefs.js NET_SERVICES，键名相同）：开关和关于都用这张表
     readonly property var netServices: [
-        { key: "tiles", name: qsTr("地图瓦片"), use: qsTr("地图和地球的卫星图、街道图。关掉后只用“已解锁”底图，存下来的瓦片地球上照常显示。"), who: qsTr("Esri（Esri 及其数据提供方）") },
-        { key: "geocode", name: qsTr("地名搜索"), use: qsTr("编辑器里搜地名、点地图取地名。关掉后可以在地图上点选或手动输入坐标。"), who: qsTr("Nominatim · © OpenStreetMap 贡献者（ODbL）") },
-        { key: "routing", name: qsTr("道路路线"), use: qsTr("自驾、徒步段按道路画线。关掉后已经算好的路线还在，没算的画直线。"), who: qsTr("OSRM（FOSSGIS 服务器 routing.openstreetmap.de）· © OpenStreetMap 贡献者") },
-        { key: "rates", name: qsTr("汇率"), use: qsTr("消费折算成主货币，一天最多更新一次。关掉后继续用上次的。"), who: qsTr("Frankfurter（欧洲央行数据）；失败或缺某种货币时用 open.er-api.com（<a href=\"https://www.exchangerate-api.com\">Rates By Exchange Rate API</a>）") },
+        { key: "tiles", name: qsTr("地图瓦片"), use: qsTr("卫星图和街道图。关掉只用“已解锁”底图。"), who: qsTr("Esri（Esri 及其数据提供方）") },
+        { key: "geocode", name: qsTr("地名搜索"), use: qsTr("搜地名、取地名。关掉可点选或输坐标。"), who: qsTr("Nominatim · © OpenStreetMap 贡献者（ODbL）") },
+        { key: "routing", name: qsTr("道路路线"), use: qsTr("自驾、徒步按道路画线。关掉没算的画直线。"), who: qsTr("OSRM（FOSSGIS 服务器 routing.openstreetmap.de）· © OpenStreetMap 贡献者") },
+        { key: "rates", name: qsTr("汇率"), use: qsTr("消费折算成主货币，一天更新一次。"), who: qsTr("Frankfurter（欧洲央行数据）；失败或缺某种货币时用 open.er-api.com（<a href=\"https://www.exchangerate-api.com\">Rates By Exchange Rate API</a>）") },
         { key: "weather", name: qsTr("天气"), use: qsTr("16 天内出发或正在旅行的计划，显示各站点的预报。"), who: qsTr("Open-Meteo（CC BY 4.0）") },
         { key: "climate", name: qsTr("气候"), use: qsTr("各站点近 10 年同一个月的平均气温和降水。"), who: qsTr("Open-Meteo 历史天气（CC BY 4.0；ERA5 · Copernicus 气候变化服务）") },
-        { key: "elev", name: qsTr("海拔和时区"), use: qsTr("自动补站点的海拔（高反提示用）和时区（日出日落时间用）。"), who: qsTr("Open-Meteo（CC BY 4.0；海拔：Copernicus DEM GLO-90）") },
-        { key: "ai", name: qsTr("AI 助手"), use: qsTr("右下角的 AI 助手，用你自己的 API 钥匙；你问的话会发给你在设置 → AI 里选的那家。"), who: qsTr("你选的那家：Claude（Anthropic）、DeepSeek、通义千问（阿里云百炼）、Kimi（月之暗面）、豆包（火山方舟）或自定义") }
+        { key: "elev", name: qsTr("海拔和时区"), use: qsTr("补站点的海拔和时区。"), who: qsTr("Open-Meteo（CC BY 4.0；海拔：Copernicus DEM GLO-90）") },
+        { key: "ai", name: qsTr("AI 助手"), use: qsTr("AI 助手，用你自己的钥匙。"), who: qsTr("你选的那家：Claude（Anthropic）、DeepSeek、通义千问（阿里云百炼）、Kimi（月之暗面）、豆包（火山方舟）或自定义") }
     ]
     onSectionChanged: { flick.contentY = 0; if (section === "me") mapc.needUnlockCount(); refreshSection() }
     Connections { target: netc; function onTileCacheCleared(ok) { root.toastRequested(ok ? qsTr("地图瓦片缓存已移进回收站，用到时会重新下载。") : qsTr("没能移进回收站，可以稍后再试。"), !ok) } }
@@ -73,7 +73,7 @@ GlassPanel {
         if (rates.busy) return qsTr("正在取汇率…")
         if (rates.date === "") return rates.netOff ? qsTr("汇率的联网已关闭，现在没有汇率") : rates.failed ? qsTr("还没拿到汇率，联网后重新打开计划试试") : qsTr("还没取到")
         const s = qsTr("%1 的汇率（来源：%2，%3 取到）").arg(rates.date).arg(rates.src).arg(Qt.formatDateTime(new Date(rates.updatedAt), "yyyy-MM-dd hh:mm"))
-        return s + (rates.failed ? " · " + qsTr("更新失败（可能没联网，或者汇率服务暂时不可用），用的是上次的") : "")
+        return s + (rates.failed ? " · " + qsTr("更新失败，用的是上次的") : "")
     }
     function docName(d) {
         const kind = d.kind === "passport" ? qsTr("护照") : d.kind === "visa" ? qsTr("签证") : qsTr("其他证件")
@@ -82,7 +82,7 @@ GlassPanel {
     readonly property string emergencySummary: {
         const e = emergency, n = (e.contacts || []).length
         const parts = [e.insurer, e.policyNo ? qsTr("保单 %1").arg(e.policyNo) : "", n === 1 ? qsTr("1 位紧急联系人") : n ? qsTr("%1 位紧急联系人").arg(n) : ""].filter(x => x)
-        return parts.length ? parts.join(" · ") : qsTr("保险、紧急联系人，所有计划共用。当地紧急电话在每个计划的“行李与待办”里填。")
+        return parts.length ? parts.join(" · ") : qsTr("保险和紧急联系人，所有计划共用。")
     }
 
     function refresh() { history = app.historyList() }
@@ -328,7 +328,7 @@ GlassPanel {
                         text: Theme.glassReason === "" ? qsTr("当前：液态")
                             : Theme.glassReason === "pref" ? qsTr("当前：标准 · 设置里选了“标准”")
                             : Theme.glassReason === "motion" ? qsTr("当前：标准 · 动效设成了减少动效（或系统关了动画）")
-                            : Theme.glassReason === "slow" ? qsTr("当前：标准 · 显卡带不动，已自动换成标准玻璃，改一次这里的设置或下次启动时重试")
+                            : Theme.glassReason === "slow" ? qsTr("当前：标准 · 显卡带不动，已自动降级")
                             : qsTr("当前：实色 · 透明效果关了")
                         font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
                     }
@@ -352,7 +352,7 @@ GlassPanel {
                 SettingsRow {
                     width: parent.width
                     label: qsTr("名字")
-                    sub: qsTr("右上角头像显示第一个字；分账里的“我”用这个名字。空着也可以")
+                    sub: qsTr("头像显示第一个字；分账里的“我”。")
                     TpField {
                         objectName: "greetField"
                         width: Theme.px(200)
@@ -364,7 +364,7 @@ GlassPanel {
                 SettingsRow {
                     width: parent.width
                     label: qsTr("所在地国家")
-                    sub: qsTr("地图上“我的位置”拿不到系统定位、又不在旅行中时，先显示这个国家")
+                    sub: qsTr("拿不到定位时先显示这个国家")
                     TpSelect {
                         id: countrySel
                         objectName: "homeCountrySel"
@@ -409,7 +409,7 @@ GlassPanel {
                 Text {
                     width: parent.width
                     wrapMode: Text.Wrap
-                    text: qsTr("这两项下次打开时生效。现在就想换，用地图右上角的图层按钮。")
+                    text: qsTr("下次打开生效。")
                     font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
                 }
                 SettingsRow {
@@ -523,7 +523,7 @@ GlassPanel {
                 Text {
                     width: parent.width
                     wrapMode: Text.Wrap
-                    text: qsTr("填护照、签证的到期日期，计划页会在有效期不够时提醒。不要填证件号码。")
+                    text: qsTr("填护照、签证到期日，不填号码。")
                     font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
                 }
                 Repeater {
@@ -616,7 +616,7 @@ GlassPanel {
                 SettingsRow {
                     width: parent.width
                     label: qsTr("离线模式")
-                    sub: netc.offline ? qsTr("开着：所有联网服务都不用，下面的开关先不起作用。已经存下来的地图、汇率、天气照常显示。")
+                    sub: netc.offline ? qsTr("不用任何联网服务，已存的照常显示。")
                                       : qsTr("开了以后所有联网服务都不用。")
                     Segmented {
                         objectName: "netOffline"
@@ -665,7 +665,7 @@ GlassPanel {
                 SettingsRow {
                     width: parent.width
                     label: qsTr("服务商")
-                    sub: qsTr("你问的话和对话内容会发给这家处理。") + (aiCard.cur.chinaBlocked ? qsTr("中国大陆用不了 Claude。") : "") + (aiCard.cur.untested ? qsTr("自定义服务没有测试过，能不能用要看它是否兼容 OpenAI 接口。") : "")
+                    sub: qsTr("你问的话和对话内容会发给这家处理。") + (aiCard.cur.chinaBlocked ? qsTr("中国大陆用不了 Claude。") : "") + (aiCard.cur.untested ? qsTr("自定义服务没测过，要兼容 OpenAI 接口。") : "")
                     TpSelect {
                         objectName: "aiProvider"
                         width: Theme.px(170)
@@ -678,7 +678,7 @@ GlassPanel {
                 SettingsRow {
                     width: parent.width
                     label: qsTr("API 钥匙")
-                    sub: ai.hasKey ? qsTr("已存在 Windows 凭据管理器（末 4 位 %1）").arg(ai.keyTails[ai.provider]) : qsTr("还没有填。只收开发者平台的 API 钥匙（按用量付费），网页版的会员订阅不能用。")
+                    sub: ai.hasKey ? qsTr("已存在 Windows 凭据管理器（末 4 位 %1）").arg(ai.keyTails[ai.provider]) : qsTr("还没填。只收开发者平台的 API 钥匙。")
                     Row {
                         spacing: Theme.px(6)
                         TpButton { objectName: "aiKeyClear"; visible: ai.hasKey; compact: true; text: qsTr("清除"); onClicked: ai.clearKey() }
@@ -796,7 +796,7 @@ GlassPanel {
                             delegate: TpChip { required property string modelData; text: modelData; on: modelData === ai.model; onClicked: ai.manualModel = modelData }
                         }
                     }
-                    SettingsRow { width: parent.width; label: qsTr("接口地址"); sub: ai.provider === "custom" ? qsTr("兼容 OpenAI 的地址，一般到 /v1 为止（必填）") : qsTr("一般不用改；留空用默认") }
+                    SettingsRow { width: parent.width; label: qsTr("接口地址"); sub: ai.provider === "custom" ? qsTr("接口地址") : qsTr("一般不用改；留空用默认") }
                     TpField {
                         objectName: "aiBaseInput"
                         width: parent.width
@@ -817,15 +817,15 @@ GlassPanel {
                         visible: ai.provider === "custom"
                         width: parent.width
                         wrapMode: Text.Wrap
-                        text: qsTr("单价可以留空：留空只记 token，不算钱，也不算进月上限。")
+                        text: qsTr("单价留空就只记 token、不算钱。")
                         font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
                     }
                 }
                 SettingsRow {
                     width: parent.width
                     label: qsTr("联网搜索")
-                    sub: ai.canWeb ? qsTr("让 AI 查路线、开放时间等最新信息，每轮最多搜 3 次，每次另收一点费用。")
-                                   : qsTr("%1 不能联网搜索，回答只用它已有的知识，回复下面会标“没有联网核实”。").arg(ai.providerName)
+                    sub: ai.canWeb ? qsTr("查最新信息，每轮最多 3 次，另收费。")
+                                   : qsTr("%1 不能联网搜索。").arg(ai.providerName)
                     Segmented {
                         objectName: "aiWeb"
                         enabled: ai.canWeb
@@ -837,7 +837,7 @@ GlassPanel {
                 SettingsRow {
                     width: parent.width
                     label: qsTr("不发消费和订单号")
-                    sub: qsTr("改计划时 AI 会读到当前计划的内容；开着时不发消费、预算、订单号和金额。")
+                    sub: qsTr("开着时不发消费、预算和订单号。")
                     Segmented {
                         objectName: "aiNoMoney"
                         options: [{ key: "off", text: qsTr("关") }, { key: "on", text: qsTr("开") }]
@@ -848,7 +848,7 @@ GlassPanel {
                 SettingsRow {
                     width: parent.width
                     label: qsTr("每月上限")
-                    sub: qsTr("各家按自己的币种计价，用汇率折成%1。到 80% 提醒，到了先停下，可以当场提高。").arg(ai.mainCur)
+                    sub: qsTr("折成%1；到 80% 提醒，到了先停。").arg(ai.mainCur)
                     Row {
                         spacing: Theme.px(6)
                         Text { anchors.verticalCenter: parent.verticalCenter; text: ai.mainCur; font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft }
@@ -909,7 +909,7 @@ GlassPanel {
                 Text {
                     width: parent.width
                     wrapMode: Text.Wrap
-                    text: qsTr("钥匙存在 Windows 凭据管理器里，不放进数据文件夹，导出和备份都不带。")
+                    text: qsTr("钥匙存在 Windows 凭据管理器，不随数据导出。")
                     font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
                 }
             }
@@ -1018,7 +1018,7 @@ GlassPanel {
                     width: parent.width
                     label: qsTr("从 Electron 版导入")
                     sub: app.electronDataDir !== "" ? app.electronDataDir
-                                                    : qsTr("没有找到 Electron 版；导入时可以手动选它的数据文件夹。")
+                                                    : qsTr("没找到 Electron 版，导入时可手动选。")
                     TpButton { text: qsTr("导入…"); compact: true; enabled: app.dataDir !== "" && !app.readOnly && !app.importRunning; onClicked: root.importClicked() }
                 }
                 // 0.14.1：导出分享版（E-07，全部计划）、导入 .trip（E-08）
@@ -1026,14 +1026,29 @@ GlassPanel {
                     objectName: "setShare"
                     width: parent.width
                     label: qsTr("导出分享版")
-                    sub: qsTr("打算把软件连数据一起发给别人时用：复制一份数据，去掉私人内容，只带能分发的照片。")
+                    sub: qsTr("复制一份去掉私人内容的数据给别人。")
                     TpButton { text: qsTr("导出…"); compact: true; enabled: app.dataDir !== ""; onClicked: win.exportShare([]) }
                 }
                 SettingsRow {
                     width: parent.width
                     label: qsTr("导入计划文件 .trip")
-                    sub: qsTr("别人导出的计划；也可以直接把 .trip 文件拖进窗口。")
+                    sub: qsTr("别人导出的计划，也可以拖进窗口。")
                     TpButton { text: qsTr("导入…"); compact: true; enabled: app.dataDir !== "" && !app.readOnly; onClicked: win.importTrip("") }
+                }
+                // 1.1.0 第 9 条：日志打包放桌面
+                SettingsRow {
+                    objectName: "setReport"
+                    width: parent.width
+                    label: qsTr("导出问题报告")
+                    sub: qsTr("日志打包到桌面，不含旅行数据和钥匙。")
+                    TpButton {
+                        objectName: "setReportBtn"
+                        text: qsTr("导出"); compact: true
+                        onClicked: {
+                            const r = app.exportReport(qsTr("图形后端：") + backendApi + (backendReason !== "" ? " · " + backendReason : ""))
+                            root.toastRequested(r.ok ? qsTr("已放到桌面：%1").arg(r.name) : qsTr("没导出来：%1").arg(r.error), !r.ok)
+                        }
+                    }
                 }
                 BackupSection {
                     width: parent.width
@@ -1088,7 +1103,7 @@ GlassPanel {
                     Text {
                         width: parent.width
                         wrapMode: Text.Wrap
-                        text: qsTr("每天第一次保存前自动存一份，保留最近 14 天。改坏了可以从这里恢复。")
+                        text: qsTr("每天自动存一份，留 14 天。")
                         font.family: serifFamily; font.pixelSize: Theme.px(12); lineHeight: 1.2; color: Theme.muted
                     }
                     Text {

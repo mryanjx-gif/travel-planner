@@ -124,7 +124,7 @@ Item {
                         visible: (root.info.spentCount || 0) === 0 && root.trips.length > 0
                         width: parent.width
                         wrapMode: Text.Wrap
-                        text: qsTr("还没有开始的旅程花钱。计划到了开始日期或标记为已完成后，它的花费才算进这里。")
+                        text: qsTr("还没有花费。")
                         font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.muted
                     }
                     Text {

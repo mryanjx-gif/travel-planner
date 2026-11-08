@@ -43,7 +43,7 @@ ModalLayer {
         lineHeight: 1.3
         textFormat: Text.StyledText
         text: root.unused.length > 0
-              ? qsTr("照片文件夹里有 <b>%1 个文件</b>没被任何照片用到（共 %2）：").arg(root.unused.length).arg(root.sizeText(root.scan.unusedBytes || 0))
+              ? qsTr("有 <b>%1 个文件</b>没被照片用到（共 %2）：").arg(root.unused.length).arg(root.sizeText(root.scan.unusedBytes || 0))
                 + root.names(root.unused)
               : qsTr("照片文件夹里没有多余的文件。")
         font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.textSoft
@@ -52,7 +52,7 @@ ModalLayer {
         visible: !photos.trashRunning && root.orphans.length > 0
         width: parent.width
         checked: root.withOrphans
-        text: qsTr("另外 %1 张旋转前的原图，原照片已经不在了（共 %2），也一起清理").arg(root.orphans.length).arg(root.sizeText(root.scan.orphanBytes || 0))
+        text: qsTr("另有 %1 张原图对应的照片已不在（共 %2），一起清理").arg(root.orphans.length).arg(root.sizeText(root.scan.orphanBytes || 0))
         onToggled: (c) => root.withOrphans = c
     }
     Text {

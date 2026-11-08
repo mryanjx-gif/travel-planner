@@ -12,6 +12,7 @@ Item {
     property string text: ""
     property bool on: false
     property bool dark: false
+    property bool whiteText: false    // 1.1.0（PO）：顶栏 ⋯ 泡泡没选中时白字 + 很淡的深色描边（选中照旧）
     property bool interactive: true
     property bool solid: false        // 0.12.10：下面不是地图时（整页上）不折射、接近实底
     property real homeX: 0
@@ -100,14 +101,16 @@ Item {
                 font.family: serifFamily
                 font.pixelSize: Theme.px(13)
                 font.bold: bud.on
-                color: bud.dark && !bud.on ? "#ffffff" : (bud.on ? bud.onColor : Theme.text)
+                color: (bud.dark || bud.whiteText) && !bud.on ? "#ffffff" : (bud.on ? bud.onColor : Theme.text)
+                style: bud.whiteText && !bud.on ? Text.Outline : Text.Normal
+                styleColor: Qt.rgba(0, 0, 0, 0.22)
             }
         }
         TpIcon {
             visible: bud.caret
             name: "down"
             width: Theme.px(12); height: width
-            color: bud.on ? bud.onColor : Theme.muted
+            color: bud.on ? bud.onColor : bud.whiteText ? "#ffffff" : Theme.muted
             anchors.verticalCenter: parent.verticalCenter
         }
         Repeater {

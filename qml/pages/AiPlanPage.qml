@@ -110,7 +110,7 @@ Item {
                 Text {
                     width: parent.width
                     wrapMode: Text.Wrap
-                    text: qsTr("填几项就行，每一步都能跳过。AI 先出一份粗略方案，改动都先给你预览，之后在 AI 助手里接着细化。")
+                    text: qsTr("填几项就行，都能跳过。改动先预览。")
                     font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.textSoft; lineHeight: 1.25
                 }
             }
@@ -216,9 +216,9 @@ Item {
                         width: parent.width
                         spacing: Theme.px(8)
                         StepLabel { text: qsTr("从哪里出发") }
-                        TpField { objectName: "aiPlanFrom"; width: parent.width; placeholder: qsTr("城市，比如 上海"); value: root.fFrom; onEdited: (t) => root.fFrom = t }
+                        TpField { objectName: "aiPlanFrom"; width: parent.width; placeholder: qsTr("出发城市"); value: root.fFrom; onEdited: (t) => root.fFrom = t }
                         StepLabel { text: qsTr("想去哪里") }
-                        TpField { objectName: "aiPlanTo"; width: parent.width; placeholder: qsTr("城市、国家或一条路线，比如 京都、北海道环线"); value: root.fTo; onEdited: (t) => root.fTo = t }
+                        TpField { objectName: "aiPlanTo"; width: parent.width; placeholder: qsTr("目的地"); value: root.fTo; onEdited: (t) => root.fTo = t }
                         StepHint { text: qsTr("还没想好可以跳过，AI 会先问你。") }
                     }
                     // ② 日期或天数
@@ -304,9 +304,9 @@ Item {
                         width: parent.width
                         spacing: Theme.px(8)
                         StepLabel { text: qsTr("一定要去的") }
-                        TpField { objectName: "aiPlanMust"; width: parent.width; multiline: true; maxLines: 4; placeholder: qsTr("地方、店、活动都行，比如 伏见稻荷、岚山小火车"); value: root.fMust; onEdited: (t) => root.fMust = t }
+                        TpField { objectName: "aiPlanMust"; width: parent.width; multiline: true; maxLines: 4; placeholder: qsTr("必去的"); value: root.fMust; onEdited: (t) => root.fMust = t }
                         StepLabel { text: qsTr("不想去的") }
-                        TpField { objectName: "aiPlanAvoid"; width: parent.width; multiline: true; maxLines: 4; placeholder: qsTr("比如 人太多的景点、红眼航班"); value: root.fAvoid; onEdited: (t) => root.fAvoid = t }
+                        TpField { objectName: "aiPlanAvoid"; width: parent.width; multiline: true; maxLines: 4; placeholder: qsTr("不想去的"); value: root.fAvoid; onEdited: (t) => root.fAvoid = t }
                     }
                 }
             }
@@ -348,7 +348,7 @@ Item {
                 visible: ai.hasKey
                 width: parent.width
                 wrapMode: Text.Wrap
-                text: qsTr("会发给 %1（%2）。生成后转到地图上的 AI 助手，新计划要你在预览里勾选、点“应用”才写入。").arg(ai.providerName).arg(ai.model || qsTr("没填模型"))
+                text: qsTr("会发给 %1（%2），在预览里勾选后才写入。").arg(ai.providerName).arg(ai.model || qsTr("没填模型"))
                 font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
             }
         }

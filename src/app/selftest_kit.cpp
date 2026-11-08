@@ -700,7 +700,7 @@ void runNetAbout(Report &r, AppController *app, map::MapController *mapc, QQuick
     r.check(aiBtn && !aiBtn->isVisible(), QStringLiteral("离线时 AI 泡泡不显示（Electron 同样）"));
     QQuickItem *netCard = item(QStringLiteral("setCard-net"));
     const QString netTxt = allText(netCard);
-    r.check(effectivelyShown(netCard) && item(QStringLiteral("netSw-ai")) && item(QStringLiteral("netSw-tiles")) && netTxt.contains(QStringLiteral("都不用")), QStringLiteral("联网分组有 8 项开关，离线时说人话"));
+    r.check(effectivelyShown(netCard) && item(QStringLiteral("netSw-ai")) && item(QStringLiteral("netSw-tiles")) && netTxt.contains(QStringLiteral("不用任何联网")), QStringLiteral("联网分组有 8 项开关，离线时说人话"));
     netc->setOffline(oldOffline);
     settings->setValue(QStringLiteral("net"), oldNet);
     settings->save();

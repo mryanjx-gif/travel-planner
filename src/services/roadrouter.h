@@ -80,6 +80,11 @@ public:
     Q_INVOKABLE void startForIds(const QStringList &planIds);
     Q_INVOKABLE void stop();
     Q_INVOKABLE void recount();    // 重新数一遍还没算的段
+    // 1.1.0 自动算（编辑器、AI 应用、新建的计划）：不问，直接算；没联网 / 编辑器开着就排队，之后每 30 秒和联网开关变化时再试
+    Q_INVOKABLE void autoFor(const QStringList &planIds);
+    Q_INVOKABLE void tryQueue();
+    QStringList queued() const { return m_queue; }
+    void setAutoEnabled(bool on) { m_autoOn = on; if (!on) { m_queue.clear(); m_retry.stop(); } }   // 自检时关掉，免得别的分组触发真的请求、写进数据
     // 截图用（roadbar 页）：假装有 n 段还没算（不动数据）
     Q_INVOKABLE void demoForShot(int n) { m_pending = n; m_dismissed = false; m_demo = true; emit changed(); }
 
@@ -114,6 +119,11 @@ private:
     int m_ok = 0, m_fail = 0, m_total = 0, m_index = 0;
     QVector<tp::map::roads::Pending> m_list;
     QStringList m_only;                   // startFor：只算这些计划
+    QStringList m_queue;                  // 1.1.0 排队等自动算的计划
+    QStringList m_autoIds;                // 这一轮是自动算的哪些计划（空 = 不是自动算）
+    bool m_netFail = false;
+    bool m_autoOn = true;               // 这一轮自动算碰上断网 / 离线
+    QTimer m_retry;
     QSet<QString> m_sessionFail;          // 这次运行里没算出来的（断网、超时……）：不算进"还没算"，下次打开再试
     QHash<QString, QString> m_lastMsg;    // key → 最近一次失败的原因
     QString m_failFile;

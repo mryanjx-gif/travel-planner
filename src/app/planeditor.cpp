@@ -160,13 +160,15 @@ QVariantMap PlanEditor::finish()
     if (m_store->isDirty()) m_app->saveFor(true);
     m_app->endEditGroup();
     const QString id = planId();
-    int failed = 0;
+    int failed = 0, retry = 0;
     for (const pe::LegRow &r : pe::legRows(m_plan))
-        if (r.road && !r.badCoords && !r.computed) ++failed;
+        if (r.road && !r.badCoords && !r.computed) { ++failed; retry += !(m_roads && m_roads->remembered(r.key)); }
     qInfo("编辑器：完成「%s」", qUtf8Printable(str(m_plan, "name")));
     close();
     emit finished(id);
-    if (failed) emit toast(trd("有 %1 段自驾/徒步没算出道路路线，暂按直线显示；可以再打开编辑器重试").arg(failed), true);
+    // 1.1.0：断网等没算出来的段排队，联网后自动补算（第 9 条）
+    if (retry && m_roads) { m_roads->autoFor({ id }); emit toast(trd("有 %1 段路线联网后自动补算").arg(retry), false); }
+    else if (failed) emit toast(trd("有 %1 段自驾/徒步没算出道路路线，暂按直线显示；可以再打开编辑器重试").arg(failed), true);
     return { { QStringLiteral("ok"), true }, { QStringLiteral("planId"), id } };
 }
 

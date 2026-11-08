@@ -37,8 +37,8 @@ Item {
         interval: 60
         onTriggered: root.previewUrl = root.open && root.kind !== "ics" ? exporter.preview(root.planId, root.kind, root.opts, Theme.px(440)) : ""
     }
-    readonly property string problem: kind === "card" && !info.hasEmergency ? qsTr("还没有填紧急信息。在“行李与待办”里填当地电话，在“设置 → 证件与紧急信息”里填保险和联系人。")
-                                      : kind === "ics" && !info.icsCount ? qsTr("这个计划还没有带日期的内容（计划日期、交通住宿、日程），没东西可以导出")
+    readonly property string problem: kind === "card" && !info.hasEmergency ? qsTr("还没有填紧急信息。")
+                                      : kind === "ics" && !info.icsCount ? qsTr("这个计划还没有带日期的内容，没法导出。")
                                       : ""
 
     // 点"导出…"：行程单先看路线（E-10），再选位置
@@ -58,8 +58,8 @@ Item {
         if (!r.ok) { toast.show(qsTr("导出失败：") + r.error, true); return r }
         lastFile = r.file
         open = false
-        const msg = kind === "ics" ? qsTr("已保存：%1（%2 项）。发到手机上打开，或在日历 app 里导入").arg(r.file).arg(r.count)
-                  : r.truncated ? qsTr("已保存：%1。行程太长，长图只放下了前面一部分，完整的请导出 PDF").arg(r.file)
+        const msg = kind === "ics" ? qsTr("已保存：%1（%2 项），可导入日历 app。").arg(r.file).arg(r.count)
+                  : r.truncated ? qsTr("已保存：%1。行程太长，长图只放了前面，完整的请导出 PDF。").arg(r.file)
                   : qsTr("已保存：") + r.file
         toast.show(msg, false)
         return r
@@ -135,7 +135,7 @@ Item {
                     width: parent.width
                     wrapMode: Text.Wrap
                     lineHeight: 1.25
-                    text: qsTr("导入手机日历：计划日期（全天）、交通住宿、每天的日程，共 %1 项。时间按当地时间写，不带时区。").arg(root.info.icsCount || 0)
+                    text: qsTr("计划日期、交通住宿、日程，共 %1 项，按当地时间。").arg(root.info.icsCount || 0)
                     font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft
                 }
                 Text {
@@ -202,7 +202,7 @@ Item {
         property int count: 0
         readonly property bool canNet: !!netc.allowed.routing
         title: count === 1 ? qsTr("还有 1 段路线没按道路算") : qsTr("还有 %1 段路线没按道路算").arg(count)
-        message: qsTr("这些自驾 / 徒步段现在画的是直线。直接导出的话，行程单的路线简图上也是直线。")
+        message: qsTr("这些自驾 / 徒步段还是直线，路线简图上也是直线。")
         cancelKey: "cancel"
         options: [
             { key: "calc", disabled: !canNet, title: qsTr("先算好再导出"),

@@ -105,7 +105,7 @@ GlassPanel {
         }
         Text {
             width: parent.width
-            text: qsTr("在地图上点省份：去过 ↔ 没去过。也可以在这里搜索后打勾。改了自动保存。")
+            text: qsTr("点省份切换去过 / 没去过，自动保存。")
             wrapMode: Text.Wrap
             font.family: serifFamily
             font.pixelSize: Theme.px(12)

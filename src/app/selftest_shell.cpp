@@ -261,8 +261,9 @@ void runShell(Report &r, AppController *app, map::MapController *mapc, QQuickWin
         QQuickItem *menu = item(win, "avatarMenu");
         click(win, item(win, "meBtn"));
         const bool open = waitFor([menu] { return menu && menu->property("open").toBool(); }, 800);
-        const bool items = item(win, "menu-settings") && item(win, "menu-folder") && item(win, "menu-title") && item(win, "menu-quit");
-        r.check(open && items, QStringLiteral("头像菜单：设置、更换数据文件夹、修改窗口标题、退出"), open ? QString() : whereStr(win, item(win, "meBtn")));
+        // 1.1.0（PO）：只留设置、退出
+        const bool items = item(win, "menu-settings") && item(win, "menu-quit") && !item(win, "menu-folder") && !item(win, "menu-title") && !item(win, "menu-importTrip");
+        r.check(open && items, QStringLiteral("头像菜单：设置、退出"), open ? QString() : whereStr(win, item(win, "meBtn")));
         click(win, item(win, "menu-settings"));
         r.check(waitFor([win] { return win->property("settingsOpen").toBool(); }, 800) && !menu->property("open").toBool() && nav->page() == QLatin1String("settings"),
                 QStringLiteral("点\"设置\"：菜单收起、打开设置"));
@@ -430,7 +431,8 @@ void runShell(Report &r, AppController *app, map::MapController *mapc, QQuickWin
             if (flow) flow->setProperty("autoPath", QString());
             pause(300);
         };
-        tripTried(item(win, "menu-importTrip"), QStringLiteral("头像菜单的导入 .trip"));
+        if (QQuickItem *m = item(win, "avatarMenu")) m->setProperty("open", false);   // 1.1.0 菜单里没有导入 .trip 了（设置、Ctrl K 里有）
+        Q_UNUSED(tripTried)
 
         int stubs = 0, tripActs = 0;
         for (const QVariant &v : call(win, "paletteItems").toList()) {

@@ -347,6 +347,7 @@ int main(int argc, char *argv[])
                               : QFileInfo(settings.path()).absolutePath() + QStringLiteral("/road-fail.json"));
     roads.setSave([&ctl](bool quiet) { return ctl.saveFor(quiet); });
     roads.setStore(&store);
+    roads.setAutoEnabled(!testRun);   // 1.1.0 自检只在 v11 分组里打开
     QObject::connect(&ctl, &tp::app::AppController::langChanged, &roads, &tp::services::RoadRouter::changed);
     ctl.startup(tempData);
     tp::app::perf::startup("读数据");
@@ -387,6 +388,9 @@ int main(int argc, char *argv[])
     editor.setGeocoder(&geocoder);
     roads.setBlocker([&editor] { return editor.isOpen() ? tp::tr("请先完成或放弃编辑器里的改动，再批量计算") : QString(); });
     QObject::connect(&roads, &tp::services::RoadRouter::message, &ctl, &tp::app::AppController::toast);
+    QObject::connect(&ai, &tp::app::AiController::routeNeeded, &roads, &tp::services::RoadRouter::autoFor);   // 1.1.0 自动算路
+    QObject::connect(&netc, &tp::app::NetController::changed, &roads, &tp::services::RoadRouter::tryQueue);
+    QObject::connect(&editor, &tp::app::PlanEditor::openChanged, &roads, &tp::services::RoadRouter::tryQueue);
     tp::app::Locator locator(&settings, &store, &mapc);
     locator.setToday([&plans] { return plans.today(); });
     // 0.8.8：页面的前进 / 后退（S-13）、Ctrl K 的排序（S-12）
@@ -395,12 +399,20 @@ int main(int argc, char *argv[])
     tp::app::CommandRanker commands;
     // 0.13.1 AI 改计划：当前页 / 当前计划（详情页打开的，否则地图上选中的）/ 今天；应用时删掉了选中的计划就取消选中
     ai.setPlanContext(&ctl, &store, &geocoder,
-        [&nav, &planPage, &mapc, &plans] {
+        [&nav, &planPage, &mapc, &plans, &editor] {
             const QString page = nav.page();
-            return QVariantMap{ { QStringLiteral("page"), page }, { QStringLiteral("today"), plans.today() },
-                                { QStringLiteral("planId"), page == QLatin1String("trip") ? planPage.planId() : mapc.markers()->selectedPlan() } };
+            // 1.1.0 编辑器开着（AI 面板并排）时说的就是编辑器里那个计划
+            const QString pid = editor.isOpen() ? editor.planId() : page == QLatin1String("trip") ? planPage.planId() : mapc.markers()->selectedPlan();
+            return QVariantMap{ { QStringLiteral("page"), page }, { QStringLiteral("today"), plans.today() }, { QStringLiteral("planId"), pid } };
         },
         [&mapc](const QStringList &ids) { if (ids.contains(mapc.markers()->selectedPlan())) mapc.markers()->clearSelection(); });
+    // 1.1.0 编辑器开着时应用：先完成编辑（存成一步），应用完再打开
+    ai.setEditorHooks([&editor]() -> QString {
+            QVariantMap r = editor.finish();
+            if (r.value(QStringLiteral("ask")).toString() == QLatin1String("single")) { editor.keepSingle(); r = editor.finish(); }
+            return r.value(QStringLiteral("ok")).toBool() ? r.value(QStringLiteral("planId")).toString() : QString();
+        },
+        [&editor](const QString &id) { editor.openPlan(id); });
     tp::app::perf::startup("控制器都建好");
 
     if (lastCrash.found)

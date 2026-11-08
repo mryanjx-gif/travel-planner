@@ -19,6 +19,9 @@ Item {
     property var expanded: ({})          // 站点 id → 展开着
     property var moreOpen: ({})          // 站点 id → "坐标和样式"展开着
     signal finishRequested()
+    signal aiRequested()                 // 1.1.0 顶部 AI：空计划开向导，有内容开 AI 面板并排
+    property bool showAi: false
+    property bool aiOn: false
     signal discardRequested()
     signal deletePlanRequested()
     signal deleteStopRequested(int index, string name)
@@ -137,13 +140,26 @@ Item {
         TpField {
             id: nameField
             objectName: "edName"
-            width: parent.width - closeBtn.width - Theme.px(8)
+            width: parent.width - closeBtn.width - (aiEdBtn.visible ? aiEdBtn.width + Theme.px(2) : 0) - Theme.px(8)
             height: parent.height
             fontSize: 18; bold: true
             value: root.plan.name || ""
-            placeholder: qsTr("计划名称，例如：京都赏枫")
+            placeholder: qsTr("计划名称")
             bad: !!root.problems.name
             onEdited: (t) => editor.setField("name", t)
+        }
+        Rectangle {
+            id: aiEdBtn
+            objectName: "edAi"
+            visible: root.showAi
+            anchors.right: closeBtn.left; anchors.rightMargin: Theme.px(2); anchors.verticalCenter: parent.verticalCenter
+            width: Theme.px(34); height: width; radius: width / 2
+            color: root.aiOn ? Theme.accentSoft : aiMa.containsMouse ? Qt.rgba(22 / 255, 32 / 255, 42 / 255, 0.06) : "transparent"
+            TpIcon { anchors.centerIn: parent; name: "spark"; color: Theme.accentInk; width: Theme.px(19); height: width }
+            TpTip { text: qsTr("AI 助手"); show: aiMa.containsMouse }
+            MouseArea { id: aiMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.aiRequested() }
+            Accessible.role: Accessible.Button
+            Accessible.name: qsTr("AI 助手")
         }
         Rectangle {
             id: closeBtn
@@ -280,7 +296,7 @@ Item {
                             }
                         }
                         Err { text: root.problems.date || "" }
-                        Label { text: qsTr("地图标记（颜色、外形、图标；路线的站点可在站点的「坐标和样式」里单独改）") }
+                        Label { text: qsTr("地图标记") }
                         Flow {
                             width: parent.width; spacing: Theme.px(8)
                             MarkerShape { color: root.plan.effColor || "#e8590c"; shape: root.plan.effShape || "circle"; icon: root.plan.icon || ""; size: Theme.px(24) }
@@ -369,10 +385,24 @@ Item {
                     id: searchField
                     objectName: "edSearch"
                     width: parent.width - pickBtn.width - coordBtn.width - Theme.px(12)
-                    placeholder: qsTr("搜索地名添加，例如 Kyoto、Eiffel Tower")
+                    placeholder: qsTr("请输入地名")
                     onAccepted: editor.search(text)
                     onEdited: (t) => { if (t.trim() === "") editor.clearSearch() }
                     onEscaped: editor.clearSearch()
+                    rightPad: Theme.px(26)
+                    // 1.1.0 第 4 条：框里最右的圆形发送键（没输入时灰），点了等于回车
+                    Rectangle {
+                        objectName: "edSearchGo"
+                        anchors.right: parent.right; anchors.rightMargin: Theme.px(5)
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: Theme.px(26); height: width; radius: width / 2
+                        readonly property bool has: searchField.text.trim() !== ""
+                        color: has ? Theme.accent : Theme.faint
+                        Accessible.role: Accessible.Button
+                        Accessible.name: qsTr("搜索")
+                        TpIcon { anchors.centerIn: parent; width: Theme.px(15); height: width; name: "send"; color: "#ffffff"; stroke: 2.2 }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (parent.has) editor.search(searchField.text) }
+                    }
                 }
                 ToolBtn { id: pickBtn; objectName: "edPick"; icon: "pick"; text: qsTr("点选"); on: editor.pickMode; tip: editor.pickMode ? qsTr("点选中…（点此退出）") : qsTr("在地图上点选"); onClicked: editor.pickMode = !editor.pickMode }
                 ToolBtn {
@@ -409,7 +439,7 @@ Item {
                         x: Theme.px(6); width: parent.width - Theme.px(12)
                         wrapMode: Text.Wrap
                         topPadding: Theme.px(4); bottomPadding: Theme.px(4)
-                        text: qsTr("搜不到：%1。可以改用「点选」在地图上点一下，或者「坐标」手动输入。").arg(editor.searchError)
+                        text: qsTr("搜不到：%1。可以点选或输入坐标。").arg(editor.searchError)
                         font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.danger
                     }
                     LinkText {
@@ -703,7 +733,7 @@ Item {
                                                 Text { text: qsTr("经度"); anchors.verticalCenter: parent.verticalCenter; font.family: serifFamily; font.pixelSize: Theme.px(11.5); color: Theme.muted }
                                                 TpField { id: lngIn; width: Theme.px(110); value: String(stopItem.modelData.lng); bad: stopItem.modelData.bad; onAccepted: editor.setStopCoord(stopItem.index, latIn.text, lngIn.text); onEditingChanged: if (!editing) editor.setStopCoord(stopItem.index, latIn.text, lngIn.text) }
                                             }
-                                            Label { visible: root.route; text: qsTr("样式（颜色也决定从这一站出发那段线的颜色；不设置就跟随计划）") }
+                                            Label { visible: root.route; text: qsTr("样式（不设就跟随计划）") }
                                             Flow {
                                                 visible: root.route
                                                 width: parent.width; spacing: Theme.px(8)

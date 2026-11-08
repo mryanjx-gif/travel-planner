@@ -727,8 +727,6 @@ Window {
         hidePageLabel: !win.wide && !win.fullPageOpen   // 0.12.10：整页不再自己写页名，名字一直留在 ⋯ 上
         overPage: win.fullPageOpen
         onNewClicked: win.newPlan()
-        showAi: netc.allowed.ai
-        onAiPlanClicked: win.goPage("aiplan")
     }
 
     // 点 ⋯ 里的一颗（Electron：点一颗 = 去那一页；点当前页那一颗 = 回地图）。0.8.10：点当前模式那一颗 = 回"计划"
@@ -767,11 +765,8 @@ Window {
                                 .concat([{ key: "page:library", text: qsTr("计划库") }, { key: "page:album", text: qsTr("相册") }])
                                 .concat(win.nowKind !== "none" ? [{ key: "now", text: topBar.nowLabel }] : [])
                                 .concat([{ sep: true }])).concat([
+            // 1.1.0（PO）：只留设置、退出；导入 .trip、更换数据文件夹、窗口标题都在设置里
             { key: "settings", text: qsTr("设置") },
-            { key: "importTrip", text: qsTr("导入 .trip") },
-            { sep: true },
-            { key: "folder", text: qsTr("更换数据文件夹…") },
-            { key: "title", text: qsTr("修改窗口标题…") },
             { sep: true },
             { key: "quit", text: qsTr("退出"), kbd: "Ctrl Q" }
         ])
@@ -793,7 +788,7 @@ Window {
     readonly property real rightColX: win.width - win.gap - (win.settingsOpen ? settings.width + win.gap
                                                         : win.tripOpen ? planPanel.width + win.gap
                                                         : win.drawerMode ? 0
-                                                        : win.editorShown ? planEditor.width + win.gap
+                                                        : win.editorShown ? planEditor.width + win.gap + (win.aiBeside && !win.aiOver ? aiPanel.width + win.gap : 0)
                                                         : win.sheetOpen ? planSheet.targetW + win.gap : 0)
     LayerBubbles {
         id: layers
@@ -1181,7 +1176,7 @@ Window {
     PhotoAssignDialog {
         id: photoAssign
         objectName: "photoAssign"
-        onAssigned: (n, plan, stop) => toast.show(Fmt.one(qsTr("%1 张已归到「%2」· %3（照片文件留在原位置，不用挪）").arg(n).arg(plan).arg(stop)), false, qsTr("撤销"), () => app.undo())
+        onAssigned: (n, plan, stop) => toast.show(Fmt.one(qsTr("%1 张已归到「%2」· %3").arg(n).arg(plan).arg(stop)), false, qsTr("撤销"), () => app.undo())
     }
     // 0.11.0 批量删除（L-08：列前 8 个名字，照片不删）
     MessageDialog {
@@ -1197,7 +1192,7 @@ Window {
             }
             title = qsTr("删除 %1 个计划").arg(list.length)
             paragraphs = [names.slice(0, 8).join("<br>") + (names.length > 8 ? "<br>" + qsTr("…… 共 %1 个计划").arg(names.length) : ""),
-                          qsTr("删除后可以按 Ctrl+Z 撤销。计划里的照片文件不会删除，还在照片库里。")]
+                          qsTr("可以 Ctrl+Z 撤销，照片文件不删。")]
             open = true
         }
         buttons: [{ key: "cancel", text: qsTr("取消") }, { key: "ok", text: qsTr("删除"), kind: "danger" }]
@@ -1294,6 +1289,15 @@ Window {
         Behavior on x { enabled: Theme.motion; TpAnim { shown: win.editorShown } }
         Behavior on y { enabled: Theme.motion && !win.drawerDragging; TpAnim { shown: win.editorShown } }
         onFinishRequested: win.finishEditor()
+        // 1.1.0 顶部 AI（PO）：空计划 → 整页向导（新的先放弃、已有的先完成）；有内容 → AI 面板贴在编辑器左边
+        showAi: netc.allowed.ai
+        aiOn: aiPanel.open
+        onAiRequested: {
+            if (aiPanel.open) { aiPanel.open = false; return }
+            if (win.planEditor_stops() > 0) { aiPanel.open = true; return }
+            if (editor.isNew) editor.discard(); else { const r = editor.finish(); if (!r.ok) { win.finishEditor(); return } }
+            win.goPage("aiplan")
+        }
         onDiscardRequested: editorDialog.ask("discard", -1, "")
         onDeletePlanRequested: editorDialog.ask("deletePlan", -1, editor.plan.name || "")
         onDeleteStopRequested: (i, name) => editorDialog.ask("deleteStop", i, name)
@@ -1368,6 +1372,7 @@ Window {
         if (win.globeMode) win.leaveGlobeForEditor(() => { win.updateInsets(); editor.fitPlan() })
         else Qt.callLater(() => { win.updateInsets(); editor.fitPlan() })
     }
+    function planEditor_stops() { return (editor.plan.stops || []).length }
     function finishEditor() {
         const r = editor.finish()
         if (r.ok) return
@@ -1399,9 +1404,9 @@ Window {
         title: kind === "deleteStop" ? qsTr("删除站点") : kind === "deletePlan" ? qsTr("删除计划") : kind === "single" ? qsTr("类型确认")
              : kind === "discard" ? qsTr("放弃这次的修改") : qsTr("还不能保存")
         paragraphs: kind === "deleteStop" ? [qsTr("确定删除「%1」吗？").arg(name || qsTr("未命名站点"))]
-                  : kind === "deletePlan" ? [qsTr("确定删除「%1」吗？").arg(name || qsTr("未命名计划")), qsTr("删除后可以按 Ctrl+Z 撤销。计划里的照片文件不会删除，还在照片库里。")]
-                  : kind === "single" ? [qsTr("这个计划有多个站点，但类型是「单一目的地」，地图上会画成多个独立标记而不是路线。要改成「路线」吗？")]
-                  : kind === "discard" ? [qsTr("恢复成打开编辑器时的样子吗？这次改的都会丢掉（新建的计划会删掉）。")]
+                  : kind === "deletePlan" ? [qsTr("确定删除「%1」吗？").arg(name || qsTr("未命名计划")), qsTr("可以 Ctrl+Z 撤销，照片文件不删。")]
+                  : kind === "single" ? [qsTr("站点不止一个，改成「路线」吗？")]
+                  : kind === "discard" ? [qsTr("恢复到打开时的样子？这次的改动会丢掉（新建的计划会删掉）。")]
                   : [name, qsTr("现在关闭会放弃这次的修改。")]
         buttons: kind === "deleteStop" || kind === "deletePlan" ? [{ key: "cancel", text: qsTr("取消") }, { key: "ok", text: qsTr("删除"), kind: "danger" }]
                : kind === "single" ? [{ key: "cancel", text: qsTr("保持单一目的地") }, { key: "ok", text: qsTr("改成路线"), kind: "primary" }]
@@ -1432,10 +1437,12 @@ Window {
         mapc.setInsets(Math.max(nowCard.visible && win.width > 1100 ? nowCard.x + nowCard.width : 0,
                                 planList.open ? planList.x + planList.width : 0),
                        win.topH,
-                       side ? (win.editorShown ? planEditor.width : planSheet.targetW) + win.gap : 0,
+                       side ? (win.editorShown ? planEditor.width + (win.aiBeside && !win.aiOver ? aiPanel.width + win.gap : 0) : planSheet.targetW) + win.gap : 0,
                        drawer ? win.drawerH : statusPill.visible ? win.height - statusPill.y : 0)
     }
     onEditorShownChanged: updateInsets()
+    onAiBesideChanged: updateInsets()
+    onAiOverChanged: updateInsets()
     onDrawerModeChanged: updateInsets()
     onSheetOpenChanged: updateInsets()
     onWidthChanged: updateInsets()
@@ -1476,7 +1483,7 @@ Window {
         function ask(k, id, name) { kind = k; planId = id; planName = name || qsTr("未命名计划"); open = true }
         title: kind === "delete" ? qsTr("删除计划") : qsTr("标记为已完成")
         paragraphs: kind === "delete"
-            ? [qsTr("确定删除「%1」吗？").arg(planName), qsTr("删除后可以按 Ctrl+Z 撤销。计划里的照片文件不会删除，还在照片库里。")]
+            ? [qsTr("确定删除「%1」吗？").arg(planName), qsTr("可以 Ctrl+Z 撤销，照片文件不删。")]
             : [qsTr("「%1」的日期已经过了。标记为“已完成”吗？").arg(planName)]
         buttons: kind === "delete" ? [{ key: "cancel", text: qsTr("取消") }, { key: "ok", text: qsTr("删除"), kind: "danger" }]
                                    : [{ key: "cancel", text: qsTr("取消") }, { key: "ok", text: qsTr("标记为已完成"), kind: "primary" }]
@@ -1555,17 +1562,23 @@ Window {
     TripFlow {   // 0.14.1 .trip、分享版、批量导出、拖入导入
         id: tripFlow
     }
+    // 1.1.0 第 7 条：编辑器开着时 AI 面板贴在编辑器左边、地图让位；放不下（< 1100 或抽屉）就盖在编辑器上，顶部"回到编辑"
+    readonly property bool aiBeside: aiPanel.open && win.editorShown
+    readonly property bool aiOver: win.aiBeside && (win.drawerMode || win.width < 1100)
     AiPanel {
         id: aiPanel
-        width: Math.min(Theme.px(400), win.width - 2 * win.gap)
-        height: Math.max(Theme.px(320), Math.min(Theme.px(620), aiBtn.y - Theme.px(210)))   // 顶上让开右边的缩放按钮
-        x: win.width - width - win.gap
-        y: aiBtn.y - height - Theme.px(10)
-        z: 14
+        width: win.aiOver ? planEditor.width : Math.min(Theme.px(400), win.width - 2 * win.gap)
+        height: win.aiBeside ? planEditor.height : Math.max(Theme.px(320), Math.min(Theme.px(620), aiBtn.y - Theme.px(210)))   // 顶上让开右边的缩放按钮
+        x: win.aiOver ? planEditor.x : win.aiBeside ? planEditor.x - width - win.gap : win.width - width - win.gap
+        y: win.aiBeside ? planEditor.y : aiBtn.y - height - Theme.px(10)
+        z: win.aiOver ? 16 : 14
+        backEdit: win.aiOver
+        onBackRequested: open = false
         onCloseRequested: open = false
         onSettingsRequested: { open = false; goPage("settings"); settings.showSection("ai") }
         onToastRequested: (t, e) => toast.show(t, e)
-        Connections { target: aiBtn; function onVisibleChanged() { if (!aiBtn.visible) aiPanel.open = false } }   // 离线、关了 AI、打开右侧面板时跟着收起
+        Connections { target: aiBtn; function onVisibleChanged() { if (!aiBtn.visible && !win.editorShown) aiPanel.open = false } }
+        Connections { target: win; function onEditorShownChanged() { if (!win.editorShown && !aiBtn.visible) aiPanel.open = false } }   // 离线、关了 AI、打开右侧面板时跟着收起
     }
     // ---- 0.8.9 我的位置（M-26，PO 选 A：右下角单独一颗）----
     Item {
@@ -1615,7 +1628,7 @@ Window {
             warning: true
             closable: false
             title: qsTr("数据文件读不出来，已暂停保存")
-            detail: qsTr("为了不覆盖原文件，现在只能看、不能改。可以从历史版本或 travel.backup.json 恢复。") + "\n" + app.loadError
+            detail: qsTr("只能看、不能改，以免覆盖原文件。可从历史版本恢复。") + "\n" + app.loadError
             TpButton { text: qsTr("打开数据文件夹"); compact: true; onClicked: app.openDataFolder() }
             TpButton { text: qsTr("历史版本…"); compact: true; kind: "primary"; onClicked: win.goPage("settings") }
         }
@@ -1625,14 +1638,14 @@ Window {
             warning: true
             closable: false
             title: qsTr("这份数据是更新版本的旅行计划写的")
-            detail: qsTr("数据格式版本 %1，这个版本只认识到 %2。为了不弄乱数据，现在只能看、不能改。请先更新软件。").arg(app.newerVersion ? app.fileVersion : 2).arg(1)
+            detail: qsTr("数据版本 %1，本软件只认到 %2。请先更新软件，现在只能看。").arg(app.newerVersion ? app.fileVersion : 2).arg(1)
         }
         Banner {
             width: parent.width
             visible: app.lockedByOther && !app.newerVersion || shotPage === "ui-locked"
             closable: false
             title: qsTr("这份数据正在别处打开")
-            detail: qsTr("%1 正开着这份数据，现在只能看、不能改。那边关掉以后，这里会自动恢复编辑。").arg(app.lockOwner !== "" ? app.lockOwner : qsTr("%1 上的旅行计划 %2").arg("LAPTOP-JASON").arg("0.6.0"))
+            detail: qsTr("%1 正开着这份数据，现在只能看。那边关了会自动恢复。").arg(app.lockOwner !== "" ? app.lockOwner : qsTr("%1 上的旅行计划 %2").arg("LAPTOP-JASON").arg("0.6.0"))
             TpButton { text: qsTr("仍然编辑…"); compact: true; onClicked: takeOverDialog.open = true }
         }
         // 底图瓦片连续 8 次没取到（0.8.5，M-04；Electron map.on('error') → showBanner(…, '切到已解锁')）
@@ -1642,7 +1655,7 @@ Window {
             width: parent.width
             visible: mapc.tileBanner && (win.globeMode ? globe.base !== "unlock" : mapc.base !== "unlock")
             warning: true
-            title: qsTr("当前底图加载失败（可能没联网，或服务方限流、改了政策）。可以换成不用联网的「已解锁」底图。")
+            title: qsTr("底图加载失败，可换成离线的「已解锁」底图。")
             onCloseClicked: mapc.dismissTileBanner()
             TpButton { objectName: "tileRetry"; text: qsTr("重试"); compact: true; onClicked: mapc.retryTiles() }
             TpButton { text: qsTr("切到已解锁"); compact: true; kind: "primary"; onClicked: win.pickBase("unlock") }
@@ -1784,7 +1797,7 @@ Window {
         onPeopleRequested: peopleDialog.show()
         onNotice: (t) => toast.show(t, false)
         onSaveTemplateRequested: {
-            tplDialog.paragraphs = [qsTr("用这份清单（%1 项）替换原来的模板，以后别的计划可以“从模板添加”。").arg(planPage.info.kit.packing.length)]
+            tplDialog.paragraphs = [qsTr("用这份清单（%1 项）替换原来的模板？").arg(planPage.info.kit.packing.length)]
             tplDialog.open = true
         }
         onEditLocalEmergency: emergencyDialog.showLocal(planPage.info.kit)
@@ -1830,7 +1843,7 @@ Window {
         id: photoRemoveDialog
         objectName: "photoRemoveDialog"
         title: qsTr("从计划里移除这张照片？")
-        paragraphs: [qsTr("只是从计划里去掉，照片文件还留在数据文件夹的 photos 里（不会删文件）。")]
+        paragraphs: [qsTr("只从计划里去掉，照片文件不删。")]
         buttons: [{ key: "cancel", text: qsTr("取消") }, { key: "ok", text: qsTr("移除"), kind: "danger" }]
         property string planId: ""
         property string photoId: ""
@@ -2155,7 +2168,7 @@ Window {
         title: mode === "missing" ? qsTr("找不到数据文件夹") : qsTr("数据放在哪？")
         message: mode === "missing"
                  ? (app.missingDir !== "" ? qsTr("上次用的数据文件夹不见了：") + app.missingDir : qsTr("还没有可用的数据文件夹。"))
-                 : qsTr("这台电脑上有 Electron 版旅行计划的数据。原生版用自己的数据文件夹，可以把 Electron 版的计划和照片导入进来（Electron 版的数据不会被改动）。")
+                 : qsTr("发现 Electron 版的数据，可以导入（不会改动它）。")
         options: {
             const o = []
             if (app.electronDataDir !== "")
@@ -2191,7 +2204,7 @@ Window {
         message: dir
         cancelKey: "cancel"
         options: [
-            { key: "create", title: qsTr("在这里新建空数据"), detail: qsTr("建一个空的 travel.json 和 photos 文件夹。") },
+            { key: "create", title: qsTr("在这里新建空数据"), detail: qsTr("新建空数据。") },
             { key: "again", title: qsTr("重新选择"), detail: "" }
         ]
         onChosen: (key) => {
@@ -2213,11 +2226,11 @@ Window {
     ChoiceDialog {
         id: conflictDialog
         title: qsTr("数据文件被别处改过")
-        message: qsTr("打开之后，数据文件夹里的 travel.json 被别的程序改过（比如另一个旅行计划窗口）。这次保存要怎么办？")
+        message: qsTr("travel.json 被别的程序改过。这次保存怎么办？")
         cancelKey: "keep"
         options: [
-            { key: "keep", title: qsTr("先不保存"), detail: qsTr("改动留在窗口里。之后可以重新加载看最新数据（没保存的改动会丢）。") },
-            { key: "force", title: qsTr("仍然保存，覆盖别处的改动"), detail: qsTr("用窗口里的数据覆盖。被覆盖的那一版存成 travel.backup.json，可以找回。"), danger: true }
+            { key: "keep", title: qsTr("先不保存"), detail: qsTr("改动留在窗口里；重新加载会丢掉没保存的改动。") },
+            { key: "force", title: qsTr("仍然保存，覆盖别处的改动"), detail: qsTr("用窗口里的数据覆盖，被覆盖的存成 travel.backup.json。"), danger: true }
         ]
         onChosen: (key) => {
             open = false
@@ -2234,11 +2247,11 @@ Window {
         cardWidth: 540
         title: qsTr("关闭前没能保存")
         paragraphs: conflict
-            ? [qsTr("travel.json 在打开之后被别处改过，窗口里的改动还没存进去。"),
-               qsTr("<b>另存一份后退出</b>：travel.json 不动，窗口里的数据存成 travel.unsaved-日期-时间.json，放在数据文件夹里，以后可以手动合并。"),
-               qsTr("<b>仍然保存并退出</b>：覆盖别处的改动（被覆盖的那一版存成 travel.backup.json）。")]
+            ? [qsTr("travel.json 被别处改过，窗口里的改动还没存。"),
+               qsTr("<b>另存一份后退出</b>：存成 travel.unsaved-日期-时间.json，以后可手动合并。"),
+               qsTr("<b>仍然保存并退出</b>：覆盖别处的改动（旧版存成 travel.backup.json）。")]
             : [qsTr("保存失败：") + error,
-               qsTr("<b>另存一份后退出</b>：travel.json 不动，窗口里的数据存成 travel.unsaved-日期-时间.json，放在数据文件夹里。")]
+               qsTr("<b>另存一份后退出</b>：存成 travel.unsaved-日期-时间.json。")]
         buttons: conflict
             ? [{ key: "cancel", text: qsTr("取消") }, { key: "force", text: qsTr("仍然保存并退出"), kind: "dangerOutline" }, { key: "copy", text: qsTr("另存一份后退出"), kind: "primary" }]
             : [{ key: "cancel", text: qsTr("取消") }, { key: "copy", text: qsTr("另存一份后退出"), kind: "primary" }]
@@ -2255,7 +2268,7 @@ Window {
         property var entry: null
         title: qsTr("恢复到这一天的版本？")
         paragraphs: entry ? [settings.dateText(entry.date) + " · " + qsTr("%1 个计划").arg(entry.plans),
-                             qsTr("现在的 travel.json 会先存成 travel.backup.json，然后换成这一版。")] : []
+                             qsTr("现在的数据先存成 travel.backup.json，再换成这一版。")] : []
         buttons: [{ key: "cancel", text: qsTr("取消") }, { key: "restore", text: qsTr("恢复"), kind: "primary" }]
         onChosen: (key) => {
             open = false
@@ -2276,10 +2289,10 @@ Window {
         title: qsTr("上次旅行计划意外退出了")
         paragraphs: {
             const p = [qsTr("错误码：%1").arg("<b>" + (crash.code || "") + "</b>"),
-                       crash.dump ? qsTr("请把错误码发给 Jason；方便的话，把日志文件夹里的 %1 也一起发过去，能帮忙找到原因。").arg(crash.dump)
+                       crash.dump ? qsTr("请把错误码和日志里的 %1 发给 Jason。").arg(crash.dump)
                                  : qsTr("请把错误码发给 Jason。"),
                        qsTr("没保存的改动可能丢了。")]
-            if (crash.gl) p.push(qsTr("这次已自动改用 OpenGL 显示（上次用 Vulkan 启动时出的问题）。"))
+            if (crash.gl) p.push(qsTr("上次 Vulkan 出了问题，这次改用 OpenGL。"))
             return p
         }
         buttons: [{ key: "copy", text: qsTr("复制错误信息") }, { key: "logs", text: qsTr("打开日志文件夹") }, { key: "ok", text: qsTr("知道了"), kind: "primary" }]
@@ -2298,7 +2311,7 @@ Window {
         id: electronFolderDialog
         property string dir: ""
         title: qsTr("这是 Electron 版的数据文件夹")
-        message: dir + "\n" + qsTr("原生版用自己的数据文件夹，不在这里写东西。可以把它导入到现在的数据里（Electron 版的数据不会被改动）。")
+        message: dir + "\n" + qsTr("可以导入到现在的数据里（不改动 Electron 版）。")
         cancelKey: "cancel"
         options: {
             const o = []
@@ -2319,14 +2332,14 @@ Window {
         property string src: ""
         cardWidth: 480
         title: qsTr("从 Electron 版导入")
-        message: (src !== "" ? qsTr("来源：") + src + "\n" : qsTr("没有找到 Electron 版的数据文件夹，请先选一个。") + "\n")
-                 + qsTr("Electron 版的数据不会被改动；照片会复制一份到现在的数据文件夹。")
+        message: (src !== "" ? qsTr("来源：") + src + "\n" : qsTr("没找到 Electron 版的数据，请选一个文件夹。") + "\n")
+                 + qsTr("不改动 Electron 版；照片复制一份过来。")
         cancelKey: "cancel"
         options: {
             const o = []
             if (src !== "") {
                 o.push({ key: "add", title: qsTr("只加新的（推荐）"), detail: qsTr("只加入这里还没有的计划；已经有的跳过。") })
-                o.push({ key: "replace", title: qsTr("替换全部"), detail: qsTr("用 Electron 版的数据换掉这里现有的数据。现在的数据先备份成 travel.before-import-日期-时间.json。"), danger: true })
+                o.push({ key: "replace", title: qsTr("替换全部"), detail: qsTr("用 Electron 版的数据替换现有数据（先备份成 travel.before-import-日期-时间.json）。"), danger: true })
             }
             o.push({ key: "pick", title: qsTr("选择 Electron 版的数据文件夹…"), detail: "" })
             return o
@@ -2341,11 +2354,11 @@ Window {
     }
     FolderDialog {
         id: electronPick
-        title: qsTr("选择 Electron 版的数据文件夹（里面有 data.js）")
+        title: qsTr("选择 Electron 版的数据文件夹")
         currentFolder: importDialog.src !== "" ? "file:///" + importDialog.src.replace(/\\/g, "/") : ""
         onAccepted: {
             const dir = app.localPath(selectedFolder)
-            if (!app.isElectronFolder(dir)) { toast.show(qsTr("这个文件夹里没有 Electron 版的 data.js"), true); return }
+            if (!app.isElectronFolder(dir)) { toast.show(qsTr("这里没有 Electron 版的 data.js"), true); return }
             importDialog.src = dir
             importDialog.open = true
         }
@@ -2383,11 +2396,11 @@ Window {
                 else { p.push(qsTr("出错了：") + (r.error || "")); p.push(qsTr("数据没有变。")) }
                 return p
             }
-            p.push(qsTr("导入了 %1 个计划、%2 个站点、%3 张照片、%4 篇游记。").arg(r.plans).arg(r.stops).arg(r.photos).arg(r.journal))
+            p.push(qsTr("导入了 %1 个计划、%2 站、%3 张照片、%4 篇游记。").arg(r.plans).arg(r.stops).arg(r.photos).arg(r.journal))
             if (r.plansSkipped > 0) p.push(qsTr("已经有的 %1 个计划跳过了。").arg(r.plansSkipped))
             if (r.backupName) p.push(qsTr("原来的数据备份成了 %1。").arg(r.backupName))
             if (r.missingCount > 0) p.push(qsTr("<b>%1 张照片找不到文件</b>（记录保留了，显示为缺图）：").arg(r.missingCount) + r.missing.join("、") + (r.missingCount > r.missing.length ? qsTr(" 等") : ""))
-            if (r.unusedCount > 0) p.push(qsTr("Electron 版的照片文件夹里有 %1 个文件没被任何计划用到，没有导入。").arg(r.unusedCount))
+            if (r.unusedCount > 0) p.push(qsTr("有 %1 个照片文件没被计划用到，没导入。").arg(r.unusedCount))
             if (r.unknownCount > 0) p.push(qsTr("有 %1 个这个版本不认识的字段，已经原样保留：").arg(r.unknownCount) + r.unknown.join("、"))
             p.push(qsTr("详细情况记在日志里（F12 打开日志文件夹）。"))
             return p
@@ -2407,7 +2420,7 @@ Window {
         id: takeOverDialog
         cardWidth: 480
         title: qsTr("仍然在这里编辑？")
-        paragraphs: [qsTr("%1 正开着这份数据。两边都改的话，后保存的会覆盖先保存的（被覆盖的那一版存成 travel.backup.json，可以找回）。").arg(app.lockOwner !== "" ? app.lockOwner : qsTr("%1 上的旅行计划 %2").arg("LAPTOP-JASON").arg("0.6.0")),
+        paragraphs: [qsTr("%1 正开着这份数据，后保存的会覆盖先保存的（旧版存成 travel.backup.json）。").arg(app.lockOwner !== "" ? app.lockOwner : qsTr("%1 上的旅行计划 %2").arg("LAPTOP-JASON").arg("0.6.0")),
                      qsTr("建议先把那边关掉。")]
         buttons: [{ key: "cancel", text: qsTr("取消") }, { key: "take", text: qsTr("仍然编辑"), kind: "dangerOutline" }]
         onChosen: (key) => { open = false; if (key === "take") app.takeOverLock() }
@@ -2493,7 +2506,7 @@ Window {
             warning: true
             closable: false
             title: qsTr("数据文件夹不见了")
-            detail: qsTr("%1 里的 travel.json 找不到了，可能是文件夹被移动、改名，或者移动硬盘没插。窗口里的内容还在；放回原位置会自动恢复，也可以换一个文件夹。").arg(app.dataDir)
+            detail: qsTr("%1 里的 travel.json 不见了。放回原处会自动恢复，也可以换文件夹。").arg(app.dataDir)
             TpButton { objectName: "dataGoneSwitch"; text: qsTr("换文件夹…"); compact: true; onClicked: folderDialog.open() }
         }
         Banner {

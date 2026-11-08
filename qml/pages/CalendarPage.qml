@@ -150,7 +150,7 @@ Item {
     }
     function showRemoved(r) {
         if (!r.ok) return
-        note = { id: r.id, line: qsTr("「%1」去掉了日期，放回「还没定日期」（预计 %2 天）").arg(r.name || qsTr("未命名计划")).arg(r.days), bookings: 0, overlaps: 0, undo: true }
+        note = { id: r.id, line: qsTr("「%1」已去掉日期（预计 %2 天）").arg(r.name || qsTr("未命名计划")).arg(r.days), bookings: 0, overlaps: 0, undo: true }
         noteTimer.restart()
     }
     function hideNotice() { note = null; noteTimer.stop() }
@@ -282,7 +282,7 @@ Item {
             width: Math.min(mainCard.width - Theme.px(64), Theme.px(360))
             art: "calendar"
             title: qsTr("日历上还没有行程")
-            detail: qsTr("计划定了日期，就会排在这里。还没定的在右边，可以拖进来。")
+            detail: qsTr("定了日期的计划排在这里。")
             action: qsTr("新建计划")
             onActed: root.newPlan()
         }
@@ -422,7 +422,7 @@ Item {
                         width: Math.min(parent.width - Theme.px(32), Theme.px(420))
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.Wrap
-                        text: qsTr("这 12 个月里没有定了日期的计划。可以把右边的计划拖进来。")
+                        text: qsTr("这 12 个月没有定了日期的计划。")
                         font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.muted
                     }
                 }
@@ -861,7 +861,7 @@ Item {
                     width: parent.width
                     wrapMode: Text.Wrap
                     topPadding: Theme.px(4)
-                    text: qsTr("把这里的计划拖到某一天；把日历上的计划拖到这里，可以去掉日期")
+                    text: qsTr("拖到某天定日期，拖回来去掉日期")
                     font.family: serifFamily; font.pixelSize: Theme.px(12); color: root.overSide ? Theme.accentInk : Theme.muted
                 }
                 // ---- 隐藏的 ----
@@ -1023,7 +1023,7 @@ Item {
         objectName: "calCardLayer"
         z: 30
         onSaved: (r) => { if (r.moved) root.showNotice(r) }
-        onHideRequested: (id, name) => { calendar.setHidden(id, true); root.toast(qsTr("「%1」在日历里隐藏了，右边“在日历里隐藏的”里可以恢复").arg(name), false) }
+        onHideRequested: (id, name) => { calendar.setHidden(id, true); root.toast(qsTr("「%1」已在日历里隐藏，右边可恢复").arg(name), false) }
         onRemoveDatesRequested: (id) => root.showRemoved(calendar.removeDates(id))
         onOpenPlanRequested: (id) => root.openPlan(id, "")
         onWarn: (t) => root.toast(t, true)

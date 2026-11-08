@@ -49,7 +49,7 @@ Column {
     // 这次会变成几人平摊多少笔（再加一个人的话）
     function hintText() {
         const n = Math.max(people.length, 1) + 1
-        if (shareCount > 0 && bookingCount > 0) return qsTr("再加一个人，已有的 %1 笔和交通住宿的 %2 笔，会变成 %3 人平摊。").arg(shareCount).arg(bookingCount).arg(n)
+        if (shareCount > 0 && bookingCount > 0) return qsTr("加一人后，%1 笔消费和 %2 笔交通住宿改为 %3 人平摊。").arg(shareCount).arg(bookingCount).arg(n)
         if (shareCount > 0) return qsTr("再加一个人，已有的 %1 笔会变成 %2 人平摊。").arg(shareCount).arg(n)
         if (bookingCount > 0) return qsTr("再加一个人，交通住宿的 %1 笔会变成 %2 人平摊。").arg(bookingCount).arg(n)
         return ""

@@ -53,7 +53,7 @@ Column {
         width: parent.width
         viewH: root.viewH
         hint: qsTr("%1 字 · 停手后自动保存").arg(text.length)
-        placeholder: qsTr("写攻略：注意事项、想吃的店、交通、门票、链接……\n\n# 大标题、## 小标题、- 列表、- [ ] 勾选项、**加粗**，网址会自动变成链接。")
+        placeholder: qsTr("写攻略…")
         // 空攻略进来写了字：存进去以后不再是"空的"，要记住还在写，否则第一次保存就跳到读
         onTyping: root.wantEdit = true
         onEdited: if (root.savePlan !== "") planPage.setGuide(root.savePlan, text)

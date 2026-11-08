@@ -507,6 +507,8 @@ QVariantList AiController::messages() const
             for (const char *k : { "thinking", "meta", "error", "cur", "provider", "model" }) if (o.contains(QLatin1String(k))) m.insert(QLatin1String(k), o.value(QLatin1String(k)).toString());
             if (o.contains(QStringLiteral("cost"))) m.insert(QStringLiteral("cost"), o.value(QStringLiteral("cost")).toDouble());
             m.insert(QStringLiteral("act"), o.value(QStringLiteral("act")).toVariant());
+            // 1.1.0：Anthropic 要求原样显示时带上来源（技术选型.md §11），只给 Claude 的；国内几家不显示
+            if (o.value(QStringLiteral("api")).toString() == QLatin1String("anthropic")) m.insert(QStringLiteral("sources"), o.value(QStringLiteral("sources")).toVariant());
             m.insert(QStringLiteral("noWeb"), o.value(QStringLiteral("noWeb")).toBool() && !o.value(QStringLiteral("text")).toString().isEmpty());
             QVariantList props;
             const QJsonArray ps = o.value(QStringLiteral("props")).toArray();
@@ -957,7 +959,6 @@ void AiController::onFinished(const QString &error, bool aborted, bool stalled)
             content.append(b);
             const QString bt = b.value(QStringLiteral("type")).toString();
             if (bt == QLatin1String("tool_use")) calls << Call{ b.value(QStringLiteral("id")).toString(), b.value(QStringLiteral("name")).toString(), b.value(QStringLiteral("input")).toObject(), s.badTools.contains(i) };
-            else if (bt == QLatin1String("server_tool_use")) { const QString q = b.value(QStringLiteral("input")).toObject().value(QStringLiteral("query")).toString(); if (!q.isEmpty()) act << tp::tr("查了「%1」").arg(q); }
         }
         am.insert(QStringLiteral("content"), content);
     } else {
@@ -1001,7 +1002,6 @@ void AiController::onFinished(const QString &error, bool aborted, bool stalled)
         if (calls.isEmpty() && s.stop == QLatin1String("pause_turn")) go = QStringLiteral("pause_turn");
         am = m_msgs.at(mi).toObject();
         if (!read.isEmpty()) act.prepend(tp::tr("读了「%1」").arg(read.join(QStringLiteral("」「"))));
-        if (kimiSearches) act << tp::tr("联网查了 %1 次").arg(std::min(kimiSearches, tools::kMaxSearch));
         am.insert(QStringLiteral("results"), results);
     }
     if (!act.isEmpty()) am.insert(QStringLiteral("act"), QJsonArray::fromStringList(act));
@@ -1126,6 +1126,8 @@ void AiController::applyProposal(int mi, int pi, bool force)
     QJsonObject *Pp = propRef(mi, pi, am, props);
     if (!Pp || !m_store || !m_app || Pp->value(QStringLiteral("state")).toString() != QLatin1String("open") || tools::geoBusy(*Pp)) return;
     QJsonObject P = *Pp;
+    QString reopen;
+    if (m_app->undoGrouped() && m_editorClose) reopen = m_editorClose();
     if (m_app->undoGrouped()) { emit toast(tp::tr("先关掉地图上的计划编辑器，再应用（不然编辑器保存时会把这些修改盖掉）"), true); return; }
     if (m_store->isReadOnly()) { emit toast(tp::tr("数据现在是只读的，改不了。"), true); return; }
     // 工作规则五：AI 修改前单独备份（travel.before-ai-*.json，留 10 份）。手上没存的改动先存成一步
@@ -1149,8 +1151,9 @@ void AiController::applyProposal(int mi, int pi, bool force)
     m_last = Last{ true, m_chatId, mi, pi, m_app->undoStateId(), result };
     qInfo("AI 修改已应用：%d 项", a.n);
     if (m_onDeleted && !a.deleted.isEmpty()) m_onDeleted(a.deleted);
-    if (a.needRoute) emit toast(tp::tr("有自驾 / 徒步段：到地图编辑器里点“现在计算”画出道路路线，再保存"), false);
     putProp(mi, pi, am, props, P, true);
+    if (!reopen.isEmpty() && m_editorReopen) m_editorReopen(reopen);   // 编辑器打开后自己会算它那个计划的段
+    if (a.needRoute) emit routeNeeded(a.touched);   // 1.1.0 直接算，不问（编辑器开着就排队，关了再算）
 }
 
 void AiController::skipProposal(int mi, int pi)
@@ -1466,7 +1469,8 @@ void AiController::shotSetup(const QString &page)
         } else {
             user(QStringLiteral("补充：嵯峨野小火车的发车时间和订票网址；第二晚住宿还没订"));
             m_msgs.append(QJsonObject{ { QStringLiteral("role"), QStringLiteral("assistant") }, { QStringLiteral("provider"), QStringLiteral("claude") }, { QStringLiteral("text"), QStringLiteral("小火车 12 月每天 9:02 起每小时一班，周三停运。") },
-                                       { QStringLiteral("act"), QJsonArray{ tp::tr("读了「%1」").arg(plan[QStringLiteral("name")].toString()), tp::tr("查了「%1」").arg(QStringLiteral("Sagano Romantic Train timetable December")) } },
+                                       { QStringLiteral("act"), QJsonArray{ tp::tr("读了「%1」").arg(plan[QStringLiteral("name")].toString()) } }, { QStringLiteral("api"), QStringLiteral("anthropic") },
+                                       { QStringLiteral("sources"), QJsonArray{ QStringLiteral("https://www.sagano-kanko.co.jp/"), QStringLiteral("https://www.japan-guide.com/e/e3912.html") } },
                                        { QStringLiteral("research"), QJsonObject{ { QStringLiteral("todo"), QJsonArray{ QStringLiteral("住宿空房"), QStringLiteral("小火车订票网址") } }, { QStringLiteral("done"), QJsonArray{ QStringLiteral("小火车时刻") } },
                                                                                    { QStringLiteral("secs"), 60 }, { QStringLiteral("used"), 125000.0 }, { QStringLiteral("paused"), true }, { QStringLiteral("note"), QStringLiteral("周三停运，避开周三") } } } });
             m_shotRun = tp::tr("已用 %1 / 预计 %2").arg(QStringLiteral("2:05"), QStringLiteral("2:00")) + QStringLiteral(" · ") + tp::tr("还剩 %1 项").arg(2) + QStringLiteral(" · ") + tp::tr("已写 %1 字").arg(QLocale().toString(1240));

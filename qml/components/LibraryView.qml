@@ -272,7 +272,7 @@ Item {
             width: parent.width - Theme.px(32)
             art: "plan"
             title: qsTr("还没有计划")
-            detail: qsTr("把想走的路线记下来：站点、日期、预算和行李都放在一个计划里。")
+            detail: qsTr("还没有计划。")
             action: qsTr("新建计划")
             onActed: root.newPlan()
         }

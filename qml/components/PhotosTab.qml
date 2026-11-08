@@ -89,7 +89,7 @@ Column {
         visible: root.rows.length === 0
         width: parent.width
         wrapMode: Text.Wrap
-        text: qsTr("这个计划还没有照片。点“添加照片”：会读照片的拍摄时间和位置，自动放进对应的站点，导入前可以逐张改。")
+        text: qsTr("还没有照片。")
         font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.muted
     }
 

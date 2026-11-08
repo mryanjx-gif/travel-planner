@@ -89,7 +89,7 @@ ModalLayer {
         width: parent.width
         wrapMode: Text.Wrap
         lineHeight: 1.3
-        text: qsTr("%1 张按拍摄日期 / 位置自动归了类，%2 张没认出来（没有拍摄信息，或日期、位置对不上任何计划），先放“未归类”。可以逐张改。")
+        text: qsTr("%1 张已自动归类，%2 张没认出来，先放“未归类”。")
                   .arg(root.nAuto).arg(root.items.length - root.nAuto)
               + (root.nDup > 0 ? " " + qsTr("<b>%1 张照片库里已经有一样的</b>，默认不导入。").arg(root.nDup) : "")
         textFormat: Text.StyledText
@@ -190,7 +190,7 @@ ModalLayer {
                         visible: row.modelData.dup || (row.modelData.heic && !photos.heicReady())
                         width: parent.width
                         text: row.modelData.dup ? (row.modelData.dupInBatch ? qsTr("这一批里选了两次") : qsTr("照片库里已经有一样的"))
-                                                : qsTr("HEIC 照片能导入；这台电脑没装 HEIF / HEVC 扩展，暂时显示不了")
+                                                : qsTr("HEIC 能导入，但要装 HEIF / HEVC 扩展才能显示")
                         elide: Text.ElideRight
                         font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.warn
                     }

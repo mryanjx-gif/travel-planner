@@ -32,11 +32,11 @@ Column {
                 visible: !root.open
                 width: parent.width
                 wrapMode: Text.Wrap
-                text: root.st === "applied" ? qsTr("✓ 已应用 %1 项。按 Ctrl+Z 可以撤销（光标不在输入框里时）。").arg(root.p.applied)
+                text: root.st === "applied" ? qsTr("✓ 已应用 %1 项，Ctrl+Z 撤销。").arg(root.p.applied)
                     : root.st === "undone" ? qsTr("应用过 %1 项，已经撤销（Ctrl+Y 可以重做）。").arg(root.p.applied)
                     : root.st === "skipped" ? qsTr("没有应用。")
-                    : root.st === "expired" ? qsTr("之前对话里的修改预览（%1 项），已经过期。要用的话请让它重新提一次。").arg(root.p.total)
-                    : root.st === "truncated" ? qsTr("这份修改太长，写到一半被截断了，没法用。可以说“一次只改一个计划，攻略写短一点”再试。") : ""
+                    : root.st === "expired" ? qsTr("这份预览（%1 项）已过期，请让它重提。").arg(root.p.total)
+                    : root.st === "truncated" ? qsTr("修改太长被截断了。可以说“一次只改一个计划”再试。") : ""
                 font.family: serifFamily; font.pixelSize: Theme.px(12.5)
                 color: root.st === "applied" ? Theme.ok : root.st === "truncated" ? Theme.danger : Theme.muted
             }

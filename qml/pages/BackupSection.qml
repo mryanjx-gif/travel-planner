@@ -148,7 +148,7 @@ Column {
         Text {
             width: parent.width
             wrapMode: Text.Wrap
-            text: qsTr("每次在里面新建“旅行计划备份-日期-时间”，复制数据文件和全部照片。") + (root.lastText() !== "" ? " " + root.lastText() : "")
+            text: qsTr("每次新建一个带日期的备份，含数据和照片。") + (root.lastText() !== "" ? " " + root.lastText() : "")
             font.family: serifFamily; font.pixelSize: Theme.px(12); lineHeight: 1.2; color: Theme.muted
         }
         Column {
@@ -204,7 +204,7 @@ Column {
             Text {
                 width: parent.width
                 wrapMode: Text.Wrap
-                text: qsTr("打开软件时，如果离上次备份超过设定的天数，就自动备份一次。")
+                text: qsTr("打开软件时超过天数就自动备份。")
                 font.family: serifFamily; font.pixelSize: Theme.px(12); lineHeight: 1.2; color: Theme.muted
             }
         }

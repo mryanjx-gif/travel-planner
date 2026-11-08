@@ -11,7 +11,7 @@ Column {
     Text {
         width: parent.width
         wrapMode: Text.Wrap
-        text: qsTr("用 AI 助手要先填一家的 API 钥匙。钥匙在服务商的开发者平台申请，按用量付费，和网页版的会员订阅分开。")
+        text: qsTr("先填一家的 API 钥匙（开发者平台申请，按用量付费）。")
         font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.text; lineHeight: 1.25
     }
     Repeater {
@@ -54,7 +54,7 @@ Column {
     Text {
         width: parent.width
         wrapMode: Text.Wrap
-        text: qsTr("你问的话会发给你选的那家服务商。钥匙存在 Windows 凭据管理器里，不放进数据文件夹。")
+        text: qsTr("钥匙存在 Windows 凭据管理器里。")
         font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
     }
 }

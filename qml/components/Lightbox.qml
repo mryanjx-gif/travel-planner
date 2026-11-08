@@ -74,7 +74,7 @@ Item {
         function onRotateFinished(id, ok, error) {
             if (!root.open || id !== root.cur.id) return
             root.resetZoom()
-            root.say(ok ? qsTr("已旋转并保存。第一次旋转时原图备份在 photos\\.originals") : qsTr("旋转失败：") + error)
+            root.say(ok ? qsTr("已旋转并保存，原图已备份。") : qsTr("旋转失败：") + error)
         }
     }
     function close() {
@@ -191,7 +191,7 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
                 lineHeight: 1.35
-                text: qsTr("这张照片显示不了") + (root.cur.missing ? "\n" + qsTr("文件可能被移动或删除了：%1。放回数据文件夹的原位置就能显示。").arg(root.cur.file || "") : "")
+                text: qsTr("这张照片显示不了") + (root.cur.missing ? "\n" + qsTr("文件找不到：%1。放回原处就能显示。").arg(root.cur.file || "") : "")
                 font.family: serifFamily; font.pixelSize: Theme.px(15); color: "#c8d0d8"
             }
         }
@@ -297,7 +297,7 @@ Item {
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
-                text: qsTr("这张 HEIC 照片显示不了：这台电脑要装 Microsoft Store 里的两个扩展。HEVC 扩展有的电脑要付费。原文件没有动。")
+                text: qsTr("HEIC 照片显示不了，要装 HEIF / HEVC 扩展。原文件没动。")
                 font.family: serifFamily; font.pixelSize: Theme.px(15); color: "#f2f4f6"
             }
             Row {

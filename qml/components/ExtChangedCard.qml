@@ -46,8 +46,8 @@ GlassPanel {
                 }
                 Text {
                     width: parent.width
-                    text: root.dirty ? qsTr("数据文件被别处改过。重新加载会丢掉当前窗口里没保存的改动。")
-                                     : qsTr("数据文件被别的程序改过（比如另一个旅行计划窗口）。重新加载可以看到最新数据。")
+                    text: root.dirty ? qsTr("数据被别处改过，重新加载会丢掉没保存的改动。")
+                                     : qsTr("数据被别的程序改过，重新加载可看最新的。")
                     font.family: serifFamily
                     font.pixelSize: Theme.px(13)
                     lineHeight: 1.25

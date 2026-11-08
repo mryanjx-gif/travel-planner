@@ -1580,3 +1580,146 @@ zlib、libpng、libjpeg、FreeType、HarfBuzz、PCRE2、libwebp（WebP 照片）
 Microsoft Visual C++ 运行库	Microsoft Visual C++ runtime
 Microsoft 允许随程序分发的运行库文件。	Runtime files that Microsoft allows to be redistributed with applications.
 安装程序和卸载程序。zlib/libpng 授权。	The installer and uninstaller. zlib/libpng license.
+# 1.1.0
+有 %1 段路线联网后自动补算	%1 route segment(s) will be computed when online
+问点什么	Ask anything
+回到编辑	Back to editing
+导出问题报告	Export problem report
+日志打包到桌面，不含旅行数据和钥匙。	Zips the logs to your desktop. No trip data or keys.
+已放到桌面：%1	Saved to desktop: %1
+没导出来：%1	Couldn't export: %1
+# 1.1.0 文字精简
+%1 张已归到「%2」· %3	%1 photo(s) filed under “%2” · %3
+可以 Ctrl+Z 撤销，照片文件不删。	Ctrl+Z to undo. Photo files are kept.
+站点不止一个，改成「路线」吗？	This plan has several stops. Change it to a route?
+恢复到打开时的样子？这次的改动会丢掉（新建的计划会删掉）。	Revert to how it was? This session's changes will be lost (a new plan will be deleted).
+只能看、不能改，以免覆盖原文件。可从历史版本恢复。	View only, to avoid overwriting the file. You can restore from version history.
+数据版本 %1，本软件只认到 %2。请先更新软件，现在只能看。	Data version %1; this app knows up to %2. Update the app; view only for now.
+%1 正开着这份数据，现在只能看。那边关了会自动恢复。	%1 has this data open, so it's view only. Editing resumes when it closes.
+底图加载失败，可换成离线的「已解锁」底图。	Base map failed to load. You can switch to the offline “Unlocked” map.
+用这份清单（%1 项）替换原来的模板？	Replace the template with this list (%1 items)?
+只从计划里去掉，照片文件不删。	Removed from the plan only; the photo file is kept.
+发现 Electron 版的数据，可以导入（不会改动它）。	Found Electron version data. You can import it (it won't be changed).
+新建空数据。	Start with empty data.
+travel.json 被别的程序改过。这次保存怎么办？	travel.json was changed by another program. How should this save go?
+改动留在窗口里；重新加载会丢掉没保存的改动。	Keep changes in the window; reloading loses unsaved changes.
+用窗口里的数据覆盖，被覆盖的存成 travel.backup.json。	Overwrite with the window's data; the old version goes to travel.backup.json.
+travel.json 被别处改过，窗口里的改动还没存。	travel.json was changed elsewhere; the window's changes aren't saved yet.
+<b>另存一份后退出</b>：存成 travel.unsaved-日期-时间.json，以后可手动合并。	<b>Save a copy and quit</b>: saved as travel.unsaved-date-time.json to merge later.
+<b>仍然保存并退出</b>：覆盖别处的改动（旧版存成 travel.backup.json）。	<b>Save anyway and quit</b>: overwrites the other changes (old version kept as travel.backup.json).
+<b>另存一份后退出</b>：存成 travel.unsaved-日期-时间.json。	<b>Save a copy and quit</b>: saved as travel.unsaved-date-time.json.
+现在的数据先存成 travel.backup.json，再换成这一版。	Current data is saved as travel.backup.json first, then replaced.
+请把错误码和日志里的 %1 发给 Jason。	Please send the error code and %1 from the logs folder to Jason.
+上次 Vulkan 出了问题，这次改用 OpenGL。	Vulkan failed last time, so OpenGL is used now.
+可以导入到现在的数据里（不改动 Electron 版）。	You can import it into your current data (Electron data isn't changed).
+没找到 Electron 版的数据，请选一个文件夹。	Electron data not found. Choose a folder.
+不改动 Electron 版；照片复制一份过来。	Electron data isn't changed; photos are copied.
+用 Electron 版的数据替换现有数据（先备份成 travel.before-import-日期-时间.json）。	Replace current data with Electron data (backed up first as travel.before-import-date-time.json).
+选择 Electron 版的数据文件夹	Choose the Electron data folder
+这里没有 Electron 版的 data.js	No Electron data.js here
+导入了 %1 个计划、%2 站、%3 张照片、%4 篇游记。	Imported %1 plans, %2 stops, %3 photos, %4 journal entries.
+有 %1 个照片文件没被计划用到，没导入。	%1 photo files weren't used by any plan and weren't imported.
+%1 正开着这份数据，后保存的会覆盖先保存的（旧版存成 travel.backup.json）。	%1 has this data open. The later save wins (the older version goes to travel.backup.json).
+%1 里的 travel.json 不见了。放回原处会自动恢复，也可以换文件夹。	travel.json in %1 is missing. Put it back to resume, or choose another folder.
+先填一家的 API 钥匙（开发者平台申请，按用量付费）。	Add an API key first (from the developer platform, pay as you go).
+钥匙存在 Windows 凭据管理器里。	Keys are kept in Windows Credential Manager.
+问行程、交通，或让我改计划。改动先预览。	Ask about trips, or have me edit a plan. Changes are previewed first.
+第一次用 %1：对话会发给 %1，按它的条款保存。	First time with %1: the chat is sent to %1 and kept under its terms.
+用的是 Windows 语音输入；中文要先装中文语言包。	Uses Windows voice typing; Chinese needs the Chinese language pack.
+语音输入（Win+H）	Voice typing (Win+H)
+✓ 已应用 %1 项，Ctrl+Z 撤销。	✓ Applied %1 items. Ctrl+Z to undo.
+这份预览（%1 项）已过期，请让它重提。	This preview (%1 items) has expired. Ask again.
+修改太长被截断了。可以说“一次只改一个计划”再试。	The change was cut off. Try asking for one plan at a time.
+%1 张 HEIC 照片显示不了，要装 HEIF / HEVC 扩展。	%1 HEIC photos can't be shown; install the HEIF / HEVC extensions.
+%1 张照片找不到文件，放回原处就能显示。	%1 photo files are missing; put them back to show them.
+没有未归类的照片。	No unsorted photos.
+还没有交通住宿。	No bookings yet.
+交通住宿的费用（%1）没算进结算。	Booking costs (%1) aren't in the settlement.
+还没有记账。	No expenses yet.
+还没有填紧急信息。	No emergency info yet.
+这个计划还没有带日期的内容，没法导出。	Nothing dated in this plan to export.
+已保存：%1（%2 项），可导入日历 app。	Saved: %1 (%2 items). Import it into a calendar app.
+已保存：%1。行程太长，长图只放了前面，完整的请导出 PDF。	Saved: %1. Too long for one image; export a PDF for all of it.
+计划日期、交通住宿、日程，共 %1 项，按当地时间。	Plan dates, bookings and schedule: %1 items, in local time.
+这些自驾 / 徒步段还是直线，路线简图上也是直线。	These drive / walk legs are still straight lines, also on the route sketch.
+数据被别处改过，重新加载会丢掉没保存的改动。	Data changed elsewhere. Reloading loses unsaved changes.
+数据被别的程序改过，重新加载可看最新的。	Data changed in another program. Reload to see the latest.
+写攻略…	Write a guide…
+还没有游记。	No journal entries yet.
+还没有计划。	No plans yet.
+已旋转并保存，原图已备份。	Rotated and saved; original backed up.
+文件找不到：%1。放回原处就能显示。	File missing: %1. Put it back to show it.
+HEIC 照片显示不了，要装 HEIF / HEVC 扩展。原文件没动。	Can't show HEIC; install the HEIF / HEVC extensions. The file is untouched.
+还没填当地报警、急救和使领馆电话。	No local police, ambulance or embassy numbers yet.
+加一人后，%1 笔消费和 %2 笔交通住宿改为 %3 人平摊。	With one more person, %1 expenses and %2 bookings are split %3 ways.
+没归进去：数据只读，或计划已不在。	Not filed: data is read-only or the plan is gone.
+有 <b>%1 个文件</b>没被照片用到（共 %2）：	<b>%1 files</b> aren't used by any photo (%2 total):
+另有 %1 张原图对应的照片已不在（共 %2），一起清理	Also clean up %1 originals whose photos are gone (%2 total)
+%1 张已自动归类，%2 张没认出来，先放“未归类”。	%1 sorted automatically, %2 not recognised and put in “Unsorted”.
+HEIC 能导入，但要装 HEIF / HEVC 扩展才能显示	HEIC can be imported but needs the HEIF / HEVC extensions to show
+还没有照片。	No photos yet.
+地图标记	Map marker
+请输入地名	Enter a place
+搜不到：%1。可以点选或输入坐标。	Not found: %1. Pick on the map or enter coordinates.
+样式（不设就跟随计划）	Style (follows the plan if unset)
+共 %1 · 计划中 %2 · 想去 %3 · 已完成 %4	%1 plans · Planning %2 · Wish %3 · Done %4
+这里只能拖入 .trip 文件	Only .trip files can be dropped here
+用 Electron 版替换这里的（含游记和照片记录）	Replace with the Electron version (journal and photo records too)
+合并对方的消费、同行人、照片和游记	Merge their expenses, companions, photos and journal
+对方用“导入 .trip”或拖进窗口打开	They open it with “Import .trip” or by dragging it in
+去掉私人内容的数据副本	A copy of the data without private info
+复制一份数据，去掉私人内容、紧急信息和证件。	Copies the data without private info, emergency info or documents.
+只带来源是 Wikimedia、NASA 或自己拍的照片。	Only photos from Wikimedia, NASA or your own camera.
+没有来源记录的站点照片也带上（确定是自己拍的才勾）	Also include stop photos without a source (only if you took them)
+转发时带上“照片署名.txt”。对方在设置里选这个文件夹就能看。	Include “照片署名.txt” when sharing. They open this folder in Settings.
+这些自驾 / 徒步段还是直线，对方打开也是直线。	These drive / walk legs are still straight; they'll stay straight for the other person.
+约 %1 分钟，算完自动保存	About %1 min; saves when done
+点省份切换去过 / 没去过，自动保存。	Click a province to toggle visited. Saves automatically.
+没改成：数据只读，或计划已不在。	Not changed: data is read-only or the plan is gone.
+填几项就行，都能跳过。改动先预览。	Fill in a few, or skip. Changes are previewed first.
+会发给 %1（%2），在预览里勾选后才写入。	Sent to %1 (%2). Nothing is saved until you apply it in the preview.
+每次新建一个带日期的备份，含数据和照片。	Each backup is a dated copy of the data and photos.
+打开软件时超过天数就自动备份。	Back up automatically on launch when overdue.
+「%1」已去掉日期（预计 %2 天）	“%1” is now undated (about %2 days)
+定了日期的计划排在这里。	Dated plans show here.
+这 12 个月没有定了日期的计划。	No dated plans in these 12 months.
+拖到某天定日期，拖回来去掉日期	Drag to a day to date it; drag back to undate
+「%1」已在日历里隐藏，右边可恢复	“%1” is hidden in the calendar; restore it on the right
+开始写…	Start writing…
+还没有花费。	No spending yet.
+到第 %1 站已连续 %2 晚在 3000 m 以上升高，没有休整日	By stop %1: %2 nights climbing above 3000 m with no rest day
+第 %1 → %2 站：睡眠海拔 %3 → %4 m	Stops %1 → %2: sleeping altitude %3 → %4 m
+%1 %2 到期，离回程（%3）不足 6 个月	%1 expires %2, under 6 months after return (%3)
+参照 WMS 2019 指南：3000 m 以上睡眠海拔每天升不超过 500 m，每 3–4 天休整一天。不是医疗建议。	Per WMS 2019 guidance: above 3000 m, raise sleeping altitude ≤ 500 m a day and rest every 3–4 days. Not medical advice.
+天气预报没取到 · 重试	Couldn't get the forecast · Retry
+往年气候没取到 · 重试	Couldn't get past climate · Retry
+卫星图和街道图。关掉只用“已解锁”底图。	Satellite and street maps. Off: only the “Unlocked” map.
+搜地名、取地名。关掉可点选或输坐标。	Place search. Off: pick on the map or enter coordinates.
+自驾、徒步按道路画线。关掉没算的画直线。	Drive / walk legs follow roads. Off: uncomputed legs stay straight.
+消费折算成主货币，一天更新一次。	Converts spending to your main currency, daily.
+补站点的海拔和时区。	Fills in stop altitude and time zone.
+AI 助手，用你自己的钥匙。	The AI assistant, with your own key.
+更新失败，用的是上次的	Update failed; using the last rates
+保险和紧急联系人，所有计划共用。	Insurance and emergency contacts, shared by all plans.
+当前：标准 · 显卡带不动，已自动降级	Current: Standard · downgraded automatically for your graphics card
+头像显示第一个字；分账里的“我”。	Shown on the avatar and as “me” in splits.
+拿不到定位时先显示这个国家	Shown when location isn't available
+下次打开生效。	Takes effect next launch.
+填护照、签证到期日，不填号码。	Passport and visa expiry dates only, no numbers.
+不用任何联网服务，已存的照常显示。	No online services; saved data still shows.
+自定义服务没测过，要兼容 OpenAI 接口。	Custom services are untested and must be OpenAI-compatible.
+还没填。只收开发者平台的 API 钥匙。	Not set. Developer-platform API keys only.
+接口地址	API URL
+单价留空就只记 token、不算钱。	Leave prices empty to count tokens only.
+查最新信息，每轮最多 3 次，另收费。	Look up current info; up to 3 searches per turn, billed extra.
+%1 不能联网搜索。	%1 can't search the web.
+开着时不发消费、预算和订单号。	When on, spending, budgets and booking refs aren't sent.
+折成%1；到 80% 提醒，到了先停。	Converted to %1; warns at 80%, stops at the cap.
+钥匙存在 Windows 凭据管理器，不随数据导出。	Keys stay in Windows Credential Manager and are never exported.
+没找到 Electron 版，导入时可手动选。	Electron version not found; choose its folder when importing.
+复制一份去掉私人内容的数据给别人。	A copy of the data without private info, to give to others.
+别人导出的计划，也可以拖进窗口。	Plans someone exported; you can also drag them in.
+每天自动存一份，留 14 天。	Saved daily, kept for 14 days.
+加待办	Add a to-do
+出发城市	From
+必去的	Must-sees
