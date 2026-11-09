@@ -73,7 +73,7 @@ struct Mouse
     QQuickItem *item(const QString &n) const { return findShown(win->contentItem(), n); }
     void at(const QPointF &p, Qt::MouseButtons b, Qt::MouseButton which, QEvent::Type t) const
     {
-        QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, win->mapToGlobal(p), b, which, t);
+        QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, p), devPx(win, win->mapToGlobal(p)), b, which, t);
     }
     void click(QQuickItem *it) const
     {

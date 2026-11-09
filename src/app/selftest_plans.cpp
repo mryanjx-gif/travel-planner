@@ -137,8 +137,8 @@ void runPlans(Report &r, AppController *app, map::MapController *mapc, QQuickWin
                 QQuickItem *a = ov();
                 const QPointF p = a->mapToScene(QPointF(a->width() / 2, a->height() / 2));
                 const QPointF g = win->mapToGlobal(p);
-                QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, g, Qt::LeftButton, Qt::LeftButton, QEvent::MouseButtonPress);
-                QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, g, Qt::NoButton, Qt::LeftButton, QEvent::MouseButtonRelease);
+                QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, p), devPx(win, g), Qt::LeftButton, Qt::LeftButton, QEvent::MouseButtonPress);
+                QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, p), devPx(win, g), Qt::NoButton, Qt::LeftButton, QEvent::MouseButtonRelease);
                 back = waitFor([&] { return mapc->markers()->focusStop() < 0 && !vis(); }, 1500);
             }
             r.check(onStop && back, QStringLiteral("简易面板：看某一站时有 ↩ 全部路线，点了回到整条路线，全部路线时图标不显示"),

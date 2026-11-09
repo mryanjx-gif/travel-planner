@@ -188,10 +188,8 @@ Item {
 
     GlassPanel {
         anchors.fill: parent
-        anchors.topMargin: -Theme.radius   // 0.12.10：贴着窗口顶，上面两个圆角放到窗口外
-        radius: Theme.radius
-        tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.985 : 0.99)
-        liquid: false
+        radius: Theme.px(16)   // 1.3.1：和相册展开时一样，圆角液态玻璃浮在地图上
+        tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.92 : 0.98)   // 1.3.1：92% 白（相册 84%）
     }
     MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; onWheel: (w) => w.accepted = true }   // 不穿透到地图
 

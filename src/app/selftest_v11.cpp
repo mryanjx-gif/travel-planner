@@ -54,9 +54,16 @@ void runV11(Report &r, AppController *app, QQuickWindow *win, services::RoadRout
     r.check(label && label->property("color").value<QColor>() != QColor(Qt::white) && tintA >= 0.85 && !item("newAiBtn"),
             QStringLiteral("新建计划泡泡：深蓝字、玻璃接近实底、旁边没有 AI 格"), QStringLiteral("玻璃不透明度 %1").arg(tintA));
 
-    // ---- 第 6 条：模式泡泡没选中的白字 ----
-    if (QQuickItem *bud = item("bud-foot")) r.check(bud->property("whiteText").toBool(), QStringLiteral("模式泡泡没选中时白字"));
-    else r.check(item("bud-calendar") && item("bud-calendar")->property("whiteText").toBool(), QStringLiteral("模式泡泡没选中时白字"));
+    // ---- 第 6 条（1.3.1 PO 改）：普通地图上模式泡泡没选中时深蓝字、75% 玻璃；卫星图照旧白字 ----
+    {
+        QQuickItem *bud = item("bud-foot") ? item("bud-foot") : item("bud-calendar");
+        QQuickItem *bar = item("topBar");
+        const bool sat = bar && bar->property("darkMap").toBool();
+        r.check(bud && bud->property("whiteText").toBool() == sat
+                    && bud->property("offColor").value<QColor>() == QColor("#1f4a70")
+                    && qAbs(bud->property("baseAlpha").toDouble() - (sat ? 0.42 : 0.75)) < 0.01,
+                QStringLiteral("模式泡泡没选中：普通地图深蓝字 75% 玻璃，卫星图白字"));
+    }
 
     // ---- 第 4、8 条：AI 输入框提示、发送键灰 ----
     QQuickItem *aiIn = item("aiInput");

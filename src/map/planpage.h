@@ -40,12 +40,8 @@ QVariantMap pageInfo(const json::Value &root, const QString &planId, const QStri
 QVariantList docWarnings(const json::Value &root, const json::Value &plan);
 // 季节条（store.js seasonStrip）：{ name, nameEn, cells: 12 个 { kind, text, textEn } }；表里没有这个地区返回空
 QVariantMap seasonInfo(const json::Value &root, const QString &ref);
-// 想去的计划这个月合不合适（0.11.0，地图用）：1 best / nice，0 其他，-1 没关联季节表
-int wishFit(const json::Value &root, const json::Value &plan, int month);
-// "想去"模式的列表（0.11.0，H-02、PO 第 2 题 A）：plans::listInfo 的结果，分组换成 fit（month 月合适，best 在前）/ other（关联了但这个月不合适）/
-// noref（还没关联季节），列表里隐藏的还在最后。每行加 kinds（12 个月的 kind）、regions、nowFit（nowMonth 合适 = "现在去正好"）；
-// 加 month、months（12 个月各有几个合适的）
-QVariantMap wishInfo(const json::Value &root, const plans::Filter &f, int month, int nowMonth, const QSet<QString> &listHidden);
+// "想去"模式的列表（0.11.0；1.3.1 去掉月份条后不再按月分组）：plans::listInfo 的结果，每行加 kinds（关联季节的 12 个月 kind，没关联为空）、regions
+QVariantMap wishInfo(const json::Value &root, const plans::Filter &f, const QSet<QString> &listHidden);
 // 季节表的行（关联季节用）：[{ key, name, nameEn, group }]
 QVariantList seasonRows(const json::Value &root);
 

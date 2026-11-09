@@ -53,7 +53,6 @@ class PlanController : public QObject
     // 0.11.0 计划库（"我的旅程"展开）：开着时地图画的就是列出来的（状态、类型、搜索），眼睛隐藏的仍不画，"叠上其他旅程"不起作用
     Q_PROPERTY(bool libraryOpen READ libraryOpen NOTIFY libraryOpenChanged)
     Q_PROPERTY(QVariantMap library READ library NOTIFY libraryChanged)   // plans::libraryInfo + view、status、type、sort、q、closed（收起的区域）
-    Q_PROPERTY(int wishMonth READ wishMonth NOTIFY listChanged)          // 0.11.0 想去的月份条选的月（1–12，默认这个月，不记住）
 
 public:
     PlanController(AppController *app, Settings *settings, data::DataStore *store, map::MapController *mapc, QObject *parent = nullptr);
@@ -123,14 +122,12 @@ public:
     // ---- 0.11.0 计划库、想去 ----
     bool libraryOpen() const { return m_libOpen; }
     QVariantMap library() const { return m_library; }
-    int wishMonth() const { return m_wishMonth; }
     Q_INVOKABLE void setLibraryOpen(bool on);
     Q_INVOKABLE void setLibraryPref(const QString &key, const QString &value);   // key：view / status / type / sort / q（q 不记住）
     Q_INVOKABLE void toggleLibraryRegion(const QString &key);
     Q_INVOKABLE void setListHidden(const QStringList &ids, bool hidden);
     Q_INVOKABLE bool setPlansStatus(const QStringList &ids, const QString &status);
     Q_INVOKABLE bool deletePlans(const QStringList &ids);
-    Q_INVOKABLE void setWishMonth(int month);
     Q_INVOKABLE bool startPlan(const QString &planId, const QString &start, const QString &end);
     Q_INVOKABLE bool setSeasonRef(const QString &planId, const QString &ref);
     Q_INVOKABLE QVariantList seasonRows() const;
@@ -200,7 +197,6 @@ private:
     QString m_libView = QStringLiteral("gallery");   // PO 第 1 题 A
     QStringList m_libClosed;
     QVariantMap m_library;
-    int m_wishMonth = 0;
 };
 
 } // namespace tp::app

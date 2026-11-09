@@ -45,8 +45,8 @@ void click(QQuickWindow *win, QQuickItem *it)
     waitStill(it, 1000);   // 0.12.11：面板滑进、列表滚动时先等停稳再点，不然点在半路上
     const QPointF p = it->mapToScene(QPointF(it->width() / 2, it->height() / 2));
     const QPointF g = win->mapToGlobal(p);
-    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, g, Qt::LeftButton, Qt::LeftButton, QEvent::MouseButtonPress);
-    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, g, Qt::NoButton, Qt::LeftButton, QEvent::MouseButtonRelease);
+    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, p), devPx(win, g), Qt::LeftButton, Qt::LeftButton, QEvent::MouseButtonPress);
+    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, p), devPx(win, g), Qt::NoButton, Qt::LeftButton, QEvent::MouseButtonRelease);
     pause(80);
 }
 QVariant eval(QQuickItem *it, const QString &js)
@@ -140,8 +140,8 @@ void runPlanPage(Report &r, AppController *app, map::MapController *mapc, QQuick
         // 点卡片的右边（左边可能是日程行）
         const QPointF p = card->mapToScene(QPointF(card->width() - 6, 8));
         const QPointF g = win->mapToGlobal(p);
-        QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, g, Qt::LeftButton, Qt::LeftButton, QEvent::MouseButtonPress);
-        QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, g, Qt::NoButton, Qt::LeftButton, QEvent::MouseButtonRelease);
+        QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, p), devPx(win, g), Qt::LeftButton, Qt::LeftButton, QEvent::MouseButtonPress);
+        QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, p), devPx(win, g), Qt::NoButton, Qt::LeftButton, QEvent::MouseButtonRelease);
         pause(120);
         r.check(mapc->markers()->focusStop() == 2, QStringLiteral("点卡片聚焦那一站"), QString::number(mapc->markers()->focusStop()));
         r.check(qAbs(list->property("contentY").toDouble() - y0) < 1, QStringLiteral("点卡片时列表不跳"));

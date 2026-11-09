@@ -695,6 +695,7 @@ Window {
         z: 25
         page: nav.page
         onMap: win.onMapPage
+        darkMap: win.globeMode || mapc.base === "sat"
         // ⋯ 上的名字：当前模式 / 整页（"计划"是默认的，不显示）
         pageLabel: {
             if (nav.page === "plan") return plans.libraryOpen ? qsTr("计划库") : ""
@@ -725,7 +726,6 @@ Window {
         // 0.8.9
         compact: win.w900
         hidePageLabel: !win.wide && !win.fullPageOpen   // 0.12.10：整页不再自己写页名，名字一直留在 ⋯ 上
-        overPage: win.fullPageOpen
         onNewClicked: win.newPlan()
     }
 
@@ -1154,19 +1154,6 @@ Window {
         onAlbumShow: (l, i) => lightbox.show(l, i)
         onAlbumAssign: (ids) => { if (!photoAssign.ask(ids)) toast.show(qsTr("还没有计划"), false) }
         onAlbumFly: (id) => win.flyToPhotos(id)
-    }
-    // 0.11.0 想去：底部月份条（H-03），在左下胶囊右边、放不下时在它上面；开始计划、关联季节
-    WishMonthBar {
-        id: monthBar
-        objectName: "wishMonthBar"
-        visible: win.mapShown && plans.mode === "wish" && !win.sheetOpen && !win.editorShown
-        z: 12
-        readonly property real leftEdge: statusPill.x + statusPill.width + win.gap
-        readonly property bool below: win.width - leftEdge - win.gap >= 12 * Theme.px(30)
-        x: below ? leftEdge : win.leftX
-        width: Math.min(implicitWidth, win.width - x - win.gap - (locBtn.visible && below ? locBtn.width + 10 : 0))
-        height: implicitHeight
-        y: below ? win.height - height - 20 : statusPill.y - height - 10
     }
     WishDialog {
         id: wishDialog
@@ -1711,7 +1698,6 @@ Window {
         anchors.right: parent.right   // 0.8.7：左下角给状态胶囊，测试信息挪到右下角（简易面板开着时让到它左边）
         anchors.bottom: parent.bottom
         anchors.margins: 14
-        anchors.bottomMargin: monthBar.visible && monthBar.below ? 28 + monthBar.height : 14   // 0.11.0 让开想去的月份条
         anchors.rightMargin: 14 + (win.drawerMode ? 0 : win.editorShown ? planEditor.width + 14 : win.sheetOpen ? planSheet.targetW + 14 : 0) + (locBtn.visible ? locBtn.width + 10 : 0)
         // 0.8.9：左边有图例 / 比例尺，宽度不能盖过去；放不下就截断（只有开发版有这个框）
         readonly property real leftLimit: Math.max(14, statusPill.visible ? statusPill.x + statusPill.width + 14 : 14)
@@ -2049,11 +2035,18 @@ Window {
     }
 
     // ---- 0.8.10 整页：账本 0.10.2，日历、游记 0.11.2 ----
+    // 1.3.1：整页是浮在地图上的面板，地图在四周露着（液态玻璃要它做底），但不让拖、不让滚
+    MouseArea {
+        anchors.fill: parent
+        z: 19
+        visible: win.fullPageOpen
+        acceptedButtons: Qt.AllButtons
+        onWheel: (w) => w.accepted = true
+    }
     LedgerPage {
         objectName: "ledgerPage"
-        anchors.fill: parent
-        anchors.margins: win.gap
-        anchors.topMargin: 0   // 0.12.10：整页从窗口顶部开始，页头和顶栏同一行（BarHead）
+        x: win.gap; y: win.topH - 6   // 1.3.1：和相册展开时一样，顶栏下面、四边留边（PlanListPanel 的几何）
+        width: win.width - 2 * win.gap; height: win.height - y - 20
         z: 20
         shown: nav.page === "ledger"
         onOpenPlan: (id) => { win.tripTab = "budget"; win.openTrip(id, -1) }
@@ -2063,9 +2056,8 @@ Window {
     AiPlanPage {
         id: aiPlanPage
         objectName: "aiPlanPage"
-        anchors.fill: parent
-        anchors.margins: win.gap
-        anchors.topMargin: 0
+        x: win.gap; y: win.topH - 6   // 1.3.1：和相册展开时一样，顶栏下面、四边留边（PlanListPanel 的几何）
+        width: win.width - 2 * win.gap; height: win.height - y - 20
         z: 20
         shown: nav.page === "aiplan"
         onSettingsRequested: { win.goPage("settings"); settings.showSection("ai") }
@@ -2075,9 +2067,8 @@ Window {
     CalendarPage {
         id: calendarPage
         objectName: "calendarPage"
-        anchors.fill: parent
-        anchors.margins: win.gap
-        anchors.topMargin: 0
+        x: win.gap; y: win.topH - 6   // 1.3.1：和相册展开时一样，顶栏下面、四边留边（PlanListPanel 的几何）
+        width: win.width - 2 * win.gap; height: win.height - y - 20
         z: 20
         shown: nav.page === "calendar"
         onOpenPlan: (id, tab) => { win.tripTab = tab; win.openTrip(id, -1) }
@@ -2087,9 +2078,8 @@ Window {
     JournalPage {
         id: journalPage
         objectName: "journalPage"
-        anchors.fill: parent
-        anchors.margins: win.gap
-        anchors.topMargin: 0
+        x: win.gap; y: win.topH - 6   // 1.3.1：和相册展开时一样，顶栏下面、四边留边（PlanListPanel 的几何）
+        width: win.width - 2 * win.gap; height: win.height - y - 20
         z: 20
         shown: nav.page === "journal"
         onOpenPlan: (id) => { win.tripTab = "journal"; win.openTrip(id, -1) }

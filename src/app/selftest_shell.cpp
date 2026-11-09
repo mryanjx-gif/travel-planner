@@ -53,8 +53,8 @@ void key(QQuickWindow *win, int k, Qt::KeyboardModifiers mods = Qt::NoModifier)
 void mouse(QQuickWindow *win, const QPointF &p, Qt::MouseButton b)
 {
     const QPointF g = win->mapToGlobal(p);
-    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, g, b, b, QEvent::MouseButtonPress);
-    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, g, Qt::NoButton, b, QEvent::MouseButtonRelease);
+    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, p), devPx(win, g), b, b, QEvent::MouseButtonPress);
+    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, p), devPx(win, g), Qt::NoButton, b, QEvent::MouseButtonRelease);
     pause(80);
 }
 // 在某个界面元素中间点一下（经过窗口系统，和真的鼠标一样）

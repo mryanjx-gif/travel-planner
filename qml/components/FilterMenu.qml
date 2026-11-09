@@ -55,6 +55,7 @@ Item {
         Repeater {
             model: [{ key: "single", text: qsTr("单一目的地") }, { key: "route", text: qsTr("路线") }]
             delegate: TpCheck {
+                boldChecked: true
                 required property var modelData
                 width: col.width
                 text: modelData.text
@@ -80,6 +81,7 @@ Item {
                     width: (col.width - Theme.px(12)) / 2
                     height: Math.max(Theme.px(26), chk.implicitHeight)
                     TpCheck {
+                        boldChecked: true
                         id: chk
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
@@ -116,6 +118,7 @@ Item {
         Item { width: 1; height: Theme.px(4); visible: plans.overlayAvailable }
         Rectangle { width: parent.width; height: 1; color: Theme.line; visible: plans.overlayAvailable }
         TpCheck {
+            boldChecked: true
             objectName: "overlayCheck"
             visible: plans.overlayAvailable
             width: col.width
@@ -127,6 +130,7 @@ Item {
         Repeater {
             model: ["plan", "wish", "foot"]
             delegate: TpCheck {
+                boldChecked: true
                 required property string modelData
                 objectName: "overlayPart-" + modelData
                 visible: plans.overlay && modelData !== plans.mode

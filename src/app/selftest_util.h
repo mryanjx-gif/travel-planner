@@ -7,8 +7,13 @@
 #include <QImage>
 #include <QString>
 #include <QStringList>
+#include <QWindow>
 
 #include <functional>
+
+// 1.3.1：Qt 6 的 QWindowSystemInterface::handleMouseEvent / handleWheelEvent 收的是设备像素，进来后除以缩放；
+// 系统缩放不是 100%（PO 电脑现在 125%）时，自检合成的点击要先乘回去，不然点在偏左上的地方（v1.3.1记录 §3）
+inline QPointF devPx(const QWindow *w, const QPointF &p) { return p * w->devicePixelRatio(); }
 
 class QQuickWindow;
 class QQuickItem;

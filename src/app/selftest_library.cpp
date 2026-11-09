@@ -39,13 +39,13 @@ void click(QQuickWindow *win, QQuickItem *it)
     waitStill(it, 1000);   // 0.12.11：面板滑进、列表滚动时先等停稳再点，不然点在半路上
     const QPointF p = it->mapToScene(QPointF(it->width() / 2, it->height() / 2));
     const QPointF g = win->mapToGlobal(p);
-    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, g, Qt::LeftButton, Qt::LeftButton, QEvent::MouseButtonPress);
-    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, g, Qt::NoButton, Qt::LeftButton, QEvent::MouseButtonRelease);
+    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, p), devPx(win, g), Qt::LeftButton, Qt::LeftButton, QEvent::MouseButtonPress);
+    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, p), devPx(win, g), Qt::NoButton, Qt::LeftButton, QEvent::MouseButtonRelease);
     pause(120);
 }
 void moveTo(QQuickWindow *win, const QPointF &p)
 {
-    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, win->mapToGlobal(p), Qt::NoButton, Qt::NoButton, QEvent::MouseMove);
+    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, p), devPx(win, win->mapToGlobal(p)), Qt::NoButton, Qt::NoButton, QEvent::MouseMove);
     pause(60);
 }
 QVariantList libRows(PlanController *pc) { return pc->library().value(QStringLiteral("rows")).toList(); }
@@ -93,9 +93,11 @@ void runLibrary(Report &r, AppController *app, map::MapController *mapc, QQuickW
     const double narrowW = panel->width();
     click(win, expand);
     waitFor([pc] { return pc->libraryOpen(); }, 2000);
+    const bool clickedOpen = pc->libraryOpen();
+    if (!clickedOpen) { r.info(QStringLiteral("真点\"展开\"没打开（v1.3.1记录 §3 的点不中问题），改成直接打开，后面接着查")); pc->setLibraryOpen(true); waitFor([pc] { return pc->libraryOpen(); }, 2000); }
     waitStill(panel);
     const bool sixty = win->width() < 900 || qAbs(panel->width() - win->width() * 0.6) < 2;
-    r.check(pc->libraryOpen() && sixty && panel->width() > narrowW, QStringLiteral("点展开：列表占窗口约 60%，右边留着地图"),
+    r.check(clickedOpen && sixty && panel->width() > narrowW, QStringLiteral("点展开：列表占窗口约 60%，右边留着地图"),
             QStringLiteral("%1 / %2").arg(panel->width()).arg(win->width()));
     const int total = planCount(store);
     r.check(libRows(pc).size() == total, QStringLiteral("计划库列出全部计划（不只是计划中）"), QStringLiteral("%1 / %2").arg(libRows(pc).size()).arg(total));
@@ -254,7 +256,7 @@ void runLibrary(Report &r, AppController *app, map::MapController *mapc, QQuickW
         // 删除：先取 10 个，确认框列前 8 个
         QStringList ten;
         for (int i = 0; i < 10 && i < total; ++i) ten << idOf(libRows(pc).value(i));
-        lv->setProperty("selIds", ten);
+        if (lv) lv->setProperty("selIds", ten);   // 1.3.1：前面没展开成功时 lv 为空，别崩
         waitFrames(win, 2);
         click(win, item(win, QStringLiteral("libSelDelete")));
         QQuickItem *dlg = item(win, QStringLiteral("bulkConfirm"));
@@ -266,7 +268,7 @@ void runLibrary(Report &r, AppController *app, map::MapController *mapc, QQuickW
         QMetaObject::invokeMethod(dlg, "chosen", Q_ARG(QString, QStringLiteral("ok")));
         waitFrames(win, 2);
         r.check(planCount(store) == total - 10 && int(store->data()[QStringLiteral("photos")].asArray().size()) == photosBefore
-                    && !lv->property("selMode").toBool(), QStringLiteral("删除后计划少了 10 个、照片一张没少、退出选择模式"));
+                    && lv && !lv->property("selMode").toBool(), QStringLiteral("删除后计划少了 10 个、照片一张没少、退出选择模式"));
         app->undo();
         waitFrames(win, 2);
         r.check(planCount(store) == total, QStringLiteral("批量删除一步撤销"));
@@ -312,17 +314,15 @@ void runLibrary(Report &r, AppController *app, map::MapController *mapc, QQuickW
         waitFor([pc] { return pc->mode() == QLatin1String("wish"); }, 2000);
         win->setProperty("listOpen", true);
         waitFrames(win, 3);
-        QQuickItem *bar = item(win, QStringLiteral("wishMonthBar"));
-        r.check(shown(bar) && shown(item(win, QStringLiteral("wishNewBtn"))) && !shown(item(win, QStringLiteral("listExpandBtn"))), QStringLiteral("想去：有月份条、新建想去，没有展开"));
-        // 准备：3 个想去，第一个关联到季节表一行（找到 best 的月份），第二个关联完换到不合适的月份，第三个不关联
+        r.check(!item(win, QStringLiteral("wishMonthBar")) && shown(item(win, QStringLiteral("wishNewBtn"))) && !shown(item(win, QStringLiteral("listExpandBtn"))), QStringLiteral("想去：没有月份条（1.3.1 去掉）、有新建想去，没有展开"));
         const QVariantList seasons = pc->seasonRows();
         r.check(!seasons.isEmpty(), QStringLiteral("数据里有季节表"), QString::number(seasons.size()));
-        QHash<QString, int> byGroup;
-        for (const QVariant &v : listRows(pc)) byGroup[v.toMap().value(QStringLiteral("group")).toString()]++;
+        bool monthGroup = false;
+        for (const QVariant &v : listRows(pc)) { const QString g = v.toMap().value(QStringLiteral("group")).toString(); if (g == QLatin1String("fit") || g == QLatin1String("other") || g == QLatin1String("noref")) monthGroup = true; }
+        r.check(!monthGroup, QStringLiteral("想去的列表不再按月份分组"));
         QVariantMap one;
-        for (const QVariant &v : listRows(pc)) if (v.toMap().value(QStringLiteral("group")).toString() == QLatin1String("noref")) { one = v.toMap(); break; }
+        for (const QVariant &v : listRows(pc)) if (v.toMap().value(QStringLiteral("kinds")).toList().isEmpty()) { one = v.toMap(); break; }
         for (const QVariant &v : listRows(pc)) if (one.isEmpty()) one = v.toMap();
-        r.info(QStringLiteral("这个月：合适 %1、其他 %2、没关联 %3").arg(byGroup.value(QStringLiteral("fit"))).arg(byGroup.value(QStringLiteral("other"))).arg(byGroup.value(QStringLiteral("noref"))));
         const int wishTotal = int(listRows(pc).size());
         r.check(wishTotal > 0, QStringLiteral("想去的列表有内容"));
 
@@ -348,39 +348,24 @@ void runLibrary(Report &r, AppController *app, map::MapController *mapc, QQuickW
         waitFor([dlg] { return !dlg->isVisible(); }, 1500);   // 淡完，不然后面点在遮罩上
         r.check(pc->planBasics(wid).value(QStringLiteral("seasonRef")).toString() == ref, QStringLiteral("关联季节：写进计划的 seasonRef"), ref);
 
-        // 这一行的 12 格，换到合适的月 / 不合适的月
+        // 这一行的 12 格
         QStringList kinds;
         for (const QVariant &v : listRows(pc)) if (idOf(v) == wid) kinds = v.toMap().value(QStringLiteral("kinds")).toStringList();
-        int good = 0, bad = 0;
-        for (int i = 0; i < kinds.size(); ++i) {
-            if (!good && (kinds[i] == QLatin1String("best") || kinds[i] == QLatin1String("nice"))) good = i + 1;
-            if (!bad && kinds[i] != QLatin1String("best") && kinds[i] != QLatin1String("nice")) bad = i + 1;
-        }
         r.check(kinds.size() == 12 && shown(item(win, QStringLiteral("wishStrip-") + wid)), QStringLiteral("关联后列表这一行有季节条"));
-        const auto groupOf = [pc, &wid] { for (const QVariant &v : listRows(pc)) if (idOf(v) == wid) return v.toMap().value(QStringLiteral("group")).toString(); return QString(); };
-        if (good) {
-            click(win, item(win, QStringLiteral("month-%1").arg(good)));
-            waitFrames(win, 2);
+        {
+            waitFor([mapc, &wid] { const map::TripPlan *x = tripOf(mapc, wid); return x && x->tone == 0; }, 1500);   // 改数据后地图隔 60 ms 才重算
             const map::TripPlan *t = tripOf(mapc, wid);
-            const bool green = t && t->tone == 1;
-            bool greenMark = t && t->stops.isEmpty();
+            bool greenMark = false;
             for (const map::MarkerLayer::Stop &s : mapc->markers()->stops())
                 if (s.planId == wid && s.style.color == QLatin1String("#3f8a5c")) greenMark = true;
-            r.check(pc->wishMonth() == good && groupOf() == QLatin1String("fit") && listRows(pc).size() == wishTotal, QStringLiteral("点月份：这个月合适的分到最前一组，一个都不少"), QStringLiteral("%1 月（要 %2）%3，%4 / %5 个").arg(pc->wishMonth()).arg(good).arg(groupOf()).arg(listRows(pc).size()).arg(wishTotal));
-            r.check(green && greenMark, QStringLiteral("O2：这个月合适的标记是绿色"));
-            r.check(idOf(listRows(pc).first()) == wid || listRows(pc).first().toMap().value(QStringLiteral("group")).toString() == QLatin1String("fit"), QStringLiteral("合适的一组在最前"));
-        }
-        if (bad) {
-            pc->setWishMonth(bad);
-            const map::TripPlan *t = tripOf(mapc, wid);
-            r.check(groupOf() == QLatin1String("other") && t && t->tone == 0, QStringLiteral("不合适的月份：分到\"其他月份\"，标记不变绿"));
+            r.check(t && t->tone == 0 && !greenMark, QStringLiteral("地图上不再按月变绿"));
         }
         // 没关联的：一直在、地图上淡
         pc->setSeasonRef(wid, QString());
         waitFor([mapc, &wid] { const map::TripPlan *x = tripOf(mapc, wid); return x && x->tone == -1; }, 1500);   // 改数据后地图隔 60 ms 才重算
         const map::TripPlan *t = tripOf(mapc, wid);
         const QString rawColor = plans::planById(store->data(), wid)->operator[](QStringLiteral("color")).toString();
-        r.check(groupOf() == QLatin1String("noref") && t && t->tone == -1, QStringLiteral("没关联的：单独一组、地图上画淡一点（PO 第 2 题 A）"));
+        r.check(t && t->tone == -1, QStringLiteral("没关联的：地图上画淡一点（PO 第 2 题 A）"));
         r.check(t && (rawColor.isEmpty() || t->color != rawColor) && plans::planById(store->data(), wid)->operator[](QStringLiteral("color")).toString() == rawColor,
                 QStringLiteral("画淡只改这次画的颜色，数据里的颜色没变"), rawColor);
         // 撤销这两步，数据回到原样
@@ -414,8 +399,6 @@ void runLibrary(Report &r, AppController *app, map::MapController *mapc, QQuickW
         r.check(ed && ed->isOpen() && ed->property("plan").toMap().value(QStringLiteral("status")).toString() == QLatin1String("wish"), QStringLiteral("新建想去：编辑器打开，状态是想去"));
         if (ed) QMetaObject::invokeMethod(ed, "discard");
         waitFor([ed] { return ed && !ed->isOpen(); }, 2000);
-        const QDate today = QDate::currentDate();
-        pc->setWishMonth(today.month());
     }
 
     // ---- 足迹 ----

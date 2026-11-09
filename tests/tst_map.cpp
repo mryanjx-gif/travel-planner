@@ -1452,28 +1452,15 @@ void TestMap::plansLibrary()
     QCOMPARE(rows.last().toMap().value("id").toString(), QStringLiteral("a"));
     QCOMPARE(rows.last().toMap().value("group").toString(), QStringLiteral("listHidden"));
 
-    // 想去：3 月 best 在前，没关联的（含 seasonRef 指向没有的行）一直在
+    // 想去：普通分组（1.3.1 去掉月份条），每行带关联季节的 12 格，没关联的（含 seasonRef 指向没有的行）为空
     plans::Filter f = plans::Filter::all();
     f.status = { QStringLiteral("wish") };
-    QVariantMap w = plans::wishInfo(root, f, 3, 11, {});
+    QVariantMap w = plans::wishInfo(root, f, {});
     QCOMPARE(ids(w).size(), 3);
     const auto grp = [](const QVariantMap &m, const QString &id) { for (const QVariant &v : m.value("rows").toList()) if (v.toMap().value("id").toString() == id) return v.toMap(); return QVariantMap(); };
-    QCOMPARE(grp(w, "b").value("group").toString(), QStringLiteral("fit"));
-    QCOMPARE(grp(w, "c").value("group").toString(), QStringLiteral("noref"));
     QCOMPARE(grp(w, "c").value("kinds").toStringList().size(), 0);
     QCOMPARE(grp(w, "b").value("kinds").toStringList().size(), 12);
-    QCOMPARE(grp(w, "b").value("groupCount").toInt(), 2);
-    QVERIFY(grp(w, "b").value("nowFit").toBool());   // 11 月 nice
-    QCOMPARE(ids(w).last(), QStringLiteral("c"));
-    QCOMPARE(w.value("months").toList().at(2).toInt(), 2);
-    QCOMPARE(w.value("months").toList().at(6).toInt(), 0);
-    w = plans::wishInfo(root, f, 8, 8, {});
-    QCOMPARE(grp(w, "b").value("group").toString(), QStringLiteral("other"));
-    QVERIFY(!grp(w, "b").value("nowFit").toBool());
-    QCOMPARE(ids(w).size(), 3);
-    QCOMPARE(plans::wishFit(root, *plans::planById(root, "b"), 3), 1);
-    QCOMPARE(plans::wishFit(root, *plans::planById(root, "b"), 8), 0);
-    QCOMPARE(plans::wishFit(root, *plans::planById(root, "c"), 3), -1);
+    QVERIFY(!w.contains("months"));
     QCOMPARE(plans::seasonRows(root).at(0).toMap().value("group").toString(), QStringLiteral("东亚"));
 
     // 批量、开始计划、关联季节

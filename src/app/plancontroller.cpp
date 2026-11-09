@@ -57,7 +57,6 @@ QStringList ordered(const QSet<QString> &s, const QStringList &order)
 PlanController::PlanController(AppController *app, Settings *settings, data::DataStore *store, map::MapController *mapc, QObject *parent)
     : QObject(parent), m_app(app), m_settings(settings), m_store(store), m_mapc(mapc)
 {
-    m_wishMonth = QDate::currentDate().month();
     m_libSearchTimer.setSingleShot(true);
     m_libSearchTimer.setInterval(200);
     connect(&m_libSearchTimer, &QTimer::timeout, this, [this] { if (m_libOpen) m_mapc->refilter(); });
@@ -69,7 +68,7 @@ PlanController::PlanController(AppController *app, Settings *settings, data::Dat
     });
     m_mapc->setPlanTone([this](const Value &p) {
         if (m_mode != QLatin1String("wish") || m_testAll || m_libOpen || !m_solo.isEmpty() || plans::statusOf(p) != QLatin1String("wish")) return 0;
-        return plans::wishFit(m_store->data(), p, m_wishMonth);
+        return plans::seasonInfo(m_store->data(), p[QStringLiteral("seasonRef")].toString()).isEmpty() ? -1 : 0;   // 没关联季节的画淡一点
     });
     m_mapc->setOverlayFilter([this](const Value &p) { return m_solo.isEmpty() && overlayPlan(p); });   // 0.9.7
     connect(m_store, &data::DataStore::contentChanged, this, [this] { refreshNow(); refreshSheet(); refreshList(); });
@@ -466,7 +465,7 @@ void PlanController::refreshList()
 {
     refreshLibrary();
     const QVariantMap l = m_mode == QLatin1String("wish") && !m_testAll
-        ? plans::wishInfo(m_store->data(), m_filter, m_wishMonth, m_today.isEmpty() ? QDate::currentDate().month() : m_today.mid(5, 2).toInt(), m_lib.hidden)
+        ? plans::wishInfo(m_store->data(), m_filter, m_lib.hidden)
         : plans::listInfo(m_store->data(), m_filter, m_mode == QLatin1String("foot"), m_lib.hidden);
     if (l == m_list) return;
     m_list = l;
@@ -599,14 +598,6 @@ bool PlanController::setPlansStatus(const QStringList &ids, const QString &statu
 bool PlanController::deletePlans(const QStringList &ids)
 {
     return edit([&](Value &d) { return plans::deletePlans(d, ids); }, "批量删除");
-}
-
-void PlanController::setWishMonth(int month)
-{
-    if (month < 1 || month > 12 || month == m_wishMonth) return;
-    m_wishMonth = month;
-    refreshList();
-    if (m_mode == QLatin1String("wish")) m_mapc->refilter();
 }
 
 bool PlanController::startPlan(const QString &planId, const QString &start, const QString &end)

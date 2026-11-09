@@ -33,7 +33,7 @@ struct TripPlan {
     QVector<QVector<geo::LatLng>> segments;
     int dash = 0;
     double west = 0, east = 0, south = 0, north = 0;   // 所有段的范围（经度同样是展开后的）
-    int tone = 0;   // 0.11.0 想去模式：1 这个月合适（标记绿色）、-1 没关联季节（线和标记的颜色淡一点）
+    int tone = 0;   // 0.11.0 想去模式：-1 没关联季节（线和标记的颜色淡一点）
     bool isRoute() const { return type == QLatin1String("route") && stops.size() > 1; }
 };
 

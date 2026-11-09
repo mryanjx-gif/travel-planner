@@ -23,6 +23,7 @@ Item {
     property var badges: []           // [{ text, kind: "days" | "count" }]（顶栏"下次出发"的倒计时和待办数）
     property real baseAlpha: 0.42     // 小泡泡遮盖（glass.css .lyr-opt --lg-alpha .5）
     property color onColor: Theme.text
+    property color offColor: Theme.text   // 1.3.1（PO）：没选中的字色（顶栏泡泡用深蓝）
     property bool pickedNow: false
     signal clicked()
 
@@ -101,7 +102,7 @@ Item {
                 font.family: serifFamily
                 font.pixelSize: Theme.px(13)
                 font.bold: bud.on
-                color: (bud.dark || bud.whiteText) && !bud.on ? "#ffffff" : (bud.on ? bud.onColor : Theme.text)
+                color: (bud.dark || bud.whiteText) && !bud.on ? "#ffffff" : (bud.on ? bud.onColor : bud.offColor)
                 style: bud.whiteText && !bud.on ? Text.Outline : Text.Normal
                 styleColor: Qt.rgba(0, 0, 0, 0.22)
             }

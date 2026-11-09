@@ -55,9 +55,9 @@ struct Ctx
     NavHistory *nav;
     QQuickItem *item(const QString &n) const { return findItem(win->contentItem(), n); }
     bool shown(const QString &n) const { return visibleChain(item(n)); }
-    void press(const QPointF &p) const { QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, win->mapToGlobal(p), Qt::LeftButton, Qt::LeftButton, QEvent::MouseButtonPress); }
-    void moveTo(const QPointF &p) const { QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, win->mapToGlobal(p), Qt::LeftButton, Qt::NoButton, QEvent::MouseMove); pause(30); }
-    void release(const QPointF &p) const { QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, win->mapToGlobal(p), Qt::NoButton, Qt::LeftButton, QEvent::MouseButtonRelease); pause(60); }
+    void press(const QPointF &p) const { QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, p), devPx(win, win->mapToGlobal(p)), Qt::LeftButton, Qt::LeftButton, QEvent::MouseButtonPress); }
+    void moveTo(const QPointF &p) const { QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, p), devPx(win, win->mapToGlobal(p)), Qt::LeftButton, Qt::NoButton, QEvent::MouseMove); pause(30); }
+    void release(const QPointF &p) const { QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, p), devPx(win, win->mapToGlobal(p)), Qt::NoButton, Qt::LeftButton, QEvent::MouseButtonRelease); pause(60); }
     QPointF center(QQuickItem *it) const { return it->mapToScene(QPointF(it->width() / 2, it->height() / 2)); }
     void click(QQuickItem *it) const { if (!it) return; waitStill(it, 1000); const QPointF p = center(it); press(p); release(p); pause(100); }
     void click(const QString &n) const { click(item(n)); }
@@ -155,13 +155,18 @@ void runCalendar(Report &r, AppController *app, QQuickWindow *win)
     QQuickItem *bar = nullptr;
     r.check(waitFor([&] { bar = c.item(QStringLiteral("calBar-") + pid); return visibleChain(bar); }, 1500), QStringLiteral("年视图有这个计划的横条"));
 
-    // ---- 0.12.10 页头并进顶栏：宽窗口时切换控件和 ⋯ 同一行、不压着它，整页顶到窗口顶 ----
+    // ---- 1.3.1 整页浮在地图上：顶栏下面、四边留边，页头在面板里第一行（不和顶栏同一行），顶栏按地图上的样式 ----
     {
         QQuickItem *dots = c.item(QStringLiteral("dotsPill")), *prev = c.item(QStringLiteral("calPrev")), *page = c.item(QStringLiteral("calendarPage"));
-        const bool sameRow = dots && prev && qAbs(c.center(dots).y() - c.center(prev).y()) < 3;
-        const bool clear = dots && prev && prev->mapToScene(QPointF(0, 0)).x() >= dots->mapToScene(QPointF(dots->width(), 0)).x();
-        r.check(sameRow && clear, QStringLiteral("日历的切换控件和顶栏 ⋯ 同一行，不重叠"));
-        r.check(page && page->mapToScene(QPointF(0, 0)).y() < 1, QStringLiteral("整页从窗口顶部开始"));
+        QQuickItem *top = c.item(QStringLiteral("topBar"));
+        const double barH = top ? top->property("barH").toDouble() : 0;
+        const QPointF p0 = page ? page->mapToScene(QPointF(0, 0)) : QPointF();
+        r.check(page && p0.y() > barH - 10 && p0.x() > 1 && page->width() < win->width() - 2 && page->mapToScene(QPointF(0, page->height())).y() < win->height() - 1,
+                QStringLiteral("整页在顶栏下面、四边留边"), QStringLiteral("%1,%2 %3×%4").arg(p0.x()).arg(p0.y()).arg(page ? page->width() : 0).arg(page ? page->height() : 0));
+        r.check(dots && prev && prev->mapToScene(QPointF(0, 0)).y() >= p0.y() && c.center(prev).y() > c.center(dots).y() + 10,
+                QStringLiteral("页头在面板里，不和顶栏 ⋯ 同一行"));
+        QQuickItem *glass = page ? page->findChild<QQuickItem *>(QStringLiteral("glassSurface")) : nullptr;
+        r.check(glass && glass->parentItem() && glass->parentItem()->property("liquid").toBool(), QStringLiteral("整页面板用液态玻璃（GlassPanel liquid）"));
     }
 
     // ---- 翻页和今天 ----
@@ -487,7 +492,7 @@ void runCalendarWeek(Report &r, AppController *app, map::MapController *mapc, QQ
     if (weekTop && waitFor([&] { return weekTop->property("contentHeight").toDouble() > weekTop->height(); }, 1000)) {
         const QPointF at = weekTop->mapToScene(QPointF(weekTop->width() / 2, weekTop->height() / 2));
         weekTop->setProperty("contentY", 0);
-        QWindowSystemInterface::handleWheelEvent(win, at, win->mapToGlobal(at), QPoint(), QPoint(0, -120));
+        QWindowSystemInterface::handleWheelEvent(win, devPx(win, at), devPx(win, win->mapToGlobal(at)), QPoint(), QPoint(0, -120));
         r.check(waitFor([&] { return weekTop->property("contentY").toDouble() > 0; }, 1000), QStringLiteral("全天区放不下时滚轮能滚"), weekTop->property("contentY").toString());
         weekTop->setProperty("contentY", 0);
     } else r.info(QStringLiteral("这一周全天区放得下，滚轮没测"));

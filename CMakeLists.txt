@@ -3,7 +3,7 @@
 # 规则（PO 2026-11-02）：大更新改第一位，中等更新改第二位，小修改改第三位；正式版之前是 0.x.y，正式版 1.0.0。
 cmake_minimum_required(VERSION 3.24)
 
-set(TP_VERSION "1.3.0")
+set(TP_VERSION "1.3.1")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TP_VERSION_NUMERIC "${TP_VERSION}")
 
 project(TravelPlannerNative
@@ -226,7 +226,7 @@ set_source_files_properties(qml/theme/Fmt.qml PROPERTIES QT_QML_SINGLETON_TYPE T
 foreach(f TpAnim TpMove TpSpring FocusRing TpCard TpDone GlassPanel TpButton ModalLayer ChoiceCard ChoiceDialog MessageDialog TextInputDialog ExtChangedCard ErrorCard Banner Toast Segmented
           TpSelect TpCheck PhotoImportReview PhotoCleanupDialog MapMarkers PhotoMarkers AlbumView PhotoAssignDialog MapTip RoadBar LayerBubbles UnlockPanel
           LinkText StatusFilterPill FilterMenu NowCard PlanSheet
-          SplitBud TopBar AvatarMenu PlanListPanel LibraryView WishMonthBar WishDialog CommandPalette RoundButton TpIcon
+          SplitBud TopBar AvatarMenu PlanListPanel LibraryView WishDialog CommandPalette RoundButton TpIcon
           PlanEditor DateField TpField StylePopover MarkerShape ColorWheel EditOverlay DrawerGrip
           AiPanel ExportDialog SchedList RouteSketch RoundIcon MenuRow Lightbox PhotosTab MdEditor CalPlanCard CalPicker EmptyArt EmptyState Tour TpTip PeoplePane RowAct RowMenu BarHead)
     set_source_files_properties(qml/components/${f}.qml PROPERTIES QT_RESOURCE_ALIAS ${f}.qml)
@@ -311,7 +311,6 @@ qt_add_qml_module(TravelPlanner
         qml/components/PhotoMarkers.qml
         qml/components/AlbumView.qml
         qml/components/PhotoAssignDialog.qml
-        qml/components/WishMonthBar.qml
         qml/components/WishDialog.qml
         qml/components/CommandPalette.qml
         qml/components/RoundButton.qml

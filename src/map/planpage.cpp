@@ -180,57 +180,22 @@ QVariantList docWarnings(const Value &root, const Value &plan)
     return out;
 }
 
-int wishFit(const Value &root, const Value &plan, int month)
-{
-    const QVariantList cells = seasonInfo(root, str(plan, "seasonRef")).value(QStringLiteral("cells")).toList();
-    if (cells.isEmpty()) return -1;
-    const QString k = cells.value(month - 1).toMap().value(QStringLiteral("kind")).toString();
-    return k == QLatin1String("best") || k == QLatin1String("nice") ? 1 : 0;
-}
-
-QVariantMap wishInfo(const Value &root, const plans::Filter &f, int month, int nowMonth, const QSet<QString> &listHidden)
+QVariantMap wishInfo(const Value &root, const plans::Filter &f, const QSet<QString> &listHidden)
 {
     QVariantMap l = plans::listInfo(root, f, false, listHidden);
     QVariantList rows = l.value(QStringLiteral("rows")).toList();
-    QVector<int> months(12, 0);
-    QHash<QString, int> rank;
     for (QVariant &v : rows) {
         QVariantMap r = v.toMap();
-        const QString id = r.value(QStringLiteral("id")).toString();
-        const Value *p = plans::planById(root, id);
-        const QVariantList cells = p ? seasonInfo(root, str(*p, "seasonRef")).value(QStringLiteral("cells")).toList() : QVariantList();
+        const Value *p = plans::planById(root, r.value(QStringLiteral("id")).toString());
         QStringList kinds;
-        for (int i = 0; i < cells.size(); ++i) {
-            const QString k = cells[i].toMap().value(QStringLiteral("kind")).toString();
-            kinds << k;
-            if (k == QLatin1String("best") || k == QLatin1String("nice")) months[i]++;
-        }
-        const QString k = kinds.value(month - 1), kn = kinds.value(nowMonth - 1);
-        const bool hid = r.value(QStringLiteral("listHidden")).toBool();
-        const QString group = hid ? QStringLiteral("listHidden") : kinds.isEmpty() ? QStringLiteral("noref")
-                            : k == QLatin1String("best") || k == QLatin1String("nice") ? QStringLiteral("fit") : QStringLiteral("other");
-        r.insert(QStringLiteral("group"), group);
+        if (p)
+            for (const QVariant &c : seasonInfo(root, str(*p, "seasonRef")).value(QStringLiteral("cells")).toList())
+                kinds << c.toMap().value(QStringLiteral("kind")).toString();
         r.insert(QStringLiteral("kinds"), kinds);
         r.insert(QStringLiteral("regions"), p ? plans::regionsOf(*p) : QStringList());
-        r.insert(QStringLiteral("nowFit"), kn == QLatin1String("best") || kn == QLatin1String("nice"));
-        rank.insert(id, hid ? 4 : kinds.isEmpty() ? 3 : k == QLatin1String("best") ? 0 : k == QLatin1String("nice") ? 1 : 2);
         v = r;
     }
-    std::stable_sort(rows.begin(), rows.end(), [&rank](const QVariant &a, const QVariant &b) {
-        return rank.value(a.toMap().value(QStringLiteral("id")).toString()) < rank.value(b.toMap().value(QStringLiteral("id")).toString());
-    });
-    QHash<QString, int> inGroup;
-    for (const QVariant &v : rows) inGroup[v.toMap().value(QStringLiteral("group")).toString()]++;
-    for (QVariant &v : rows) {
-        QVariantMap r = v.toMap();
-        r.insert(QStringLiteral("groupCount"), inGroup.value(r.value(QStringLiteral("group")).toString()));
-        v = r;
-    }
-    QVariantList mv;
-    for (int n : months) mv << n;
     l.insert(QStringLiteral("rows"), rows);
-    l.insert(QStringLiteral("month"), month);
-    l.insert(QStringLiteral("months"), mv);
     return l;
 }
 

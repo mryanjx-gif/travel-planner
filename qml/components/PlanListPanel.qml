@@ -9,7 +9,7 @@
 // 下次出发的那一趟名字后面带倒计时。
 // 0.8.10：标题跟着地图模式变（title 由 Main 给）；足迹模式按年份分组（group = y2025 / undated）。
 // 0.11.0：计划模式列表头"展开" = 计划库（LibraryView，面板宽度由 Main 给）；想去模式每行加季节条、开始计划、关联季节，
-// 分组 fit / other / noref（plans::wishInfo），列表头"新建想去"；足迹模式列表头下面一行统计；"在列表里隐藏"的排到最后、变灰。
+// 列表头"新建想去"（1.3.1 去掉月份条，不再按"X 月合适"分组）；足迹模式列表头下面一行统计；"在列表里隐藏"的排到最后、变灰。
 // 0.11.1：照片模式的内容换成相册（AlbumView），列表头"展开" = 铺满成整页（albumOpen 由 Main 给）。
 import QtQuick
 import TPApp
@@ -66,9 +66,6 @@ Item {
         if (g.length === 5 && g[0] === "y") return g.slice(1)
         if (g === "undated") return qsTr("没有日期")
         if (g === "listHidden") return qsTr("已隐藏")
-        if (g === "fit") return qsTr("%1合适").arg(Fmt.en ? Fmt.monEn[plans.wishMonth - 1] : plans.wishMonth + " 月")
-        if (g === "other") return qsTr("其他月份更合适")
-        if (g === "noref") return qsTr("还没关联季节")
         return g === "pin" ? qsTr("已置顶") : g === "wish" ? qsTr("想去") : g === "completed" ? qsTr("已完成") : qsTr("计划中")
     }
     function dateRange(r) {
@@ -362,12 +359,11 @@ Item {
                         }
                         Rectangle {
                             id: badge
-                            readonly property bool now: cell.r.nowFit === true   // 想去：今天这个月合适（H-02）
-                            visible: now || (cell.r.isNext === true && root.nextBadge !== "")
+                            visible: cell.r.isNext === true && root.nextBadge !== ""
                             anchors.verticalCenter: parent.verticalCenter
                             width: bt.implicitWidth + Theme.px(12); height: Theme.px(17); radius: height / 2
-                            color: now ? "#e3f0e6" : "#f3e3d9"
-                            Text { id: bt; anchors.centerIn: parent; text: badge.now ? qsTr("现在去正好") : root.nextBadge; font.family: serifFamily; font.pixelSize: Theme.px(11); font.bold: true; color: badge.now ? "#2f6b45" : "#8a4210" }
+                            color: "#f3e3d9"
+                            Text { id: bt; anchors.centerIn: parent; text: root.nextBadge; font.family: serifFamily; font.pixelSize: Theme.px(11); font.bold: true; color: "#8a4210" }
                         }
                     }
                     Text {
@@ -376,7 +372,7 @@ Item {
                         elide: Text.ElideRight
                         font.family: serifFamily; font.pixelSize: Theme.px(12); color: Theme.muted
                     }
-                    // 想去：季节条，选中的月份描一圈
+                    // 想去：关联季节的 12 个月
                     Row {
                         objectName: cell.header ? "" : "wishStrip-" + cell.r.id
                         visible: root.wishMode && !cell.header && (cell.r.kinds || []).length > 0
@@ -389,8 +385,6 @@ Item {
                                 required property int index
                                 width: Theme.px(16); height: Theme.px(7); radius: Theme.px(2)
                                 color: Theme.seasonColor(modelData)
-                                border.width: index + 1 === plans.wishMonth ? 1.5 : 0
-                                border.color: Theme.text
                             }
                         }
                     }

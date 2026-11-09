@@ -48,9 +48,7 @@ Item {
     property bool showNew: true
     property bool compact: false           // ≤ 900（S-15）："新建计划"只剩 ＋、边距 10
     property bool hidePageLabel: false     // ≤ 1100（S-15）：⋯ 旁边不显示页名
-    property bool overPage: false          // 0.12.10：压在整页上。下面不是地图，胶囊不折射、接近实底，否则会透出地图的颜色
-    readonly property real leftEnd: left.x + dotsPill.width + (backBtn.visible ? backBtn.width + Theme.px(8) : 0)   // 整页的页头（BarHead）从这里往右排
-    readonly property real rightStart: right.x
+    property bool darkMap: false           // 1.3.1：卫星图 / 地球上。泡泡照旧白字、42% 玻璃；普通地图上深蓝字、75% 玻璃（PO）
 
     // 0.11.6：顶栏本身高 barH（Main 的 topH 用它）；Item 自己撑满窗口高，竖列才点得到——Qt 把落在父级范围外的点交不给子元素
     readonly property real barH: Theme.px(64)
@@ -103,8 +101,7 @@ Item {
             GlassPanel {
                 anchors.fill: parent
                 radius: height / 2
-                liquid: !root.overPage
-                tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass && !root.overPage ? 0.69 : 0.96)
+                tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.69 : 0.96)
                 edge: dotsMa.containsMouse ? Theme.lineStrong : Theme.glassEdge
             }
             Row {
@@ -173,7 +170,6 @@ Item {
             opacity: bubbles.open ? 0 : 1
             Behavior on opacity { NumberAnimation { duration: Theme.motion ? 200 : 0 } }
             icon: "uturn"
-            solid: root.overPage
             iconColor: Theme.accentInk
             tip: qsTr("回到地图")
             onClicked: root.backClicked()
@@ -227,8 +223,9 @@ Item {
                     caret: modelData.sub === true
                     onColor: Theme.accentInk
                     interactive: bubbles.open
-                    solid: root.overPage
-                    whiteText: !root.overPage
+                    whiteText: root.darkMap
+                    baseAlpha: root.darkMap ? 0.42 : 0.75
+                    offColor: Theme.accentInk
                     // 打开后的位置 = 前一颗的右边 + 6 px（换组时再多 10 px；前一颗先建好；宽度变了跟着挪）；
                     // 超出右边胶囊左边时换到下一行（0.8.10）
                     readonly property int group: modelData.g || 0
@@ -266,8 +263,9 @@ Item {
                     on: root.activeKeys.indexOf(key) >= 0
                     onColor: Theme.accentInk
                     interactive: root.subOpen === owner
-                    solid: root.overPage
-                    whiteText: !root.overPage
+                    whiteText: root.darkMap
+                    baseAlpha: root.darkMap ? 0.42 : 0.75
+                    offColor: Theme.accentInk
                     homeX: ps.x
                     homeY: (ps.row + n + 1) * (root.btnH + Theme.px(8))
                     centerX: ps.x + (parentBud ? parentBud.width / 2 : 0)
@@ -304,8 +302,7 @@ Item {
             GlassPanel {
                 anchors.fill: parent
                 radius: height / 2
-                liquid: !root.overPage
-                tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass && !root.overPage ? 0.69 : 0.96)
+                tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.69 : 0.96)
             }
             Text {
                 id: saveLabel
@@ -335,10 +332,7 @@ Item {
             GlassPanel {
                 anchors.fill: parent
                 radius: height / 2
-                liquid: !root.overPage
-                // 0.12.11 压在整页上（日历、游记、账本）和旁边胶囊一样用接近实底的白，不然一颗灰一颗白
-                tint: root.overPage ? Qt.rgba(250 / 255, 252 / 255, 253 / 255, 0.96)
-                                    : Qt.rgba(newBtn.g[0] / 255, newBtn.g[1] / 255, newBtn.g[2] / 255, Theme.glass ? 0.9 : 0.96)   // 1.1.0（PO）：接近实底，深色地图上也衬得出深蓝字
+                tint: Qt.rgba(newBtn.g[0] / 255, newBtn.g[1] / 255, newBtn.g[2] / 255, Theme.glass ? 0.9 : 0.96)   // 1.1.0（PO）：接近实底，深色地图上也衬得出深蓝字
                 edge: newMa.containsMouse ? Theme.lineStrong : Theme.glassEdge
             }
             Row {
@@ -368,8 +362,7 @@ Item {
             GlassPanel {
                 anchors.fill: parent
                 radius: height / 2
-                liquid: !root.overPage
-                tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass && !root.overPage ? 0.69 : 0.96)
+                tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.69 : 0.96)
             }
             Row {
                 id: capRow

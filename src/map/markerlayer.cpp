@@ -199,7 +199,6 @@ void MarkerLayer::rebuild(const TripData &trips)
             s.planId = p.id;
             s.base = i < p.markerPos.size() ? p.markerPos[i] : geo::LatLng{ p.stops[i].lat, geo::normLng(p.stops[i].lng) };
             s.style = markers::stopStyle(p, i, n);
-            if (p.tone > 0) s.style.color = QStringLiteral("#3f8a5c");   // 0.11.0 O2：这个月合适的想去
             const bool iconShown = iconsOk && !s.style.icon.isEmpty() && msicons::codepoint(s.style.icon.toUtf8().constData()) != 0;
             s.geom = markers::geomFor(s.style, iconShown);
             s.route = route;

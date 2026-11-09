@@ -66,6 +66,7 @@ Item {
                     text: qsTr("筛选")
                     font.family: serifFamily
                     font.pixelSize: Theme.px(13)
+                    font.bold: root.menuOpen   // 1.3.1（PO）：打开时加粗
                     color: Theme.text
                     anchors.verticalCenter: parent.verticalCenter
                 }

@@ -56,6 +56,8 @@ if (Test-Path $Stage) {
 New-Item -ItemType Directory -Force -Path $Stage | Out-Null
 Copy-Item (Join-Path $Bld 'TravelPlanner.exe') $Stage
 Copy-Item (Join-Path $Bld 'assets') $Stage -Recurse
+# 1.3.1：assets/app/logo 是 PO 自己放的素材（还没提交、程序也没用），不打进安装包；接进程序时删掉这一行
+Remove-Item (Join-Path $Stage 'assets/app/logo') -Recurse -Force -ErrorAction SilentlyContinue
 foreach ($b in 'vulkan', 'opengl') {
     $src = Join-Path $Root "third_party\maplibre-native-qt\install-$b"
     if (-not (Test-Path (Join-Path $src 'qml\MapLibre\qmldir'))) { Say "  [!] 没有 $b 版地图库，跳过" 'Yellow'; continue }

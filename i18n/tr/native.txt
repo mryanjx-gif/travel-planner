@@ -776,9 +776,6 @@ Enter 记下，日期默认今天	Enter to add; dated today
 第 %1 站	Stop %1
 %1 张	%1 photos
 ＋ 新建想去	+ New wish
-%1合适	Good in %1
-其他月份更合适	Better in other months
-还没关联季节	No season linked yet
 改关联的季节	Change season
 关联季节	Link season
 %1 个地区	%1 regions

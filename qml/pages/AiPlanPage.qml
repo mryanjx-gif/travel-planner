@@ -84,10 +84,8 @@ Item {
 
     GlassPanel {
         anchors.fill: parent
-        anchors.topMargin: -Theme.radius   // 和账本一样贴着窗口顶
-        radius: Theme.radius
-        tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.985 : 0.99)
-        liquid: false
+        radius: Theme.px(16)   // 1.3.1：和相册展开时一样，圆角液态玻璃浮在地图上
+        tint: Qt.rgba(250 / 255, 252 / 255, 253 / 255, Theme.glass ? 0.92 : 0.98)   // 1.3.1：92% 白（相册 84%）
     }
     MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; onWheel: (w) => w.accepted = true }   // 不穿透到地图
 
@@ -95,7 +93,7 @@ Item {
         id: flick
         objectName: "aiPlanFlick"
         anchors.fill: parent
-        anchors.topMargin: topBar.barH
+        anchors.topMargin: Theme.px(12)
         contentHeight: col.implicitHeight + Theme.px(44)
         boundsBehavior: Flickable.StopAtBounds
         clip: true

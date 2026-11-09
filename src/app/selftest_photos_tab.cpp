@@ -51,13 +51,13 @@ void click(QQuickWindow *win, QQuickItem *it)
     const QPointF p = it->mapToScene(QPointF(it->width() / 2, it->height() / 2));
     const QPointF g = win->mapToGlobal(p);
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
-    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, g, Qt::LeftButton, Qt::LeftButton, QEvent::MouseButtonPress);
+    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, p), devPx(win, g), Qt::LeftButton, Qt::LeftButton, QEvent::MouseButtonPress);
     QQuickItem *grab = win->mouseGrabberItem();
     g_lastClick = QStringLiteral("按下时抓住的是 %1；离上一次点击 %2 ms、%3 px").arg(grab ? (grab->objectName().isEmpty() ? QString::fromLatin1(grab->metaObject()->className()) : grab->objectName()) : QStringLiteral("（没有）"))
                       .arg(now - g_lastClickAt).arg(QLineF(p, g_lastClickPos).length(), 0, 'f', 0);
     g_lastClickAt = now;
     g_lastClickPos = p;
-    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, g, Qt::NoButton, Qt::LeftButton, QEvent::MouseButtonRelease);
+    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, p), devPx(win, g), Qt::NoButton, Qt::LeftButton, QEvent::MouseButtonRelease);
     pause(80);
 }
 void key(QQuickWindow *win, int k)
@@ -174,7 +174,7 @@ void runPlanPhotos(Report &r, AppController *app, QQuickWindow *win, PlanPageCon
     const QString pct0 = pct->property("text").toString();
     const qreal picW0 = pic->width();
     for (int i = 0; i < 6; ++i) {
-        QWindowSystemInterface::handleWheelEvent(win, c, win->mapToGlobal(c), QPoint(), QPoint(0, 120));
+        QWindowSystemInterface::handleWheelEvent(win, devPx(win, c), devPx(win, win->mapToGlobal(c)), QPoint(), QPoint(0, 120));
         pause(16);
     }
     r.check(waitFor([&] { return lb->property("zoom").toDouble() > 2; }, 1000), QStringLiteral("滚轮放大"), QString::number(lb->property("zoom").toDouble()));
@@ -193,10 +193,10 @@ void runPlanPhotos(Report &r, AppController *app, QQuickWindow *win, PlanPageCon
             QStringLiteral("百分比按原图算"), pct0 + QStringLiteral(" → ") + pct->property("text").toString());
     const qreal panX0 = lb->property("panX").toDouble();
     const QPointF g = win->mapToGlobal(c);
-    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, c, g, Qt::LeftButton, Qt::LeftButton, QEvent::MouseButtonPress);
+    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, c), devPx(win, g), Qt::LeftButton, Qt::LeftButton, QEvent::MouseButtonPress);
     const QPointF c2 = c + QPointF(-60, -30);
-    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, c2, win->mapToGlobal(c2), Qt::LeftButton, Qt::NoButton, QEvent::MouseMove);
-    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, c2, win->mapToGlobal(c2), Qt::NoButton, Qt::LeftButton, QEvent::MouseButtonRelease);
+    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, c2), devPx(win, win->mapToGlobal(c2)), Qt::LeftButton, Qt::NoButton, QEvent::MouseMove);
+    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, c2), devPx(win, win->mapToGlobal(c2)), Qt::NoButton, Qt::LeftButton, QEvent::MouseButtonRelease);
     r.check(qAbs(lb->property("panX").toDouble() - panX0) > 10, QStringLiteral("拖动"), QString::number(lb->property("panX").toDouble() - panX0));
     r.check(lb->property("open").toBool(), QStringLiteral("放大时拖动、点击不关"));
     pause(500);   // 和上一下隔开，不然算成双击的第二下不生效（差异清单 #26）
@@ -219,8 +219,8 @@ void runPlanPhotos(Report &r, AppController *app, QQuickWindow *win, PlanPageCon
     pause(500);   // 和打开那一下隔开
     {
         const QPointF blank(win->width() / 2.0, 20);
-        QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, blank, win->mapToGlobal(blank), Qt::LeftButton, Qt::LeftButton, QEvent::MouseButtonPress);
-        QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, blank, win->mapToGlobal(blank), Qt::NoButton, Qt::LeftButton, QEvent::MouseButtonRelease);
+        QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, blank), devPx(win, win->mapToGlobal(blank)), Qt::LeftButton, Qt::LeftButton, QEvent::MouseButtonPress);
+        QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, blank), devPx(win, win->mapToGlobal(blank)), Qt::NoButton, Qt::LeftButton, QEvent::MouseButtonRelease);
     }
     r.check(waitFor([&] { return !lb->property("open").toBool(); }, 1000), QStringLiteral("点空白处关闭"));
     waitFor([&] { return !lb->isVisible(); }, 1000);
@@ -322,7 +322,7 @@ void runPlanPhotos(Report &r, AppController *app, QQuickWindow *win, PlanPageCon
             pause(300);
             const ProcMem b0 = readProcMem();
             for (int i = 0; i < 6; ++i) {
-                QWindowSystemInterface::handleWheelEvent(win, c, win->mapToGlobal(c), QPoint(), QPoint(0, 120));
+                QWindowSystemInterface::handleWheelEvent(win, devPx(win, c), devPx(win, win->mapToGlobal(c)), QPoint(), QPoint(0, 120));
                 pause(16);
             }
             const bool bigOk = waitFor([&] { return full->property("status").toInt() == 1; }, 15000);
@@ -341,7 +341,7 @@ void runPlanPhotos(Report &r, AppController *app, QQuickWindow *win, PlanPageCon
                 QMetaObject::invokeMethod(lb, "show", Q_ARG(QVariant, bigList), Q_ARG(QVariant, 0));
                 waitFor([&] { return fit->property("status").toInt() == 1 && lb->opacity() > 0.9; }, 8000);
                 for (int i = 0; i < 6; ++i) {
-                    QWindowSystemInterface::handleWheelEvent(win, c, win->mapToGlobal(c), QPoint(), QPoint(0, 120));
+                    QWindowSystemInterface::handleWheelEvent(win, devPx(win, c), devPx(win, win->mapToGlobal(c)), QPoint(), QPoint(0, 120));
                     pause(16);
                 }
                 waitFor([&] { return full->property("status").toInt() == 1; }, 15000);

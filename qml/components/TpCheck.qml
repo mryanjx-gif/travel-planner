@@ -7,6 +7,7 @@ Item {
     property bool checked: false
     property string text: ""
     property bool asSwitch: false
+    property bool boldChecked: false   // 1.3.1（PO）：勾上时文字加粗（筛选弹窗用）
     signal toggled(bool checked)
     implicitHeight: Math.max(Theme.px(24), label.visible ? label.contentHeight + Theme.px(4) : 0)
     implicitWidth: box.width + (text !== "" ? Theme.px(7) + label.implicitWidth : 0)
@@ -56,6 +57,7 @@ Item {
         text: root.text
         font.family: serifFamily
         font.pixelSize: Theme.px(13)
+        font.bold: root.boldChecked && root.checked
         color: Theme.text
     }
     MouseArea {

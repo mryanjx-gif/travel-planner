@@ -28,7 +28,7 @@ void mouse(QQuickWindow *win, QEvent::Type t, QPointF p)
     // 和其他自检一样走系统事件（直接 sendEvent 的鼠标事件 MouseArea 收不到按下）
     const Qt::MouseButtons held = t == QEvent::MouseButtonRelease ? Qt::NoButton : Qt::LeftButton;
     const Qt::MouseButton b = t == QEvent::MouseMove ? Qt::NoButton : Qt::LeftButton;
-    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, p, win->mapToGlobal(p), held, b, t);
+    QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(win, devPx(win, p), devPx(win, win->mapToGlobal(p)), held, b, t);
 }
 } // namespace
 
