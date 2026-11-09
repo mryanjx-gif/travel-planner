@@ -1,6 +1,7 @@
 #include "planedit.h"
 
 #include "plans.h"
+#include "rail.h"
 #include "roads.h"
 
 #include <algorithm>
@@ -369,6 +370,11 @@ QVector<LegRow> legRows(const Value &plan)
         r.badCoords = !ok;
         if (ok) {
             r.straightKm = haversineKm(alat, alng, blat, blng);
+            if (rail::isRailMode(r.mode)) {
+                const rail::Result rr = rail::route(alat, alng, blat, blng);
+                r.rail = rr.ok() ? QStringLiteral("ok") : rr.reason;
+                r.dist = rr.distM;
+            }
             if (r.road) {
                 r.key = roads::legKeyOf(r.mode, alat, alng, blat, blng);
                 const QString path = leg.isObject() ? leg[QStringLiteral("path")].toString() : QString();
@@ -396,6 +402,7 @@ Stats stats(const Value &plan)
         const bool drive = r.mode == QLatin1String("drive"), walk = r.mode == QLatin1String("walk");
         if (drive) s.hasDrive = true;
         if (walk) s.hasWalk = true;
+        if (r.rail == QLatin1String("ok") && r.dist > 0) { s.km += r.dist / 1000; continue; }
         if (r.road && r.computed && r.dist > 0) {
             s.km += r.dist / 1000;
             if (drive) s.driveSec += r.time;

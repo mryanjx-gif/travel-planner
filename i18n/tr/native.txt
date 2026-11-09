@@ -1745,3 +1745,11 @@ AI 助手，用你自己的钥匙。	The AI assistant, with your own key.
 AI 对话	AI chat
 已导出对话	Chat exported
 导出失败：%1	Export failed: %1
+# 1.3.0 火车类沿线路画
+沿铁路	By rail
+这座城市还没有线路数据	No rail data for this city yet
+超出线路数据范围	Outside the rail data area
+站点离线路太远	Stop is too far from the line
+两站之间线路不通	No rail link between these stops
+火车、地铁线路	Train and metro lines
+线路数据 © OpenStreetMap 贡献者（ODbL）	Rail data © OpenStreetMap contributors (ODbL)

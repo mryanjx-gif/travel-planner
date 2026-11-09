@@ -77,6 +77,9 @@ Item {
         if (!l) return ""
         if (l.state === "line") return qsTr("直线") + (l.km > 0 ? " · " + Fmt.dist(l.km * 1000) : "")
         if (l.state === "bad") return qsTr("坐标无效，按直线显示")
+        if (l.state === "rail") return qsTr("沿铁路") + (l.dist ? " · " + Fmt.dist(l.dist) : "")
+        if (l.state === "railLine") return qsTr("直线") + " · " + (l.why === "nodata" ? qsTr("这座城市还没有线路数据") : l.why === "out" ? qsTr("超出线路数据范围")
+                                                             : l.why === "far" ? qsTr("站点离线路太远") : qsTr("两站之间线路不通"))
         if (l.state === "road") return qsTr("沿道路") + (l.dist ? " · " + Fmt.dist(l.dist) : "") + (l.time ? " · " + qsTr("约 %1").arg(Fmt.dur(l.time)) : "")
         if (l.state === "loading") return qsTr("正在按道路计算…")
         if (l.state === "fail") return "⚠ " + qsTr("%1，暂按直线显示").arg(l.msg || qsTr("没算出来"))

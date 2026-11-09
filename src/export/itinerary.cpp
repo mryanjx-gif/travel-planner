@@ -2,6 +2,7 @@
 
 #include "planpage.h"
 #include "plans.h"
+#include "rail.h"
 #include "roads.h"
 #include "translator.h"
 
@@ -26,6 +27,7 @@ namespace tp::exporter {
 using json::Value;
 namespace plans = tp::map::plans;
 namespace roads = tp::map::roads;
+namespace rail = tp::map::rail;
 namespace geo = tp::map::geo;
 
 namespace {
@@ -201,6 +203,9 @@ Sketch sketchOf(const Value &plan)
             && str(leg, "key") == roads::legKeyOf(mode, s.stops[i].y(), s.stops[i].x(), s.stops[i + 1].y(), s.stops[i + 1].x())) {
             pts.clear();
             for (const geo::LatLng &p : roads::decodePolyline(str(leg, "path"))) pts << QPointF(p.lng, p.lat);
+        } else if (rail::isRailMode(mode)) {   // 1.3.0 火车沿线路
+            const rail::Result rr = rail::route(s.stops[i].y(), s.stops[i].x(), s.stops[i + 1].y(), s.stops[i + 1].x());
+            if (rr.ok()) { pts = { s.stops[i] }; for (const geo::LatLng &p : rr.pts) pts << QPointF(p.lng, p.lat); pts << s.stops[i + 1]; }
         }
         s.legs << pts;
         s.flight << (mode == QLatin1String("flight"));

@@ -72,6 +72,7 @@ struct LegRow {
     double dist = 0, time = 0;   // 算好时的米、秒
     QString key;                 // legKeyOf（自驾 / 徒步且坐标有效时）
     double straightKm = 0;       // 两站的大圆距离（坐标有效时）
+    QString rail;                // 1.3.0 火车段（坐标有效时）：ok = 沿线路（dist 是沿线路的米）；否则是 rail::Result::reason
 };
 // 路线里相邻两站之间的每一段（只有 route 才有；按 stops 数组相邻，不跳过坐标无效的——和 Electron 编辑器一样）
 QVector<LegRow> legRows(const json::Value &plan);

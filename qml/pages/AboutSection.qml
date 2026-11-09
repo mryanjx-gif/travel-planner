@@ -71,6 +71,7 @@ Column {
         Line { name: qsTr("街道图"); detail: "Tiles © Esri — Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom" }
         Line { name: qsTr("卫星图"); detail: "Tiles © Esri — Esri, Vantor, Earthstar Geographics, and the GIS User Community" }
         Line { name: qsTr("已解锁底图、省界和国界"); detail: qsTr("Natural Earth（公有领域）") }
+        Line { name: qsTr("火车、地铁线路"); detail: qsTr("线路数据 © OpenStreetMap 贡献者（ODbL）") }
         Line { name: qsTr("地球的夜晚灯光"); detail: "NASA Black Marble 2016 — NASA Earth Observatory images by Joshua Stevens, using Suomi NPP VIIRS data from Miguel Román, NASA's Goddard Space Flight Center" }
     }
 

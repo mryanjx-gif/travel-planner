@@ -27,6 +27,7 @@
 #include "planweather.h"
 #include "planpage.h"
 #include "suncalc.h"
+#include "rail.h"
 #include "roads.h"
 #include "tripdata.h"
 #include "unlock.h"
@@ -177,6 +178,7 @@ private slots:
     void pageDocWarnings();
     void pageSeasonAndDays();
     void tzFill();
+    void railRoute();
 };
 
 void TestMap::projectRoundTrip()
@@ -3673,6 +3675,46 @@ void TestMap::elevEditing()
     QCOMPARE(e, 100.0);
     QCOMPARE(setStopElev(*mp, 0, "  "), QString());
     QVERIFY(!(*planById(root, "p"))["stops"].asArray()[0].asObject().find("elev"));
+}
+
+// 1.3.0 火车类沿离线线路数据（assets/rail/）：悉尼 Central → Town Hall 沿线路、长度合理；没有数据的城市回落直线
+void TestMap::railRoute()
+{
+    namespace rail = tp::map::rail;
+    rail::setDataDir(QStringLiteral(TP_SOURCE_DIR "/assets/rail"));
+    const rail::Result r = rail::route(-33.8832, 151.2063, -33.8731, 151.2069);   // Central → Town Hall，直线约 1.1 km
+    QVERIFY2(r.ok(), qPrintable(r.reason));
+    QVERIFY(r.pts.size() >= 2);
+    QVERIFY2(r.distM > 900 && r.distM < 1800, qPrintable(QString::number(r.distM)));
+    // 起止点就在车站附近（吸附点离站 < 300 米）
+    QVERIFY(tp::map::geo::distanceMeters(r.pts.first(), { -33.8832, 151.2063 }) < 300);
+    QVERIFY(tp::map::geo::distanceMeters(r.pts.last(), { -33.8731, 151.2069 }) < 300);
+    // 悉尼 Central → 机场国内航站楼（Airport Line，直线约 8 km）
+    const rail::Result r2 = rail::route(-33.8832, 151.2063, -33.9350, 151.1658);
+    QVERIFY2(r2.ok(), qPrintable(r2.reason));
+    QVERIFY2(r2.distM > 7000 && r2.distM < 14000, qPrintable(QString::number(r2.distM)));
+    qInfo("Central → Town Hall %.0f 米（%lld 点）；Central → 机场 %.0f 米", r.distM, qlonglong(r.pts.size()), r2.distM);
+    // 其他城市抽查：东京站 → 新宿（JR 中央线约 10 km）、伦敦 King's Cross → Victoria（维多利亚线约 4 km）
+    const rail::Result r3 = rail::route(35.6812, 139.7671, 35.6896, 139.7006);
+    QVERIFY2(r3.ok() && r3.distM > 6000 && r3.distM < 16000, qPrintable(r3.reason + u' ' + QString::number(r3.distM)));
+    const rail::Result r4 = rail::route(51.5308, -0.1238, 51.4952, -0.1441);
+    QVERIFY2(r4.ok() && r4.distM > 3500 && r4.distM < 8000, qPrintable(r4.reason + u' ' + QString::number(r4.distM)));
+    qInfo("东京站 → 新宿 %.0f 米；King's Cross → Victoria %.0f 米", r3.distM, r4.distM);
+    // 没有数据的城市（雷克雅未克）→ 直线
+    QCOMPARE(rail::route(64.1466, -21.9426, 64.1355, -21.8954).reason, QString("nodata"));
+    // 一站在悉尼、一站在墨尔本 → 超出范围
+    QCOMPARE(rail::route(-33.8832, 151.2063, -37.8183, 144.9671).reason, QString("out"));
+    // 悉尼市区但离线路远（海上）→ far
+    QCOMPARE(rail::route(-33.8832, 151.2063, -33.85, 151.33).reason, QString("far"));
+    // 编辑器那一行：火车段给出 rail = ok 和沿线路的米数
+    tp::json::Value plan = parseJson(QByteArray(R"({"id":"p","type":"route","stops":[
+        {"id":"a","lat":-33.8832,"lng":151.2063,"leg":{"mode":"train"}},{"id":"b","lat":-33.8731,"lng":151.2069}]})"));
+    const auto rows = planedit::legRows(plan);
+    QCOMPARE(rows.size(), 1);
+    QCOMPARE(rows[0].rail, QString("ok"));
+    QVERIFY(qAbs(rows[0].dist - r.distM) < 1);
+    QVERIFY(r.pts.size() >= 3);   // 真的沿着轨道拐，不只是两个吸附点
+    rail::setDataDir(QStringLiteral(":/rail"));
 }
 
 #include "tst_map.moc"

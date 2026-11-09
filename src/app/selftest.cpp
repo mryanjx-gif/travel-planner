@@ -150,6 +150,7 @@ void runAll(Report &r, AppController *app, PhotoController *photos, map::MapCont
     if (want("trip")) runTrip(r, app, win);   // 0.14.1
     if (want("v11")) runV11(r, app, win, roads);   // 1.1.0
     if (want("v12")) runV12(r, app, mapc, win);   // 1.2.0
+    if (want("v13")) runV13(r, app, mapc, win);   // 1.3.0
     if (want("welcome")) runWelcome(r, app, win);   // 0.12.7（中途换到临时数据，最后换回来）
     if (only.contains(QLatin1String("thumbs1000"))) runThumbs1000(r, photos, dir);
     mapc->fitAll(false);

@@ -99,6 +99,7 @@ services::Geocoder *geocoderCtl();
 void runEditor(Report &r, AppController *app, map::MapController *mapc, QQuickWindow *win, services::RoadRouter *roads);
 void runV11(Report &r, AppController *app, QQuickWindow *win, services::RoadRouter *roads);   // 1.1.0
 void runV12(Report &r, AppController *app, map::MapController *mapc, QQuickWindow *win);   // 1.2.0
+void runV13(Report &r, AppController *app, map::MapController *mapc, QQuickWindow *win);   // 1.3.0
 // 0.10.0：完整计划页（selftest_planpage.cpp）
 PlanPageController *planPageCtl();
 NavHistory *navCtl();

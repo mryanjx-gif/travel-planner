@@ -1,5 +1,6 @@
 #include "tripdata.h"
 
+#include "rail.h"
 #include "roads.h"
 
 #include <QJsonDocument>
@@ -29,6 +30,7 @@ QString statusColor(const QString &status)
 QVector<LL> roadLegPts(const TripStop &a, const TripStop &b)
 {
     const QString m = roads::legModeOf(a.legMode);
+    if (rail::isRailMode(m)) return rail::route(a.lat, a.lng, b.lat, b.lng).pts;   // 1.3.0 火车类沿离线线路数据（rail.h）
     if (!roads::isRoadMode(m) || a.legPath.isEmpty() || a.legKey != roads::legKeyOf(m, a.lat, a.lng, b.lat, b.lng))
         return {};
     const QVector<LL> pts = roads::decodePolyline(a.legPath);
@@ -137,7 +139,7 @@ TripData::Computed TripData::compute(const json::Value &pv)
             const LL target{ s.lat, unwrapTo(s.lng, prev.lng) };
             const QVector<LL> road = roadLegPts(stops[i - 1], s);
             QVector<LL> seg;
-            if (!road.isEmpty()) { seg << prev << road << LL{ s.lat, s.lng }; ++c.roadLegs; }
+            if (!road.isEmpty()) { seg << prev << road << LL{ s.lat, s.lng }; if (roads::isRoadMode(roads::legModeOf(stops[i - 1].legMode))) ++c.roadLegs; }
             else for (const LL &pt : geo::greatCircle(prev, target)) seg.push_back(pt);
             double ref = prev.lng;
             QVector<LL> segPts{ prev };

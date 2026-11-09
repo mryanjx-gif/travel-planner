@@ -3,7 +3,7 @@
 # 规则（PO 2026-11-02）：大更新改第一位，中等更新改第二位，小修改改第三位；正式版之前是 0.x.y，正式版 1.0.0。
 cmake_minimum_required(VERSION 3.24)
 
-set(TP_VERSION "1.2.0")
+set(TP_VERSION "1.3.0")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TP_VERSION_NUMERIC "${TP_VERSION}")
 
 project(TravelPlannerNative
@@ -83,6 +83,7 @@ add_library(tp_map STATIC
     src/map/tripdata.cpp src/map/tripdata.h
     src/map/markers.cpp src/map/markers.h
     src/map/roads.cpp src/map/roads.h
+    src/map/rail.cpp src/map/rail.h
     src/map/plans.cpp src/map/plans.h
     src/map/planpage.cpp src/map/planpage.h
     src/map/planmoney.cpp src/map/planmoney.h
@@ -189,7 +190,7 @@ qt_add_executable(TravelPlanner WIN32
     src/app/thumbprovider.cpp src/app/thumbprovider.h
     src/app/framestats.cpp src/app/framestats.h
     src/app/selftest.cpp src/app/selftest.h src/app/selftest_util.cpp src/app/selftest_util.h
-    src/app/selftest_map.cpp src/app/selftest_routes.cpp src/app/selftest_unlock.cpp src/app/selftest_plans.cpp src/app/selftest_shell.cpp src/app/selftest_pages.cpp src/app/selftest_planpage.cpp src/app/selftest_money.cpp src/app/selftest_weather.cpp src/app/selftest_kit.cpp src/app/selftest_photos_tab.cpp src/app/selftest_library.cpp src/app/selftest_audit.cpp src/app/selftest_photomode.cpp src/app/selftest_calendar.cpp src/app/selftest_editor.cpp src/app/selftest_globe.cpp src/app/selftest_perf.cpp src/app/selftest_welcome.cpp src/app/selftest_ai.cpp src/app/selftest_export.cpp src/app/selftest_trip.cpp src/app/selftest_v11.cpp src/app/selftest_ailive.cpp src/app/selftest_v12.cpp
+    src/app/selftest_map.cpp src/app/selftest_routes.cpp src/app/selftest_unlock.cpp src/app/selftest_plans.cpp src/app/selftest_shell.cpp src/app/selftest_pages.cpp src/app/selftest_planpage.cpp src/app/selftest_money.cpp src/app/selftest_weather.cpp src/app/selftest_kit.cpp src/app/selftest_photos_tab.cpp src/app/selftest_library.cpp src/app/selftest_audit.cpp src/app/selftest_photomode.cpp src/app/selftest_calendar.cpp src/app/selftest_editor.cpp src/app/selftest_globe.cpp src/app/selftest_perf.cpp src/app/selftest_welcome.cpp src/app/selftest_ai.cpp src/app/selftest_export.cpp src/app/selftest_trip.cpp src/app/selftest_v11.cpp src/app/selftest_ailive.cpp src/app/selftest_v12.cpp src/app/selftest_v13.cpp
     src/platform/crashhandler.cpp src/platform/crashhandler.h
     src/platform/nativedialog.cpp src/platform/nativedialog.h
     src/platform/watchdog.cpp src/platform/watchdog.h
@@ -353,6 +354,9 @@ qt_add_resources(TravelPlanner "tp_i18n" PREFIX "/" FILES ${TP_TR_FILES})
 # 新数据的模板（0.12.7，D-19）：Electron 版的示例计划和季节表，PO 自己的项目
 set(TP_TEMPLATE_FILES assets/templates/sample-plan.json assets/templates/sample-plan-en.json assets/templates/season-guide.json)
 qt_add_resources(TravelPlanner "tp_templates" PREFIX "/templates" BASE "${CMAKE_SOURCE_DIR}/assets/templates" FILES ${TP_TEMPLATE_FILES})
+# 火车类线路的离线数据（1.3.0，© OpenStreetMap 贡献者 ODbL；tools/rail-data.py 生成）：:/rail/<城市>.txt，rcc 压缩
+file(GLOB TP_RAIL_FILES RELATIVE "${CMAKE_SOURCE_DIR}" CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/assets/rail/*.txt")
+qt_add_resources(TravelPlanner "tp_rail" PREFIX "/rail" BASE "${CMAKE_SOURCE_DIR}/assets/rail" FILES ${TP_RAIL_FILES} OPTIONS --compress 9)
 # 更新日志（0.12.5，设置 → 关于）
 qt_add_resources(TravelPlanner "tp_changelog" PREFIX "/" FILES CHANGELOG.md)
 # 地图标记的图标字体（0.8.2，Material Symbols Rounded 子集，Apache 2.0；授权文本在同一个文件夹）

@@ -537,7 +537,11 @@ void PlanEditor::refreshView()
             const pe::LegRow &r = legs.value(i);
             QVariantMap l{ { QStringLiteral("mode"), r.mode }, { QStringLiteral("km"), r.straightKm } };
             QString state;
-            if (!r.road) state = QStringLiteral("line");
+            if (!r.rail.isEmpty()) {   // 1.3.0 火车：沿离线线路数据，或直线 + 原因
+                state = r.rail == QLatin1String("ok") ? QStringLiteral("rail") : QStringLiteral("railLine");
+                if (state == QLatin1String("rail")) l.insert(QStringLiteral("dist"), r.dist);
+                else l.insert(QStringLiteral("why"), r.rail);
+            } else if (!r.road) state = QStringLiteral("line");
             else if (r.badCoords) state = QStringLiteral("bad");
             else if (r.computed) { state = QStringLiteral("road"); l.insert(QStringLiteral("dist"), r.dist); l.insert(QStringLiteral("time"), r.time); }
             else {
