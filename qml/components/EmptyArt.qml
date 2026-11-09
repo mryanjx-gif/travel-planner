@@ -1,20 +1,19 @@
 // 欢迎页和空状态的插画（0.12.7，PO 选每页一张原创）：Canvas 画，只用色块和少量点线，不用外部素材。
 // 统一的画法：场景站在一条地平线上（200×120 坐标），雾蓝三档 + 一点暖色当"目的地"，一串小圆点当"路线"。
-// name：plan、wish、foot、album、calendar、ledger；welcome（168×168，照 Electron welcome.html 的地球换成主题色）
+// name：plan、wish、foot、album、calendar、ledger（欢迎页 1.3.2 起改用程序图标）
 import QtQuick
 import TPApp
 
 Canvas {
     id: root
     property string name: ""
-    readonly property bool globe: name === "welcome"
     readonly property color deep: Theme.accent
     readonly property color mid: "#7ea3c1"
     readonly property color pale: "#c9d9e6"
     readonly property color paper: "#f4f7fa"
     readonly property color warm: "#e6a95c"
-    implicitWidth: Theme.px(globe ? 168 : 200)
-    implicitHeight: Theme.px(globe ? 168 : 120)
+    implicitWidth: Theme.px(200)
+    implicitHeight: Theme.px(120)
     onNameChanged: requestPaint()
     onWidthChanged: requestPaint()
     onHeightChanged: requestPaint()
@@ -45,7 +44,7 @@ Canvas {
     onPaint: {
         const c = getContext("2d")
         c.reset()
-        c.scale(width / (globe ? 168 : 200), height / (globe ? 168 : 120))
+        c.scale(width / 200, height / 120)
         c.lineCap = "round"
         c.lineJoin = "round"
         switch (name) {
@@ -114,17 +113,6 @@ Canvas {
             dot(c, warm, 138, 88, 16)
             dot(c, "#efc48c", 138, 88, 11)
             ground(c)
-            break
-        case "welcome":   // 地球 + 一条路线 + 两个站点
-            dot(c, "#b9cddd", 84, 88, 63)
-            dot(c, "#dbe7f0", 80, 84, 57)
-            line(c, "#9fb6c8", 1.3, "M30 70C48 80 70 82 86 76S120 72 138 84M26 102C48 110 72 110 92 104S124 102 140 110M84 26C68 44 62 66 62 88S68 132 84 150M84 26C100 44 106 66 106 88S100 132 84 150")
-            trail(c, warm, 52, 112, 76, 66, 124, 58, 12, 1.8)
-            dot(c, "#ffffff", 52, 112, 9.5)
-            dot(c, warm, 52, 112, 7)
-            fill(c, "#ffffff", "M124 35C114.600 35 108.500 42 108.500 51C108.500 62 124 75 124 75S139.500 62 139.500 51C139.500 42 133.400 35 124 35Z")
-            fill(c, deep, "M124 38C116 38 111 44 111 51C111 60 124 72 124 72S137 60 137 51C137 44 132 38 124 38Z")
-            dot(c, "#ffffff", 124, 51, 4)
             break
         }
     }

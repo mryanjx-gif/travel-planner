@@ -44,10 +44,21 @@ Column {
         objectName: "setCard-about"
         width: parent.width
         title: qsTr("关于")
-        Text {
+        Row {   // 1.3.2：前面加程序图标
             width: parent.width
-            text: qsTr("旅行计划") + " v" + app.version
-            font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.text
+            spacing: Theme.px(10)
+            Image {
+                objectName: "aboutLogo"
+                source: "qrc:/assets/app/icon-256.png"
+                sourceSize: Qt.size(128, 128)
+                smooth: true; mipmap: true
+                width: Theme.px(44); height: width
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("旅行计划") + " v" + app.version
+                font.family: serifFamily; font.pixelSize: Theme.px(13.5); color: Theme.text
+            }
         }
         SettingsRow {
             width: parent.width

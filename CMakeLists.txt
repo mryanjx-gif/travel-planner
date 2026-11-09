@@ -3,7 +3,7 @@
 # 规则（PO 2026-11-02）：大更新改第一位，中等更新改第二位，小修改改第三位；正式版之前是 0.x.y，正式版 1.0.0。
 cmake_minimum_required(VERSION 3.24)
 
-set(TP_VERSION "1.3.1")
+set(TP_VERSION "1.3.2")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TP_VERSION_NUMERIC "${TP_VERSION}")
 
 project(TravelPlannerNative
@@ -358,6 +358,8 @@ file(GLOB TP_RAIL_FILES RELATIVE "${CMAKE_SOURCE_DIR}" CONFIGURE_DEPENDS "${CMAK
 qt_add_resources(TravelPlanner "tp_rail" PREFIX "/rail" BASE "${CMAKE_SOURCE_DIR}/assets/rail" FILES ${TP_RAIL_FILES} OPTIONS --compress 9)
 # 更新日志（0.12.5，设置 → 关于）
 qt_add_resources(TravelPlanner "tp_changelog" PREFIX "/" FILES CHANGELOG.md)
+# 1.3.2：程序图标「暮色」给欢迎页和关于页用（qrc:/assets/app/icon-256.png）
+qt_add_resources(TravelPlanner "tp_logo" PREFIX "/" FILES assets/app/icon-256.png)
 # 地图标记的图标字体（0.8.2，Material Symbols Rounded 子集，Apache 2.0；授权文本在同一个文件夹）
 qt_add_resources(TravelPlanner "tp_fonts" PREFIX "/fonts" BASE "${CMAKE_SOURCE_DIR}/assets/fonts" FILES assets/fonts/MaterialSymbolsRounded.ttf)
 

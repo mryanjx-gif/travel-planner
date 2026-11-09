@@ -51,11 +51,14 @@ Item {
         width: Math.min(parent.width - Theme.px(32), Theme.px(520))
         spacing: Theme.px(4)
 
-        EmptyArt {
-            name: "welcome"
+        Image {   // 1.3.2：程序图标「暮色」（原来是 Canvas 画的地球插画）
+            objectName: "welcomeLogo"
             anchors.horizontalCenter: parent.horizontalCenter
-            // 窗口矮时插画让路，按钮不能被挤出去
-            width: Math.min(implicitWidth, Math.max(Theme.px(72), root.height - Theme.px(400)))
+            source: "qrc:/assets/app/icon-256.png"
+            sourceSize: Qt.size(256, 256)
+            smooth: true; mipmap: true
+            // 窗口矮时图标让路，按钮不能被挤出去
+            width: Math.min(Theme.px(168), Math.max(Theme.px(72), root.height - Theme.px(400)))
             height: width
         }
         Text {

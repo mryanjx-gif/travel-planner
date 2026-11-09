@@ -70,6 +70,8 @@ void runWelcome(Report &r, AppController *app, QQuickWindow *win)
     r.check(!page->isVisible(), QStringLiteral("已经有数据时不显示欢迎页"));
     page->setProperty("forced", true);
     waitFor([&] { return page->opacity() > 0.99; }, 2000);
+    QQuickItem *logo = item(win, QStringLiteral("welcomeLogo"));   // 1.3.2：图标从资源里读出来了（Image.Ready = 1）
+    r.check(logo && logo->property("status").toInt() == 1 && logo->width() > 0, QStringLiteral("欢迎页显示程序图标"));
     QQuickItem *dirText = item(win, QStringLiteral("welcomeDir"));
     r.check(shown(dirText) && dirText->property("text").toString() == app->defaultDataDir(), QStringLiteral("数据位置卡片默认是建议的文件夹"),
             dirText ? dirText->property("text").toString() : QString());

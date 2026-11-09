@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><title>旅行计划 小尺寸图标</title><defs>
+<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3f6890"/><stop offset=".6" stop-color="#a39fa3"/><stop offset="1" stop-color="#f0c493"/></linearGradient>
+<radialGradient id="lit" cx=".2" cy=".8" r="1"><stop offset="0" stop-color="#fbe3c0"/><stop offset=".45" stop-color="#9fbad0"/><stop offset="1" stop-color="#3f6e98"/></radialGradient>
+<clipPath id="t"><rect x="8" y="8" width="240" height="240" rx="56"/></clipPath><clipPath id="b"><circle cx="132" cy="118" r="80"/></clipPath></defs>
+<g clip-path="url(#t)"><rect x="8" y="8" width="240" height="240" fill="url(#sky)"/>
+<circle cx="132" cy="118" r="80" fill="url(#lit)"/>
+<circle cx="172" cy="84" r="84" fill="#1b3550" opacity=".72" clip-path="url(#b)"/>
+<path d="M8 214C70 200 150 210 248 196V248H8Z" fill="#1d3a56"/>
+<path d="M88 168C92 100 150 70 186 98" fill="none" stroke="#fff6e8" stroke-width="15" stroke-linecap="round"/>
+<circle cx="88" cy="168" r="13" fill="#fff6e8"/><circle cx="188" cy="98" r="19" fill="#f3c47e"/></g></svg>
