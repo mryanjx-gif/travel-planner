@@ -394,6 +394,8 @@ if(WIN32)
     target_link_libraries(TravelPlanner PRIVATE psapi shell32 user32)
     # 0.8.0：进程代码页 UTF-8（maplibre 读本地样式文件用窄字符路径），见 src/app/app.manifest；和 Qt 生成的 manifest 合并
     target_sources(TravelPlanner PRIVATE src/app/app.manifest src/app/app.rc)   # 0.14.2：exe 图标
+    # 1.3.2：rc 里引用的图标换了也要重编资源（Ninja 不跟踪 rc 里 ICON 引用的文件，换图标后 exe 还是旧的）
+    set_source_files_properties(src/app/app.rc PROPERTIES OBJECT_DEPENDS "${CMAKE_SOURCE_DIR}/assets/app/icon.ico")
 endif()
 
 set_target_properties(TravelPlanner PROPERTIES
