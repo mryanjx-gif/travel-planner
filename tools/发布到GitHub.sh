@@ -11,7 +11,7 @@ git clone -q --no-local "$src" "$tmp/repo"
 cd "$tmp/repo"
 
 # 真实数据和由它生成的东西（新增类似文件时加在这里）
-export DROP='testdata tests/golden/plans.json tests/golden/marker-clusters.json tests/golden/roads.json tests/golden/unlock-colors.json claude/v7.0.0-*.png'
+export DROP='testdata tests/golden/plans.json tests/golden/marker-clusters.json tests/golden/roads.json tests/golden/unlock-colors.json claude 制作过程.md'
 export NOREPLY="$user@users.noreply.github.com"
 FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch -f \
   --index-filter 'git rm -r -q --cached --ignore-unmatch $DROP' \
@@ -21,7 +21,7 @@ FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch -f \
 # 检查：历史里不该再有这些
 bad=$(git log main --format='%ae %ce' | grep -v "$NOREPLY" | head -1 || true)
 [ -z "$bad" ] || { echo "还有别的邮箱：$bad"; exit 1; }
-left=$(git rev-list --objects main | grep -E '^[0-9a-f]+ (testdata/|tests/golden/(plans|marker-clusters|roads|unlock-colors)\.json|claude/v7\.0\.0-.*\.png)' | head -1 || true)
+left=$(git rev-list --objects main | grep -E '^[0-9a-f]+ (testdata/|tests/golden/(plans|marker-clusters|roads|unlock-colors)\.json|claude/|制作过程\.md)' | head -1 || true)
 [ -z "$left" ] || { echo "历史里还有真实数据：$left"; exit 1; }
 
 echo "改写完：$tmp/repo（$(git rev-list --count main) 个提交）"
