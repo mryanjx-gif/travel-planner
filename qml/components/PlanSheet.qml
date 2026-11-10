@@ -59,6 +59,8 @@ Item {
     }
     onSheetChanged: { moreMenu.open = false; notesOpen = false; stopNotesOpen = false }
     onShownChanged: { stopNotesOpen = false; body.contentY = 0 }
+    // 1.4.0 聚焦某站时才查这一站的介绍（有缓存就不联网）
+    onStopChanged: if (stop) place.show(stop.name || "", stop.lat, stop.lng, stop.arriveDate || "", stop.departDate || "", stop.tz || ""); else place.clear()
     property bool notesOpen: false
     property bool stopNotesOpen: false
 
@@ -166,6 +168,7 @@ Item {
     // ---- 内容 ----
     Flickable {
         id: body
+        objectName: "sheetBody"
         x: Theme.px(22)
         y: (root.route ? strip.y + strip.height : head.y + head.height) + Theme.px(14)
         width: parent.width - Theme.px(44)
@@ -353,6 +356,121 @@ Item {
                 font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft
                 text: root.stop && root.stop.leg && root.shown + 1 < root.stops.length
                       ? qsTr("下一段：%1 → <b>%2</b>").arg(root.legText(root.stop.leg)).arg(root.stops[root.shown + 1].name || qsTr("未命名地点")) : ""
+            }
+
+            // ---- 1.4.0 地点介绍：横杠下面是现在这一站的介绍（place，src/services/placeinfo.h），切站跟着换 ----
+            Rectangle {
+                objectName: "sheetIntroLine"
+                visible: root.stop !== null
+                width: parent.width
+                height: visible ? 1 : 0
+                color: Theme.line
+            }
+            Column {
+                id: intro
+                objectName: "sheetIntro"
+                visible: root.stop !== null
+                width: parent.width
+                spacing: Theme.px(8)
+                readonly property var info: place.info
+                readonly property var pics: info.photos || []
+                Row {   // 照片 1–3 张，点开看大图（大图下面写作者和授权）
+                    visible: intro.pics.length > 0
+                    width: parent.width
+                    spacing: Theme.px(6)
+                    Repeater {
+                        model: intro.pics
+                        delegate: Rectangle {
+                            required property var modelData
+                            required property int index
+                            width: (intro.width - (intro.pics.length - 1) * Theme.px(6)) / intro.pics.length
+                            height: Math.round(intro.width * (intro.pics.length === 1 ? 0.5 : 0.32))
+                            radius: Theme.px(10)
+                            color: Theme.panel2
+                            clip: true
+                            Image { anchors.fill: parent; source: modelData.thumb; fillMode: Image.PreserveAspectCrop; asynchronous: true; sourceSize.width: 640 }
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.photoViewRequested(intro.pics, parent.index) }
+                        }
+                    }
+                }
+                Text {
+                    visible: text !== ""
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    font.family: serifFamily; font.pixelSize: Theme.px(16); font.bold: true; color: Theme.text
+                    text: intro.info.title || ""
+                }
+                Text {
+                    objectName: "sheetIntroText"
+                    visible: text !== ""
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    maximumLineCount: 3
+                    elide: Text.ElideRight
+                    lineHeight: 1.3
+                    font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.textSoft
+                    text: intro.info.text || ""
+                }
+                LinkText { visible: !!intro.info.wikiUrl; small: true; text: qsTr("维基百科 ›"); onClicked: Qt.openUrlExternally(intro.info.wikiUrl) }
+                Repeater {   // 开放时间、门票、官网、电话：有就显示
+                    model: [
+                        { k: qsTr("开放时间"), v: intro.info.hours || "" },
+                        { k: qsTr("门票"), v: intro.info.fee === "yes" ? qsTr("收费") : intro.info.fee === "no" ? qsTr("免费") : (intro.info.fee || "") },
+                        { k: qsTr("官网"), v: intro.info.website || "", url: intro.info.website || "" },
+                        { k: qsTr("电话"), v: intro.info.phone || "" }
+                    ].filter(r => r.v !== "")
+                    delegate: Row {
+                        required property var modelData
+                        width: intro.width
+                        spacing: Theme.px(10)
+                        Text { id: fk; text: modelData.k; font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.muted }
+                        Text {
+                            width: intro.width - fk.implicitWidth - Theme.px(10)
+                            wrapMode: Text.WrapAnywhere
+                            maximumLineCount: 2
+                            elide: Text.ElideRight
+                            font.family: serifFamily; font.pixelSize: Theme.px(13)
+                            color: modelData.url ? Theme.accentInk : Theme.text
+                            text: modelData.url ? String(modelData.v).replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "") : modelData.v
+                            MouseArea { anchors.fill: parent; enabled: !!modelData.url; cursorShape: Qt.PointingHandCursor; onClicked: Qt.openUrlExternally(modelData.url) }
+                        }
+                    }
+                }
+                Text {   // 当天天气（16 天内预报，更远往年同月平均）和日出日落
+                    objectName: "sheetIntroWx"
+                    visible: text !== ""
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    font.family: serifFamily; font.pixelSize: Theme.px(13); color: Theme.text
+                    text: {
+                        const a = [], w = intro.info.wx, c = intro.info.clim, s = intro.info.sun
+                        if (w) a.push(qsTr("当天 %1").arg(Fmt.wxText(w)) + (w.pop !== undefined ? " · " + qsTr("降水 %1%").arg(Math.round(w.pop)) : ""))
+                        else if (c) a.push(qsTr("往年 %1 月 %2–%3°C · 约 %4 天下雨").arg(c.month).arg(c.lo).arg(c.hi).arg(c.rainDays))
+                        if (s) a.push(s.polar === "day" ? qsTr("极昼") : s.polar === "night" ? qsTr("极夜") : qsTr("日出 %1 · 日落 %2").arg(s.rise).arg(s.set))
+                        return a.join("\n")
+                    }
+                }
+                Text {
+                    objectName: "sheetIntroState"
+                    visible: text !== ""
+                    font.family: serifFamily; font.pixelSize: Theme.px(12.5); color: Theme.muted
+                    text: intro.info.state === "loading" ? qsTr("正在查介绍…") : intro.info.state === "offline" ? qsTr("没联网") : intro.info.state === "none" ? qsTr("没找到这个地方的介绍") : ""
+                }
+                Flow {   // 外部链接：只在浏览器里打开
+                    id: extLinks
+                    width: parent.width
+                    spacing: Theme.px(6)
+                    readonly property string q: root.stop ? (root.stop.name || "") : ""
+                    TpButton { compact: true; fontSize: 13; text: qsTr("看点评"); onClicked: Qt.openUrlExternally("https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(extLinks.q + " " + root.stop.lat.toFixed(5) + "," + root.stop.lng.toFixed(5))) }
+                    TpButton { compact: true; fontSize: 13; text: qsTr("搜门票"); onClicked: Qt.openUrlExternally("https://www.bing.com/search?q=" + encodeURIComponent(extLinks.q + " " + qsTr("门票"))) }
+                    TpButton { compact: true; fontSize: 13; text: qsTr("旅行指南"); visible: !!intro.info.voyageUrl; onClicked: Qt.openUrlExternally(intro.info.voyageUrl) }
+                }
+                Text {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    font.family: serifFamily; font.pixelSize: Theme.px(11); color: Theme.muted
+                    text: qsTr("资料：维基百科（CC BY-SA）· Wikimedia Commons · OpenStreetMap · Wikidata · Open-Meteo")
+                }
             }
         }
     }

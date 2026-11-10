@@ -70,6 +70,7 @@
 #include "planeditor.h"
 #include "locator.h"
 #include "geocoder.h"
+#include "placeinfo.h"
 #include "commands.h"
 #include "navhistory.h"
 #include "thumbcache.h"
@@ -391,6 +392,13 @@ int main(int argc, char *argv[])
     QObject::connect(&ai, &tp::app::AiController::routeNeeded, &roads, &tp::services::RoadRouter::autoFor);   // 1.1.0 自动算路
     QObject::connect(&netc, &tp::app::NetController::changed, &roads, &tp::services::RoadRouter::tryQueue);
     QObject::connect(&editor, &tp::app::PlanEditor::openChanged, &roads, &tp::services::RoadRouter::tryQueue);
+    // 1.4.0 地点介绍：简易面板聚焦某站时查（缓存在 <缓存>/place；截图 / 自检不联网、用另一份缓存）
+    tp::services::PlaceInfo place(&net);
+    place.setCacheDir(Paths::cacheDir() + (testRun ? QStringLiteral("/test-place") : QStringLiteral("/place")));
+    place.setToday([&plans] { return plans.today(); });
+    place.setLang([&ctl] { return ctl.lang(); });
+    place.setNoNet(testRun);
+    QObject::connect(&ctl, &tp::app::AppController::langChanged, &place, &tp::services::PlaceInfo::retranslate);
     tp::app::Locator locator(&settings, &store, &mapc);
     locator.setToday([&plans] { return plans.today(); });
     // 0.8.8：页面的前进 / 后退（S-13）、Ctrl K 的排序（S-12）
@@ -467,6 +475,7 @@ int main(int argc, char *argv[])
     ctx->setContextProperty("ai", &ai);
     ctx->setContextProperty("weather", &weather);
     ctx->setContextProperty("locator", &locator);
+    ctx->setContextProperty("place", &place);
     // 截图 ui-photo-import / ui-photo-e2e：把 tests/photos.txt 里的测试照片当成"选中的文件"
     QVariantList photoShotFiles;
 #ifdef TP_SOURCE_DIR

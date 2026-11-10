@@ -15,6 +15,8 @@
 #include "geocoder.h"
 #include "jsonio.h"
 #include "netclient.h"
+#include "placeinfo.h"
+#include "suncalc.h"
 #include "roadrouter.h"
 #include "roads.h"
 #include "tilecache.h"
@@ -109,6 +111,9 @@ private slots:
     void tileServerOfflineAndPrefetch();
     void tileServerKeepAlive();
     void geocoderSearch();     // 0.8.9 地名搜索（Nominatim）：网址、解析、缓存、失败原因
+    void placeParse();         // 1.4.0 地点介绍：各来源回复的解析
+    void placeSunSydney();     // 1.4.0 日出日落（悉尼）
+    void placeOffline();       // 1.4.0 断网 / 缓存
 };
 
 void TestNet::userAgentAndGet()
@@ -745,6 +750,129 @@ void TestNet::geocoderSearch()
     g.search(QStringLiteral("kobe"), this, [&](const QVariantList &, const QString &, bool) { done = true; });
     QTRY_VERIFY_WITH_TIMEOUT(done, 3000);
     QVERIFY2(t.elapsed() >= 900, qPrintable(QString::number(t.elapsed())));
+}
+
+// 1.4.0 地点介绍：各来源回复的解析（固定样例，不联网）
+void TestNet::placeParse()
+{
+    // 名字匹配：括号里的、重音、大小写不算；太短的不算包含
+    QVERIFY(PlaceInfo::nameMatches(QStringLiteral("Sydney Opera House"), QStringLiteral("sydney opera house")));
+    QVERIFY(PlaceInfo::nameMatches(QStringLiteral("Sydney (city)"), QStringLiteral("Sydney")));
+    QVERIFY(PlaceInfo::nameMatches(QStringLiteral("Café de Flore"), QStringLiteral("Cafe de Flore")));
+    QVERIFY(PlaceInfo::nameMatches(QStringLiteral("悉尼歌剧院"), QStringLiteral("悉尼歌剧院")));
+    QVERIFY(!PlaceInfo::nameMatches(QStringLiteral("Circular Quay"), QStringLiteral("Sydney Opera House")));
+    QVERIFY(!PlaceInfo::nameMatches(QStringLiteral("Bar"), QStringLiteral("Barcelona Cathedral")));
+
+    // Nominatim + extratags
+    const QJsonObject osm = PlaceInfo::parseOsm(R"([{"osm_type":"way","name":"Sydney Opera House","extratags":{"wikidata":"Q45178","opening_hours":"Mo-Su 09:00-17:00","fee":"yes","contact:website":"https://www.sydneyoperahouse.com/","phone":"+61 2 9250 7111"}}])");
+    QCOMPARE(osm.value("wikidata").toString(), QStringLiteral("Q45178"));
+    QCOMPARE(osm.value("hours").toString(), QStringLiteral("Mo-Su 09:00-17:00"));
+    QCOMPARE(osm.value("fee").toString(), QStringLiteral("yes"));
+    QCOMPARE(osm.value("website").toString(), QStringLiteral("https://www.sydneyoperahouse.com/"));
+    QCOMPARE(osm.value("phone").toString(), QStringLiteral("+61 2 9250 7111"));
+    QVERIFY(PlaceInfo::parseOsm("[]").isEmpty());
+    QVERIFY(PlaceInfo::parseOsm("not json").isEmpty());
+    QVERIFY(!PlaceInfo::parseOsm(R"([{"extratags":{"wikidata":"bad"}}])").contains("wikidata"));
+
+    // geosearch：只要标题对得上的，取最近的
+    const QByteArray geo = R"({"query":{"pages":{
+        "1":{"title":"Circular Quay","pageprops":{"wikibase_item":"Q1"},"coordinates":[{"dist":50}]},
+        "2":{"title":"Sydney Opera House","pageprops":{"wikibase_item":"Q45178"},"coordinates":[{"dist":120}]},
+        "3":{"title":"Sydney Opera House disambiguation","coordinates":[{"dist":10}]}}}})";
+    QCOMPARE(PlaceInfo::pickGeoPage(geo, QStringLiteral("Sydney Opera House")), QStringLiteral("Q45178"));
+    QVERIFY(PlaceInfo::pickGeoPage(geo, QStringLiteral("Taronga Zoo")).isEmpty());
+
+    QCOMPARE(PlaceInfo::parseSearchIds(R"({"search":[{"id":"Q2"},{"id":"Q3"}]})"), (QStringList{ "Q2", "Q3" }));
+
+    // wbgetentities：距离校验挑出 30 km 内的那个；deprecated 的值跳过
+    const QByteArray ents = R"({"entities":{
+        "Q2":{"claims":{"P625":[{"mainsnak":{"datavalue":{"value":{"latitude":51.5,"longitude":-0.12}}}}]}},
+        "Q3":{"claims":{
+            "P625":[{"mainsnak":{"datavalue":{"value":{"latitude":-33.857,"longitude":151.215}}}}],
+            "P856":[{"rank":"deprecated","mainsnak":{"datavalue":{"value":"http://old"}}},{"mainsnak":{"datavalue":{"value":"https://new.example"}}}],
+            "P1329":[{"mainsnak":{"datavalue":{"value":"+61 2 1234"}}}],
+            "P18":[{"mainsnak":{"datavalue":{"value":"Sydney Opera House.jpg"}}}],
+            "P3451":[{"mainsnak":{"datavalue":{"value":"SOH night.jpg"}}}]},
+          "sitelinks":{"enwiki":{"title":"Sydney Opera House"},"zhwiki":{"title":"悉尼歌剧院"},"enwikivoyage":{"title":"Sydney"}},
+          "labels":{"en":{"value":"Sydney Opera House"}}}}})";
+    const QJsonObject e = PlaceInfo::pickEntity(ents, { "Q2", "Q3" }, -33.8568, 151.2153, 30);
+    QCOMPARE(e.value("qid").toString(), QStringLiteral("Q3"));
+    QCOMPARE(e.value("website").toString(), QStringLiteral("https://new.example"));
+    QCOMPARE(e.value("phone").toString(), QStringLiteral("+61 2 1234"));
+    QCOMPARE(e.value("images").toArray().size(), 2);
+    QCOMPARE(e.value("wiki").toObject().value("zh").toString(), QStringLiteral("悉尼歌剧院"));
+    QCOMPARE(e.value("voyage").toObject().value("en").toString(), QStringLiteral("Sydney"));
+    QVERIFY(PlaceInfo::pickEntity(ents, { "Q2" }, -33.8568, 151.2153, 30).isEmpty());          // 伦敦那个太远
+    QCOMPARE(PlaceInfo::pickEntity(ents, { "Q2" }, 0, 0, 0).value("qid").toString(), QStringLiteral("Q2"));   // 不校验距离
+
+    // REST summary；消歧义页不要
+    const QJsonObject sum = PlaceInfo::parseSummary(R"({"type":"standard","title":"悉尼歌剧院","extract":"悉尼歌剧院是……","content_urls":{"desktop":{"page":"https://zh.wikipedia.org/wiki/x"}}})");
+    QCOMPARE(sum.value("text").toString(), QStringLiteral("悉尼歌剧院是……"));
+    QCOMPARE(sum.value("url").toString(), QStringLiteral("https://zh.wikipedia.org/wiki/x"));
+    QVERIFY(PlaceInfo::parseSummary(R"({"type":"disambiguation","extract":"x"})").isEmpty());
+
+    // Commons imageinfo：按给的顺序，作者去掉 HTML
+    const QByteArray ii = R"({"query":{"pages":{
+        "-1":{"title":"File:SOH night.jpg","imageinfo":[{"thumburl":"https://upload.wikimedia.org/b.jpg","descriptionurl":"https://commons.wikimedia.org/wiki/File:SOH_night.jpg","extmetadata":{"Artist":{"value":"<a href=\"//x\">Bob</a>"},"LicenseShortName":{"value":"CC BY 2.0"}}}]},
+        "5":{"title":"File:Sydney Opera House.jpg","imageinfo":[{"thumburl":"https://upload.wikimedia.org/a.jpg","extmetadata":{"Artist":{"value":"Alice &amp; Co"},"LicenseShortName":{"value":"CC BY-SA 4.0"}}}]}}}})";
+    const QJsonArray ph = PlaceInfo::parseImageInfo(ii, { "Sydney_Opera_House.jpg", "SOH night.jpg", "Missing.jpg" });
+    QCOMPARE(ph.size(), 2);
+    QCOMPARE(ph[0].toObject().value("author").toString(), QStringLiteral("Alice & Co"));
+    QCOMPARE(ph[0].toObject().value("license").toString(), QStringLiteral("CC BY-SA 4.0"));
+    QCOMPARE(ph[1].toObject().value("author").toString(), QStringLiteral("Bob"));
+
+    // 往年同月平均：只算这个月的
+    const QByteArray cl = R"({"daily":{"time":["2024-07-31","2024-08-01","2024-08-02","2025-08-01"],
+        "temperature_2m_max":[40,20,22,24],"temperature_2m_min":[30,10,12,14],"precipitation_sum":[50,0,5,null]}})";
+    const QJsonObject c = PlaceInfo::climFromDaily(cl, 8);
+    QCOMPARE(c.value("hi").toDouble(), 22.0);
+    QCOMPARE(c.value("lo").toDouble(), 12.0);
+    QCOMPARE(c.value("years").toInt(), 2);
+    QCOMPARE(c.value("rainDays").toDouble(), 1.0);   // 1 天 / 2 年 = 0.5 → 四舍五入 1
+    QVERIFY(PlaceInfo::climFromDaily("{}", 8).isEmpty());
+}
+
+// 日出日落本机算：悉尼 2026-12-21（夏至前后）大约 05:40 日出、20:05 日落；6 月 21 日大约 07:00 / 16:55
+void TestNet::placeSunSydney()
+{
+    const auto mins = [](const QString &hm) { return hm.left(2).toInt() * 60 + hm.mid(3, 2).toInt(); };
+    const tp::map::sun::Times s = tp::map::sun::info(-33.8688, 151.2093, QStringLiteral("2026-12-21"), QStringLiteral("Australia/Sydney"));
+    QVERIFY(s.ok);
+    QVERIFY2(qAbs(mins(s.rise) - (5 * 60 + 41)) <= 10, qPrintable(s.rise));
+    QVERIFY2(qAbs(mins(s.set) - (20 * 60 + 5)) <= 10, qPrintable(s.set));
+    const tp::map::sun::Times w = tp::map::sun::info(-33.8688, 151.2093, QStringLiteral("2026-06-21"), QStringLiteral("Australia/Sydney"));
+    QVERIFY2(qAbs(mins(w.rise) - (7 * 60)) <= 10, qPrintable(w.rise));
+    QVERIFY2(qAbs(mins(w.set) - (16 * 60 + 54)) <= 10, qPrintable(w.set));
+}
+
+// 离线：没缓存时说"没联网"、不发请求；有缓存时照样显示
+void TestNet::placeOffline()
+{
+    QTemporaryDir dir;
+    NetClient net;
+    net.setOffline(true);
+    PlaceInfo p(&net);
+    p.setCacheDir(dir.path());
+    p.setToday([] { return QStringLiteral("2026-11-10"); });
+    p.setLang([] { return QStringLiteral("zh"); });
+    p.show(QStringLiteral("Sydney Opera House"), -33.8568, 151.2153, QStringLiteral("2027-03-01"), QString(), QStringLiteral("Australia/Sydney"));
+    QCOMPARE(p.info().value("state").toString(), QStringLiteral("offline"));
+    QCOMPARE(p.requests(), 0);
+    QVERIFY(p.info().contains("sun"));   // 日出日落不联网也有
+    p.putCacheForTest(QStringLiteral("Sydney Opera House"), -33.8568, 151.2153, QVariantMap{
+        { "osm", QVariantMap{ { "hours", "Mo-Su 09:00-17:00" } } }, { "qid", "Q45178" },
+        { "ent", QVariantMap{ { "qid", "Q45178" }, { "label", QVariantMap{ { "en", "Sydney Opera House" } } } } },
+        { "sum", QVariantMap{ { "zh", QVariantMap{ { "title", "悉尼歌剧院" }, { "text", "简介" }, { "url", "https://zh.wikipedia.org/wiki/x" } } } } } });
+    QCOMPARE(p.info().value("state").toString(), QStringLiteral("ok"));
+    QCOMPARE(p.info().value("title").toString(), QStringLiteral("悉尼歌剧院"));
+    QCOMPARE(p.info().value("hours").toString(), QStringLiteral("Mo-Su 09:00-17:00"));
+    // 缓存在文件里：换一个对象也读得到
+    PlaceInfo p2(&net);
+    p2.setCacheDir(dir.path());
+    p2.setLang([] { return QStringLiteral("zh"); });
+    p2.show(QStringLiteral("sydney opera house"), -33.8568, 151.2153, QString(), QString(), QString());
+    QCOMPARE(p2.info().value("text").toString(), QStringLiteral("简介"));
+    QVERIFY(!p2.info().contains("sun"));   // 没日期不算
 }
 
 QTEST_GUILESS_MAIN(TestNet)

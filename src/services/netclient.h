@@ -74,7 +74,9 @@ public:
     // GET。回调在主线程上调用；context 没了（被删）就不再回调。返回请求编号（cancel 用），被拒绝时也返回编号（回调已排队）
     // accept：请求头 Accept（默认要 JSON；瓦片要图片）
     // service：同一主机上有几项服务时点名（Open-Meteo 的海拔、时区 = elev，主机默认算 weather）；空 = 按主机算
-    quint64 get(const QUrl &url, int timeoutMs, QObject *context, Callback cb, const QByteArray &accept = QByteArrayLiteral("application/json"), const QString &service = QString());
+    // acceptLanguage：请求头 Accept-Language（1.4.0 中文维基要 zh-CN 才给简体）；空 = 不发
+    quint64 get(const QUrl &url, int timeoutMs, QObject *context, Callback cb, const QByteArray &accept = QByteArrayLiteral("application/json"), const QString &service = QString(),
+                const QByteArray &acceptLanguage = QByteArray());
     void cancel(quint64 id);
     int queued() const;   // 排队还没发出去的（测试用）
 
@@ -93,6 +95,7 @@ private:
         bool hasContext = false;
         Callback cb;
         QByteArray accept;
+        QByteArray acceptLanguage;
     };
     struct Host {
         int minIntervalMs = 0;

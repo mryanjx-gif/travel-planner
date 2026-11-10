@@ -517,6 +517,12 @@ QVariantMap sheetInfo(const Value &root, const QString &planId)
         const Value &s = stops[st[k]];
         QVariantMap sm;
         sm.insert(QStringLiteral("name"), str(s, "name"));
+        double lat = 0, lng = 0;   // 1.4.0 地点介绍按名字和坐标查
+        jsNum(s, "lat", &lat);
+        jsNum(s, "lng", &lng);
+        sm.insert(QStringLiteral("lat"), lat);
+        sm.insert(QStringLiteral("lng"), lng);
+        sm.insert(QStringLiteral("tz"), str(s, "tz"));
         const QString c = str(s, "color");
         sm.insert(QStringLiteral("color"), c.isEmpty() ? planColor(p) : c);
         sm.insert(QStringLiteral("arriveDate"), str(s, "arriveDate"));

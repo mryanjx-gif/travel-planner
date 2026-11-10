@@ -12,7 +12,7 @@ namespace {
 const QStringList &keys()
 {
     static const QStringList k{ QStringLiteral("tiles"), QStringLiteral("geocode"), QStringLiteral("routing"), QStringLiteral("rates"),
-                                QStringLiteral("weather"), QStringLiteral("climate"), QStringLiteral("elev"), QStringLiteral("ai") };
+                                QStringLiteral("weather"), QStringLiteral("climate"), QStringLiteral("elev"), QStringLiteral("place"), QStringLiteral("ai") };
     return k;
 }
 }

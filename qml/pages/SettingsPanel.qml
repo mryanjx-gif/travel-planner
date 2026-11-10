@@ -47,6 +47,7 @@ GlassPanel {
         { key: "weather", name: qsTr("天气"), use: qsTr("16 天内出发或正在旅行的计划，显示各站点的预报。"), who: qsTr("Open-Meteo（CC BY 4.0）") },
         { key: "climate", name: qsTr("气候"), use: qsTr("各站点近 10 年同一个月的平均气温和降水。"), who: qsTr("Open-Meteo 历史天气（CC BY 4.0；ERA5 · Copernicus 气候变化服务）") },
         { key: "elev", name: qsTr("海拔和时区"), use: qsTr("补站点的海拔和时区。"), who: qsTr("Open-Meteo（CC BY 4.0；海拔：Copernicus DEM GLO-90）") },
+        { key: "place", name: qsTr("地点介绍"), use: qsTr("简易面板里看某一站时，查简介、照片、开放时间。"), who: qsTr("维基百科（CC BY-SA）、Wikidata（CC0）、Wikimedia Commons（每张图的作者和授权见大图）、Nominatim · © OpenStreetMap 贡献者（ODbL）；天气 Open-Meteo（CC BY 4.0）") },
         { key: "ai", name: qsTr("AI 助手"), use: qsTr("AI 助手，用你自己的钥匙。"), who: qsTr("你选的那家：Claude（Anthropic）、DeepSeek、通义千问（阿里云百炼）、Kimi（月之暗面）、豆包（火山方舟）或自定义") }
     ]
     onSectionChanged: { flick.contentY = 0; if (section === "me") mapc.needUnlockCount(); refreshSection() }

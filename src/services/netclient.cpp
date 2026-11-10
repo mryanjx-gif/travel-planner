@@ -17,6 +17,12 @@ const NetClient::Service kServices[] = {
     { QStringLiteral("rates"), QStringLiteral("api.frankfurter.dev"), 0 },               // 汇率（main.js rates:fetch）
     { QStringLiteral("rates"), QStringLiteral("open.er-api.com"), 0 },                   // 汇率（Frankfurter 失败时）
     { QStringLiteral("tiles"), QStringLiteral("server.arcgisonline.com"), 0 },          // Esri 底图瓦片（0.8.5 起经本机瓦片服务）
+    // 1.4.0 地点介绍：维基系的 API 礼仪要求一个一个发（API:Etiquette），隔 0.2 秒
+    { QStringLiteral("place"), QStringLiteral("zh.wikipedia.org"), 200 },
+    { QStringLiteral("place"), QStringLiteral("en.wikipedia.org"), 200 },
+    { QStringLiteral("place"), QStringLiteral("www.wikidata.org"), 200 },
+    { QStringLiteral("place"), QStringLiteral("commons.wikimedia.org"), 200 },
+    { QStringLiteral("place"), QStringLiteral("upload.wikimedia.org"), 200 },
 };
 } // namespace
 
@@ -73,7 +79,7 @@ int NetClient::queued() const
     return n;
 }
 
-quint64 NetClient::get(const QUrl &url, int timeoutMs, QObject *context, Callback cb, const QByteArray &accept, const QString &service)
+quint64 NetClient::get(const QUrl &url, int timeoutMs, QObject *context, Callback cb, const QByteArray &accept, const QString &service, const QByteArray &acceptLanguage)
 {
     Job job;
     job.id = m_next++;
@@ -83,6 +89,7 @@ quint64 NetClient::get(const QUrl &url, int timeoutMs, QObject *context, Callbac
     job.hasContext = context != nullptr;
     job.cb = std::move(cb);
     job.accept = accept;
+    job.acceptLanguage = acceptLanguage;
 
     const QString scheme = url.scheme().toLower();
     const QString host = url.host().toLower();
@@ -149,6 +156,7 @@ void NetClient::start(const QString &host, Job job)
     // 用原始请求头写（Qt 6.12 的 setHeader(UserAgentHeader, QString) 有时报"QVariant of type QString cannot be used"、不生效）
     req.setRawHeader("User-Agent", m_ua.toUtf8());
     req.setRawHeader("Accept", job.accept.isEmpty() ? QByteArrayLiteral("*/*") : job.accept);
+    if (!job.acceptLanguage.isEmpty()) req.setRawHeader("Accept-Language", job.acceptLanguage);   // 1.4.0 中文维基按简体给
     QNetworkReply *reply = m_nam->get(req);
     m_inFlight.insert(job.id, reply);
     // 超时自己计（Qt 的 transferTimeout 在不同版本里报的错误码不一样，这里统一成 Timeout）

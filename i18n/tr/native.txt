@@ -1750,3 +1750,25 @@ AI 对话	AI chat
 两站之间线路不通	No rail link between these stops
 火车、地铁线路	Train and metro lines
 线路数据 © OpenStreetMap 贡献者（ODbL）	Rail data © OpenStreetMap contributors (ODbL)
+地点介绍	Place info
+简易面板里看某一站时，查简介、照片、开放时间。	Looks up an intro, photos and opening hours when you view a stop in the quick panel.
+维基百科（CC BY-SA）、Wikidata（CC0）、Wikimedia Commons（每张图的作者和授权见大图）、Nominatim · © OpenStreetMap 贡献者（ODbL）；天气 Open-Meteo（CC BY 4.0）	Wikipedia (CC BY-SA), Wikidata (CC0), Wikimedia Commons (author and license of each photo shown in the large view), Nominatim · © OpenStreetMap contributors (ODbL); weather Open-Meteo (CC BY 4.0)
+维基百科 ›	Wikipedia ›
+开放时间	Hours
+收费	Paid
+免费	Free
+官网	Website
+电话	Phone
+当天 %1	That day %1
+降水 %1%	Rain %1%
+往年 %1 月 %2–%3°C · 约 %4 天下雨	Usually in month %1: %2–%3°C · about %4 rainy days
+极昼	Midnight sun
+极夜	Polar night
+日出 %1 · 日落 %2	Sunrise %1 · Sunset %2
+正在查介绍…	Looking it up…
+没联网	Offline
+没找到这个地方的介绍	No info found for this place
+看点评	Reviews
+搜门票	Tickets
+旅行指南	Travel guide
+资料：维基百科（CC BY-SA）· Wikimedia Commons · OpenStreetMap · Wikidata · Open-Meteo	Sources: Wikipedia (CC BY-SA) · Wikimedia Commons · OpenStreetMap · Wikidata · Open-Meteo
